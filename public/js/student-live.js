@@ -278,12 +278,19 @@ function normalizeChatMessage(value) {
   return typeof value === "string" ? value.trim().slice(0, MAX_CHAT_MESSAGE_LENGTH) : "";
 }
 
+function isViewingLatestMessages(container, threshold = 36) {
+  return container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+}
+
 function appendStudentChatMessage({ sender, message, kind }) {
   const safeMessage = normalizeChatMessage(message);
   if (!safeMessage || !elements.chatBox) {
     return;
   }
 
+  // Match modern messengers: follow the newest message only while the viewer
+  // is already at the bottom. Scrolling upward keeps older messages in place.
+  const shouldFollowNewestMessage = isViewingLatestMessages(elements.chatBox);
   elements.chatEmpty?.remove();
 
   const bubble = document.createElement("article");
@@ -299,7 +306,12 @@ function appendStudentChatMessage({ sender, message, kind }) {
 
   bubble.append(senderLabel, body);
   elements.chatBox.append(bubble);
-  elements.chatBox.scrollTop = elements.chatBox.scrollHeight;
+
+  if (shouldFollowNewestMessage) {
+    requestAnimationFrame(() => {
+      elements.chatBox.scrollTop = elements.chatBox.scrollHeight;
+    });
+  }
 }
 
 function clearStudentChat() {

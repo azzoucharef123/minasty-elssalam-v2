@@ -582,9 +582,11 @@
 
       .teacher-chat-panel {
         display: grid;
-        grid-template-rows: auto minmax(7rem, 1fr) auto;
-        flex: 1 1 58%;
-        min-height: 13rem;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        flex: 0 0 auto;
+        height: clamp(18rem, 42vh, 28rem);
+        min-height: 0;
+        max-height: 28rem;
         border-top: 1px solid var(--studio-border);
       }
 
@@ -612,12 +614,13 @@
 
       .chat-box {
         display: grid;
-        align-content: start;
+        align-content: end;
         gap: 0.55rem;
         min-height: 0;
         margin: 0 0.85rem;
         padding: 0.15rem 0.1rem 0.65rem;
         overflow-y: auto;
+        overscroll-behavior: contain;
         scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
       }
 

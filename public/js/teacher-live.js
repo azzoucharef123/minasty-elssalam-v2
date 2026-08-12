@@ -91,6 +91,10 @@ function normalizeChatMessage(value) {
   return typeof value === "string" ? value.trim().slice(0, MAX_CHAT_MESSAGE_LENGTH) : "";
 }
 
+function isViewingLatestMessages(container, threshold = 36) {
+  return container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+}
+
 /** Render all chat text through textContent to prevent injected markup. */
 function appendTeacherChatMessage({ sender, message, kind }) {
   const safeMessage = normalizeChatMessage(message);
@@ -98,6 +102,9 @@ function appendTeacherChatMessage({ sender, message, kind }) {
     return;
   }
 
+  // Keep the reader's place while reviewing older chat. Only users already at
+  // the bottom are followed automatically when the next message is appended.
+  const shouldFollowNewestMessage = isViewingLatestMessages(elements.chatBox);
   elements.chatEmpty?.remove();
 
   const bubble = document.createElement("article");
@@ -113,7 +120,12 @@ function appendTeacherChatMessage({ sender, message, kind }) {
 
   bubble.append(senderLabel, body);
   elements.chatBox.append(bubble);
-  elements.chatBox.scrollTop = elements.chatBox.scrollHeight;
+
+  if (shouldFollowNewestMessage) {
+    requestAnimationFrame(() => {
+      elements.chatBox.scrollTop = elements.chatBox.scrollHeight;
+    });
+  }
 }
 
 function clearTeacherChat() {
