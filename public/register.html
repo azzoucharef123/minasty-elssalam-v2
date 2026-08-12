@@ -16,10 +16,10 @@
       <form id="register-form" class="stack-form">
         <label for="student-name">اسم التلميذ</label>
         <input id="student-name" name="studentName" type="text" required maxlength="120">
-        
+
         <label for="parent-phone">رقم هاتف الولي</label>
-        <input id="parent-phone" name="parentPhone" type="tel" placeholder="05xxxxxxxx" required>
-        
+        <input id="parent-phone" name="parentPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="05xxxxxxxx" required>
+
         <label for="student-level">المستوى الدراسي</label>
         <select id="student-level" name="level" required>
           <option value="السنة الأولى">السنة الأولى</option>
@@ -27,12 +27,13 @@
           <option value="السنة الثالثة">السنة الثالثة</option>
           <option value="السنة الرابعة">السنة الرابعة</option>
         </select>
-        
+
         <p id="register-message" class="form-message" hidden aria-live="polite"></p>
         <button id="submit-btn" class="cta-button cta-primary" type="submit">إتمام التسجيل</button>
       </form>
     </section>
   </main>
+
   <section id="registration-confirmation" class="modal" role="dialog" aria-modal="true" aria-labelledby="registration-confirmation-title" hidden>
     <div class="modal-card" role="document">
       <p class="eyebrow">تم بنجاح</p>
@@ -40,77 +41,7 @@
       <p id="registration-confirmation-text" class="muted" aria-live="polite"></p>
     </div>
   </section>
-  <script>
-    document.getElementById('register-form').addEventListener('submit', async function(e) {
-      e.preventDefault();
-      
-      const form = e.target;
-      const submitBtn = document.getElementById('submit-btn');
-      const message = document.getElementById('register-message');
-      const confirmation = document.getElementById('registration-confirmation');
-      const confirmationText = document.getElementById('registration-confirmation-text');
-      let redirectingToParentLogin = false;
-      
-      const formData = new FormData(form);
-      const payload = {
-        studentName: formData.get('studentName').trim(),
-        parentPhone: formData.get('parentPhone').trim(),
-        level: formData.get('level')
-      };
 
-      if (!payload.studentName || !payload.parentPhone || !payload.level) {
-        message.textContent = 'يرجى ملء جميع الحقول.';
-        message.classList.add('is-error');
-        message.hidden = false;
-        return;
-      }
-
-      // Reset UI
-      message.hidden = true;
-      message.textContent = '';
-      message.classList.remove('is-error');
-      submitBtn.disabled = true;
-      const originalText = submitBtn.textContent;
-      submitBtn.textContent = 'جاري التسجيل...';
-
-      try {
-        console.log('Sending registration request...', payload);
-        const response = await fetch('/api/students/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          throw new Error(data.error || 'تعذر إتمام التسجيل.');
-        }
-
-        const registeredPhone = data?.data?.parentPhone || payload.parentPhone;
-        redirectingToParentLogin = true;
-        message.hidden = true;
-        confirmationText.textContent = `تم تأكيد تسجيل ${payload.studentName} بنجاح. سيتم نقلك الآن إلى بوابة الولي.`;
-        confirmation.hidden = false;
-
-        // Preserve the exact stored phone number in the current browser session
-        // and start the secure parent-login flow automatically on arrival.
-        window.setTimeout(() => {
-          sessionStorage.setItem('pendingParentPhone', registeredPhone);
-          window.location.replace('./parent-login.html?autologin=1');
-        }, 1400);
-      } catch (error) {
-        console.error('Registration error:', error);
-        message.textContent = error.message || 'حدث خطأ في الاتصال.';
-        message.classList.add('is-error');
-        message.hidden = false;
-      } finally {
-        if (!redirectingToParentLogin) {
-          submitBtn.disabled = false;
-          submitBtn.textContent = originalText;
-        }
-      }
-    });
-  </script>
+  <script src="./js/register.js"></script>
 </body>
 </html>
