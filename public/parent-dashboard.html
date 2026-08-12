@@ -276,7 +276,7 @@
 
       .student-overview {
         display: grid;
-        grid-template-columns: minmax(0, 1.5fr) minmax(13rem, 1fr);
+        grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(12rem, 1fr));
         gap: 1rem;
         margin-bottom: 1rem;
       }
@@ -351,6 +351,27 @@
       #payment-status.is-unpaid {
         color: #b45309;
         background: #fffbeb;
+      }
+
+      .payment-card small,
+      .enrollment-card strong {
+        display: block;
+        margin-top: 0.5rem;
+        color: #475569;
+        font-size: 0.75rem;
+        font-weight: 700;
+        line-height: 1.7;
+      }
+
+      .enrollment-card {
+        padding: 1.1rem;
+      }
+
+      .enrollment-card > span {
+        display: block;
+        color: var(--parent-muted);
+        font-size: 0.72rem;
+        font-weight: 700;
       }
 
       .notes-grid {
@@ -509,6 +530,12 @@
           <article class="overview-card payment-card">
             <span>حالة الدفع</span>
             <strong id="payment-status">—</strong>
+            <small id="payment-amount" hidden></small>
+          </article>
+
+          <article class="overview-card enrollment-card">
+            <span>المواد المسجّل فيها</span>
+            <strong id="enrollment-subjects">—</strong>
           </article>
         </div>
 

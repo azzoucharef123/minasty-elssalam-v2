@@ -102,6 +102,11 @@ async function parentLogin(req, res) {
         studentName: true,
         parentPhone: true,
         level: true,
+        paymentStage: true,
+        amountDue: true,
+        mathEnrollment: true,
+        physicsEnrollment: true,
+        liveAccessEnabled: true,
       },
     });
 
@@ -125,6 +130,11 @@ async function parentLogin(req, res) {
         id: student.id,
         studentName: student.studentName,
         level: student.level,
+        paymentStage: student.paymentStage,
+        amountDue: student.amountDue,
+        mathEnrollment: student.mathEnrollment,
+        physicsEnrollment: student.physicsEnrollment,
+        liveAccessEnabled: student.liveAccessEnabled,
       },
     });
   } catch (error) {

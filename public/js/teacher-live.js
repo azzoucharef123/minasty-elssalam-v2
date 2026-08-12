@@ -39,6 +39,7 @@ const studentAudioElements = new Map();
 const iceDisconnectTimers = Object.create(null);
 const ICE_DISCONNECT_GRACE_MS = 8_000;
 let activeLevel = null;
+let activeSubject = null;
 let classActive = false;
 let isStarting = false;
 let isEnding = false;
@@ -50,6 +51,7 @@ const elements = {
   attendeesEmpty: document.getElementById("attendees-empty"),
   attendeeCount: document.getElementById("attendee-count"),
   levelSelect: document.getElementById("level-select"),
+  subjectSelect: document.getElementById("subject-select"),
   startButton: document.getElementById("start-class-btn"),
   toggleMicButton: document.getElementById("toggle-mic-btn"),
   endClassButton: document.getElementById("end-class-btn"),
@@ -342,6 +344,7 @@ function updateControls() {
 
   elements.startButton.disabled = isStarting || isEnding || classActive;
   elements.levelSelect.disabled = isStarting || isEnding || classActive;
+  elements.subjectSelect.disabled = isStarting || isEnding || classActive;
   elements.toggleMicButton.disabled = !classActive || !hasAudio || isEnding;
   elements.endClassButton.disabled = !classActive || isEnding;
   elements.chatInput.disabled = !classActive || isEnding;
@@ -819,6 +822,7 @@ async function endLiveClass({ notifyServer = true, statusMessage } = {}) {
     clearTeacherChat();
     stopLocalStreams();
     activeLevel = null;
+    activeSubject = null;
     isEnding = false;
     updateControls();
     setStudioStatus(statusMessage || "تم إنهاء الحصة المباشرة.", "neutral");
@@ -862,6 +866,8 @@ async function startLiveClass() {
   }
 
   const selectedLevel = elements.levelSelect.value;
+  const selectedSubject = elements.subjectSelect.value;
+  const selectedSubjectName = selectedSubject === "PHYSICS" ? "الفيزياء" : "الرياضيات";
   isStarting = true;
   updateControls();
   setStudioStatus("بانتظار اختيار الشاشة للمشاركة…", "neutral");
@@ -920,11 +926,15 @@ async function startLiveClass() {
     // Set state before emitting. This prevents a very fast student_joined event
     // from being ignored between the server joining the teacher room and its ACK.
     activeLevel = selectedLevel;
+    activeSubject = selectedSubject;
     classActive = true;
 
-    await emitWithAcknowledgement("teacher_start_room", { level: selectedLevel });
+    await emitWithAcknowledgement("teacher_start_room", {
+      level: selectedLevel,
+      subject: selectedSubject,
+    });
 
-    const baseMessage = `الحصة مباشرة الآن — ${selectedLevel}`;
+    const baseMessage = `الحصة مباشرة الآن — ${selectedLevel} | ${selectedSubjectName}`;
     setStudioStatus(
       microphoneUnavailableMessage ? `${baseMessage} (بدون مايك)` : baseMessage,
       "live"
@@ -933,6 +943,7 @@ async function startLiveClass() {
     console.error("Unable to start live class:", error);
     classActive = false;
     activeLevel = null;
+    activeSubject = null;
     closeAllPeerConnections();
     clearAttendees();
     stopLocalStreams();
@@ -1044,7 +1055,8 @@ socket.on("connect_error", () => {
 
 socket.on("room_ready", (data) => {
   if (data?.role === "teacher" && classActive) {
-    setStudioStatus(`الحصة مباشرة الآن — ${data.level}`, "live");
+    const subjectName = data.subject === "PHYSICS" ? "الفيزياء" : "الرياضيات";
+    setStudioStatus(`الحصة مباشرة الآن — ${data.level} | ${subjectName}`, "live");
   }
 });
 

@@ -13,6 +13,10 @@ model Student {
   parentPhone   String   @unique
   level         String
   paymentStatus     Boolean  @default(false)
+  paymentStage      String   @default("UNPAID")
+  amountDue         Int?
+  mathEnrollment    Boolean  @default(true)
+  physicsEnrollment Boolean  @default(true)
   liveAccessEnabled Boolean  @default(false)
   mathNote          String   @default("")
   physicsNote   String   @default("")

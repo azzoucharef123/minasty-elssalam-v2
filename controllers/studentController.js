@@ -8,6 +8,8 @@ const prisma = new PrismaClient();
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
+const PAYMENT_STAGES = new Set(["PAID", "UNPAID", "PROMISED"]);
+const MAX_AMOUNT_DUE = 10_000_000;
 
 class RequestValidationError extends Error {}
 
@@ -81,6 +83,10 @@ async function registerStudent(req, res) {
         parentPhone,
         level,
         paymentStatus: false,
+        paymentStage: "UNPAID",
+        amountDue: null,
+        mathEnrollment: true,
+        physicsEnrollment: true,
         liveAccessEnabled: false,
         mathNote: "",
         physicsNote: "",
@@ -172,23 +178,43 @@ async function getStudentsByLevel(req, res) {
 async function updateStudentStatusAndNotes(req, res) {
   try {
     const { id } = req.params;
-    const { paymentStatus, liveAccessEnabled, mathNote, physicsNote } = req.body || {};
+    const {
+      paymentStage,
+      amountDue,
+      mathEnrollment,
+      physicsEnrollment,
+      liveAccessEnabled,
+      mathNote,
+      physicsNote,
+    } = req.body || {};
+    const normalizedAmount = amountDue === null || amountDue === "" ? null : Number(amountDue);
 
     if (
-      typeof paymentStatus !== "boolean" ||
+      !PAYMENT_STAGES.has(paymentStage) ||
+      (normalizedAmount !== null &&
+        (!Number.isSafeInteger(normalizedAmount) ||
+          normalizedAmount < 0 ||
+          normalizedAmount > MAX_AMOUNT_DUE)) ||
+      typeof mathEnrollment !== "boolean" ||
+      typeof physicsEnrollment !== "boolean" ||
+      (!mathEnrollment && !physicsEnrollment) ||
       typeof liveAccessEnabled !== "boolean" ||
       typeof mathNote !== "string" ||
       typeof physicsNote !== "string"
     ) {
       return res.status(400).json({
-        error: "حالة الدفع وصلاحية الحصة والملاحظات يجب أن تكون بصيغة صحيحة.",
+        error: "بيانات الاشتراك والدفع والمبلغ وصلاحية الحصة أو الملاحظات غير صحيحة. يجب اختيار مادة واحدة على الأقل.",
       });
     }
 
     const student = await prisma.student.update({
       where: { id },
       data: {
-        paymentStatus,
+        paymentStatus: paymentStage === "PAID",
+        paymentStage,
+        amountDue: normalizedAmount,
+        mathEnrollment,
+        physicsEnrollment,
         liveAccessEnabled,
         mathNote: mathNote.trim(),
         physicsNote: physicsNote.trim(),

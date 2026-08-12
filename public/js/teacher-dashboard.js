@@ -27,6 +27,15 @@ const elements = {
   attendanceList: document.getElementById("attendance-list"),
   attendanceEmpty: document.getElementById("attendance-empty"),
   closeAttendanceButton: document.getElementById("close-attendance-modal"),
+  subscriptionModal: document.getElementById("subscription-modal"),
+  subscriptionForm: document.getElementById("subscription-form"),
+  subscriptionStudentName: document.getElementById("subscription-student-name"),
+  subscriptionMath: document.getElementById("subscription-math"),
+  subscriptionPhysics: document.getElementById("subscription-physics"),
+  subscriptionPaymentStage: document.getElementById("subscription-payment-stage"),
+  subscriptionAmountDue: document.getElementById("subscription-amount-due"),
+  subscriptionLiveAccess: document.getElementById("subscription-live-access"),
+  closeSubscriptionButton: document.getElementById("close-subscription-modal"),
 };
 
 let currentLevel =
@@ -35,6 +44,7 @@ let currentLevel =
 // Prompt 14 source of truth: complete API data for the selected level.
 let currentStudents = [];
 let editingStudentId = null;
+let subscriptionStudentId = null;
 let toastTimer = null;
 
 function clearTeacherSession() {
@@ -67,6 +77,22 @@ function showDashboardError(message = "") {
   elements.dashboardError.textContent = message;
   elements.dashboardError.hidden = !message;
   elements.dashboardError.classList.toggle("is-visible", Boolean(message));
+}
+
+function paymentStageMeta(student) {
+  const stage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
+  const amount = Number.isInteger(student.amountDue) ? ` — ${student.amountDue.toLocaleString("ar-DZ")} دج` : "";
+
+  if (stage === "PAID") return { label: "تم الدفع بنجاح", className: "is-paid" };
+  if (stage === "PROMISED") return { label: `اتصل بالأستاذ وسيدفع${amount}`, className: "is-unpaid" };
+  return { label: `في انتظار الدفع${amount}`, className: "is-unpaid" };
+}
+
+function enrollmentLabel(student) {
+  const subjects = [];
+  if (student.mathEnrollment) subjects.push("رياضيات");
+  if (student.physicsEnrollment) subjects.push("فيزياء");
+  return subjects.length ? subjects.join(" + ") : "غير مسجل في مادة";
 }
 
 function showToast(message) {
@@ -184,12 +210,13 @@ function renderTable(studentsArray) {
   for (const student of students) {
     const row = document.createElement("tr");
 
+    const paymentMeta = paymentStageMeta(student);
     const paymentButton = createButton(
-      student.paymentStatus ? "مدفوع" : "غير مدفوع",
-      `payment-toggle ${student.paymentStatus ? "is-paid" : "is-unpaid"}`,
-      () => togglePaymentStatus(student.id)
+      paymentMeta.label,
+      `payment-toggle ${paymentMeta.className}`,
+      () => openSubscriptionModal(student.id)
     );
-    paymentButton.setAttribute("aria-pressed", String(Boolean(student.paymentStatus)));
+    paymentButton.title = "اضغط لتعديل حالة الدفع والمبلغ";
 
     const liveAccessButton = createButton(
       student.liveAccessEnabled ? "دخول الحصة مفتوح" : "فتح دخول الحصة",
@@ -200,6 +227,12 @@ function renderTable(studentsArray) {
     liveAccessButton.title = student.liveAccessEnabled
       ? "اضغط لمنع هذا التلميذ من دخول الحصة"
       : "اضغط للسماح لهذا التلميذ بدخول الحصة";
+
+    const subscriptionButton = createButton(
+      `الاشتراك: ${enrollmentLabel(student)}`,
+      "edit-notes-btn",
+      () => openSubscriptionModal(student.id)
+    );
 
     const editButton = createButton(
       "تعديل الملاحظات",
@@ -213,7 +246,7 @@ function renderTable(studentsArray) {
     );
     const actionGroup = document.createElement("div");
     actionGroup.className = "table-action-group";
-    actionGroup.append(liveAccessButton, editButton, attendanceButton);
+    actionGroup.append(liveAccessButton, subscriptionButton, editButton, attendanceButton);
 
     row.append(
       createCell(student.studentName),
@@ -304,10 +337,20 @@ async function updateStudent(studentId, updates) {
   }
 
   const payload = {
-    paymentStatus:
-      typeof updates.paymentStatus === "boolean"
-        ? updates.paymentStatus
-        : Boolean(student.paymentStatus),
+    paymentStage:
+      typeof updates.paymentStage === "string"
+        ? updates.paymentStage
+        : student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID"),
+    amountDue:
+      Object.hasOwn(updates, "amountDue") ? updates.amountDue : student.amountDue ?? null,
+    mathEnrollment:
+      typeof updates.mathEnrollment === "boolean"
+        ? updates.mathEnrollment
+        : Boolean(student.mathEnrollment),
+    physicsEnrollment:
+      typeof updates.physicsEnrollment === "boolean"
+        ? updates.physicsEnrollment
+        : Boolean(student.physicsEnrollment),
     liveAccessEnabled:
       typeof updates.liveAccessEnabled === "boolean"
         ? updates.liveAccessEnabled
@@ -334,24 +377,6 @@ async function updateStudent(studentId, updates) {
   return data;
 }
 
-async function togglePaymentStatus(studentId) {
-  const student = currentStudents.find((item) => item.id === studentId);
-  if (!student) {
-    return;
-  }
-
-  try {
-    await updateStudent(studentId, { paymentStatus: !student.paymentStatus });
-    showToast("تم تحديث حالة الدفع بنجاح.");
-    await fetchStudents(currentLevel);
-  } catch (error) {
-    if (!/انتهت الجلسة/.test(error.message)) {
-      console.error("Unable to update payment status:", error);
-      showDashboardError(error.message || "تعذر تحديث حالة الدفع.");
-    }
-  }
-}
-
 async function toggleLiveAccess(studentId) {
   const student = currentStudents.find((item) => item.id === studentId);
   if (!student) {
@@ -368,6 +393,79 @@ async function toggleLiveAccess(studentId) {
       console.error("Unable to update live access:", error);
       showDashboardError(error.message || "تعذر تحديث صلاحية دخول الحصة.");
     }
+  }
+}
+
+function openSubscriptionModal(studentId) {
+  const student = currentStudents.find((item) => item.id === studentId);
+  if (!student || !elements.subscriptionModal) {
+    return;
+  }
+
+  subscriptionStudentId = studentId;
+  elements.subscriptionStudentName.textContent = student.studentName;
+  elements.subscriptionMath.checked = Boolean(student.mathEnrollment);
+  elements.subscriptionPhysics.checked = Boolean(student.physicsEnrollment);
+  elements.subscriptionPaymentStage.value =
+    student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
+  elements.subscriptionAmountDue.value = Number.isInteger(student.amountDue) ? student.amountDue : "";
+  elements.subscriptionLiveAccess.checked = Boolean(student.liveAccessEnabled);
+  elements.subscriptionModal.hidden = false;
+  elements.subscriptionModal.classList.add("is-open");
+}
+
+function closeSubscriptionModal() {
+  subscriptionStudentId = null;
+  elements.subscriptionModal?.classList.remove("is-open");
+  if (elements.subscriptionModal) {
+    elements.subscriptionModal.hidden = true;
+  }
+}
+
+async function saveSubscription(event) {
+  event.preventDefault();
+  if (!subscriptionStudentId) {
+    return;
+  }
+
+  const mathEnrollment = Boolean(elements.subscriptionMath?.checked);
+  const physicsEnrollment = Boolean(elements.subscriptionPhysics?.checked);
+  const paymentStage = elements.subscriptionPaymentStage.value;
+  const rawAmount = String(elements.subscriptionAmountDue?.value || "").trim();
+  const enteredAmount = rawAmount === "" ? null : Number(rawAmount);
+  const amountDue = paymentStage === "PAID" ? null : enteredAmount;
+
+  if (!mathEnrollment && !physicsEnrollment) {
+    showDashboardError("اختر مادة واحدة على الأقل للتلميذ.");
+    return;
+  }
+
+  if (amountDue !== null && (!Number.isSafeInteger(amountDue) || amountDue < 0)) {
+    showDashboardError("أدخل مبلغًا صحيحًا يساوي صفرًا أو أكبر.");
+    return;
+  }
+
+  const submitButton = elements.subscriptionForm?.querySelector("button[type='submit']");
+  if (submitButton) submitButton.disabled = true;
+
+  try {
+    await updateStudent(subscriptionStudentId, {
+      mathEnrollment,
+      physicsEnrollment,
+      paymentStage,
+      amountDue,
+      liveAccessEnabled: Boolean(elements.subscriptionLiveAccess?.checked),
+    });
+    closeSubscriptionModal();
+    showToast("تم حفظ اشتراك التلميذ وحالة الدفع.");
+    await fetchStudents(currentLevel);
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) {
+      console.error("Unable to save subscription settings:", error);
+      showDashboardError(error.message || "تعذر حفظ اشتراك التلميذ.");
+    }
+  } finally {
+    if (submitButton) submitButton.disabled = false;
   }
 }
 
@@ -540,11 +638,18 @@ if (!getTeacherToken()) {
 
   elements.editForm?.addEventListener("submit", saveEditedNotes);
   elements.cancelEditButton?.addEventListener("click", closeEditModal);
+  elements.subscriptionForm?.addEventListener("submit", saveSubscription);
+  elements.closeSubscriptionButton?.addEventListener("click", closeSubscriptionModal);
   elements.logoutButton?.addEventListener("click", logoutTeacher);
 
   elements.editModal?.addEventListener("click", (event) => {
     if (event.target === elements.editModal) {
       closeEditModal();
+    }
+  });
+  elements.subscriptionModal?.addEventListener("click", (event) => {
+    if (event.target === elements.subscriptionModal) {
+      closeSubscriptionModal();
     }
   });
   elements.closeAttendanceButton?.addEventListener("click", closeAttendanceModal);

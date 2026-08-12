@@ -132,6 +132,8 @@ const io = new Server(httpServer, {
  * Socket.io adapter (such as Redis) plus shared classroom state.
  */
 const activeTeachersByLevel = new Map();
+// Stores the subject selected for each active level: MATH or PHYSICS.
+const activeSubjectByLevel = new Map();
 
 /**
  * Tracks only active WebRTC classroom sockets, keyed by socket ID. Passive
@@ -143,6 +145,7 @@ const users = new Map();
 const MAX_LEVEL_LENGTH = 100;
 const MAX_NAME_LENGTH = 120;
 const MAX_CHAT_MESSAGE_LENGTH = 800;
+const ACTIVE_SUBJECTS = new Set(["MATH", "PHYSICS"]);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** Return a trimmed string, or an empty string for a non-string input. */
@@ -152,6 +155,10 @@ function normalizeText(value) {
 
 function isValidLevel(level) {
   return level.length > 0 && level.length <= MAX_LEVEL_LENGTH;
+}
+
+function isValidActiveSubject(subject) {
+  return ACTIVE_SUBJECTS.has(subject);
 }
 
 function isValidStudentName(studentName) {
@@ -264,6 +271,7 @@ async function closeClassroom(level, reason) {
   // Revoke authority first so no signaling event can be accepted while the
   // room is being cleaned up asynchronously.
   activeTeachersByLevel.delete(level);
+  activeSubjectByLevel.delete(level);
 
   io.to(level).emit("class_ended", { level, reason });
   // Parent dashboards join a separate passive lobby. They receive only the
@@ -324,13 +332,15 @@ io.on("connection", (socket) => {
 
       // A parent who opens the dashboard after the teacher starts must still
       // see the banner; they should not have to wait for another start event.
+      const subject = activeSubjectByLevel.get(level) || null;
       if (isClassLive) {
-        socket.emit("live_class_started", { level });
+        socket.emit("live_class_started", { level, subject });
       } else if (teacherSocketId) {
         activeTeachersByLevel.delete(level);
+        activeSubjectByLevel.delete(level);
       }
 
-      acknowledge(acknowledgement, { ok: true, level, isClassLive });
+      acknowledge(acknowledgement, { ok: true, level, subject, isClassLive });
     } catch (error) {
       console.error("[Socket.io] join_level_lobby failed:", error);
       emitClassroomError(
@@ -344,17 +354,27 @@ io.on("connection", (socket) => {
 
   /**
    * Teacher starts a classroom for exactly one study level.
-   * Payload: { level }
+   * Payload: { level, subject }
    */
   socket.on("teacher_start_room", async (data = {}, acknowledgement) => {
     try {
       const level = normalizeText(data.level);
+      const subject = normalizeText(data.subject).toUpperCase();
 
       if (!isValidLevel(level)) {
         return emitClassroomError(
           socket,
           "teacher_start_room",
           "المستوى الدراسي غير صالح.",
+          acknowledgement
+        );
+      }
+
+      if (!isValidActiveSubject(subject)) {
+        return emitClassroomError(
+          socket,
+          "teacher_start_room",
+          "اختر مادة صالحة للحصة: الرياضيات أو الفيزياء.",
           acknowledgement
         );
       }
@@ -399,6 +419,7 @@ io.on("connection", (socket) => {
       // Clear a stale mapping left by an unexpectedly terminated process/socket.
       if (!currentTeacherSocket && currentTeacherSocketId) {
         activeTeachersByLevel.delete(level);
+        activeSubjectByLevel.delete(level);
       }
 
       await socket.join(level);
@@ -406,13 +427,14 @@ io.on("connection", (socket) => {
       socket.data.roomLevel = level;
       socket.data.studentName = null;
       activeTeachersByLevel.set(level, socket.id);
+      activeSubjectByLevel.set(level, subject);
       users.set(socket.id, { role: "teacher", level, name: "الأستاذ" });
 
       // Notify only passive parent dashboards that observe this exact level.
-      io.to(`${level}_lobby`).emit("live_class_started", { level });
-      socket.emit("room_ready", { level, role: "teacher" });
-      acknowledge(acknowledgement, { ok: true, level, role: "teacher" });
-      console.info(`[Socket.io] Teacher ${socket.id} started room: ${level}`);
+      io.to(`${level}_lobby`).emit("live_class_started", { level, subject });
+      socket.emit("room_ready", { level, subject, role: "teacher" });
+      acknowledge(acknowledgement, { ok: true, level, subject, role: "teacher" });
+      console.info(`[Socket.io] Teacher ${socket.id} started room: ${level} (${subject})`);
     } catch (error) {
       console.error("[Socket.io] teacher_start_room failed:", error);
       emitClassroomError(
@@ -445,7 +467,14 @@ io.on("connection", (socket) => {
 
       const student = await prisma.student.findUnique({
         where: { id: studentId },
-        select: { id: true, studentName: true, level: true, liveAccessEnabled: true },
+        select: {
+          id: true,
+          studentName: true,
+          level: true,
+          liveAccessEnabled: true,
+          mathEnrollment: true,
+          physicsEnrollment: true,
+        },
       });
 
       if (!student || student.level !== level || !isValidStudentName(student.studentName)) {
@@ -494,6 +523,7 @@ io.on("connection", (socket) => {
       // Do not add students to a room without a reachable broadcaster.
       if (!teacherSocket || !isInLevelRoom(teacherSocket, level)) {
         activeTeachersByLevel.delete(level);
+        activeSubjectByLevel.delete(level);
         socket.emit("room_unavailable", {
           level,
           message: "لا توجد حصة مباشرة نشطة لهذا المستوى حالياً.",
@@ -502,6 +532,21 @@ io.on("connection", (socket) => {
           ok: false,
           error: "لا توجد حصة مباشرة نشطة لهذا المستوى حالياً.",
         });
+      }
+
+      const activeSubject = activeSubjectByLevel.get(level);
+      const isEligibleForActiveSubject =
+        (activeSubject === "MATH" && student.mathEnrollment) ||
+        (activeSubject === "PHYSICS" && student.physicsEnrollment);
+
+      if (!isEligibleForActiveSubject) {
+        const message =
+          activeSubject === "PHYSICS"
+            ? "أنت لست مؤهلًا لحضور هذه الحصة لأنها فيزياء وأنت لم تسجل في الفيزياء."
+            : activeSubject === "MATH"
+              ? "أنت لست مؤهلًا لحضور هذه الحصة لأنها رياضيات وأنت لم تسجل في الرياضيات."
+              : "تعذر التحقق من مادة الحصة الحالية. يرجى إعادة المحاولة.";
+        return emitClassroomError(socket, "student_join_room", message, acknowledgement);
       }
 
       const isAlreadyJoined =
