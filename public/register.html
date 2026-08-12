@@ -13,15 +13,15 @@
       <a class="brand-link" href="./index.html">أكاديمية التفوق</a>
       <p class="eyebrow">انضم إلى الأكاديمية</p>
       <h1>تسجيل تلميذ جديد</h1>
-      <form id="register-form" class="stack-form" method="POST">
+      <form id="register-form" class="stack-form">
         <label for="student-name">اسم التلميذ</label>
-        <input id="student-name" name="studentName" type="text" required maxlength="120" />
+        <input id="student-name" type="text" required maxlength="120" />
         
         <label for="parent-phone">رقم هاتف الولي</label>
-        <input id="parent-phone" name="parentPhone" type="tel" required placeholder="05xxxxxxxx" />
+        <input id="parent-phone" type="tel" required placeholder="05xxxxxxxx" />
         
         <label for="student-level">المستوى الدراسي</label>
-        <select id="student-level" name="level" required>
+        <select id="student-level" required>
           <option value="السنة الأولى">السنة الأولى</option>
           <option value="السنة الثانية">السنة الثانية</option>
           <option value="السنة الثالثة">السنة الثالثة</option>
@@ -34,22 +34,25 @@
     </section>
   </main>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    (function() {
       const form = document.getElementById('register-form');
       const message = document.getElementById('register-message');
       const submitBtn = document.getElementById('submit-btn');
 
-      form.addEventListener('submit', async (event) => {
+      if (!form) {
+        console.error('Form not found!');
+        return;
+      }
+
+      form.onsubmit = async function(event) {
         event.preventDefault();
-        event.stopPropagation();
-        
-        console.log('Form submission intercepted');
         
         message.hidden = true;
         message.textContent = '';
         message.classList.remove('is-error');
         
         submitBtn.disabled = true;
+        const originalText = submitBtn.textContent;
         submitBtn.textContent = 'جاري التسجيل...';
 
         const payload = {
@@ -58,23 +61,19 @@
           level: document.getElementById('student-level').value
         };
 
-        console.log('Sending payload:', payload);
-
         try {
           const response = await fetch('/api/students/register', {
             method: 'POST',
             headers: { 
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
+              'Content-Type': 'application/json'
             },
             body: JSON.stringify(payload)
           });
 
           const data = await response.json().catch(() => ({}));
-          console.log('Response received:', data);
 
           if (!response.ok) {
-            throw new Error(data.error || 'تعذر إتمام التسجيل. يرجى المحاولة لاحقاً.');
+            throw new Error(data.error || 'تعذر إتمام التسجيل.');
           }
 
           message.textContent = 'تم تسجيل التلميذ بنجاح. يمكنك الآن دخول بوابة الولي.';
@@ -82,16 +81,16 @@
           message.hidden = false;
           form.reset();
         } catch (error) {
-          console.error('Registration error:', error);
-          message.textContent = error.message || 'حدث خطأ في الاتصال بالخادم.';
+          message.textContent = error.message || 'حدث خطأ في الاتصال.';
           message.classList.add('is-error');
           message.hidden = false;
         } finally {
           submitBtn.disabled = false;
-          submitBtn.textContent = 'إتمام التسجيل';
+          submitBtn.textContent = originalText;
         }
-      });
-    });
+        return false;
+      };
+    })();
   </script>
 </body>
 </html>
