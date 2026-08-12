@@ -35,6 +35,7 @@ let cameraStream;
 // Extra state used to make negotiation and cleanup predictable.
 const pendingIceCandidates = Object.create(null);
 const attendeeElements = new Map();
+const studentAudioElements = new Map();
 const iceDisconnectTimers = Object.create(null);
 const ICE_DISCONNECT_GRACE_MS = 8_000;
 let activeLevel = null;
@@ -453,6 +454,51 @@ function clearAttendees() {
   updateAttendeeCount();
 }
 
+function removeStudentAudio(socketId) {
+  const audio = studentAudioElements.get(socketId);
+  if (!audio) {
+    return;
+  }
+
+  audio.pause();
+  audio.srcObject = null;
+  audio.remove();
+  studentAudioElements.delete(socketId);
+}
+
+/** Play an approved student's microphone locally in the teacher studio. */
+function attachStudentAudio(peerConnection, studentSocketId) {
+  peerConnection.ontrack = (event) => {
+    if (event.track?.kind !== "audio") {
+      return;
+    }
+
+    let audio = studentAudioElements.get(studentSocketId);
+    if (!audio) {
+      audio = document.createElement("audio");
+      audio.autoplay = true;
+      audio.playsInline = true;
+      audio.dataset.studentSocketId = studentSocketId;
+      audio.setAttribute("aria-hidden", "true");
+      audio.style.display = "none";
+      document.body.append(audio);
+      studentAudioElements.set(studentSocketId, audio);
+    }
+
+    const incomingStream = event.streams?.[0] || new MediaStream([event.track]);
+    audio.srcObject = incomingStream;
+    audio.play().catch((error) => {
+      // The teacher has already interacted with the studio controls, so this
+      // normally succeeds. If a browser blocks it, leave a clear console trace.
+      console.warn("Unable to play approved student microphone:", error);
+    });
+
+    event.track.addEventListener("ended", () => removeStudentAudio(studentSocketId), {
+      once: true,
+    });
+  };
+}
+
 function clearIceDisconnectTimer(socketId) {
   if (iceDisconnectTimers[socketId]) {
     window.clearTimeout(iceDisconnectTimers[socketId]);
@@ -485,6 +531,7 @@ function closePeerConnection(socketId) {
 
   if (peerConnection) {
     peerConnection.onicecandidate = null;
+    peerConnection.ontrack = null;
     peerConnection.onconnectionstatechange = null;
     peerConnection.oniceconnectionstatechange = null;
 
@@ -496,6 +543,7 @@ function closePeerConnection(socketId) {
   }
 
   delete pendingIceCandidates[socketId];
+  removeStudentAudio(socketId);
 }
 
 function closeAllPeerConnections() {
@@ -572,6 +620,7 @@ function createPeerConnection(studentSocketId) {
   pendingIceCandidates[studentSocketId] = [];
 
   addTeacherTracks(peerConnection);
+  attachStudentAudio(peerConnection, studentSocketId);
 
   peerConnection.onicecandidate = (event) => {
     // `null` means ICE gathering is complete; it does not need a relay.

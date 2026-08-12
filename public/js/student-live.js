@@ -31,6 +31,8 @@ let teacherSocketId = null;
 let joinedClass = false;
 let isJoining = false;
 let isMakingRenegotiationOffer = false;
+let microphoneOfferSent = false;
+let microphoneNegotiated = false;
 let microphonePermissionGranted = false;
 let isRequestingMicrophone = false;
 let handResetTimer = null;
@@ -511,6 +513,8 @@ function closePeerConnection() {
   teacherSocketId = null;
   pendingIceCandidates.length = 0;
   isMakingRenegotiationOffer = false;
+  microphoneOfferSent = false;
+  microphoneNegotiated = false;
 }
 
 /**
@@ -575,6 +579,42 @@ function emitWithAcknowledgement(eventName, payload, timeoutMs = 10_000) {
   });
 }
 
+async function negotiateStudentMicrophone() {
+  if (
+    !microphonePermissionGranted ||
+    !localAudioStream?.getAudioTracks().length ||
+    !teacherSocketId ||
+    !pc ||
+    microphoneOfferSent ||
+    microphoneNegotiated ||
+    isMakingRenegotiationOffer ||
+    pc.signalingState !== "stable"
+  ) {
+    return;
+  }
+
+  isMakingRenegotiationOffer = true;
+
+  try {
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    await emitWithAcknowledgement("webrtc_renegotiation_offer", {
+      targetSocketId: teacherSocketId,
+      sdp: pc.localDescription,
+    });
+
+    microphoneOfferSent = true;
+    setViewerStatus("جارٍ ربط مايكك بالأستاذ…", "warning");
+  } catch (error) {
+    console.error("Unable to negotiate the approved microphone track:", error);
+    microphoneOfferSent = false;
+    setViewerStatus("تعذر تشغيل المايك مع الحصة. حاول رفع اليد مرة أخرى.", "error");
+  } finally {
+    isMakingRenegotiationOffer = false;
+  }
+}
+
 function createViewerPeerConnection() {
   closePeerConnection();
 
@@ -599,37 +639,11 @@ function createViewerPeerConnection() {
    */
   pc.ontrack = attachTeacherTrack;
 
-  /**
-   * Adding a microphone track after teacher approval triggers this callback.
-   * It creates a follow-up offer routed only to the remembered teacher socket.
-   */
-  pc.onnegotiationneeded = async () => {
-    if (
-      !microphonePermissionGranted ||
-      !teacherSocketId ||
-      !pc ||
-      isMakingRenegotiationOffer ||
-      pc.signalingState !== "stable"
-    ) {
-      return;
-    }
-
-    isMakingRenegotiationOffer = true;
-
-    try {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      await emitWithAcknowledgement("webrtc_renegotiation_offer", {
-        targetSocketId: teacherSocketId,
-        sdp: pc.localDescription,
-      });
-    } catch (error) {
-      console.error("Unable to renegotiate the approved microphone track:", error);
-      setViewerStatus("تعذر تشغيل المايك مع الحصة.", "error");
-    } finally {
-      isMakingRenegotiationOffer = false;
-    }
+  // Browsers may coalesce or delay negotiationneeded. The track-addition path
+  // calls negotiateStudentMicrophone directly as the reliable primary route;
+  // this handler remains a safe fallback.
+  pc.onnegotiationneeded = () => {
+    void negotiateStudentMicrophone();
   };
 
   pc.onconnectionstatechange = () => {
@@ -739,7 +753,9 @@ async function enableApprovedMicrophone() {
     });
 
     updateMicControl();
-    setViewerStatus("تم تشغيل المايك بعد موافقة الأستاذ.", "live");
+    // Do not depend only on negotiationneeded: explicitly create the offer so
+    // the approved microphone works consistently across browsers.
+    await negotiateStudentMicrophone();
   } catch (error) {
     console.error("Unable to access student microphone:", error);
     microphonePermissionGranted = false;
@@ -995,6 +1011,9 @@ socket.on("webrtc_renegotiation_answer", async (data = {}) => {
   try {
     await pc.setRemoteDescription(new RTCSessionDescription(sdp));
     await flushPendingIceCandidates();
+    microphoneNegotiated = true;
+    microphoneOfferSent = true;
+    updateMicControl();
     setViewerStatus("صوت المايك متصل بالحصة.", "live");
   } catch (error) {
     console.error("Unable to apply microphone renegotiation answer:", error);
