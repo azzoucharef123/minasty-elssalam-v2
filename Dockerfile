@@ -6,9 +6,11 @@ RUN apt-get update -y && apt-get install -y openssl sqlite3 && rm -rf /var/lib/a
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install && npx prisma generate
+RUN npm install
 
 COPY . .
+
+RUN npx prisma generate
 
 # Environment variables
 ENV PORT=3000
