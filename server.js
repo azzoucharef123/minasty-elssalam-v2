@@ -97,19 +97,17 @@ app.use((req, res, next) => {
 // so both login endpoints and resource endpoints remain available under /api.
 const authRoutes = require("./routes/authRoutes");
 const studentRoutes = require("./routes/studentRoutes");
-const materialRoutes = require("./routes/materialRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/students", studentRoutes);
-app.use("/api/materials", materialRoutes);
 app.use("/api/attendance", attendanceRoutes);
 
-// Serve uploaded materials from the durable production mount when UPLOAD_DIR is set.
-// The default remains public/uploads for the local SQLite preview.
-const uploadDirectory =
-  process.env.UPLOAD_DIR || path.join(__dirname, "public", "uploads");
-app.use("/uploads", express.static(uploadDirectory));
+// Course-material uploads are intentionally disabled. Block the legacy public
+// path before the general static middleware so old files cannot be downloaded.
+app.use("/uploads", (_req, res) => {
+  res.status(410).json({ error: "تم إيقاف ميزة المواد التعليمية." });
+});
 
 // Serve index.html, the registration flow, and the portal pages from /public.
 app.use(express.static(path.join(__dirname, "public")));

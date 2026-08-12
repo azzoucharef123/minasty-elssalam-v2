@@ -22,12 +22,6 @@ const elements = {
   summaryPaid: document.getElementById("summary-paid"),
   summaryUnpaid: document.getElementById("summary-unpaid"),
   filteredResultsLabel: document.getElementById("filtered-results-label"),
-  materialUploadForm: document.getElementById("material-upload-form"),
-  materialTitle: document.getElementById("material-title"),
-  materialLevel: document.getElementById("material-level"),
-  materialFile: document.getElementById("material-file"),
-  materialUploadSubmit: document.getElementById("material-upload-submit"),
-  materialUploadStatus: document.getElementById("material-upload-status"),
   attendanceModal: document.getElementById("attendance-modal"),
   attendanceStudentName: document.getElementById("attendance-student-name"),
   attendanceList: document.getElementById("attendance-list"),
@@ -73,16 +67,6 @@ function showDashboardError(message = "") {
   elements.dashboardError.textContent = message;
   elements.dashboardError.hidden = !message;
   elements.dashboardError.classList.toggle("is-visible", Boolean(message));
-}
-
-function showMaterialUploadStatus(message = "", isError = false) {
-  if (!elements.materialUploadStatus) {
-    return;
-  }
-
-  elements.materialUploadStatus.textContent = message;
-  elements.materialUploadStatus.hidden = !message;
-  elements.materialUploadStatus.classList.toggle("is-error", Boolean(message) && isError);
 }
 
 function showToast(message) {
@@ -138,12 +122,6 @@ function setCurrentLevelHeading(level) {
     elements.currentLevelTitle.textContent = level;
   }
 
-  if (
-    elements.materialLevel &&
-    Array.from(elements.materialLevel.options).some((option) => option.value === level)
-  ) {
-    elements.materialLevel.value = level;
-  }
 }
 
 function truncateText(value, maxLength = 55) {
@@ -305,58 +283,6 @@ async function fetchStudents(level = currentLevel) {
     if (!/انتهت الجلسة/.test(error.message)) {
       console.error("Unable to fetch teacher roster:", error);
       showDashboardError(error.message || "تعذر تحميل قائمة التلاميذ.");
-    }
-  }
-}
-
-async function uploadMaterial(event) {
-  event.preventDefault();
-
-  if (!elements.materialUploadForm || !elements.materialFile?.files?.[0]) {
-    showMaterialUploadStatus("اختر ملفاً قبل رفعه.", true);
-    return;
-  }
-
-  const formData = new FormData(elements.materialUploadForm);
-  const title = String(formData.get("title") || "").trim();
-  const level = String(formData.get("level") || "").trim();
-
-  if (!title || !level) {
-    showMaterialUploadStatus("أدخل عنوان الملف واختر المستوى الدراسي.", true);
-    return;
-  }
-
-  elements.materialUploadSubmit.disabled = true;
-  showMaterialUploadStatus("جارٍ رفع الملف ومشاركته…");
-
-  try {
-    // Do not set Content-Type here: the browser must provide the multipart
-    // boundary for FormData. teacherFetch adds Authorization only.
-    const response = await teacherFetch("/api/materials", {
-      method: "POST",
-      headers: { Accept: "application/json" },
-      body: formData,
-    });
-    const payload = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(payload.error || "تعذر رفع الملف.");
-    }
-
-    elements.materialUploadForm.reset();
-    if (elements.materialLevel) {
-      elements.materialLevel.value = currentLevel;
-    }
-    showMaterialUploadStatus("تمت مشاركة الملف بنجاح مع هذا المستوى.");
-    showToast("تم رفع الملف ومشاركته بنجاح.");
-  } catch (error) {
-    if (!/انتهت الجلسة/.test(error.message)) {
-      console.error("Unable to upload material:", error);
-      showMaterialUploadStatus(error.message || "تعذر رفع الملف.", true);
-    }
-  } finally {
-    if (elements.materialUploadSubmit) {
-      elements.materialUploadSubmit.disabled = false;
     }
   }
 }
@@ -597,7 +523,6 @@ if (!getTeacherToken()) {
 
   elements.searchInput?.addEventListener("input", applyFilters);
   elements.paymentFilter?.addEventListener("change", applyFilters);
-  elements.materialUploadForm?.addEventListener("submit", uploadMaterial);
 
   fetchStudents(currentLevel);
 }

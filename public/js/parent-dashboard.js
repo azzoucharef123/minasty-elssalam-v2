@@ -320,7 +320,6 @@ async function loadDashboard() {
 
     elements.dashboardContent.hidden = false;
     emitLobbyJoin(currentStudent.level);
-    void loadMaterials(currentStudent.level);
     void loadAttendanceCount(currentStudent.id);
   } catch (error) {
     if (!/انتهت الجلسة/.test(error.message)) {
