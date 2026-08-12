@@ -756,9 +756,41 @@ io.on("connection", (socket) => {
   });
 
   /**
-   * Teacher grants microphone permission to one same-level student.
-   * Payload: { targetSocketId }
+   * Teacher directly opens or closes a same-level student's microphone.
+   * This command is independent of hand-raising, while preserving the same
+   * room and role authorization boundaries.
+   * Payload: { targetSocketId, enabled }
    */
+  socket.on("teacher_set_mic", (data = {}, acknowledgement) => {
+    const level = socket.data.roomLevel;
+    const targetSocketId = normalizeText(data.targetSocketId);
+    const targetSocket = io.sockets.sockets.get(targetSocketId);
+    const enabled = data.enabled !== false;
+
+    if (
+      socket.data.role !== "teacher" ||
+      activeTeachersByLevel.get(level) !== socket.id ||
+      !isValidSocketId(targetSocketId) ||
+      !shareSameClassroom(socket, targetSocket, level) ||
+      targetSocket.data.role !== "student"
+    ) {
+      return emitClassroomError(
+        socket,
+        "teacher_set_mic",
+        "تعذر تغيير حالة مايك هذا التلميذ.",
+        acknowledgement
+      );
+    }
+
+    io.to(targetSocketId).emit(
+      enabled ? "permission_granted" : "microphone_revoked",
+      { level }
+    );
+    acknowledge(acknowledgement, { ok: true, enabled });
+  });
+
+  // Kept as a compatibility route for teacher pages that are still open while
+  // the new client bundle is being deployed.
   socket.on("teacher_approve_mic", (data = {}, acknowledgement) => {
     const level = socket.data.roomLevel;
     const targetSocketId = normalizeText(data.targetSocketId);
@@ -780,7 +812,7 @@ io.on("connection", (socket) => {
     }
 
     io.to(targetSocketId).emit("permission_granted", { level });
-    acknowledge(acknowledgement, { ok: true });
+    acknowledge(acknowledgement, { ok: true, enabled: true });
   });
 
   /**

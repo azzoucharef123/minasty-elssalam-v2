@@ -1003,6 +1003,26 @@ function toggleCamera() {
   updateControls();
 }
 
+function syncStudentMicButton(attendee, socketId, enabled = false) {
+  let button = attendee.querySelector(".attendee-mic-button");
+
+  if (!button) {
+    button = document.createElement("button");
+    button.type = "button";
+    button.className = "attendee-mic-button";
+    button.addEventListener("click", () => {
+      const currentlyEnabled = button.dataset.enabled === "true";
+      void setStudentMicrophone(socketId, !currentlyEnabled, button);
+    });
+    attendee.append(button);
+  }
+
+  button.dataset.enabled = String(enabled);
+  button.classList.toggle("is-open", enabled);
+  button.textContent = enabled ? "إغلاق المايك" : "فتح المايك";
+  return button;
+}
+
 function markHandRaised(socketId, studentName) {
   const attendee = upsertAttendee(socketId, studentName);
   attendee.classList.add("is-hand-raised");
@@ -1014,41 +1034,41 @@ function markHandRaised(socketId, studentName) {
     attendee.querySelector(".attendee-details").append(handLabel);
   }
 
-  if (!attendee.querySelector(".attendee-mic-button")) {
-    const approveButton = document.createElement("button");
-    approveButton.type = "button";
-    approveButton.className = "attendee-mic-button";
-    approveButton.textContent = "قبول المايك";
-    approveButton.addEventListener("click", () => {
-      approveStudentMicrophone(socketId, approveButton);
-    });
-    attendee.append(approveButton);
-  }
+  syncStudentMicButton(attendee, socketId, false);
 }
 
-async function approveStudentMicrophone(socketId, button) {
+async function setStudentMicrophone(socketId, enabled, button) {
   if (!classActive) {
     return;
   }
 
   button.disabled = true;
-  button.textContent = "جارٍ القبول…";
+  button.textContent = enabled ? "جارٍ فتح المايك…" : "جارٍ إغلاق المايك…";
 
   try {
-    await emitWithAcknowledgement("teacher_approve_mic", {
+    await emitWithAcknowledgement("teacher_set_mic", {
       targetSocketId: socketId,
+      enabled,
     });
 
     const attendee = attendeeElements.get(socketId);
-    attendee?.classList.remove("is-hand-raised");
+    attendee?.classList.toggle("is-hand-raised", false);
     attendee?.querySelector(".attendee-hand")?.remove();
-    button.remove();
-    setStudioStatus("تم منح إذن المايك للتلميذ.", "live");
+
+    if (attendee) {
+      syncStudentMicButton(attendee, socketId, enabled);
+    }
+
+    setStudioStatus(
+      enabled ? "تم فتح مايك التلميذ." : "تم إغلاق مايك التلميذ.",
+      "live"
+    );
   } catch (error) {
-    console.error("Unable to approve student microphone:", error);
+    console.error("Unable to change the student microphone state:", error);
+    button.textContent = button.dataset.enabled === "true" ? "إغلاق المايك" : "فتح المايك";
+    setStudioStatus(error.message || "تعذر تغيير حالة المايك.", "error");
+  } finally {
     button.disabled = false;
-    button.textContent = "قبول المايك";
-    setStudioStatus(error.message || "تعذر منح إذن المايك.", "error");
   }
 }
 
@@ -1077,7 +1097,8 @@ socket.on("student_joined", async (data = {}) => {
     return;
   }
 
-  upsertAttendee(socketId, studentName || "تلميذ");
+  const attendee = upsertAttendee(socketId, studentName || "تلميذ");
+  syncStudentMicButton(attendee, socketId, false);
   await createAndSendOffer(socketId);
 });
 

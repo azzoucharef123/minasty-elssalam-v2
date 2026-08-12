@@ -805,7 +805,7 @@ async function joinClass() {
     elements.raiseHandButton.hidden = false;
     setRaisedHandState({ waiting: false });
     updateChatControls();
-    setViewerStatus("انضممت إلى الحصة. بانتظار البث…", "warning");
+    setViewerStatus("انضممت إلى الحصة. جاري استقبال بث الأستاذ…", "warning");
   } catch (error) {
     console.error("Unable to join classroom:", error);
     joinedClass = false;
@@ -1028,9 +1028,27 @@ socket.on("permission_granted", async () => {
 
   microphonePermissionGranted = true;
   clearHandResetTimer();
+  // Resolve the student's request immediately. The waiting label must never
+  // remain visible after the teacher has made a microphone decision.
+  setRaisedHandState({ waiting: false });
   elements.raiseHandButton.hidden = true;
   updateMicControl();
   await enableApprovedMicrophone();
+});
+
+socket.on("microphone_revoked", () => {
+  clearHandResetTimer();
+  microphonePermissionGranted = false;
+
+  const audioTrack = localAudioStream?.getAudioTracks()[0];
+  if (audioTrack) {
+    audioTrack.enabled = false;
+  }
+
+  setRaisedHandState({ waiting: false });
+  elements.raiseHandButton.hidden = !joinedClass;
+  updateMicControl();
+  setViewerStatus("أغلق الأستاذ المايك. يمكنك رفع اليد عند الحاجة.", "neutral");
 });
 
 socket.on("teacher_disconnected", () => {
@@ -1106,8 +1124,14 @@ if (!studentId || !studentName || !level) {
   window.location.replace("./parent-login.html");
 } else {
   elements.classLevelLabel.textContent = level;
-  setPlaceholder("انضم إلى الحصة عند جاهزيتك", "ستظهر مشاركة الأستاذ هنا بعد بدء البث.");
+  setPlaceholder("جاري الدخول إلى الحصة", "سيظهر بث الأستاذ تلقائيًا عند توفر الحصة.");
   updateMicControl();
   updateChatControls();
-  setViewerStatus("جاهز للانضمام", "neutral");
+  setViewerStatus("جاري الاتصال بالحصة…", "neutral");
+  // The viewer is opened only from a verified parent/student session. Join
+  // automatically so the learner receives the teacher's live screen and audio
+  // without having to discover or press an extra button.
+  window.setTimeout(() => {
+    void joinClass();
+  }, 0);
 }
