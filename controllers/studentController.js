@@ -81,6 +81,7 @@ async function registerStudent(req, res) {
         parentPhone,
         level,
         paymentStatus: false,
+        liveAccessEnabled: false,
         mathNote: "",
         physicsNote: "",
       },
@@ -171,15 +172,16 @@ async function getStudentsByLevel(req, res) {
 async function updateStudentStatusAndNotes(req, res) {
   try {
     const { id } = req.params;
-    const { paymentStatus, mathNote, physicsNote } = req.body || {};
+    const { paymentStatus, liveAccessEnabled, mathNote, physicsNote } = req.body || {};
 
     if (
       typeof paymentStatus !== "boolean" ||
+      typeof liveAccessEnabled !== "boolean" ||
       typeof mathNote !== "string" ||
       typeof physicsNote !== "string"
     ) {
       return res.status(400).json({
-        error: "حالة الدفع وملاحظات الرياضيات والفيزياء يجب أن تكون بصيغة صحيحة.",
+        error: "حالة الدفع وصلاحية الحصة والملاحظات يجب أن تكون بصيغة صحيحة.",
       });
     }
 
@@ -187,6 +189,7 @@ async function updateStudentStatusAndNotes(req, res) {
       where: { id },
       data: {
         paymentStatus,
+        liveAccessEnabled,
         mathNote: mathNote.trim(),
         physicsNote: physicsNote.trim(),
       },

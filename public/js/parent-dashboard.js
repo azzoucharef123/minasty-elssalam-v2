@@ -337,6 +337,13 @@ function enterLiveClass() {
     return;
   }
 
+  if (!currentStudent.liveAccessEnabled) {
+    showError(
+      "لم تقم بالدفع ولم تخبر الأستاذ أنك ستدفع. يجب الاتصال به على الرقم 0556960950 فورًا."
+    );
+    return;
+  }
+
   persistStudentSession(currentStudent);
   window.location.assign("./student-live.html");
 }

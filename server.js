@@ -445,7 +445,7 @@ io.on("connection", (socket) => {
 
       const student = await prisma.student.findUnique({
         where: { id: studentId },
-        select: { id: true, studentName: true, level: true },
+        select: { id: true, studentName: true, level: true, liveAccessEnabled: true },
       });
 
       if (!student || student.level !== level || !isValidStudentName(student.studentName)) {
@@ -453,6 +453,15 @@ io.on("connection", (socket) => {
           socket,
           "student_join_room",
           "تعذر التحقق من بيانات التلميذ لهذا المستوى.",
+          acknowledgement
+        );
+      }
+
+      if (!student.liveAccessEnabled) {
+        return emitClassroomError(
+          socket,
+          "student_join_room",
+          "لم تقم بالدفع ولم تخبر الأستاذ أنك ستدفع. يجب الاتصال به على الرقم 0556960950 فورًا.",
           acknowledgement
         );
       }

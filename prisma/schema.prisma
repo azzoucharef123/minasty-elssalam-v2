@@ -12,8 +12,9 @@ model Student {
   studentName   String
   parentPhone   String   @unique
   level         String
-  paymentStatus Boolean  @default(false)
-  mathNote      String   @default("")
+  paymentStatus     Boolean  @default(false)
+  liveAccessEnabled Boolean  @default(false)
+  mathNote          String   @default("")
   physicsNote   String   @default("")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

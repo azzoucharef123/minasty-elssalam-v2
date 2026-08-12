@@ -825,8 +825,15 @@ async function joinClass() {
     elements.joinButton.disabled = false;
     setButtonLabel(elements.joinButton, "انضمام للحصة");
     updateChatControls();
-    setViewerStatus(error.message || "تعذر الانضمام إلى الحصة.", "error");
-    setPlaceholder("الحصة غير متاحة", "تأكد من أن الأستاذ بدأ الحصة ثم حاول مرة أخرى.");
+    const joinErrorMessage = error.message || "تعذر الانضمام إلى الحصة.";
+    const isLiveAccessBlocked = joinErrorMessage.includes("لم تقم بالدفع");
+    setViewerStatus(joinErrorMessage, "error");
+    setPlaceholder(
+      isLiveAccessBlocked ? "دخول الحصة غير متاح" : "الحصة غير متاحة",
+      isLiveAccessBlocked
+        ? joinErrorMessage
+        : "تأكد من أن الأستاذ بدأ الحصة ثم حاول مرة أخرى."
+    );
   }
 }
 

@@ -191,6 +191,16 @@ function renderTable(studentsArray) {
     );
     paymentButton.setAttribute("aria-pressed", String(Boolean(student.paymentStatus)));
 
+    const liveAccessButton = createButton(
+      student.liveAccessEnabled ? "دخول الحصة مفتوح" : "فتح دخول الحصة",
+      `payment-toggle ${student.liveAccessEnabled ? "is-paid" : "is-unpaid"}`,
+      () => toggleLiveAccess(student.id)
+    );
+    liveAccessButton.setAttribute("aria-pressed", String(Boolean(student.liveAccessEnabled)));
+    liveAccessButton.title = student.liveAccessEnabled
+      ? "اضغط لمنع هذا التلميذ من دخول الحصة"
+      : "اضغط للسماح لهذا التلميذ بدخول الحصة";
+
     const editButton = createButton(
       "تعديل الملاحظات",
       "edit-notes-btn",
@@ -203,7 +213,7 @@ function renderTable(studentsArray) {
     );
     const actionGroup = document.createElement("div");
     actionGroup.className = "table-action-group";
-    actionGroup.append(editButton, attendanceButton);
+    actionGroup.append(liveAccessButton, editButton, attendanceButton);
 
     row.append(
       createCell(student.studentName),
@@ -298,6 +308,10 @@ async function updateStudent(studentId, updates) {
       typeof updates.paymentStatus === "boolean"
         ? updates.paymentStatus
         : Boolean(student.paymentStatus),
+    liveAccessEnabled:
+      typeof updates.liveAccessEnabled === "boolean"
+        ? updates.liveAccessEnabled
+        : Boolean(student.liveAccessEnabled),
     physicsNote:
       typeof updates.physicsNote === "string" ? updates.physicsNote : student.physicsNote || "",
     mathNote: typeof updates.mathNote === "string" ? updates.mathNote : student.mathNote || "",
@@ -334,6 +348,25 @@ async function togglePaymentStatus(studentId) {
     if (!/انتهت الجلسة/.test(error.message)) {
       console.error("Unable to update payment status:", error);
       showDashboardError(error.message || "تعذر تحديث حالة الدفع.");
+    }
+  }
+}
+
+async function toggleLiveAccess(studentId) {
+  const student = currentStudents.find((item) => item.id === studentId);
+  if (!student) {
+    return;
+  }
+
+  try {
+    const nextValue = !Boolean(student.liveAccessEnabled);
+    await updateStudent(studentId, { liveAccessEnabled: nextValue });
+    showToast(nextValue ? "تم السماح للتلميذ بدخول الحصة." : "تم منع التلميذ من دخول الحصة.");
+    await fetchStudents(currentLevel);
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) {
+      console.error("Unable to update live access:", error);
+      showDashboardError(error.message || "تعذر تحديث صلاحية دخول الحصة.");
     }
   }
 }
