@@ -6,7 +6,7 @@ RUN apt-get update -y && apt-get install -y openssl sqlite3 && rm -rf /var/lib/a
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm install && npx prisma generate
 
 COPY . .
 
