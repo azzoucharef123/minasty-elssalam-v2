@@ -1,11 +1,11 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>تسجيل تلميذ جديد | أكاديمية التفوق</title>
-  <link rel="stylesheet" href="./css/style.css" />
-  <link rel="stylesheet" href="./css/app.css" />
+  <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/app.css">
 </head>
 <body class="app-shell">
   <main class="auth-layout">
@@ -13,15 +13,15 @@
       <a class="brand-link" href="./index.html">أكاديمية التفوق</a>
       <p class="eyebrow">انضم إلى الأكاديمية</p>
       <h1>تسجيل تلميذ جديد</h1>
-      <div class="stack-form">
+      <form id="register-form" class="stack-form">
         <label for="student-name">اسم التلميذ</label>
-        <input id="student-name" type="text" maxlength="120" />
+        <input id="student-name" name="studentName" type="text" required maxlength="120">
         
         <label for="parent-phone">رقم هاتف الولي</label>
-        <input id="parent-phone" type="tel" placeholder="05xxxxxxxx" />
+        <input id="parent-phone" name="parentPhone" type="tel" placeholder="05xxxxxxxx" required>
         
         <label for="student-level">المستوى الدراسي</label>
-        <select id="student-level">
+        <select id="student-level" name="level" required>
           <option value="السنة الأولى">السنة الأولى</option>
           <option value="السنة الثانية">السنة الثانية</option>
           <option value="السنة الثالثة">السنة الثالثة</option>
@@ -29,71 +29,70 @@
         </select>
         
         <p id="register-message" class="form-message" hidden aria-live="polite"></p>
-        <button id="submit-btn" class="cta-button cta-primary" type="button">إتمام التسجيل</button>
-      </div>
+        <button id="submit-btn" class="cta-button cta-primary" type="submit">إتمام التسجيل</button>
+      </form>
     </section>
   </main>
   <script>
-    (function() {
+    document.getElementById('register-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const form = e.target;
       const submitBtn = document.getElementById('submit-btn');
       const message = document.getElementById('register-message');
-
-      if (!submitBtn) return;
-
-      submitBtn.onclick = async function() {
-        const nameInput = document.getElementById('student-name');
-        const phoneInput = document.getElementById('parent-phone');
-        const levelSelect = document.getElementById('student-level');
-
-        const studentName = nameInput.value.trim();
-        const parentPhone = phoneInput.value.trim();
-        const level = levelSelect.value;
-
-        if (!studentName || !parentPhone || !level) {
-          message.textContent = 'يرجى ملء جميع الحقول.';
-          message.classList.add('is-error');
-          message.hidden = false;
-          return;
-        }
-
-        // Reset UI
-        message.hidden = true;
-        message.textContent = '';
-        message.classList.remove('is-error');
-        submitBtn.disabled = true;
-        const originalText = submitBtn.textContent;
-        submitBtn.textContent = 'جاري التسجيل...';
-
-        try {
-          const response = await fetch('/api/students/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ studentName, parentPhone, level })
-          });
-
-          const data = await response.json().catch(() => ({}));
-
-          if (!response.ok) {
-            throw new Error(data.error || 'تعذر إتمام التسجيل.');
-          }
-
-          message.textContent = 'تم تسجيل التلميذ بنجاح. يمكنك الآن دخول بوابة الولي.';
-          message.classList.remove('is-error');
-          message.hidden = false;
-          
-          // Clear inputs
-          nameInput.value = '';
-          phoneInput.value = '';
-        } catch (error) {
-          message.textContent = error.message || 'حدث خطأ في الاتصال.';
-          message.classList.add('is-error');
-          message.hidden = false;
-        } finally {
-          submitBtn.disabled = false;
-          submitBtn.textContent = originalText;
-        }
+      
+      const formData = new FormData(form);
+      const payload = {
+        studentName: formData.get('studentName').trim(),
+        parentPhone: formData.get('parentPhone').trim(),
+        level: formData.get('level')
       };
-    })();
+
+      if (!payload.studentName || !payload.parentPhone || !payload.level) {
+        message.textContent = 'يرجى ملء جميع الحقول.';
+        message.classList.add('is-error');
+        message.hidden = false;
+        return;
+      }
+
+      // Reset UI
+      message.hidden = true;
+      message.textContent = '';
+      message.classList.remove('is-error');
+      submitBtn.disabled = true;
+      const originalText = submitBtn.textContent;
+      submitBtn.textContent = 'جاري التسجيل...';
+
+      try {
+        console.log('Sending registration request...', payload);
+        const response = await fetch('/api/students/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data.error || 'تعذر إتمام التسجيل.');
+        }
+
+        message.textContent = 'تم تسجيل التلميذ بنجاح. يمكنك الآن دخول بوابة الولي.';
+        message.classList.remove('is-error');
+        message.hidden = false;
+        
+        // Clear inputs
+        form.reset();
+      } catch (error) {
+        console.error('Registration error:', error);
+        message.textContent = error.message || 'حدث خطأ في الاتصال.';
+        message.classList.add('is-error');
+        message.hidden = false;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+      }
+    });
   </script>
 </body>
 </html>
