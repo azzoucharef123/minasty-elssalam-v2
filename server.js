@@ -84,6 +84,12 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "100kb" }));
 
+// Simple request logger
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
 // REST API routes. Authentication is mounted before protected student routes
 // so both login endpoints and resource endpoints remain available under /api.
 const authRoutes = require("./routes/authRoutes");
