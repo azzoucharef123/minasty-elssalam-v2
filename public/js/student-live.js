@@ -16,6 +16,7 @@ const rtcConfig = {
 // Required viewer state for this phase.
 let pc;
 let localAudioStream;
+let remoteMediaStream;
 
 let teacherSocketId = null;
 let joinedClass = false;
@@ -33,6 +34,7 @@ const receivedAnnotationSegments = [];
 
 const elements = {
   remoteVideo: document.getElementById("remote-video"),
+  enableAudioButton: document.getElementById("enable-audio-btn"),
   placeholder: document.getElementById("video-placeholder"),
   placeholderTitle: document.getElementById("placeholder-title"),
   placeholderDescription: document.getElementById("placeholder-description"),
@@ -382,6 +384,86 @@ function stopLocalAudio() {
   updateMicControl();
 }
 
+function updateRemoteAudioControl() {
+  const hasLiveRemoteAudio = Boolean(
+    remoteMediaStream?.getAudioTracks().some((track) => track.readyState === "live")
+  );
+
+  if (!elements.enableAudioButton) {
+    return;
+  }
+
+  elements.enableAudioButton.hidden = !hasLiveRemoteAudio || !elements.remoteVideo.muted;
+}
+
+async function enableTeacherAudio() {
+  if (!remoteMediaStream) {
+    return;
+  }
+
+  elements.enableAudioButton.disabled = true;
+  elements.remoteVideo.muted = false;
+
+  try {
+    await elements.remoteVideo.play();
+    setViewerStatus("صوت الأستاذ يعمل الآن.", "live");
+  } catch (error) {
+    // Keep the video view usable even when a browser still requires another
+    // explicit permission or user interaction before it will play sound.
+    console.warn("Unable to unmute teacher audio:", error);
+    elements.remoteVideo.muted = true;
+    setViewerStatus("اضغط تشغيل صوت الأستاذ مرة أخرى للسماح بالصوت.", "warning");
+  } finally {
+    elements.enableAudioButton.disabled = false;
+    updateRemoteAudioControl();
+  }
+}
+
+function resetRemoteMedia() {
+  remoteMediaStream = undefined;
+  elements.remoteVideo.srcObject = null;
+  elements.remoteVideo.muted = true;
+  updateRemoteAudioControl();
+}
+
+function attachTeacherTrack(event) {
+  const track = event.track;
+  if (!track) {
+    return;
+  }
+
+  if (!remoteMediaStream) {
+    remoteMediaStream = new MediaStream();
+    elements.remoteVideo.srcObject = remoteMediaStream;
+  }
+
+  const alreadyAdded = remoteMediaStream
+    .getTracks()
+    .some((currentTrack) => currentTrack.id === track.id);
+
+  if (!alreadyAdded) {
+    remoteMediaStream.addTrack(track);
+  }
+
+  if (track.kind === "video") {
+    requestAnimationFrame(resizeStudentCanvas);
+    elements.placeholder.hidden = true;
+    hideConnectionOverlay();
+    setViewerStatus("صورة الحصة المباشرة متصلة.", "live");
+  }
+
+  track.addEventListener("ended", updateRemoteAudioControl, { once: true });
+  track.addEventListener("unmute", updateRemoteAudioControl);
+  updateRemoteAudioControl();
+
+  // The video is deliberately muted first so browsers can start the display
+  // without blocking it. The viewer can then explicitly enable sound.
+  elements.remoteVideo.play().catch((error) => {
+    console.warn("Unable to start remote classroom video:", error);
+    setViewerStatus("اضغط زر تشغيل الفيديو في المشغّل لبدء العرض.", "warning");
+  });
+}
+
 function closePeerConnection() {
   if (pc) {
     pc.onicecandidate = null;
@@ -413,7 +495,7 @@ function resetViewerState({ message, mode = "neutral", showJoin = true } = {}) {
   joinedClass = false;
   isJoining = false;
 
-  elements.remoteVideo.srcObject = null;
+  resetRemoteMedia();
   elements.joinButton.hidden = !showJoin;
   elements.joinButton.disabled = false;
   setButtonLabel(elements.joinButton, "انضمام للحصة");
@@ -480,26 +562,12 @@ function createViewerPeerConnection() {
   };
 
   /**
-   * The teacher sends the screen and optional camera as separate MediaStreams.
-   * The first received stream is the classroom display stream, so it becomes
-   * the primary theater video. Later tracks do not replace it with the camera.
+   * A teacher may send the display, camera, and microphone as separate streams.
+   * Merge every received track into a single playback stream so the student
+   * always gets the display and all available audio tracks, independent of the
+   * browser's ontrack event ordering.
    */
-  pc.ontrack = (event) => {
-    const incomingStream = event.streams?.[0];
-
-    if (incomingStream && !elements.remoteVideo.srcObject) {
-      elements.remoteVideo.srcObject = incomingStream;
-      requestAnimationFrame(resizeStudentCanvas);
-      elements.placeholder.hidden = true;
-      hideConnectionOverlay();
-      setViewerStatus("البث المباشر متصل.", "live");
-
-      elements.remoteVideo.play().catch(() => {
-        // Playback may require the user to press the browser's native play
-        // control, which is already available on the video element.
-      });
-    }
-  };
+  pc.ontrack = attachTeacherTrack;
 
   /**
    * Adding a microphone track after teacher approval triggers this callback.
@@ -955,6 +1023,8 @@ socket.on("disconnect", () => {
 // --- Viewer controls ---
 
 elements.joinButton.addEventListener("click", joinClass);
+elements.enableAudioButton?.addEventListener("click", enableTeacherAudio);
+elements.remoteVideo?.addEventListener("volumechange", updateRemoteAudioControl);
 elements.raiseHandButton.addEventListener("click", raiseHand);
 elements.toggleMicButton.addEventListener("click", toggleMicrophone);
 elements.chatForm.addEventListener("submit", sendStudentChatMessage);

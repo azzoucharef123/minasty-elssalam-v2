@@ -181,6 +181,29 @@
         object-fit: contain;
       }
 
+      .remote-audio-toggle {
+        position: absolute;
+        z-index: 14;
+        right: 50%;
+        bottom: 1rem;
+        min-height: 2.7rem;
+        padding: 0.62rem 0.95rem;
+        color: #ffffff;
+        background: rgba(37, 99, 235, 0.94);
+        border: 1px solid rgba(191, 219, 254, 0.55);
+        border-radius: 0.7rem;
+        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.32);
+        font: inherit;
+        font-size: 0.78rem;
+        font-weight: 800;
+        cursor: pointer;
+        transform: translateX(50%);
+      }
+
+      .remote-audio-toggle[hidden] {
+        display: none;
+      }
+
       #student-canvas {
         position: absolute;
         inset: 0;
@@ -610,7 +633,8 @@
 
       <main class="viewer-stage" aria-label="مشاهدة الحصة المباشرة">
         <div class="video-frame">
-          <video id="remote-video" autoplay playsinline controls aria-label="بث الأستاذ المباشر"></video>
+          <video id="remote-video" autoplay muted playsinline controls aria-label="بث الأستاذ المباشر"></video>
+          <button id="enable-audio-btn" class="remote-audio-toggle" type="button" hidden>تشغيل صوت الأستاذ</button>
           <canvas id="student-canvas" style="position: absolute; top: 0; left: 0; z-index: 10; pointer-events: none;" aria-label="شروحات الأستاذ المباشرة"></canvas>
 
           <div id="video-placeholder" class="video-placeholder">

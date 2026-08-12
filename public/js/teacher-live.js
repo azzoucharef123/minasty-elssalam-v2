@@ -498,15 +498,28 @@ function closeAllPeerConnections() {
 }
 
 /**
- * Add all currently available teacher tracks to a new connection. The stream
- * parameter preserves grouping on the receiving side, including display audio
- * versus optional camera/microphone tracks.
+ * Add the classroom display and one reliable audio source to a new connection.
+ * The camera preview remains local to the teacher. Sending a second video track
+ * to viewers can make browsers select the camera instead of the shared screen,
+ * leaving the classroom display blank or inconsistent. Prefer microphone audio;
+ * use display/tab audio only when a microphone track is unavailable.
  */
 function addTeacherTracks(peerConnection) {
-  [screenStream, cameraStream].filter(Boolean).forEach((stream) => {
-    stream.getTracks().forEach((track) => {
-      peerConnection.addTrack(track, stream);
-    });
+  if (!screenStream) {
+    return;
+  }
+
+  screenStream.getVideoTracks().forEach((track) => {
+    peerConnection.addTrack(track, screenStream);
+  });
+
+  const microphoneTracks = cameraStream?.getAudioTracks() || [];
+  const displayAudioTracks = screenStream.getAudioTracks();
+  const audioTracks = microphoneTracks.length > 0 ? microphoneTracks : displayAudioTracks;
+  const audioSourceStream = microphoneTracks.length > 0 ? cameraStream : screenStream;
+
+  audioTracks.forEach((track) => {
+    peerConnection.addTrack(track, audioSourceStream);
   });
 }
 
