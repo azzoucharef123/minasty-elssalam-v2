@@ -16,7 +16,15 @@ const socket = io();
 // still recommended for a production deployment where restrictive networks
 // may block direct WebRTC connections.
 const rtcConfig = {
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  iceServers: [
+    {
+      urls: [
+        "stun:stun.l.google.com:19302",
+        "stun:stun1.l.google.com:19302",
+        "stun:stun.cloudflare.com:3478",
+      ],
+    },
+  ],
 };
 
 // Required broadcaster state requested for this phase.
