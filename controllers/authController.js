@@ -3,6 +3,7 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { PrismaClient } = require("@prisma/client");
+const { normalizeParentPhone } = require("../utils/phone");
 
 const prisma = new PrismaClient();
 
@@ -88,8 +89,7 @@ async function teacherLogin(req, res) {
  */
 async function parentLogin(req, res) {
   try {
-    const parentPhone =
-      typeof req.body?.parentPhone === "string" ? req.body.parentPhone.trim() : "";
+    const parentPhone = normalizeParentPhone(req.body?.parentPhone);
 
     if (!parentPhone) {
       return res.status(400).json({ error: "رقم هاتف الولي مطلوب." });
@@ -120,6 +120,7 @@ async function parentLogin(req, res) {
       tokenType: "Bearer",
       expiresIn: JWT_EXPIRES_IN,
       role: "parent",
+      parentPhone: student.parentPhone,
       student: {
         id: student.id,
         studentName: student.studentName,

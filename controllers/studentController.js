@@ -1,6 +1,7 @@
 "use strict";
 
 const { PrismaClient, Prisma } = require("@prisma/client");
+const { normalizeParentPhone } = require("../utils/phone");
 
 const prisma = new PrismaClient();
 
@@ -54,7 +55,7 @@ async function registerStudent(req, res) {
   console.log('Register student request body:', req.body);
   try {
     const studentName = normalizeText(req.body?.studentName);
-    const parentPhone = normalizeText(req.body?.parentPhone);
+    const parentPhone = normalizeParentPhone(req.body?.parentPhone);
     const level = normalizeText(req.body?.level);
 
     if (!studentName || !parentPhone || !level) {
@@ -104,7 +105,7 @@ async function registerStudent(req, res) {
 /** GET /api/students/parent/:phone — ownership is enforced by middleware. */
 async function getStudentForParent(req, res) {
   try {
-    const parentPhone = normalizeText(req.params.phone);
+    const parentPhone = normalizeParentPhone(req.params.phone);
     const student = await prisma.student.findUnique({
       where: { parentPhone },
     });

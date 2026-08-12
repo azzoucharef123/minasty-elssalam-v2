@@ -10,6 +10,8 @@ const parentLoginError = document.getElementById("login-error");
 const parentSubmitButton = parentLoginForm?.querySelector(
   "button[type='submit'], input[type='submit']"
 );
+const loginQuery = new URLSearchParams(window.location.search);
+const shouldAutoLogin = loginQuery.get("autologin") === "1";
 
 function setParentLoginError(message = "") {
   if (!parentLoginError) {
@@ -40,6 +42,7 @@ function clearParentSession() {
     "level",
     "studentLevel",
     "currentStudent",
+    "pendingParentPhone",
   ].forEach((key) => sessionStorage.removeItem(key));
 }
 
@@ -75,9 +78,9 @@ async function handleParentLogin(event) {
 
     clearParentSession();
     sessionStorage.setItem("parentToken", data.token);
-    sessionStorage.setItem("parentPhone", parentPhone);
+    sessionStorage.setItem("parentPhone", data.parentPhone || parentPhone);
     sessionStorage.setItem("userRole", "parent");
-    window.location.assign("./parent-dashboard.html");
+    window.location.replace("./parent-dashboard.html");
   } catch (error) {
     console.error("Parent JWT login failed:", error);
     setParentLoginError(error.message || "تعذر الاتصال بالخادم. حاول مرة أخرى.");
@@ -88,6 +91,17 @@ async function handleParentLogin(event) {
 
 if (parentLoginForm && parentPhoneInput) {
   parentLoginForm.addEventListener("submit", handleParentLogin);
+
+  // Registration stores the verified phone only for this browser session. The
+  // parent portal consumes it once, fills the form, and submits it securely.
+  if (shouldAutoLogin) {
+    const pendingParentPhone = sessionStorage.getItem("pendingParentPhone");
+    if (pendingParentPhone) {
+      sessionStorage.removeItem("pendingParentPhone");
+      parentPhoneInput.value = pendingParentPhone;
+      window.setTimeout(() => parentLoginForm.requestSubmit(), 120);
+    }
+  }
 } else {
   console.error("Parent login markup is missing the form or phone input.");
 }

@@ -33,6 +33,13 @@
       </form>
     </section>
   </main>
+  <section id="registration-confirmation" class="modal" role="dialog" aria-modal="true" aria-labelledby="registration-confirmation-title" hidden>
+    <div class="modal-card" role="document">
+      <p class="eyebrow">تم بنجاح</p>
+      <h2 id="registration-confirmation-title">تم تأكيد التسجيل</h2>
+      <p id="registration-confirmation-text" class="muted" aria-live="polite"></p>
+    </div>
+  </section>
   <script>
     document.getElementById('register-form').addEventListener('submit', async function(e) {
       e.preventDefault();
@@ -40,6 +47,9 @@
       const form = e.target;
       const submitBtn = document.getElementById('submit-btn');
       const message = document.getElementById('register-message');
+      const confirmation = document.getElementById('registration-confirmation');
+      const confirmationText = document.getElementById('registration-confirmation-text');
+      let redirectingToParentLogin = false;
       
       const formData = new FormData(form);
       const payload = {
@@ -77,20 +87,28 @@
           throw new Error(data.error || 'تعذر إتمام التسجيل.');
         }
 
-        message.textContent = 'تم تسجيل التلميذ بنجاح. يمكنك الآن دخول بوابة الولي.';
-        message.classList.remove('is-error');
-        message.hidden = false;
-        
-        // Clear inputs
-        form.reset();
+        const registeredPhone = data?.data?.parentPhone || payload.parentPhone;
+        redirectingToParentLogin = true;
+        message.hidden = true;
+        confirmationText.textContent = `تم تأكيد تسجيل ${payload.studentName} بنجاح. سيتم نقلك الآن إلى بوابة الولي.`;
+        confirmation.hidden = false;
+
+        // Preserve the exact stored phone number in the current browser session
+        // and start the secure parent-login flow automatically on arrival.
+        window.setTimeout(() => {
+          sessionStorage.setItem('pendingParentPhone', registeredPhone);
+          window.location.replace('./parent-login.html?autologin=1');
+        }, 1400);
       } catch (error) {
         console.error('Registration error:', error);
         message.textContent = error.message || 'حدث خطأ في الاتصال.';
         message.classList.add('is-error');
         message.hidden = false;
       } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
+        if (!redirectingToParentLogin) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+        }
       }
     });
   </script>
