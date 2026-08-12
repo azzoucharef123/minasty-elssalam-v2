@@ -34,39 +34,38 @@
     </section>
   </main>
   <script>
-    (function() {
+    document.addEventListener('DOMContentLoaded', function() {
       const form = document.getElementById('register-form');
       const message = document.getElementById('register-message');
       const submitBtn = document.getElementById('submit-btn');
 
-      if (!form) {
-        console.error('Form not found!');
-        return;
-      }
+      if (!form) return;
 
-      form.onsubmit = async function(event) {
+      form.addEventListener('submit', async function(event) {
         event.preventDefault();
         
+        const nameInput = document.getElementById('student-name');
+        const phoneInput = document.getElementById('parent-phone');
+        const levelSelect = document.getElementById('student-level');
+
+        const payload = {
+          studentName: nameInput.value.trim(),
+          parentPhone: phoneInput.value.trim(),
+          level: levelSelect.value
+        };
+
+        // Reset UI
         message.hidden = true;
         message.textContent = '';
         message.classList.remove('is-error');
-        
         submitBtn.disabled = true;
         const originalText = submitBtn.textContent;
         submitBtn.textContent = 'جاري التسجيل...';
 
-        const payload = {
-          studentName: document.getElementById('student-name').value.trim(),
-          parentPhone: document.getElementById('parent-phone').value.trim(),
-          level: document.getElementById('student-level').value
-        };
-
         try {
           const response = await fetch('/api/students/register', {
             method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
 
@@ -88,9 +87,8 @@
           submitBtn.disabled = false;
           submitBtn.textContent = originalText;
         }
-        return false;
-      };
-    })();
+      });
+    });
   </script>
 </body>
 </html>
