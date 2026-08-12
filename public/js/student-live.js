@@ -25,6 +25,7 @@ const rtcConfig = {
 let pc;
 let localAudioStream;
 let remoteMediaStream;
+const pendingRemoteAudioTracks = [];
 
 let teacherSocketId = null;
 let joinedClass = false;
@@ -429,9 +430,17 @@ async function enableTeacherAudio() {
 
 function resetRemoteMedia() {
   remoteMediaStream = undefined;
+  pendingRemoteAudioTracks.length = 0;
   elements.remoteVideo.srcObject = null;
   elements.remoteVideo.muted = true;
   updateRemoteAudioControl();
+}
+
+function addUniqueTrack(stream, track) {
+  const alreadyAdded = stream.getTracks().some((currentTrack) => currentTrack.id === track.id);
+  if (!alreadyAdded) {
+    stream.addTrack(track);
+  }
 }
 
 function attachTeacherTrack(event) {
@@ -440,17 +449,27 @@ function attachTeacherTrack(event) {
     return;
   }
 
-  if (!remoteMediaStream) {
-    remoteMediaStream = new MediaStream();
-    elements.remoteVideo.srcObject = remoteMediaStream;
+  // The teacher sends exactly one display-video track. Do not assign an audio
+  // only MediaStream to the video element first: some browsers then leave the
+  // element in a permanent loading state when the video track arrives later.
+  if (track.kind === "audio" && !remoteMediaStream) {
+    pendingRemoteAudioTracks.push(track);
+    track.addEventListener("ended", updateRemoteAudioControl, { once: true });
+    track.addEventListener("unmute", updateRemoteAudioControl);
+    return;
   }
 
-  const alreadyAdded = remoteMediaStream
-    .getTracks()
-    .some((currentTrack) => currentTrack.id === track.id);
-
-  if (!alreadyAdded) {
-    remoteMediaStream.addTrack(track);
+  if (track.kind === "video" && !remoteMediaStream) {
+    remoteMediaStream = new MediaStream([track]);
+    pendingRemoteAudioTracks.splice(0).forEach((audioTrack) => {
+      if (audioTrack.readyState === "live") {
+        addUniqueTrack(remoteMediaStream, audioTrack);
+      }
+    });
+    elements.remoteVideo.srcObject = remoteMediaStream;
+    elements.remoteVideo.muted = true;
+  } else if (remoteMediaStream) {
+    addUniqueTrack(remoteMediaStream, track);
   }
 
   if (track.kind === "video") {
@@ -460,7 +479,10 @@ function attachTeacherTrack(event) {
     setViewerStatus("صورة الحصة المباشرة متصلة.", "live");
   }
 
-  track.addEventListener("ended", updateRemoteAudioControl, { once: true });
+  track.addEventListener("ended", () => {
+    remoteMediaStream?.removeTrack(track);
+    updateRemoteAudioControl();
+  }, { once: true });
   track.addEventListener("unmute", updateRemoteAudioControl);
   updateRemoteAudioControl();
 
@@ -902,8 +924,17 @@ socket.on("webrtc_offer", async (data = {}) => {
   }
 
   try {
+    const canReuseExistingConnection =
+      pc &&
+      teacherSocketId === fromSocketId &&
+      pc.signalingState === "stable" &&
+      pc.connectionState !== "closed";
+
     teacherSocketId = fromSocketId;
-    const peerConnection = createViewerPeerConnection();
+    // ICE restarts arrive as a fresh teacher offer. Reusing the existing peer
+    // preserves the rendered screen and audio instead of briefly blanking the
+    // classroom while the network route is recovered.
+    const peerConnection = canReuseExistingConnection ? pc : createViewerPeerConnection();
 
     await peerConnection.setRemoteDescription(new RTCSessionDescription(sdp));
     await flushPendingIceCandidates();

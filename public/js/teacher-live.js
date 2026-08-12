@@ -505,6 +505,31 @@ function closeAllPeerConnections() {
   });
 }
 
+/** Apply conservative per-peer quality limits so screen sharing stays smooth
+ * under changing bandwidth rather than building a growing latency buffer. */
+async function tuneOutboundSender(sender, kind) {
+  try {
+    const parameters = sender.getParameters();
+    parameters.encodings = parameters.encodings?.length ? parameters.encodings : [{}];
+
+    if (kind === "video") {
+      parameters.encodings[0].maxBitrate = 2_400_000;
+      parameters.encodings[0].maxFramerate = 20;
+      parameters.degradationPreference = "maintain-resolution";
+    } else {
+      parameters.encodings[0].maxBitrate = 96_000;
+      parameters.encodings[0].priority = "high";
+      parameters.encodings[0].networkPriority = "high";
+    }
+
+    await sender.setParameters(parameters);
+  } catch (error) {
+    // Browsers differ in the parameters they permit. The default sender still
+    // works, so tuning failure must never terminate the class.
+    console.debug("Sender quality tuning was not applied:", error);
+  }
+}
+
 /**
  * Add the classroom display and one reliable audio source to a new connection.
  * The camera preview remains local to the teacher. Sending a second video track
@@ -518,7 +543,9 @@ function addTeacherTracks(peerConnection) {
   }
 
   screenStream.getVideoTracks().forEach((track) => {
-    peerConnection.addTrack(track, screenStream);
+    track.contentHint = "detail";
+    const sender = peerConnection.addTrack(track, screenStream);
+    void tuneOutboundSender(sender, "video");
   });
 
   const microphoneTracks = cameraStream?.getAudioTracks() || [];
@@ -527,7 +554,9 @@ function addTeacherTracks(peerConnection) {
   const audioSourceStream = microphoneTracks.length > 0 ? cameraStream : screenStream;
 
   audioTracks.forEach((track) => {
-    peerConnection.addTrack(track, audioSourceStream);
+    track.contentHint = "speech";
+    const sender = peerConnection.addTrack(track, audioSourceStream);
+    void tuneOutboundSender(sender, "audio");
   });
 }
 
@@ -582,16 +611,25 @@ function createPeerConnection(studentSocketId) {
     }
 
     if (iceConnectionState === "disconnected" && !iceDisconnectTimers[studentSocketId]) {
-      // Short network interruptions are common. Give ICE a brief recovery
-      // window before closing the peer and removing the attendee.
-      iceDisconnectTimers[studentSocketId] = window.setTimeout(() => {
+      // Try an ICE restart before dropping the learner. Temporary NAT or Wi‑Fi
+      // changes are common and do not require rebuilding the full classroom.
+      iceDisconnectTimers[studentSocketId] = window.setTimeout(async () => {
         const currentPeer = peerConnections[studentSocketId];
-        if (currentPeer?.iceConnectionState === "disconnected") {
-          removeStudentConnection(studentSocketId, {
-            statusMessage: "لم يعد اتصال أحد التلاميذ مستقراً وتمت إزالة جلسته.",
-          });
+        if (currentPeer?.iceConnectionState !== "disconnected") {
+          return;
         }
-      }, ICE_DISCONNECT_GRACE_MS);
+
+        await createAndSendOffer(studentSocketId, { iceRestart: true });
+
+        iceDisconnectTimers[studentSocketId] = window.setTimeout(() => {
+          const recoveredPeer = peerConnections[studentSocketId];
+          if (recoveredPeer?.iceConnectionState === "disconnected") {
+            removeStudentConnection(studentSocketId, {
+              statusMessage: "لم يعد اتصال أحد التلاميذ مستقراً وتمت إزالة جلسته.",
+            });
+          }
+        }, ICE_DISCONNECT_GRACE_MS);
+      }, 2_500);
     }
   };
 
@@ -659,7 +697,7 @@ function emitWithAcknowledgement(eventName, payload, timeoutMs = 10_000) {
  * `makingOffer` flag prevents duplicated student_joined events from creating
  * overlapping offers against the same RTCPeerConnection.
  */
-async function createAndSendOffer(studentSocketId) {
+async function createAndSendOffer(studentSocketId, { iceRestart = false } = {}) {
   if (!classActive || !screenStream) {
     return;
   }
@@ -681,7 +719,7 @@ async function createAndSendOffer(studentSocketId) {
   peerConnection.makingOffer = true;
 
   try {
-    const offer = await peerConnection.createOffer();
+    const offer = await peerConnection.createOffer({ iceRestart });
     await peerConnection.setLocalDescription(offer);
 
     await emitWithAcknowledgement("webrtc_offer", {
@@ -802,7 +840,11 @@ async function startLiveClass() {
   try {
     // Screen sharing is mandatory for the broadcaster experience.
     screenStream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: { ideal: 30, max: 30 } },
+      video: {
+        frameRate: { ideal: 15, max: 20 },
+        width: { ideal: 1920, max: 1920 },
+        height: { ideal: 1080, max: 1080 },
+      },
       audio: true,
     });
 
@@ -833,8 +875,17 @@ async function startLiveClass() {
     if (navigator.mediaDevices?.getUserMedia) {
       try {
         cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
+          video: {
+            width: { ideal: 640, max: 1280 },
+            height: { ideal: 360, max: 720 },
+            frameRate: { ideal: 15, max: 20 },
+          },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+          },
         });
         elements.cameraVideo.srcObject = cameraStream;
         elements.cameraPip.classList.add("is-active");
