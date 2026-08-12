@@ -51,8 +51,6 @@ let previousAnnotationPoint = null;
 
 const elements = {
   localVideo: document.getElementById("local-video"),
-  cameraVideo: document.getElementById("camera-video"),
-  cameraPip: document.getElementById("camera-pip"),
   stageEmptyState: document.getElementById("stage-empty-state"),
   attendeesList: document.getElementById("attendees-list"),
   attendeesEmpty: document.getElementById("attendees-empty"),
@@ -60,7 +58,6 @@ const elements = {
   levelSelect: document.getElementById("level-select"),
   startButton: document.getElementById("start-class-btn"),
   toggleMicButton: document.getElementById("toggle-mic-btn"),
-  toggleCameraButton: document.getElementById("toggle-camera-btn"),
   endClassButton: document.getElementById("end-class-btn"),
   liveStatus: document.getElementById("live-status"),
   liveStatusText: document.getElementById("live-status-text"),
@@ -350,18 +347,12 @@ function getAllAudioTracks() {
     .flatMap((stream) => stream.getAudioTracks());
 }
 
-function getCameraVideoTracks() {
-  return cameraStream ? cameraStream.getVideoTracks() : [];
-}
-
 function updateControls() {
   const hasAudio = getAllAudioTracks().length > 0;
-  const hasCamera = getCameraVideoTracks().length > 0;
 
   elements.startButton.disabled = isStarting || isEnding || classActive;
   elements.levelSelect.disabled = isStarting || isEnding || classActive;
   elements.toggleMicButton.disabled = !classActive || !hasAudio || isEnding;
-  elements.toggleCameraButton.disabled = !classActive || !hasCamera || isEnding;
   elements.endClassButton.disabled = !classActive || isEnding;
   elements.clearBoardButton.disabled = !classActive || isEnding;
   elements.teacherCanvas.style.pointerEvents = classActive && !isEnding ? "auto" : "none";
@@ -377,12 +368,6 @@ function updateControls() {
   const audioIsEnabled = hasAudio && getAllAudioTracks().some((track) => track.enabled);
   setButtonLabel(elements.toggleMicButton, audioIsEnabled ? "إيقاف المايك" : "تشغيل المايك");
 
-  const cameraIsEnabled =
-    hasCamera && getCameraVideoTracks().some((track) => track.enabled);
-  setButtonLabel(
-    elements.toggleCameraButton,
-    cameraIsEnabled ? "إيقاف الكاميرا" : "تشغيل الكاميرا"
-  );
 }
 
 function updateAttendeeCount() {
@@ -811,8 +796,6 @@ function stopLocalStreams() {
   screenStream = undefined;
   cameraStream = undefined;
   elements.localVideo.srcObject = null;
-  elements.cameraVideo.srcObject = null;
-  elements.cameraPip.classList.remove("is-active");
   elements.stageEmptyState.hidden = false;
 }
 
@@ -896,7 +879,7 @@ async function startLiveClass() {
   updateControls();
   setStudioStatus("بانتظار اختيار الشاشة للمشاركة…", "neutral");
 
-  let cameraUnavailableMessage = "";
+  let microphoneUnavailableMessage = "";
 
   try {
     // Screen sharing is mandatory for the broadcaster experience.
@@ -931,16 +914,11 @@ async function startLiveClass() {
       }
     };
 
-    // Camera/mic is intentionally optional. Failure is shown but does not
-    // discard the successfully approved screen-share session.
+    // Capture only the teacher microphone. The camera is deliberately never
+    // requested, previewed, or sent so the teacher's face remains private.
     if (navigator.mediaDevices?.getUserMedia) {
       try {
         cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 640, max: 1280 },
-            height: { ideal: 360, max: 720 },
-            frameRate: { ideal: 15, max: 20 },
-          },
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
@@ -948,11 +926,9 @@ async function startLiveClass() {
             channelCount: 1,
           },
         });
-        elements.cameraVideo.srcObject = cameraStream;
-        elements.cameraPip.classList.add("is-active");
       } catch (error) {
-        cameraUnavailableMessage = getMediaErrorMessage(error, "الكاميرا أو المايك");
-        console.warn("Camera/microphone is unavailable:", error);
+        microphoneUnavailableMessage = getMediaErrorMessage(error, "المايك");
+        console.warn("Teacher microphone is unavailable:", error);
       }
     }
 
@@ -965,7 +941,7 @@ async function startLiveClass() {
 
     const baseMessage = `الحصة مباشرة الآن — ${selectedLevel}`;
     setStudioStatus(
-      cameraUnavailableMessage ? `${baseMessage} (بدون كاميرا/مايك)` : baseMessage,
+      microphoneUnavailableMessage ? `${baseMessage} (بدون مايك)` : baseMessage,
       "live"
     );
   } catch (error) {
@@ -997,21 +973,6 @@ function toggleMicrophone() {
   });
 
   setStudioStatus(shouldEnable ? "تم تشغيل المايك." : "تم إيقاف المايك.", "live");
-  updateControls();
-}
-
-function toggleCamera() {
-  const videoTracks = getCameraVideoTracks();
-  if (!classActive || videoTracks.length === 0) {
-    return;
-  }
-
-  const shouldEnable = !videoTracks.some((track) => track.enabled);
-  videoTracks.forEach((track) => {
-    track.enabled = shouldEnable;
-  });
-
-  setStudioStatus(shouldEnable ? "تم تشغيل الكاميرا." : "تم إيقاف الكاميرا.", "live");
   updateControls();
 }
 
@@ -1259,7 +1220,6 @@ socket.on("disconnect", () => {
 
 elements.startButton.addEventListener("click", startLiveClass);
 elements.toggleMicButton.addEventListener("click", toggleMicrophone);
-elements.toggleCameraButton.addEventListener("click", toggleCamera);
 elements.endClassButton.addEventListener("click", () => {
   endLiveClass({ notifyServer: true });
 });
