@@ -43,12 +43,6 @@ let classActive = false;
 let isStarting = false;
 let isEnding = false;
 
-// Annotation data is retained as normalized segments so a resize can redraw
-// the same board correctly without depending on the previous canvas bitmap.
-const annotationSegments = [];
-let isDrawingAnnotation = false;
-let previousAnnotationPoint = null;
-
 const elements = {
   localVideo: document.getElementById("local-video"),
   stageEmptyState: document.getElementById("stage-empty-state"),
@@ -61,10 +55,6 @@ const elements = {
   endClassButton: document.getElementById("end-class-btn"),
   liveStatus: document.getElementById("live-status"),
   liveStatusText: document.getElementById("live-status-text"),
-  teacherCanvas: document.getElementById("teacher-canvas"),
-  annotationColor: document.getElementById("annotation-color"),
-  annotationLineWidth: document.getElementById("annotation-line-width"),
-  clearBoardButton: document.getElementById("clear-board-btn"),
   chatBox: document.getElementById("chat-box"),
   chatEmpty: document.getElementById("chat-empty"),
   chatForm: document.getElementById("chat-form"),
@@ -354,8 +344,6 @@ function updateControls() {
   elements.levelSelect.disabled = isStarting || isEnding || classActive;
   elements.toggleMicButton.disabled = !classActive || !hasAudio || isEnding;
   elements.endClassButton.disabled = !classActive || isEnding;
-  elements.clearBoardButton.disabled = !classActive || isEnding;
-  elements.teacherCanvas.style.pointerEvents = classActive && !isEnding ? "auto" : "none";
   elements.chatInput.disabled = !classActive || isEnding;
   elements.chatSendButton.disabled = !classActive || isEnding || !normalizeChatMessage(elements.chatInput.value);
 
@@ -828,7 +816,6 @@ async function endLiveClass({ notifyServer = true, statusMessage } = {}) {
   } finally {
     closeAllPeerConnections();
     clearAttendees();
-    clearTeacherBoard({ broadcast: false });
     clearTeacherChat();
     stopLocalStreams();
     activeLevel = null;
@@ -897,9 +884,7 @@ async function startLiveClass() {
     }
 
     elements.localVideo.srcObject = screenStream;
-    clearTeacherBoard({ broadcast: false });
     clearTeacherChat();
-    requestAnimationFrame(resizeTeacherCanvas);
     elements.stageEmptyState.hidden = true;
 
     // If the user clicks the browser's native “Stop sharing” action, close the
@@ -1225,7 +1210,6 @@ elements.endClassButton.addEventListener("click", () => {
 });
 elements.chatForm.addEventListener("submit", sendTeacherChatMessage);
 elements.chatInput.addEventListener("input", updateControls);
-initializeTeacherCanvas();
 
 // Attempt a final room-end notification on page exit. The backend's disconnect
 // handler is the reliable fallback if the browser cannot complete this emit.
