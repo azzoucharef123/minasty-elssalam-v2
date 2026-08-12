@@ -299,14 +299,29 @@
       }
 
       .student-chat-box {
-        display: grid;
-        align-content: end;
+        display: flex;
+        flex-direction: column;
         gap: 0.48rem;
         min-height: 0;
         padding: 0.55rem 0.65rem;
+        overflow-x: hidden;
         overflow-y: auto;
         overscroll-behavior: contain;
-        scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(148, 163, 184, 0.55) transparent;
+      }
+
+      /* This flexible spacer keeps short conversations at the bottom. Once
+         messages fill the available height it collapses, allowing true scroll. */
+      .student-chat-box::before {
+        content: "";
+        flex: 1 0 0;
+      }
+
+      .student-chat-box > * {
+        flex: 0 0 auto;
       }
 
       .student-chat-empty {

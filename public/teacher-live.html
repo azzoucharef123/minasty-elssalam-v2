@@ -613,15 +613,30 @@
       }
 
       .chat-box {
-        display: grid;
-        align-content: end;
+        display: flex;
+        flex-direction: column;
         gap: 0.55rem;
         min-height: 0;
         margin: 0 0.85rem;
         padding: 0.15rem 0.1rem 0.65rem;
+        overflow-x: hidden;
         overflow-y: auto;
         overscroll-behavior: contain;
-        scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(148, 163, 184, 0.55) transparent;
+      }
+
+      /* A collapsing spacer anchors short threads to the bottom without
+         preventing the overflowing history from being scrolled. */
+      .chat-box::before {
+        content: "";
+        flex: 1 0 0;
+      }
+
+      .chat-box > * {
+        flex: 0 0 auto;
       }
 
       .chat-empty {
