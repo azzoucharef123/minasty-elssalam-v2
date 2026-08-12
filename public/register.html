@@ -13,50 +13,84 @@
       <a class="brand-link" href="./index.html">أكاديمية التفوق</a>
       <p class="eyebrow">انضم إلى الأكاديمية</p>
       <h1>تسجيل تلميذ جديد</h1>
-      <form id="register-form" class="stack-form">
+      <form id="register-form" class="stack-form" method="POST">
         <label for="student-name">اسم التلميذ</label>
-        <input id="student-name" required maxlength="120" />
+        <input id="student-name" name="studentName" type="text" required maxlength="120" />
+        
         <label for="parent-phone">رقم هاتف الولي</label>
-        <input id="parent-phone" type="tel" required placeholder="05xxxxxxxx" />
+        <input id="parent-phone" name="parentPhone" type="tel" required placeholder="05xxxxxxxx" />
+        
         <label for="student-level">المستوى الدراسي</label>
-        <select id="student-level" required>
+        <select id="student-level" name="level" required>
           <option value="السنة الأولى">السنة الأولى</option>
           <option value="السنة الثانية">السنة الثانية</option>
           <option value="السنة الثالثة">السنة الثالثة</option>
           <option value="السنة الرابعة">السنة الرابعة</option>
         </select>
+        
         <p id="register-message" class="form-message" hidden aria-live="polite"></p>
-        <button class="cta-button cta-primary" type="submit">إتمام التسجيل</button>
+        <button id="submit-btn" class="cta-button cta-primary" type="submit">إتمام التسجيل</button>
       </form>
     </section>
   </main>
   <script>
-    const form = document.getElementById('register-form');
-    const message = document.getElementById('register-message');
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      message.hidden = true;
-      try {
-        const response = await fetch('/api/students/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            studentName: document.getElementById('student-name').value.trim(),
-            parentPhone: document.getElementById('parent-phone').value.trim(),
-            level: document.getElementById('student-level').value
-          })
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || 'تعذر إتمام التسجيل.');
-        message.textContent = 'تم تسجيل التلميذ بنجاح. يمكنك الآن دخول بوابة الولي.';
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('register-form');
+      const message = document.getElementById('register-message');
+      const submitBtn = document.getElementById('submit-btn');
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        console.log('Form submission intercepted');
+        
+        message.hidden = true;
+        message.textContent = '';
         message.classList.remove('is-error');
-        message.hidden = false;
-        form.reset();
-      } catch (error) {
-        message.textContent = error.message || 'حدث خطأ غير متوقع.';
-        message.classList.add('is-error');
-        message.hidden = false;
-      }
+        
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'جاري التسجيل...';
+
+        const payload = {
+          studentName: document.getElementById('student-name').value.trim(),
+          parentPhone: document.getElementById('parent-phone').value.trim(),
+          level: document.getElementById('student-level').value
+        };
+
+        console.log('Sending payload:', payload);
+
+        try {
+          const response = await fetch('/api/students/register', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+
+          const data = await response.json().catch(() => ({}));
+          console.log('Response received:', data);
+
+          if (!response.ok) {
+            throw new Error(data.error || 'تعذر إتمام التسجيل. يرجى المحاولة لاحقاً.');
+          }
+
+          message.textContent = 'تم تسجيل التلميذ بنجاح. يمكنك الآن دخول بوابة الولي.';
+          message.classList.remove('is-error');
+          message.hidden = false;
+          form.reset();
+        } catch (error) {
+          console.error('Registration error:', error);
+          message.textContent = error.message || 'حدث خطأ في الاتصال بالخادم.';
+          message.classList.add('is-error');
+          message.hidden = false;
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'إتمام التسجيل';
+        }
+      });
     });
   </script>
 </body>
