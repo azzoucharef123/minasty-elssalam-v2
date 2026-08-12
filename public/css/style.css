@@ -387,6 +387,7 @@
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: center;
   min-height: 5.9rem;
   padding: 1rem 1.05rem;
   overflow: hidden;
@@ -444,7 +445,9 @@
 }
 
 .cta-arrow {
-  margin-right: auto;
+  position: absolute;
+  inset-inline-start: 1.05rem;
+  margin: 0;
   font-family: Arial, sans-serif;
   font-size: 1.3rem;
   transition: transform 0.3s ease;
