@@ -1,0 +1,16 @@
+{
+  "name": "minasaty-deployment-bootstrap",
+  "private": true,
+  "version": "1.0.0",
+  "description": "One-time deployment bootstrap for the tutoring platform source archive.",
+  "engines": {
+    "node": ">=20.18.0"
+  },
+  "scripts": {
+    "postinstall": "node bootstrap.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "unzipper": "^0.12.3"
+  }
+}
