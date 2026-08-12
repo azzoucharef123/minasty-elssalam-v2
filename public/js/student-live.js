@@ -930,12 +930,16 @@ socket.on("webrtc_offer", async (data = {}) => {
       pc.signalingState === "stable" &&
       pc.connectionState !== "closed";
 
+    // createViewerPeerConnection() closes stale state and therefore clears the
+    // stored target socket ID. Assign the teacher ID only *after* that cleanup;
+    // otherwise the student's SDP answer is sent with a null target and the
+    // teacher never completes the WebRTC handshake.
+    const peerConnection = canReuseExistingConnection ? pc : createViewerPeerConnection();
     teacherSocketId = fromSocketId;
+
     // ICE restarts arrive as a fresh teacher offer. Reusing the existing peer
     // preserves the rendered screen and audio instead of briefly blanking the
     // classroom while the network route is recovered.
-    const peerConnection = canReuseExistingConnection ? pc : createViewerPeerConnection();
-
     await peerConnection.setRemoteDescription(new RTCSessionDescription(sdp));
     await flushPendingIceCandidates();
 
