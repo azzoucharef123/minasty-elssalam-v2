@@ -51,6 +51,7 @@ function parsePagination(query) {
 
 /** POST /api/students/register — public student registration. */
 async function registerStudent(req, res) {
+  console.log('Register student request body:', req.body);
   try {
     const studentName = normalizeText(req.body?.studentName);
     const parentPhone = normalizeText(req.body?.parentPhone);

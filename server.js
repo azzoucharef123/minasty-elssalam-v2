@@ -87,6 +87,9 @@ app.use(express.json({ limit: "100kb" }));
 // Simple request logger
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  if (req.method === 'POST' && req.url.includes('/api/students/register')) {
+    console.log('Register request body:', req.body);
+  }
   next();
 });
 
