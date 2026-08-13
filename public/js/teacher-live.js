@@ -740,11 +740,35 @@ function connectAudioSourceToRecipient(sourceKey, recipientSocketId) {
   mixer.gains.set(sourceKey, gain);
 }
 
+function restoreKnownStudentAudioSources() {
+  // A learner may join after another learner's track was received. Re-register
+  // every live, known incoming track before building the new recipient mix so
+  // late joiners never start with teacher audio alone.
+  for (const [speakerSocketId, audio] of studentAudioElements) {
+    if (classroomAudioSources.has(speakerSocketId)) {
+      continue;
+    }
+
+    const stream = audio.srcObject;
+    const hasLiveAudio = stream instanceof MediaStream && stream
+      .getAudioTracks()
+      .some((track) => track.readyState === "live");
+
+    if (hasLiveAudio) {
+      addClassroomAudioSource(speakerSocketId, stream);
+    }
+  }
+}
+
 function createRecipientAudioMix(studentSocketId) {
   if (!classroomAudioContext) {
     return null;
   }
 
+  if (classroomAudioContext.state === "suspended") {
+    classroomAudioContext.resume().catch(() => {});
+  }
+  restoreKnownStudentAudioSources();
   removeRecipientAudioMix(studentSocketId);
   const destination = classroomAudioContext.createMediaStreamDestination();
   classroomAudioMixers.set(studentSocketId, { destination, gains: new Map() });
