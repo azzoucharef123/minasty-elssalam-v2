@@ -37,7 +37,20 @@ app.use(
         "img-src": ["'self'", "data:", "blob:"],
         "media-src": ["'self'", "blob:"],
         "connect-src": ["'self'", "https:", "wss:"],
-        "script-src": ["'self'"],
+        // Firebase Auth loads official ES modules from gstatic, while its
+        // invisible reCAPTCHA challenge uses Google-hosted scripts and frames.
+        "script-src": [
+          "'self'",
+          "https://www.gstatic.com",
+          "https://www.google.com",
+          "https://www.recaptcha.net",
+        ],
+        "frame-src": [
+          "'self'",
+          "https://www.google.com",
+          "https://recaptcha.google.com",
+          "https://www.recaptcha.net",
+        ],
         "object-src": ["'none'"],
       },
     },
