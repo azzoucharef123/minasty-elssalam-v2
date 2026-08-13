@@ -105,6 +105,7 @@ async function parentLogin(req, res) {
         mathEnrollment: true,
         physicsEnrollment: true,
         liveAccessEnabled: true,
+        cardPhotoUrl: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -134,6 +135,7 @@ async function parentLogin(req, res) {
         mathEnrollment: s.mathEnrollment,
         physicsEnrollment: s.physicsEnrollment,
         liveAccessEnabled: s.liveAccessEnabled,
+        cardPhotoUrl: s.cardPhotoUrl,
       })),
     });
   } catch (error) {

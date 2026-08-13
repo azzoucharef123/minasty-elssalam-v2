@@ -199,7 +199,7 @@ function renderTable(studentsArray) {
   if (students.length === 0) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
-    cell.colSpan = 6;
+    cell.colSpan = 7;
     cell.textContent = "لا يوجد تلاميذ مسجلون في هذا المستوى حالياً.";
     cell.className = "empty-table-cell";
     row.append(cell);
@@ -244,9 +244,35 @@ function renderTable(studentsArray) {
       "attendance-log-btn",
       () => openAttendanceModal(student.id)
     );
+    const deleteButton = createButton(
+      "حذف المستخدم",
+      "delete-student-btn",
+      () => deleteStudent(student.id)
+    );
     const actionGroup = document.createElement("div");
     actionGroup.className = "table-action-group";
-    actionGroup.append(liveAccessButton, subscriptionButton, editButton, attendanceButton);
+    actionGroup.append(
+      liveAccessButton,
+      subscriptionButton,
+      editButton,
+      attendanceButton,
+      deleteButton
+    );
+
+    const cardCell = document.createElement("td");
+    cardCell.className = "card-photo-cell";
+    if (student.cardPhotoUrl) {
+      const cardButton = createButton(
+        "عرض البطاقة",
+        "card-view-btn",
+        () => viewStudentCard(student.id)
+      );
+      cardButton.title = "عرض صورة بطاقة الطالب الجامعي";
+      cardCell.append(cardButton);
+    } else {
+      cardCell.textContent = "غير متوفرة";
+      cardCell.classList.add("muted-cell");
+    }
 
     row.append(
       createCell(student.studentName),
@@ -254,6 +280,7 @@ function renderTable(studentsArray) {
       createCell(paymentButton, "payment-cell"),
       createCell(truncateText(student.physicsNote), "note-cell"),
       createCell(truncateText(student.mathNote), "note-cell"),
+      cardCell,
       createCell(actionGroup, "actions-cell")
     );
 
@@ -466,6 +493,75 @@ async function saveSubscription(event) {
     }
   } finally {
     if (submitButton) submitButton.disabled = false;
+  }
+}
+
+async function viewStudentCard(studentId) {
+  const student = currentStudents.find((item) => item.id === studentId);
+  if (!student?.cardPhotoUrl) {
+    showDashboardError("لا توجد صورة بطاقة لهذا المستخدم.");
+    return;
+  }
+
+  const previewWindow = window.open("about:blank", "_blank");
+  if (!previewWindow) {
+    showDashboardError("اسمح بالنوافذ المنبثقة لعرض صورة البطاقة.");
+    return;
+  }
+
+  try {
+    const response = await teacherFetch(
+      `/api/students/${encodeURIComponent(studentId)}/card-photo`,
+      { headers: { Accept: "image/*" } }
+    );
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || "تعذر عرض صورة البطاقة.");
+    }
+
+    const imageUrl = URL.createObjectURL(await response.blob());
+    previewWindow.location.href = imageUrl;
+  } catch (error) {
+    previewWindow.close();
+    if (!/انتهت الجلسة/.test(error.message)) {
+      console.error("Unable to view student card:", error);
+      showDashboardError(error.message || "تعذر عرض صورة البطاقة.");
+    }
+  }
+}
+
+async function deleteStudent(studentId) {
+  const student = currentStudents.find((item) => item.id === studentId);
+  if (!student) {
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `هل أنت متأكد من حذف المستخدم ${student.studentName}؟ سيتم حذف بياناته وسجل حضوره نهائياً.`
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    const response = await teacherFetch(`/api/students/${encodeURIComponent(studentId)}`, {
+      method: "DELETE",
+      headers: { Accept: "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(payload.error || "تعذر حذف المستخدم.");
+    }
+
+    showToast(payload.message || "تم حذف المستخدم بنجاح.");
+    await fetchStudents(currentLevel);
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) {
+      console.error("Unable to delete student:", error);
+      showDashboardError(error.message || "تعذر حذف المستخدم.");
+    }
   }
 }
 

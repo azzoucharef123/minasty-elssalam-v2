@@ -207,3 +207,82 @@
 body.parent-login-modal-open {
   overflow: hidden;
 }
+
+
+.university-card-field {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.8rem;
+}
+
+.university-card-field[hidden] {
+  display: none;
+}
+
+.university-card-field small {
+  color: #64748b;
+  font-size: 0.76rem;
+}
+
+.university-dashboard-link {
+  display: inline-block;
+  margin-top: 0.35rem;
+  color: #2563eb;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.university-dashboard-link:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.card-view-btn,
+.delete-student-btn {
+  border: 0;
+  border-radius: 0.55rem;
+  color: #ffffff;
+  padding: 0.42rem 0.62rem;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-view-btn {
+  background: #2563eb;
+  box-shadow: 0 5px 12px rgba(37, 99, 235, 0.18);
+}
+
+.delete-student-btn {
+  background: #dc2626;
+  box-shadow: 0 5px 12px rgba(220, 38, 38, 0.16);
+}
+
+.card-view-btn:hover,
+.delete-student-btn:hover {
+  transform: translateY(-0.1rem);
+}
+
+.card-view-btn:hover {
+  background: #1d4ed8;
+}
+
+.delete-student-btn:hover {
+  background: #b91c1c;
+}
+
+.card-photo-cell,
+.muted-cell {
+  white-space: nowrap;
+}
+
+.muted-cell {
+  color: #94a3b8;
+  font-size: 0.78rem;
+}

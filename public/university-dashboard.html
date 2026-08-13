@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>لوحة الطالب الجامعي | أكاديمية التفوق</title>
+  <link rel="stylesheet" href="./css/style.css" />
+  <link rel="stylesheet" href="./css/app.css" />
+  <style>
+    .university-dashboard-shell { min-height: 100vh; background: #f1f5f9; }
+    .university-header { padding: 1rem 5%; background: #0f172a; color: #fff; }
+    .university-header-inner { width: min(100%, 72rem); margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    .university-brand { display: grid; gap: .18rem; color: #fff; text-decoration: none; }
+    .university-brand strong { font-size: 1rem; }
+    .university-brand small { color: #93c5fd; font-size: .72rem; }
+    .university-logout { padding: .55rem .85rem; color: #dbeafe; background: rgba(255,255,255,.08); border: 1px solid rgba(191,219,254,.2); border-radius: .65rem; cursor: pointer; font: inherit; }
+    .university-main { width: min(100% - 2rem, 72rem); margin: 0 auto; padding: 2rem 0 4rem; }
+    .university-welcome { margin-bottom: 1.25rem; }
+    .university-welcome .eyebrow { margin: 0; }
+    .university-welcome h1 { margin: .35rem 0; color: #0f172a; }
+    .university-welcome p { margin: 0; color: #64748b; }
+    .university-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .university-card { padding: 1.25rem; background: #fff; border: 1px solid #e2e8f0; border-radius: 1.2rem; box-shadow: 0 10px 28px rgba(15,23,42,.06); }
+    .university-card h2 { margin: 0 0 1rem; font-size: 1.05rem; }
+    .university-profile { display: flex; align-items: center; gap: .85rem; }
+    .university-avatar { display: grid; width: 3.5rem; height: 3.5rem; place-items: center; color: #fff; background: linear-gradient(135deg,#2563eb,#1d4ed8); border-radius: 1rem; font-weight: 800; }
+    .university-profile h2 { margin: 0; }
+    .university-profile p { margin: .25rem 0 0; color: #64748b; }
+    .university-status { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .8rem 0; border-bottom: 1px solid #e2e8f0; }
+    .university-status:last-child { border-bottom: 0; }
+    .university-status span { color: #64748b; }
+    .university-status strong { color: #0f172a; }
+    .university-status .success { color: #15803d; }
+    .university-status .pending { color: #b45309; }
+    .university-status .danger { color: #b91c1c; }
+    .university-subjects { display: flex; flex-wrap: wrap; gap: .55rem; }
+    .university-subject { padding: .55rem .75rem; color: #1e3a8a; background: #dbeafe; border-radius: 999px; font-size: .82rem; font-weight: 800; }
+    .university-actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1rem; }
+    .university-actions button, .university-actions a { flex: 1; min-width: 12rem; text-align: center; }
+    #university-error { margin-bottom: 1rem; }
+    @media (max-width: 650px) { .university-header-inner, .university-profile { align-items: flex-start; flex-direction: column; } .university-grid { grid-template-columns: 1fr; } .university-actions { flex-direction: column; } }
+  </style>
+</head>
+<body class="university-dashboard-shell">
+  <header class="university-header">
+    <div class="university-header-inner">
+      <a class="university-brand" href="./index.html">
+        <strong>أكاديمية التفوق</strong>
+        <small>لوحة الطالب الجامعي</small>
+      </a>
+      <button id="university-logout" class="university-logout" type="button">تسجيل الخروج</button>
+    </div>
+  </header>
+
+  <main class="university-main">
+    <section id="university-error" class="form-error" hidden role="alert"></section>
+    <div id="university-loading" role="status">جارٍ تحميل لوحة الطالب الجامعي…</div>
+
+    <section id="university-content" hidden>
+      <div class="university-welcome">
+        <p class="eyebrow">مساحتك التعليمية</p>
+        <h1>مرحبًا بك في لوحة الطالب الجامعي</h1>
+        <p>تابع حالة تسجيلك، البطاقة الجامعية، والمواد والحصة المباشرة من مكان واحد.</p>
+      </div>
+
+      <div class="university-grid">
+        <article class="university-card">
+          <div class="university-profile">
+            <span id="university-avatar" class="university-avatar" aria-hidden="true">ط</span>
+            <div>
+              <h2 id="university-student-name">—</h2>
+              <p>طالب جامعي</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="university-card">
+          <h2>حالة الملف</h2>
+          <div class="university-status"><span>صورة البطاقة</span><strong id="university-card-status">—</strong></div>
+          <div class="university-status"><span>حالة الدفع</span><strong id="university-payment-status">—</strong></div>
+          <div class="university-status"><span>المبلغ المطلوب</span><strong id="university-amount-due">لا يوجد</strong></div>
+        </article>
+
+        <article class="university-card">
+          <h2>المواد المسجل فيها</h2>
+          <div id="university-subjects" class="university-subjects"></div>
+        </article>
+
+        <article class="university-card">
+          <h2>الوصول إلى الحصة</h2>
+          <div class="university-status"><span>صلاحية الدخول</span><strong id="university-live-status">—</strong></div>
+          <div class="university-actions">
+            <button id="university-live-button" class="cta-button cta-primary" type="button">الدخول إلى الحصة</button>
+            <a class="cta-button cta-secondary" href="./parent-dashboard.html">بوابة الولي</a>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script src="./js/university-dashboard.js"></script>
+</body>
+</html>

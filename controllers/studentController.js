@@ -1,8 +1,13 @@
 "use strict";
 
+const fs = require("fs");
+const path = require("path");
 const { Prisma } = require("@prisma/client");
 const { normalizeParentPhone } = require("../utils/phone");
 const prisma = require("../lib/prisma");
+
+const uploadDirectory =
+  process.env.UPLOAD_DIR || path.join(__dirname, "..", "public", "uploads");
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 50;
@@ -58,8 +63,12 @@ async function registerStudent(req, res) {
     const studentName = normalizeText(req.body?.studentName);
     const parentPhone = normalizeParentPhone(req.body?.parentPhone);
     const level = normalizeText(req.body?.level);
+    const uploadedCardFile = req.file;
 
     if (!studentName || !parentPhone || !level) {
+      if (uploadedCardFile?.filename) {
+        await removeUploadedCard(uploadedCardFile.filename);
+      }
       return res.status(400).json({
         error: "اسم التلميذ ورقم هاتف الولي والمستوى الدراسي حقول مطلوبة.",
       });
@@ -75,8 +84,25 @@ async function registerStudent(req, res) {
     });
 
     if (existingStudent) {
+      if (uploadedCardFile?.filename) {
+        await removeUploadedCard(uploadedCardFile.filename);
+      }
       return res.status(400).json({
         error: "هذا التلميذ مسجل بالفعل في هذا المستوى الدراسي بهذا الرقم.",
+      });
+    }
+    const isUniversityStudent = level === "طالب جامعي";
+
+    if (isUniversityStudent && !uploadedCardFile) {
+      return res.status(400).json({
+        error: "صورة بطاقة الطالب الجامعي مطلوبة لإكمال التسجيل.",
+      });
+    }
+
+    if (!isUniversityStudent && uploadedCardFile) {
+      await removeUploadedCard(uploadedCardFile.filename);
+      return res.status(400).json({
+        error: "رفع صورة البطاقة متاح للطلاب الجامعيين فقط.",
       });
     }
 
@@ -93,6 +119,7 @@ async function registerStudent(req, res) {
         liveAccessEnabled: false,
         mathNote: "",
         physicsNote: "",
+        cardPhotoUrl: uploadedCardFile?.filename || null,
       },
     });
 
@@ -105,6 +132,10 @@ async function registerStudent(req, res) {
     // client-safe response for Prisma's unique constraint violation.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return res.status(400).json({ error: "هذا التلميذ مسجل بالفعل في هذا المستوى الدراسي بهذا الرقم." });
+    }
+
+    if (req.file?.filename) {
+      await removeUploadedCard(req.file.filename);
     }
 
     console.error("Student registration failed:", error);
@@ -139,6 +170,31 @@ async function getStudentForParent(req, res) {
  * Returns a stable, bounded teacher roster page and total count metadata. Both
  * database operations use the same level condition and run concurrently.
  */
+async function getStudentCard(req, res) {
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: req.params.id },
+      select: { cardPhotoUrl: true },
+    });
+
+    if (!student?.cardPhotoUrl) {
+      return res.status(404).json({ error: "لا توجد صورة بطاقة لهذا الطالب." });
+    }
+
+    const filename = path.basename(student.cardPhotoUrl);
+    const filePath = path.join(uploadDirectory, filename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "صورة البطاقة غير متاحة حالياً." });
+    }
+
+    return res.sendFile(filePath);
+  } catch (error) {
+    console.error("Student card lookup failed:", error);
+    return res.status(500).json({ error: "تعذر عرض صورة البطاقة حالياً." });
+  }
+}
+
 async function getStudentsByLevel(req, res) {
   try {
     const level = normalizeText(req.params.level);
@@ -176,6 +232,52 @@ async function getStudentsByLevel(req, res) {
 
     console.error("Paginated level roster lookup failed:", error);
     return res.status(500).json({ error: "تعذر تحميل قائمة التلاميذ حالياً." });
+  }
+}
+
+async function removeUploadedCard(filename) {
+  if (!filename) {
+    return;
+  }
+
+  const safeFilename = path.basename(filename);
+  const filePath = path.join(uploadDirectory, safeFilename);
+
+  try {
+    await fs.promises.unlink(filePath);
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      console.warn("Unable to remove student card file:", error.message);
+    }
+  }
+}
+
+/** DELETE /api/students/:id — teacher-only user deletion. */
+async function deleteStudent(req, res) {
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, cardPhotoUrl: true, studentName: true },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: "التلميذ غير موجود." });
+    }
+
+    await prisma.student.delete({ where: { id: student.id } });
+    await removeUploadedCard(student.cardPhotoUrl);
+
+    return res.status(200).json({
+      status: "success",
+      message: `تم حذف المستخدم ${student.studentName} بنجاح.`,
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      return res.status(404).json({ error: "التلميذ غير موجود." });
+    }
+
+    console.error("Student deletion failed:", error);
+    return res.status(500).json({ error: "تعذر حذف المستخدم حالياً." });
   }
 }
 
@@ -243,6 +345,8 @@ async function updateStudentStatusAndNotes(req, res) {
 module.exports = {
   registerStudent,
   getStudentForParent,
+  getStudentCard,
   getStudentsByLevel,
   updateStudentStatusAndNotes,
+  deleteStudent,
 };

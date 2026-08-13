@@ -20,6 +20,7 @@ model Student {
   liveAccessEnabled Boolean  @default(false)
   mathNote          String   @default("")
   physicsNote   String   @default("")
+  cardPhotoUrl  String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   attendances   Attendance[]

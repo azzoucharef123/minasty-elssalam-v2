@@ -7,8 +7,24 @@ const confirmation = document.getElementById("registration-confirmation");
 const confirmationText = document.getElementById("registration-confirmation-text");
 const registerAnotherBtn = document.getElementById("register-another-btn");
 const goToDashboardBtn = document.getElementById("go-to-dashboard-btn");
+const levelInput = document.getElementById("student-level");
+const universityCardField = document.getElementById("university-card-field");
+const cardPhotoInput = document.getElementById("card-photo");
 
 let lastRegisteredPhone = "";
+
+function syncUniversityCardField() {
+  const isUniversityStudent = levelInput?.value === "طالب جامعي";
+  if (universityCardField) {
+    universityCardField.hidden = !isUniversityStudent;
+  }
+  if (cardPhotoInput) {
+    cardPhotoInput.required = isUniversityStudent;
+    if (!isUniversityStudent) {
+      cardPhotoInput.value = "";
+    }
+  }
+}
 
 function showRegistrationError(text) {
   message.textContent = text;
@@ -17,9 +33,13 @@ function showRegistrationError(text) {
 }
 
 if (registerForm && submitBtn && message && confirmation && confirmationText) {
+  levelInput?.addEventListener("change", syncUniversityCardField);
+  syncUniversityCardField();
+
   registerAnotherBtn?.addEventListener("click", () => {
     confirmation.hidden = true;
     registerForm.reset();
+    syncUniversityCardField();
     if (lastRegisteredPhone) {
       const phoneInput = document.getElementById("parent-phone");
       if (phoneInput) phoneInput.value = lastRegisteredPhone;
@@ -49,9 +69,30 @@ if (registerForm && submitBtn && message && confirmation && confirmationText) {
       level: String(formData.get("level") || "").trim(),
     };
 
+    const cardFile = cardPhotoInput?.files?.[0] || null;
+    const isUniversityStudent = payload.level === "طالب جامعي";
+
     if (!payload.studentName || !payload.parentPhone || !payload.level) {
       showRegistrationError("يرجى ملء جميع الحقول.");
       return;
+    }
+
+    if (isUniversityStudent && !cardFile) {
+      showRegistrationError("يرجى إرفاق صورة بطاقة الطالب الجامعي لإكمال التسجيل.");
+      cardPhotoInput?.focus();
+      return;
+    }
+
+    if (cardFile) {
+      const allowedTypes = ["image/jpeg", "image/png"];
+      if (!allowedTypes.includes(cardFile.type)) {
+        showRegistrationError("صورة البطاقة يجب أن تكون بصيغة JPG أو PNG.");
+        return;
+      }
+      if (cardFile.size > 5 * 1024 * 1024) {
+        showRegistrationError("حجم صورة البطاقة يجب ألا يتجاوز 5 ميغابايت.");
+        return;
+      }
     }
 
     message.hidden = true;
@@ -64,8 +105,7 @@ if (registerForm && submitBtn && message && confirmation && confirmationText) {
     try {
       const response = await fetch("/api/students/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: formData,
       });
       const data = await response.json().catch(() => ({}));
 

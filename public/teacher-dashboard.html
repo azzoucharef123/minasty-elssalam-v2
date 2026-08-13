@@ -19,6 +19,7 @@
       <button class="level-btn" data-level="السنة الثانية">السنة الثانية</button>
       <button class="level-btn" data-level="السنة الثالثة">السنة الثالثة</button>
       <button class="level-btn" data-level="السنة الرابعة">السنة الرابعة</button>
+      <button class="level-btn" data-level="طالب جامعي">طالب جامعي</button>
     </section>
     <section class="summary-grid">
       <article class="summary-card blue"><span>إجمالي التلاميذ</span><strong id="summary-total">0</strong></article>
@@ -26,7 +27,7 @@
       <article class="summary-card red"><span>غير مدفوع</span><strong id="summary-unpaid">0</strong></article>
     </section>
     <section class="filter-bar"><input id="student-search" placeholder="البحث باسم التلميذ..." /><select id="payment-filter"><option value="all">الكل</option><option value="paid">مدفوع</option><option value="unpaid">غير مدفوع</option></select><span id="filtered-results-label"></span></section>
-    <section class="table-card"><div class="table-title"><h2 id="current-level-title">السنة الأولى</h2><a class="secondary-action" href="./teacher-live.html">بدء حصة مباشرة</a></div><div class="table-wrap"><table><thead><tr><th>التلميذ</th><th>رقم الولي</th><th>الدفع</th><th>الرياضيات</th><th>الفيزياء</th><th>الإجراءات</th></tr></thead><tbody id="students-table-body"></tbody></table></div><p id="table-empty-state" hidden>لا يوجد تلاميذ مسجلون في هذا المستوى حالياً.</p></section>
+    <section class="table-card"><div class="table-title"><h2 id="current-level-title">السنة الأولى</h2><a class="secondary-action" href="./teacher-live.html">بدء حصة مباشرة</a></div><div class="table-wrap"><table><thead><tr><th>التلميذ</th><th>رقم الولي</th><th>الدفع</th><th>الرياضيات</th><th>الفيزياء</th><th>بطاقة الطالب</th><th>الإجراءات</th></tr></thead><tbody id="students-table-body"></tbody></table></div><p id="table-empty-state" hidden>لا يوجد تلاميذ مسجلون في هذا المستوى حالياً.</p></section>
   </main>
   <div id="edit-modal" class="modal" hidden><div class="modal-card"><button id="cancel-edit-btn" class="modal-close">×</button><h2 id="modal-student-name"></h2><form id="edit-student-form" class="stack-form"><label>ملاحظة الرياضيات<textarea id="math-note"></textarea></label><label>ملاحظة الفيزياء<textarea id="physics-note"></textarea></label><button class="cta-button cta-primary" type="submit">حفظ التعديلات</button></form></div></div>
   <div id="attendance-modal" class="modal" hidden><div class="modal-card"><button id="close-attendance-modal" class="modal-close">×</button><h2>سجل حضور <span id="attendance-student-name"></span></h2><p id="attendance-empty" hidden>لا توجد سجلات حضور بعد.</p><ul id="attendance-list" class="attendance-list"></ul></div></div>
