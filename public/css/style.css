@@ -686,3 +686,38 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+
+/* Keep the academy identity visually centered on the landing page. */
+.landing-header {
+  position: relative;
+  justify-content: flex-start;
+}
+
+.landing-header .brand {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+@media (max-width: 52rem) {
+  .landing-header {
+    justify-content: center;
+  }
+
+  .landing-header .brand {
+    position: static;
+    transform: none;
+  }
+
+  .landing-header .header-access-links {
+    position: absolute;
+    inset-inline-start: 0;
+  }
+}
+
+@media (max-width: 34rem) {
+  .landing-header .header-access-links {
+    position: static;
+  }
+}

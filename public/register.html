@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>تسجيل تلميذ جديد | أكاديمية التفوق</title>
+  <meta name="description" content="إنشاء حساب جديد في أكاديمية التفوق للفيزياء والرياضيات.">
+  <title>تسجيل حساب جديد | أكاديمية التفوق</title>
   <link rel="stylesheet" href="./css/style.css">
   <link rel="stylesheet" href="./css/app.css">
 </head>
@@ -12,31 +13,72 @@
     <section class="auth-card wide-card">
       <a class="brand-link" href="./index.html">أكاديمية التفوق</a>
       <p class="eyebrow">انضم إلى الأكاديمية</p>
-      <h1>تسجيل تلميذ جديد</h1>
-      <form id="register-form" class="stack-form">
-        <label for="student-name">اسم التلميذ</label>
-        <input id="student-name" name="studentName" type="text" required maxlength="120">
+      <h1>تسجيل حساب جديد</h1>
+      <p class="register-intro">تحقق من رقم هاتفك أولًا، ثم أكمل بيانات التسجيل.</p>
 
-        <label for="parent-phone">رقم هاتف الولي</label>
-        <input id="parent-phone" name="parentPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="05xxxxxxxx" required>
+      <form id="register-form" class="stack-form" novalidate>
+        <label for="student-name">
+          <span>الاسم واللقب <small class="field-hint">(الاسم الصحيح)</small></span>
+          <input id="student-name" name="studentName" type="text" autocomplete="name" required maxlength="120">
+        </label>
 
-        <label for="student-level">المستوى الدراسي</label>
-        <select id="student-level" name="level" required>
-          <option value="السنة الأولى">السنة الأولى</option>
-          <option value="السنة الثانية">السنة الثانية</option>
-          <option value="السنة الثالثة">السنة الثالثة</option>
-          <option value="السنة الرابعة">السنة الرابعة</option>
-          <option value="طالب جامعي">طالب جامعي</option>
-        </select>
+        <section class="phone-verification-section" aria-labelledby="phone-verification-title">
+          <div class="verification-heading">
+            <span class="verification-step">1</span>
+            <div>
+              <h2 id="phone-verification-title">تأكيد رقم الهاتف</h2>
+              <p>سنرسل رمزًا قصيرًا إلى الرقم الذي ستدخل به إلى حسابك.</p>
+            </div>
+          </div>
 
-        <div id="university-card-field" class="university-card-field" hidden>
-          <label for="card-photo">صورة بطاقة الطالب الجامعي</label>
-          <input id="card-photo" name="cardPhoto" type="file" accept="image/png,image/jpeg" capture="environment" />
-          <small>الصيغ المسموحة: JPG أو PNG — الحجم الأقصى 5 ميغابايت.</small>
-        </div>
+          <label for="parent-phone">
+            <span>أدخل رقم الهاتف شغال</span>
+            <input id="parent-phone" name="parentPhone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="0556960950" required>
+          </label>
+
+          <button id="send-code-btn" class="verification-button" type="button">إرسال كود التحقق</button>
+          <div id="recaptcha-container" aria-hidden="true"></div>
+
+          <div id="otp-section" class="otp-section" hidden>
+            <label for="verification-code">
+              <span>أدخل كود التحقق المرسل إليك</span>
+              <input id="verification-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000">
+            </label>
+            <button id="verify-code-btn" class="verification-button verification-button-secondary" type="button">تحقق من الكود</button>
+          </div>
+
+          <p id="verification-message" class="verification-message" hidden aria-live="polite"></p>
+          <p id="verification-success" class="verification-success" hidden aria-live="polite">تم التحقق ✓</p>
+        </section>
+
+        <section id="registration-details" class="registration-details" hidden aria-labelledby="registration-details-title">
+          <div class="verification-heading">
+            <span class="verification-step">2</span>
+            <div>
+              <h2 id="registration-details-title">بيانات الدراسة</h2>
+              <p>اختر المستوى الدراسي لإكمال إنشاء الحساب.</p>
+            </div>
+          </div>
+
+          <label for="student-level">المستوى الدراسي</label>
+          <select id="student-level" name="level" required disabled>
+            <option value="" selected disabled>اختر المستوى الدراسي</option>
+            <option value="السنة الأولى">السنة الأولى</option>
+            <option value="السنة الثانية">السنة الثانية</option>
+            <option value="السنة الثالثة">السنة الثالثة</option>
+            <option value="السنة الرابعة">السنة الرابعة</option>
+            <option value="طالب جامعي">طالب جامعي</option>
+          </select>
+
+          <div id="university-card-field" class="university-card-field" hidden>
+            <label for="card-photo">صورة بطاقة الطالب الجامعي</label>
+            <input id="card-photo" name="cardPhoto" type="file" accept="image/png,image/jpeg" capture="environment" disabled>
+            <small>الصيغ المسموحة: JPG أو PNG — الحجم الأقصى 5 ميغابايت.</small>
+          </div>
+        </section>
 
         <p id="register-message" class="form-message" hidden aria-live="polite"></p>
-        <button id="submit-btn" class="cta-button cta-primary" type="submit">إتمام التسجيل</button>
+        <button id="submit-btn" class="cta-button cta-primary" type="submit" disabled>إتمام التسجيل</button>
       </form>
     </section>
   </main>
@@ -53,6 +95,6 @@
     </div>
   </section>
 
-  <script src="./js/register.js?v=20260812"></script>
+  <script type="module" src="./js/register.js?v=20260813-otp"></script>
 </body>
 </html>

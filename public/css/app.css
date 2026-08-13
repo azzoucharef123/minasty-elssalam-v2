@@ -286,3 +286,165 @@ body.parent-login-modal-open {
   color: #94a3b8;
   font-size: 0.78rem;
 }
+
+
+/* Firebase phone verification on registration */
+.register-intro {
+  margin: -0.2rem 0 1.35rem;
+  color: #64748b;
+  font-size: 0.9rem;
+  line-height: 1.75;
+}
+
+.field-hint {
+  color: #64748b;
+  font-size: 0.77rem;
+  font-weight: 600;
+}
+
+.phone-verification-section,
+.registration-details {
+  display: grid;
+  gap: 0.82rem;
+  padding: 1rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 1rem;
+  background: linear-gradient(145deg, #f8fbff 0%, #eff6ff 100%);
+}
+
+.registration-details {
+  border-color: #dbeafe;
+  background: #ffffff;
+}
+
+.registration-details[hidden],
+.otp-section[hidden] {
+  display: none;
+}
+
+.verification-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+
+.verification-heading h2 {
+  margin: 0;
+  color: #1e3a8a;
+  font-size: 1rem;
+}
+
+.verification-heading p {
+  margin: 0.22rem 0 0;
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.65;
+}
+
+.verification-step {
+  display: grid;
+  width: 1.85rem;
+  height: 1.85rem;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 800;
+  box-shadow: 0 5px 12px rgba(37, 99, 235, 0.22);
+}
+
+.verification-button {
+  width: 100%;
+  min-height: 2.9rem;
+  padding: 0.7rem 1rem;
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border: 0;
+  border-radius: 0.75rem;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.2);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.verification-button:hover:not(:disabled) {
+  box-shadow: 0 12px 22px rgba(37, 99, 235, 0.3);
+  transform: translateY(-0.08rem);
+}
+
+.verification-button:disabled,
+.cta-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  box-shadow: none;
+  transform: none;
+}
+
+.verification-button-secondary {
+  color: #1e3a8a;
+  background: #ffffff;
+  border: 1px solid #93c5fd;
+  box-shadow: none;
+}
+
+.verification-button-secondary:hover:not(:disabled) {
+  color: #ffffff;
+  background: #1d4ed8;
+}
+
+.otp-section {
+  display: grid;
+  gap: 0.72rem;
+  padding-top: 0.15rem;
+}
+
+#verification-code {
+  direction: ltr;
+  letter-spacing: 0.38em;
+  text-align: center;
+  font-family: Arial, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.verification-message,
+.verification-success {
+  margin: 0;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.verification-message {
+  color: #1e40af;
+  background: #dbeafe;
+}
+
+.verification-message.is-error {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.verification-success {
+  color: #166534;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+}
+
+#parent-phone[readonly] {
+  color: #166534;
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+@media (max-width: 32rem) {
+  .phone-verification-section,
+  .registration-details {
+    padding: 0.85rem;
+  }
+}
