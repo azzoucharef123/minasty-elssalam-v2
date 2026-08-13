@@ -451,6 +451,102 @@
         cursor: not-allowed;
       }
 
+      .student-chat-capture {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.22rem;
+        min-width: 4.55rem;
+        min-height: 2.15rem;
+        padding: 0.4rem 0.46rem;
+        color: #dbeafe;
+        background: rgba(30, 41, 59, 0.86);
+        border: 1px solid rgba(96, 165, 250, 0.44);
+        border-radius: 0.5rem;
+        font: inherit;
+        font-size: 0.64rem;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .student-chat-capture:hover:not(:disabled),
+      .student-chat-capture:focus-visible:not(:disabled) {
+        color: #ffffff;
+        background: rgba(37, 99, 235, 0.7);
+        outline: none;
+      }
+
+      .student-chat-capture:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .question-image-preview {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0.4rem 0.6rem 0;
+        padding: 0.45rem;
+        color: #dbeafe;
+        background: rgba(30, 64, 175, 0.2);
+        border: 1px solid rgba(96, 165, 250, 0.35);
+        border-radius: 0.62rem;
+      }
+
+      .question-image-preview[hidden] {
+        display: none;
+      }
+
+      .question-image-preview img {
+        width: 3.3rem;
+        height: 3.3rem;
+        object-fit: cover;
+        border: 1px solid rgba(191, 219, 254, 0.4);
+        border-radius: 0.42rem;
+      }
+
+      .question-image-preview-copy {
+        display: grid;
+        flex: 1;
+        gap: 0.12rem;
+        min-width: 0;
+      }
+
+      .question-image-preview-copy strong {
+        font-size: 0.66rem;
+      }
+
+      .question-image-preview-copy span {
+        color: #bfdbfe;
+        font-size: 0.58rem;
+        line-height: 1.55;
+      }
+
+      .question-image-preview button {
+        display: grid;
+        width: 1.65rem;
+        height: 1.65rem;
+        place-items: center;
+        color: #fecaca;
+        background: rgba(127, 29, 29, 0.5);
+        border: 1px solid rgba(248, 113, 113, 0.32);
+        border-radius: 0.4rem;
+        font-size: 1.1rem;
+        cursor: pointer;
+      }
+
+      .student-chat-image {
+        display: block;
+        width: min(100%, 16rem);
+        max-height: 16rem;
+        margin-top: 0.38rem;
+        object-fit: cover;
+        border: 1px solid rgba(191, 219, 254, 0.36);
+        border-radius: 0.52rem;
+        cursor: zoom-in;
+      }
+
       .viewer-controls-wrap {
         position: relative;
         z-index: 3;
@@ -737,8 +833,17 @@
           <div id="chat-box" class="student-chat-box" aria-live="polite" aria-label="أسئلتك وردود الأستاذ">
             <p id="chat-empty" class="student-chat-empty">اكتب سؤالك وسيظهر رد الأستاذ هنا.</p>
           </div>
+          <div id="question-image-preview" class="question-image-preview" hidden>
+            <img id="question-image-preview-img" alt="معاينة صورة السؤال" />
+            <div class="question-image-preview-copy"><strong>صورة جاهزة للإرسال</strong><span>يمكنك كتابة توضيح ثم الإرسال.</span></div>
+            <button id="remove-question-image-btn" type="button" aria-label="إلغاء الصورة">×</button>
+          </div>
           <form id="chat-form" class="student-chat-form" novalidate>
-            <input id="chat-input" type="text" maxlength="800" placeholder="اكتب سؤالك..." autocomplete="off" aria-label="سؤالك للأستاذ" disabled />
+            <input id="chat-input" type="text" maxlength="800" placeholder="اكتب سؤالك أو أرفق صورة..." autocomplete="off" aria-label="سؤالك للأستاذ" disabled />
+            <input id="question-image-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden disabled />
+            <button id="capture-question-btn" class="student-chat-capture" type="button" disabled aria-label="تصوير سؤال أو واجب">
+              <span aria-hidden="true">▣</span><span>تصوير</span>
+            </button>
             <button id="chat-send-btn" class="student-chat-send" type="submit" disabled>إرسال</button>
           </form>
         </aside>

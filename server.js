@@ -96,10 +96,12 @@ app.use((req, res, next) => {
 const authRoutes = require("./routes/authRoutes");
 const studentRoutes = require("./routes/studentRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
+const liveChatRoutes = require("./routes/liveChatRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/students", studentRoutes);
 app.use("/api/attendance", attendanceRoutes);
+app.use("/api/live-chat", liveChatRoutes);
 
 // Course-material uploads are intentionally disabled. Block the legacy public
 // path before the general static middleware so old files cannot be downloaded.
@@ -1019,37 +1021,81 @@ io.on("connection", (socket) => {
    * Send a student's question only to the active teacher for the student's
    * current room. Client-provided level and name are ignored deliberately.
    */
-  socket.on("student_send_message", (data = {}, acknowledgement) => {
-    const level = socket.data.roomLevel;
-    const teacherSocketId = activeTeachersByLevel.get(level);
-    const teacherSocket = teacherSocketId
-      ? io.sockets.sockets.get(teacherSocketId)
-      : null;
-    const message = normalizeChatMessage(data.message);
+  socket.on("student_send_message", async (data = {}, acknowledgement) => {
+    try {
+      const level = socket.data.roomLevel;
+      const teacherSocketId = activeTeachersByLevel.get(level);
+      const teacherSocket = teacherSocketId
+        ? io.sockets.sockets.get(teacherSocketId)
+        : null;
+      const message = normalizeChatMessage(data.message);
+      const imageId = normalizeText(data.imageId);
 
-    if (
-      socket.data.role !== "student" ||
-      !isValidLevel(level || "") ||
-      !message ||
-      !teacherSocket ||
-      teacherSocket.data.role !== "teacher" ||
-      !shareSameClassroom(socket, teacherSocket, level)
-    ) {
-      return emitClassroomError(
+      if (
+        socket.data.role !== "student" ||
+        !isValidLevel(level || "") ||
+        (!message && !imageId) ||
+        !teacherSocket ||
+        teacherSocket.data.role !== "teacher" ||
+        !shareSameClassroom(socket, teacherSocket, level)
+      ) {
+        return emitClassroomError(
+          socket,
+          "student_send_message",
+          "تعذر إرسال السؤال إلى الأستاذ. تأكد من اتصال الحصة.",
+          acknowledgement
+        );
+      }
+
+      let approvedImageId = null;
+      if (imageId) {
+        if (!isValidStudentId(imageId)) {
+          return emitClassroomError(
+            socket,
+            "student_send_message",
+            "صورة السؤال غير صالحة.",
+            acknowledgement
+          );
+        }
+
+        const image = await prisma.liveQuestionImage.findUnique({
+          where: { id: imageId },
+          select: { id: true, studentId: true, level: true },
+        });
+
+        if (
+          !image ||
+          image.studentId !== socket.data.studentId ||
+          image.level !== level
+        ) {
+          return emitClassroomError(
+            socket,
+            "student_send_message",
+            "لا تملك صلاحية إرسال هذه الصورة.",
+            acknowledgement
+          );
+        }
+
+        approvedImageId = image.id;
+      }
+
+      // This is intentionally a direct socket emission—not a level-room broadcast.
+      io.to(teacherSocketId).emit("student_message_received", {
+        level,
+        studentName: socket.data.studentName,
+        message,
+        imageId: approvedImageId,
+      });
+      acknowledge(acknowledgement, { ok: true, imageId: approvedImageId });
+    } catch (error) {
+      console.error("student_send_message failed:", error);
+      emitClassroomError(
         socket,
         "student_send_message",
-        "تعذر إرسال السؤال إلى الأستاذ. تأكد من اتصال الحصة.",
+        "تعذر إرسال السؤال المصوّر إلى الأستاذ.",
         acknowledgement
       );
     }
-
-    // This is intentionally a direct socket emission—not a level-room broadcast.
-    io.to(teacherSocketId).emit("student_message_received", {
-      level,
-      studentName: socket.data.studentName,
-      message,
-    });
-    acknowledge(acknowledgement, { ok: true });
   });
 
   /** Broadcast an active teacher's reply to only the students in that level. */

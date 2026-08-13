@@ -42,6 +42,11 @@ let recoveryAttempts = 0;
 let recoveryTimer = null;
 const MAX_RECOVERY_ATTEMPTS = 8;
 const pendingIceCandidates = [];
+const MAX_QUESTION_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const ACCEPTED_QUESTION_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+let selectedQuestionImageFile = null;
+let selectedQuestionImagePreviewUrl = null;
+const renderedQuestionImageUrls = new Set();
 
 // The viewer stores teacher-provided normalized segments only; there is no
 // student drawing input or outbound drawing event anywhere in this client.
@@ -65,6 +70,11 @@ const elements = {
   chatForm: document.getElementById("chat-form"),
   chatInput: document.getElementById("chat-input"),
   chatSendButton: document.getElementById("chat-send-btn"),
+  captureQuestionButton: document.getElementById("capture-question-btn"),
+  questionImageInput: document.getElementById("question-image-input"),
+  questionImagePreview: document.getElementById("question-image-preview"),
+  questionImagePreviewImage: document.getElementById("question-image-preview-img"),
+  removeQuestionImageButton: document.getElementById("remove-question-image-btn"),
 };
 
 /**
@@ -370,9 +380,9 @@ function isViewingLatestMessages(container, threshold = 36) {
   return container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
 }
 
-function appendStudentChatMessage({ sender, message, kind }) {
+function appendStudentChatMessage({ sender, message = "", kind, imageUrl = null }) {
   const safeMessage = normalizeChatMessage(message);
-  if (!safeMessage || !elements.chatBox) {
+  if ((!safeMessage && !imageUrl) || !elements.chatBox) {
     return;
   }
 
@@ -388,11 +398,24 @@ function appendStudentChatMessage({ sender, message, kind }) {
   senderLabel.className = "student-chat-sender";
   senderLabel.textContent = sender;
 
-  const body = document.createElement("span");
-  body.className = "student-chat-body";
-  appendChatBodyWithLinks(body, safeMessage);
+  bubble.append(senderLabel);
 
-  bubble.append(senderLabel, body);
+  if (safeMessage) {
+    const body = document.createElement("span");
+    body.className = "student-chat-body";
+    appendChatBodyWithLinks(body, safeMessage);
+    bubble.append(body);
+  }
+
+  if (imageUrl) {
+    const image = document.createElement("img");
+    image.className = "student-chat-image";
+    image.src = imageUrl;
+    image.alt = "صورة سؤال أو واجب مرفقة";
+    image.loading = "lazy";
+    image.addEventListener("click", () => openChatLinkInSeparateView({ preventDefault() {} }, imageUrl));
+    bubble.append(image);
+  }
   elements.chatBox.append(bubble);
 
   if (shouldFollowNewestMessage) {
@@ -407,6 +430,8 @@ function clearStudentChat() {
     return;
   }
 
+  renderedQuestionImageUrls.forEach((url) => URL.revokeObjectURL(url));
+  renderedQuestionImageUrls.clear();
   elements.chatBox.replaceChildren();
   const empty = document.createElement("p");
   empty.id = "chat-empty";
@@ -418,29 +443,102 @@ function clearStudentChat() {
 
 function updateChatControls() {
   const canSend = joinedClass && !isJoining && !isRecoveringStream && socket.connected;
+  const hasQuestionImage = Boolean(selectedQuestionImageFile);
   elements.chatInput.disabled = !canSend;
-  elements.chatSendButton.disabled = !canSend || !normalizeChatMessage(elements.chatInput.value);
+  elements.questionImageInput.disabled = !canSend;
+  elements.captureQuestionButton.disabled = !canSend;
+  elements.chatSendButton.disabled = !canSend || (!normalizeChatMessage(elements.chatInput.value) && !hasQuestionImage);
+}
+
+function clearSelectedQuestionImage() {
+  if (selectedQuestionImagePreviewUrl) {
+    URL.revokeObjectURL(selectedQuestionImagePreviewUrl);
+  }
+  selectedQuestionImagePreviewUrl = null;
+  selectedQuestionImageFile = null;
+  if (elements.questionImageInput) elements.questionImageInput.value = "";
+  if (elements.questionImagePreviewImage) elements.questionImagePreviewImage.src = "";
+  if (elements.questionImagePreview) elements.questionImagePreview.hidden = true;
+  updateChatControls();
+}
+
+function selectQuestionImage(file) {
+  if (!file) return;
+
+  if (!ACCEPTED_QUESTION_IMAGE_TYPES.has(file.type)) {
+    setViewerStatus("صورة السؤال يجب أن تكون بصيغة JPG أو PNG أو WEBP.", "error");
+    clearSelectedQuestionImage();
+    return;
+  }
+  if (file.size > MAX_QUESTION_IMAGE_SIZE_BYTES) {
+    setViewerStatus("حجم صورة السؤال يجب ألا يتجاوز 5 ميغابايت.", "error");
+    clearSelectedQuestionImage();
+    return;
+  }
+
+  if (selectedQuestionImagePreviewUrl) URL.revokeObjectURL(selectedQuestionImagePreviewUrl);
+  selectedQuestionImageFile = file;
+  selectedQuestionImagePreviewUrl = URL.createObjectURL(file);
+  elements.questionImagePreviewImage.src = selectedQuestionImagePreviewUrl;
+  elements.questionImagePreview.hidden = false;
+  setViewerStatus("الصورة جاهزة. اكتب توضيحًا اختياريًا ثم أرسل السؤال.", "live");
+  updateChatControls();
+}
+
+async function uploadQuestionImage(file) {
+  const token = sessionStorage.getItem("parentToken");
+  if (!token) throw new Error("انتهت جلسة الدخول. أعد الدخول للمتابعة.");
+
+  const formData = new FormData();
+  formData.append("image", file, file.name || "question.jpg");
+  formData.append("studentId", studentId);
+  formData.append("level", level);
+
+  const response = await fetch("/api/live-chat/question-image", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.data?.imageId) {
+    throw new Error(payload.error || "تعذر رفع صورة السؤال.");
+  }
+  return payload.data.imageId;
 }
 
 async function sendStudentChatMessage(event) {
   event.preventDefault();
 
   const message = normalizeChatMessage(elements.chatInput.value);
-  if (!joinedClass || isJoining || !message) {
+  const imageFile = selectedQuestionImageFile;
+  if (!joinedClass || isJoining || (!message && !imageFile)) {
     return;
   }
 
   elements.chatSendButton.disabled = true;
+  elements.captureQuestionButton.disabled = true;
 
   try {
+    let imageId = null;
+    let localImageUrl = null;
+    if (imageFile) {
+      setViewerStatus("جارٍ رفع صورة السؤال…", "warning");
+      imageId = await uploadQuestionImage(imageFile);
+      localImageUrl = URL.createObjectURL(imageFile);
+      renderedQuestionImageUrls.add(localImageUrl);
+    }
+
     await emitWithAcknowledgement("student_send_message", {
       level,
       studentName,
       message,
+      imageId,
     });
 
-    appendStudentChatMessage({ sender: "أنا", message, kind: "student" });
+    appendStudentChatMessage({ sender: "أنا", message, kind: "student", imageUrl: localImageUrl });
     elements.chatInput.value = "";
+    clearSelectedQuestionImage();
+    setViewerStatus(imageId ? "تم إرسال صورة السؤال إلى الأستاذ." : "تم إرسال السؤال إلى الأستاذ.", "live");
   } catch (error) {
     console.error("Unable to send student chat message:", error);
     setViewerStatus(error.message || "تعذر إرسال السؤال.", "error");
@@ -1292,11 +1390,21 @@ elements.raiseHandButton.addEventListener("click", raiseHand);
 elements.toggleMicButton.addEventListener("click", toggleMicrophone);
 elements.chatForm.addEventListener("submit", sendStudentChatMessage);
 elements.chatInput.addEventListener("input", updateChatControls);
+elements.captureQuestionButton?.addEventListener("click", () => {
+  if (!elements.captureQuestionButton.disabled) {
+    elements.questionImageInput?.click();
+  }
+});
+elements.questionImageInput?.addEventListener("change", () => {
+  selectQuestionImage(elements.questionImageInput.files?.[0]);
+});
+elements.removeQuestionImageButton?.addEventListener("click", clearSelectedQuestionImage);
 initializeStudentCanvas();
 
 window.addEventListener("pagehide", () => {
   clearHandResetTimer();
   clearRecoveryTimer();
+  clearSelectedQuestionImage();
   closePeerConnection();
   stopLocalAudio();
   clearStudentBoard();

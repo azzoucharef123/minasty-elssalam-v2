@@ -45,6 +45,7 @@ let isStarting = false;
 let isEnding = false;
 let classResumeToken = null;
 let reconnectingLiveClass = false;
+const renderedQuestionImageUrls = new Set();
 
 const elements = {
   localVideo: document.getElementById("local-video"),
@@ -178,10 +179,10 @@ function isViewingLatestMessages(container, threshold = 36) {
 }
 
 /** Render all chat text through textContent to prevent injected markup. */
-function appendTeacherChatMessage({ sender, message, kind }) {
+function appendTeacherChatMessage({ sender, message = "", kind, imageUrl = null }) {
   const safeMessage = normalizeChatMessage(message);
-  if (!safeMessage || !elements.chatBox) {
-    return;
+  if ((!safeMessage && !imageUrl) || !elements.chatBox) {
+    return null;
   }
 
   // Keep the reader's place while reviewing older chat. Only users already at
@@ -196,11 +197,25 @@ function appendTeacherChatMessage({ sender, message, kind }) {
   senderLabel.className = "chat-message-sender";
   senderLabel.textContent = sender;
 
-  const body = document.createElement("span");
-  body.className = "chat-message-body";
-  appendChatBodyWithLinks(body, safeMessage);
+  bubble.append(senderLabel);
 
-  bubble.append(senderLabel, body);
+  if (safeMessage) {
+    const body = document.createElement("span");
+    body.className = "chat-message-body";
+    appendChatBodyWithLinks(body, safeMessage);
+    bubble.append(body);
+  }
+
+  if (imageUrl) {
+    const image = document.createElement("img");
+    image.className = "teacher-chat-question-image";
+    image.src = imageUrl;
+    image.alt = "صورة واجب أو سؤال مرفقة من التلميذ";
+    image.loading = "lazy";
+    image.addEventListener("click", () => openChatLinkInSeparateView({ preventDefault() {} }, imageUrl));
+    bubble.append(image);
+  }
+
   elements.chatBox.append(bubble);
 
   if (shouldFollowNewestMessage) {
@@ -208,6 +223,27 @@ function appendTeacherChatMessage({ sender, message, kind }) {
       elements.chatBox.scrollTop = elements.chatBox.scrollHeight;
     });
   }
+
+  return bubble;
+}
+
+async function loadQuestionImage(imageId) {
+  const token = sessionStorage.getItem("teacherToken");
+  if (!token || !imageId) {
+    throw new Error("تعذر التحقق من صلاحية عرض صورة السؤال.");
+  }
+
+  const response = await fetch(`/api/live-chat/question-image/${encodeURIComponent(imageId)}`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "image/*" },
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || "تعذر تحميل صورة السؤال.");
+  }
+
+  const imageUrl = URL.createObjectURL(await response.blob());
+  renderedQuestionImageUrls.add(imageUrl);
+  return imageUrl;
 }
 
 function clearTeacherChat() {
@@ -215,6 +251,8 @@ function clearTeacherChat() {
     return;
   }
 
+  renderedQuestionImageUrls.forEach((url) => URL.revokeObjectURL(url));
+  renderedQuestionImageUrls.clear();
   elements.chatBox.replaceChildren();
   const empty = document.createElement("p");
   empty.id = "chat-empty";
@@ -1298,15 +1336,29 @@ socket.on("hand_raised", (data = {}) => {
   setStudioStatus("هناك طلب جديد للتحدث.", "live");
 });
 
-socket.on("student_message_received", (data = {}) => {
-  if (!classActive || !data?.message) {
+socket.on("student_message_received", async (data = {}) => {
+  if (!classActive || (!data?.message && !data?.imageId)) {
     return;
+  }
+
+  let imageUrl = null;
+  let fallbackMessage = data.message || "";
+
+  if (data.imageId) {
+    try {
+      imageUrl = await loadQuestionImage(data.imageId);
+    } catch (error) {
+      console.warn("Unable to load student question image:", error);
+      fallbackMessage = fallbackMessage || "أرسل صورة سؤال، لكن تعذر تحميلها.";
+      setStudioStatus(error.message || "تعذر تحميل صورة سؤال التلميذ.", "error");
+    }
   }
 
   appendTeacherChatMessage({
     sender: data.studentName || "تلميذ",
-    message: data.message,
+    message: fallbackMessage,
     kind: "student",
+    imageUrl,
   });
 });
 

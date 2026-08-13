@@ -5,6 +5,7 @@ const path = require("path");
 const { Prisma } = require("@prisma/client");
 const { normalizeParentPhone } = require("../utils/phone");
 const prisma = require("../lib/prisma");
+const { removeImageFile } = require("./liveChatController");
 
 const uploadDirectory =
   process.env.UPLOAD_DIR || path.join(__dirname, "..", "public", "uploads");
@@ -257,7 +258,12 @@ async function deleteStudent(req, res) {
   try {
     const student = await prisma.student.findUnique({
       where: { id: req.params.id },
-      select: { id: true, cardPhotoUrl: true, studentName: true },
+      select: {
+        id: true,
+        cardPhotoUrl: true,
+        studentName: true,
+        questionImages: { select: { fileName: true } },
+      },
     });
 
     if (!student) {
@@ -266,6 +272,7 @@ async function deleteStudent(req, res) {
 
     await prisma.student.delete({ where: { id: student.id } });
     await removeUploadedCard(student.cardPhotoUrl);
+    await Promise.all(student.questionImages.map((image) => removeImageFile(image.fileName)));
 
     return res.status(200).json({
       status: "success",
