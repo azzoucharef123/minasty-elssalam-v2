@@ -14,7 +14,7 @@
       <a class="brand-link" href="./index.html">أكاديمية التفوق</a>
       <p class="eyebrow">انضم إلى الأكاديمية</p>
       <h1>تسجيل حساب جديد</h1>
-      <p class="register-intro">تحقق من رقم هاتفك أولًا، ثم أكمل بيانات التسجيل.</p>
+      <p class="register-intro">أكمل معلوماتك ثم أنشئ حسابك مباشرةً.</p>
 
       <form id="register-form" class="stack-form" novalidate>
         <label for="student-name">
@@ -22,38 +22,14 @@
           <input id="student-name" name="studentName" type="text" autocomplete="name" required maxlength="120">
         </label>
 
-        <section class="phone-verification-section" aria-labelledby="phone-verification-title">
+        <label for="parent-phone">
+          <span>أدخل رقم الهاتف شغال</span>
+          <input id="parent-phone" name="parentPhone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="0556960950" required>
+        </label>
+
+        <section id="registration-details" class="registration-details" aria-labelledby="registration-details-title">
           <div class="verification-heading">
             <span class="verification-step">1</span>
-            <div>
-              <h2 id="phone-verification-title">تأكيد رقم الهاتف</h2>
-              <p>سنرسل رمزًا قصيرًا إلى الرقم الذي ستدخل به إلى حسابك.</p>
-            </div>
-          </div>
-
-          <label for="parent-phone">
-            <span>أدخل رقم الهاتف شغال</span>
-            <input id="parent-phone" name="parentPhone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="0556960950" required>
-          </label>
-
-          <button id="send-code-btn" class="verification-button" type="button">إرسال كود التحقق</button>
-          <div id="recaptcha-container" aria-hidden="true"></div>
-
-          <div id="otp-section" class="otp-section" hidden>
-            <label for="verification-code">
-              <span>أدخل كود التحقق المرسل إليك</span>
-              <input id="verification-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000">
-            </label>
-            <button id="verify-code-btn" class="verification-button verification-button-secondary" type="button">تحقق من الكود</button>
-          </div>
-
-          <p id="verification-message" class="verification-message" hidden aria-live="polite"></p>
-          <p id="verification-success" class="verification-success" hidden aria-live="polite">تم التحقق ✓</p>
-        </section>
-
-        <section id="registration-details" class="registration-details" hidden aria-labelledby="registration-details-title">
-          <div class="verification-heading">
-            <span class="verification-step">2</span>
             <div>
               <h2 id="registration-details-title">بيانات الدراسة</h2>
               <p>اختر المستوى الدراسي لإكمال إنشاء الحساب.</p>
@@ -61,7 +37,7 @@
           </div>
 
           <label for="student-level">المستوى الدراسي</label>
-          <select id="student-level" name="level" required disabled>
+          <select id="student-level" name="level" required>
             <option value="" selected disabled>اختر المستوى الدراسي</option>
             <option value="السنة الأولى">السنة الأولى</option>
             <option value="السنة الثانية">السنة الثانية</option>
@@ -78,7 +54,7 @@
         </section>
 
         <p id="register-message" class="form-message" hidden aria-live="polite"></p>
-        <button id="submit-btn" class="cta-button cta-primary" type="submit" disabled>إتمام التسجيل</button>
+        <button id="submit-btn" class="cta-button cta-primary" type="submit">إتمام التسجيل</button>
       </form>
     </section>
   </main>
@@ -95,6 +71,6 @@
     </div>
   </section>
 
-  <script type="module" src="./js/register.js?v=20260813-otp"></script>
+  <script defer src="./js/register.js?v=20260813-direct"></script>
 </body>
 </html>
