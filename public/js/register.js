@@ -173,8 +173,12 @@ function translateFirebaseError(error, fallbackText) {
     "auth/invalid-verification-code": "كود التحقق غير صحيح. راجعه ثم حاول مجددًا.",
     "auth/missing-verification-code": "أدخل كود التحقق المكوّن من 6 أرقام.",
     "auth/network-request-failed": "تعذر الاتصال بخدمة التحقق. تحقق من الإنترنت ثم أعد المحاولة.",
+    "auth/operation-not-allowed": "خدمة التحقق بالهاتف غير مفعّلة في Firebase.",
+    "auth/unauthorized-domain": "نطاق الموقع غير مصرح به في إعدادات Firebase.",
+    "auth/invalid-app-credential": "تعذر التحقق الأمني من reCAPTCHA. أعد تحميل الصفحة ثم حاول.",
+    "auth/app-not-authorized": "إعدادات تطبيق Firebase لا تسمح بإرسال رمز التحقق.",
   };
-  return messages[code] || fallbackText;
+  return messages[code] || `${fallbackText}${code ? ` (${code})` : ""}`;
 }
 
 function resetPhoneVerification({ preservePhone = true } = {}) {
