@@ -36,6 +36,20 @@ const elements = {
   subscriptionAmountDue: document.getElementById("subscription-amount-due"),
   subscriptionLiveAccess: document.getElementById("subscription-live-access"),
   closeSubscriptionButton: document.getElementById("close-subscription-modal"),
+  dashboardDate: document.getElementById("dashboard-date"),
+  bentoCurrentLevel: document.getElementById("bento-current-level"),
+  bentoLiveEnabled: document.getElementById("bento-live-enabled"),
+  bentoTotalCaption: document.getElementById("bento-total-caption"),
+  paymentProgressBar: document.getElementById("payment-progress-bar"),
+  paymentProgressCaption: document.getElementById("payment-progress-caption"),
+  bentoMathCount: document.getElementById("bento-math-count"),
+  bentoPhysicsCount: document.getElementById("bento-physics-count"),
+  bentoLatestStudent: document.getElementById("bento-latest-student"),
+  bentoLatestCaption: document.getElementById("bento-latest-caption"),
+  bentoActivityStatus: document.getElementById("bento-activity-status"),
+  focusStudentSearchButton: document.getElementById("focus-student-search"),
+  jumpToRosterButton: document.getElementById("jump-to-roster"),
+  studentsPanel: document.getElementById("students-panel"),
 };
 
 let currentLevel =
@@ -147,7 +161,9 @@ function setCurrentLevelHeading(level) {
   if (elements.currentLevelTitle) {
     elements.currentLevelTitle.textContent = level;
   }
-
+  if (elements.bentoCurrentLevel) {
+    elements.bentoCurrentLevel.textContent = level;
+  }
 }
 
 function truncateText(value, maxLength = 55) {
@@ -292,13 +308,50 @@ function renderTable(studentsArray) {
 function updateSummary(studentsArray) {
   const total = studentsArray.length;
   const paid = studentsArray.filter((student) => student.paymentStatus === true).length;
-  const unpaid = studentsArray.filter((student) => student.paymentStatus === false).length;
+  const unpaid = total - paid;
 
   if (elements.summaryTotal) elements.summaryTotal.textContent = String(total);
   if (elements.summaryPaid) elements.summaryPaid.textContent = String(paid);
   if (elements.summaryUnpaid) elements.summaryUnpaid.textContent = String(unpaid);
   if (elements.filteredResultsLabel) {
     elements.filteredResultsLabel.textContent = `${total} نتيجة معروضة`;
+  }
+
+  updateBentoInsights(studentsArray, { total, paid, unpaid });
+}
+
+function updateBentoInsights(studentsArray, summary) {
+  const total = summary?.total ?? studentsArray.length;
+  const paid = summary?.paid ?? studentsArray.filter((student) => student.paymentStatus === true).length;
+  const unpaid = summary?.unpaid ?? total - paid;
+  const liveEnabled = studentsArray.filter((student) => student.liveAccessEnabled).length;
+  const mathCount = studentsArray.filter((student) => student.mathEnrollment).length;
+  const physicsCount = studentsArray.filter((student) => student.physicsEnrollment).length;
+  const paymentRate = total ? Math.round((paid / total) * 100) : 0;
+  const latestStudent = studentsArray[0];
+
+  if (elements.bentoLiveEnabled) elements.bentoLiveEnabled.textContent = String(liveEnabled);
+  if (elements.bentoTotalCaption) {
+    elements.bentoTotalCaption.textContent = total ? `${total} تلميذ في العرض` : "بانتظار التلاميذ";
+  }
+  if (elements.paymentProgressBar) elements.paymentProgressBar.style.width = `${paymentRate}%`;
+  if (elements.paymentProgressCaption) {
+    elements.paymentProgressCaption.textContent = total
+      ? `${paid} تم الدفع و${unpaid} بانتظار الإجراء`
+      : "ستظهر حالة الدفع بعد تحميل القائمة.";
+  }
+  if (elements.bentoMathCount) elements.bentoMathCount.textContent = String(mathCount);
+  if (elements.bentoPhysicsCount) elements.bentoPhysicsCount.textContent = String(physicsCount);
+  if (elements.bentoLatestStudent) {
+    elements.bentoLatestStudent.textContent = latestStudent?.studentName || "لا يوجد تلاميذ في هذا المستوى";
+  }
+  if (elements.bentoLatestCaption) {
+    elements.bentoLatestCaption.textContent = latestStudent
+      ? `آخر تلميذ ظاهر: ${latestStudent.level || currentLevel}`
+      : "غيّر المستوى أو أضف تلميذًا جديدًا للبدء.";
+  }
+  if (elements.bentoActivityStatus) {
+    elements.bentoActivityStatus.textContent = total ? `تم تحديث ${total} تلميذ` : "تحديث مباشر للبيانات";
   }
 }
 
@@ -720,6 +773,27 @@ async function saveEditedNotes(event) {
   }
 }
 
+function updateDashboardDate() {
+  if (!elements.dashboardDate) {
+    return;
+  }
+
+  elements.dashboardDate.textContent = new Intl.DateTimeFormat("ar-DZ", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date());
+}
+
+function focusStudentSearch() {
+  elements.studentsPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+  window.setTimeout(() => elements.searchInput?.focus(), 320);
+}
+
+function jumpToRoster() {
+  elements.studentsPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function logoutTeacher() {
   clearTeacherSession();
   window.location.replace("./teacher-login.html");
@@ -757,6 +831,9 @@ if (!getTeacherToken()) {
 
   elements.searchInput?.addEventListener("input", applyFilters);
   elements.paymentFilter?.addEventListener("change", applyFilters);
+  elements.focusStudentSearchButton?.addEventListener("click", focusStudentSearch);
+  elements.jumpToRosterButton?.addEventListener("click", jumpToRoster);
 
+  updateDashboardDate();
   fetchStudents(currentLevel);
 }

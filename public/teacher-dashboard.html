@@ -7,30 +7,116 @@
   <link rel="stylesheet" href="./css/style.css" />
   <link rel="stylesheet" href="./css/app.css" />
 </head>
-<body class="dashboard-page">
-  <header class="dashboard-header">
-    <a class="brand-link" href="./index.html">أكاديمية التفوق</a>
-    <nav><a href="./teacher-live.html">الاستوديو المباشر</a><button id="logout-btn" class="link-button">تسجيل الخروج</button></nav>
+<body class="dashboard-page teacher-dashboard-page">
+  <header class="teacher-topbar">
+    <a class="teacher-brand" href="./index.html" aria-label="العودة إلى الصفحة الرئيسية">
+      <span class="teacher-brand-mark" aria-hidden="true">ت</span>
+      <span><strong>أكاديمية التفوق</strong><small>مساحة الأستاذ</small></span>
+    </a>
+    <div class="teacher-topbar-actions">
+      <span class="teacher-presence"><i aria-hidden="true"></i>جاهز للإدارة</span>
+      <a class="topbar-studio-link" href="./teacher-live.html">الاستوديو المباشر</a>
+      <button id="logout-btn" class="topbar-logout" type="button">تسجيل الخروج</button>
+    </div>
   </header>
-  <main class="dashboard-main">
-    <section class="dashboard-intro"><p class="eyebrow">لوحة الإدارة</p><h1>إدارة التلاميذ</h1><p id="dashboard-error" class="form-error" hidden></p></section>
-    <section class="level-tabs" aria-label="اختيار المستوى">
-      <button class="level-btn is-active" data-level="السنة الأولى">السنة الأولى</button>
-      <button class="level-btn" data-level="السنة الثانية">السنة الثانية</button>
-      <button class="level-btn" data-level="السنة الثالثة">السنة الثالثة</button>
-      <button class="level-btn" data-level="السنة الرابعة">السنة الرابعة</button>
-      <button class="level-btn" data-level="طالب جامعي">طالب جامعي</button>
+
+  <main class="teacher-workspace">
+    <section class="teacher-welcome" aria-labelledby="teacher-dashboard-title">
+      <div>
+        <p class="eyebrow">لوحة التحكم الذكية</p>
+        <h1 id="teacher-dashboard-title">إدارة أكاديميتك من مكان واحد</h1>
+        <p>تابع التلاميذ، الاشتراكات، وصلاحيات الحصص المباشرة بوضوح وسرعة.</p>
+      </div>
+      <div class="welcome-side">
+        <span id="dashboard-date" class="dashboard-date"></span>
+        <a class="welcome-live-cta" href="./teacher-live.html">بدء حصة مباشرة <span aria-hidden="true">←</span></a>
+      </div>
     </section>
-    <section class="summary-grid">
-      <article class="summary-card blue"><span>إجمالي التلاميذ</span><strong id="summary-total">0</strong></article>
-      <article class="summary-card green"><span>تم الدفع</span><strong id="summary-paid">0</strong></article>
-      <article class="summary-card red"><span>غير مدفوع</span><strong id="summary-unpaid">0</strong></article>
+
+    <p id="dashboard-error" class="form-error teacher-dashboard-error" hidden></p>
+
+    <section class="teacher-bento-grid" aria-label="ملخص إدارة الأكاديمية">
+      <article class="bento-card bento-live-card">
+        <div class="bento-card-heading">
+          <span class="bento-kicker">الحصة المباشرة</span>
+          <span class="live-ready-dot" aria-label="الاستوديو جاهز"></span>
+        </div>
+        <h2>استوديو الحصة</h2>
+        <p id="bento-live-copy">اختر المستوى والمادة ثم ابدأ البث للتلاميذ المؤهلين.</p>
+        <a class="bento-primary-action" href="./teacher-live.html">فتح الاستوديو <span aria-hidden="true">←</span></a>
+      </article>
+
+      <article class="bento-card bento-stats-card">
+        <div class="bento-card-heading"><span class="bento-kicker">ملخص المستوى</span><span id="bento-current-level" class="bento-level-pill">السنة الأولى</span></div>
+        <div class="bento-stat-row">
+          <div><span>إجمالي التلاميذ</span><strong id="summary-total">0</strong></div>
+          <div><span>الدخول مفتوح</span><strong id="bento-live-enabled">0</strong></div>
+        </div>
+        <div class="bento-mini-legend"><span><i class="legend-dot legend-blue"></i>المستوى المحدد</span><span id="bento-total-caption">جاهز للمتابعة</span></div>
+      </article>
+
+      <article class="bento-card bento-payment-card">
+        <div class="bento-card-heading"><span class="bento-kicker">متابعة الاشتراكات</span><span class="bento-card-index">02</span></div>
+        <div class="payment-bento-values"><div><span>تم الدفع</span><strong id="summary-paid">0</strong></div><div><span>بانتظار الإجراء</span><strong id="summary-unpaid">0</strong></div></div>
+        <div class="payment-progress-track" aria-hidden="true"><span id="payment-progress-bar"></span></div>
+        <p id="payment-progress-caption">ستظهر حالة الدفع بعد تحميل القائمة.</p>
+      </article>
+
+      <article class="bento-card bento-subject-card">
+        <div class="bento-card-heading"><span class="bento-kicker">تسجيل المواد</span><span class="bento-card-index">03</span></div>
+        <h2>نظرة سريعة</h2>
+        <div class="subject-stat-list"><div><span class="subject-bullet subject-math"></span>رياضيات <strong id="bento-math-count">0</strong></div><div><span class="subject-bullet subject-physics"></span>فيزياء <strong id="bento-physics-count">0</strong></div></div>
+        <p>يمكن تعديل المواد وصلاحية الحصة من بطاقة كل تلميذ.</p>
+      </article>
+
+      <article class="bento-card bento-quick-card">
+        <div class="bento-card-heading"><span class="bento-kicker">إجراءات سريعة</span><span class="bento-card-index">04</span></div>
+        <div class="quick-action-grid">
+          <button id="focus-student-search" type="button">البحث عن تلميذ</button>
+          <a href="#students-panel">إدارة الاشتراكات</a>
+          <a href="./teacher-live.html">فتح الاستوديو</a>
+          <button id="jump-to-roster" type="button">قائمة التلاميذ</button>
+        </div>
+      </article>
+
+      <article class="bento-card bento-activity-card">
+        <div class="bento-card-heading"><span class="bento-kicker">آخر نشاط</span><span class="bento-card-index">05</span></div>
+        <h2 id="bento-latest-student">في انتظار تحميل البيانات</h2>
+        <p id="bento-latest-caption">سيظهر هنا آخر تلميذ مسجل في المستوى المختار.</p>
+        <div class="activity-footer"><span class="activity-pulse"></span><span id="bento-activity-status">تحديث مباشر للبيانات</span></div>
+      </article>
     </section>
-    <section class="filter-bar"><input id="student-search" placeholder="البحث باسم التلميذ..." /><select id="payment-filter"><option value="all">الكل</option><option value="paid">مدفوع</option><option value="unpaid">غير مدفوع</option></select><span id="filtered-results-label"></span></section>
-    <section class="table-card"><div class="table-title"><h2 id="current-level-title">السنة الأولى</h2><a class="secondary-action" href="./teacher-live.html">بدء حصة مباشرة</a></div><div class="table-wrap"><table><thead><tr><th>التلميذ</th><th>رقم الولي</th><th>الدفع</th><th>الرياضيات</th><th>الفيزياء</th><th>بطاقة الطالب</th><th>الإجراءات</th></tr></thead><tbody id="students-table-body"></tbody></table></div><p id="table-empty-state" hidden>لا يوجد تلاميذ مسجلون في هذا المستوى حالياً.</p></section>
+
+    <section id="students-panel" class="teacher-roster" aria-labelledby="roster-title">
+      <div class="roster-heading">
+        <div><p class="eyebrow">إدارة التلاميذ</p><h2 id="roster-title">قائمة التلاميذ</h2><p>اختر المستوى، وابحث أو عدّل إعدادات التلميذ دون مغادرة الصفحة.</p></div>
+        <a class="roster-studio-link" href="./teacher-live.html">بدء حصة مباشرة</a>
+      </div>
+
+      <section class="level-tabs teacher-level-tabs" aria-label="اختيار المستوى">
+        <button class="level-btn is-active" data-level="السنة الأولى">السنة الأولى</button>
+        <button class="level-btn" data-level="السنة الثانية">السنة الثانية</button>
+        <button class="level-btn" data-level="السنة الثالثة">السنة الثالثة</button>
+        <button class="level-btn" data-level="السنة الرابعة">السنة الرابعة</button>
+        <button class="level-btn" data-level="طالب جامعي">طالب جامعي</button>
+      </section>
+
+      <section class="roster-toolbar" aria-label="بحث وتصفية التلاميذ">
+        <label class="teacher-search-field" for="student-search"><span>البحث</span><input id="student-search" placeholder="البحث باسم التلميذ..." /></label>
+        <label class="teacher-filter-field" for="payment-filter"><span>حالة الدفع</span><select id="payment-filter"><option value="all">كل الحالات</option><option value="paid">تم الدفع</option><option value="unpaid">بانتظار الإجراء</option></select></label>
+        <span id="filtered-results-label" class="filtered-results-label">0 نتيجة معروضة</span>
+      </section>
+
+      <section class="table-card teacher-table-card">
+        <div class="table-title"><div><span class="table-kicker">المستوى المختار</span><h2 id="current-level-title">السنة الأولى</h2></div><span class="table-status"><i></i>تحديث مباشر</span></div>
+        <div class="table-wrap"><table><thead><tr><th>التلميذ</th><th>رقم الولي</th><th>الدفع</th><th>الرياضيات</th><th>الفيزياء</th><th>بطاقة الطالب</th><th>الإجراءات</th></tr></thead><tbody id="students-table-body"></tbody></table></div>
+        <p id="table-empty-state" hidden>لا يوجد تلاميذ مسجلون في هذا المستوى حالياً.</p>
+      </section>
+    </section>
   </main>
-  <div id="edit-modal" class="modal" hidden><div class="modal-card"><button id="cancel-edit-btn" class="modal-close">×</button><h2 id="modal-student-name"></h2><form id="edit-student-form" class="stack-form"><label>ملاحظة الرياضيات<textarea id="math-note"></textarea></label><label>ملاحظة الفيزياء<textarea id="physics-note"></textarea></label><button class="cta-button cta-primary" type="submit">حفظ التعديلات</button></form></div></div>
-  <div id="attendance-modal" class="modal" hidden><div class="modal-card"><button id="close-attendance-modal" class="modal-close">×</button><h2>سجل حضور <span id="attendance-student-name"></span></h2><p id="attendance-empty" hidden>لا توجد سجلات حضور بعد.</p><ul id="attendance-list" class="attendance-list"></ul></div></div>
+
+  <div id="edit-modal" class="modal" hidden><div class="modal-card"><button id="cancel-edit-btn" class="modal-close" type="button">×</button><h2 id="modal-student-name"></h2><form id="edit-student-form" class="stack-form"><label>ملاحظة الرياضيات<textarea id="math-note"></textarea></label><label>ملاحظة الفيزياء<textarea id="physics-note"></textarea></label><button class="cta-button cta-primary" type="submit">حفظ التعديلات</button></form></div></div>
+  <div id="attendance-modal" class="modal" hidden><div class="modal-card"><button id="close-attendance-modal" class="modal-close" type="button">×</button><h2>سجل حضور <span id="attendance-student-name"></span></h2><p id="attendance-empty" hidden>لا توجد سجلات حضور بعد.</p><ul id="attendance-list" class="attendance-list"></ul></div></div>
   <div id="subscription-modal" class="modal" hidden><div class="modal-card"><button id="close-subscription-modal" class="modal-close" type="button">×</button><p class="eyebrow">إعدادات الاشتراك</p><h2 id="subscription-student-name">التلميذ</h2><form id="subscription-form" class="stack-form"><fieldset><legend>مواد التسجيل</legend><label><input id="subscription-math" type="checkbox" /> الرياضيات</label><label><input id="subscription-physics" type="checkbox" /> الفيزياء</label></fieldset><label>حالة الدفع<select id="subscription-payment-stage" required><option value="PAID">تم الدفع بنجاح</option><option value="UNPAID">لم يتم الدفع — في انتظار الدفع</option><option value="PROMISED">لم يتم الدفع — اتصل بالأستاذ وسيقوم بالدفع</option></select></label><label>المبلغ المطلوب (دج)<input id="subscription-amount-due" type="number" min="0" max="10000000" step="1" placeholder="مثال: 3000" /></label><label><input id="subscription-live-access" type="checkbox" /> السماح بدخول الحصة المباشرة</label><button class="cta-button cta-primary" type="submit">حفظ الاشتراك والدفع</button></form></div></div>
   <div id="toast" class="toast" hidden></div>
   <script src="./js/teacher-dashboard.js"></script>
