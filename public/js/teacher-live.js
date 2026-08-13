@@ -39,7 +39,9 @@ const studentAudioElements = new Map();
 // Each approved student microphone is relayed from the teacher's browser to
 // every other student connection. The teacher remains the explicit audio hub.
 const activeStudentSpeakerTracks = new Map();
+const openStudentMicrophones = new Set();
 const classroomSpeakerSenders = new Map();
+const lateJoinerSpeakerSyncCompleted = new Set();
 const iceDisconnectTimers = Object.create(null);
 const ICE_DISCONNECT_GRACE_MS = 8_000;
 let activeLevel = null;
@@ -679,11 +681,32 @@ function clearSpeakerRecipientsFor(studentSocketId) {
   classroomSpeakerSenders.delete(studentSocketId);
 }
 
+function hydrateActiveStudentSpeakerTracks() {
+  // A track can already be arriving at the teacher when a late viewer joins.
+  // Reconstruct the relay source from the existing hidden audio element rather
+  // than waiting for a second ontrack event that may never occur.
+  for (const speakerSocketId of openStudentMicrophones) {
+    if (activeStudentSpeakerTracks.has(speakerSocketId)) {
+      continue;
+    }
+
+    const stream = studentAudioElements.get(speakerSocketId)?.srcObject;
+    const track = stream instanceof MediaStream
+      ? stream.getAudioTracks().find((item) => item.readyState === "live")
+      : null;
+
+    if (track) {
+      activeStudentSpeakerTracks.set(speakerSocketId, { track, stream });
+    }
+  }
+}
+
 function addActiveStudentSpeakerTracks(peerConnection, recipientSocketId) {
   if (!peerConnection || peerConnection.signalingState === "closed") {
     return false;
   }
 
+  hydrateActiveStudentSpeakerTracks();
   const senderMap = speakerSenderMapFor(recipientSocketId);
   let addedTrack = false;
 
@@ -718,6 +741,48 @@ async function syncClassroomSpeakersToRecipient(recipientSocketId) {
   }
 }
 
+/**
+ * The first offer of a late join can be created while the browser is still
+ * attaching a forwarded remote track. Force one clean follow-up offer after
+ * its first answer so every currently open class microphone is present.
+ */
+async function forceSyncClassroomSpeakersToLateJoiner(recipientSocketId) {
+  const peerConnection = peerConnections[recipientSocketId];
+  if (
+    !classActive ||
+    !peerConnection ||
+    peerConnection.signalingState !== "stable" ||
+    peerConnection.connectionState === "closed"
+  ) {
+    return;
+  }
+
+  hydrateActiveStudentSpeakerTracks();
+  const senderMap = speakerSenderMapFor(recipientSocketId);
+  let refreshedTrack = false;
+
+  for (const speakerSocketId of activeStudentSpeakerTracks.keys()) {
+    if (speakerSocketId === recipientSocketId) {
+      continue;
+    }
+
+    const previousSender = senderMap.get(speakerSocketId);
+    if (previousSender) {
+      try {
+        peerConnection.removeTrack(previousSender);
+      } catch (error) {
+        console.debug("Unable to refresh a classroom speaker sender:", error);
+      }
+      senderMap.delete(speakerSocketId);
+      refreshedTrack = true;
+    }
+  }
+
+  if (addActiveStudentSpeakerTracks(peerConnection, recipientSocketId) || refreshedTrack) {
+    await createAndSendOffer(recipientSocketId);
+  }
+}
+
 async function broadcastStudentSpeakerTrack(speakerSocketId, track, stream) {
   if (!classActive || !track || track.kind !== "audio") {
     return;
@@ -733,6 +798,7 @@ async function broadcastStudentSpeakerTrack(speakerSocketId, track, stream) {
 
 async function removeClassroomSpeaker(speakerSocketId) {
   activeStudentSpeakerTracks.delete(speakerSocketId);
+  openStudentMicrophones.delete(speakerSocketId);
 
   const renegotiations = [];
   for (const [recipientSocketId, senderMap] of classroomSpeakerSenders) {
@@ -759,6 +825,7 @@ async function removeClassroomSpeaker(speakerSocketId) {
 
 function clearAllClassroomSpeakers() {
   activeStudentSpeakerTracks.clear();
+  openStudentMicrophones.clear();
   classroomSpeakerSenders.clear();
 }
 
@@ -844,6 +911,7 @@ function closePeerConnection(socketId) {
   }
 
   delete pendingIceCandidates[socketId];
+  lateJoinerSpeakerSyncCompleted.delete(socketId);
   clearSpeakerRecipientsFor(socketId);
   removeStudentAudio(socketId);
 }
@@ -919,6 +987,7 @@ function createPeerConnection(studentSocketId) {
   closePeerConnection(studentSocketId);
 
   const peerConnection = new RTCPeerConnection(rtcConfig);
+  lateJoinerSpeakerSyncCompleted.delete(studentSocketId);
   peerConnections[studentSocketId] = peerConnection;
   pendingIceCandidates[studentSocketId] = [];
 
@@ -1397,7 +1466,9 @@ async function setStudentMicrophone(socketId, enabled, button) {
       syncStudentMicButton(attendee, socketId, enabled);
     }
 
-    if (!enabled) {
+    if (enabled) {
+      openStudentMicrophones.add(socketId);
+    } else {
       await removeClassroomSpeaker(socketId);
     }
 
@@ -1461,9 +1532,12 @@ socket.on("webrtc_answer", async (data = {}) => {
   try {
     await peerConnection.setRemoteDescription(sdp);
     await flushPendingIceCandidates(fromSocketId);
-    // If another student already has an open mic, attach that classroom audio
-    // as soon as this new viewer's initial connection becomes stable.
-    await syncClassroomSpeakersToRecipient(fromSocketId);
+    // Send one explicit post-answer sync only once for a late joiner. This
+    // avoids a track-attachment race without creating a renegotiation loop.
+    if (!lateJoinerSpeakerSyncCompleted.has(fromSocketId)) {
+      lateJoinerSpeakerSyncCompleted.add(fromSocketId);
+      await forceSyncClassroomSpeakersToLateJoiner(fromSocketId);
+    }
   } catch (error) {
     console.error("Unable to apply a student WebRTC answer:", error);
     closePeerConnection(fromSocketId);
