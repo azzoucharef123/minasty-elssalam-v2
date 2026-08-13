@@ -7,6 +7,13 @@ const parentPhoneInput = document.querySelector(
   "#parent-phone, #parentPhone, #phone, input[type='tel'], input[name='parentPhone']"
 );
 const parentLoginError = document.getElementById("login-error");
+const parentLoginModal = document.getElementById("parent-login-modal");
+const parentLoginModalCloseButtons = Array.from(
+  document.querySelectorAll("[data-close-parent-modal]")
+);
+const parentLoginModalCloseButton = parentLoginModal?.querySelector(
+  ".parent-login-modal-close"
+);
 const parentSubmitButton = parentLoginForm?.querySelector(
   "button[type='submit'], input[type='submit']"
 );
@@ -20,6 +27,27 @@ function setParentLoginError(message = "") {
 
   parentLoginError.textContent = message;
   parentLoginError.hidden = !message;
+}
+
+function openParentLoginModal() {
+  if (!parentLoginModal) {
+    setParentLoginError("رقم الهاتف غير مسجل.");
+    return;
+  }
+
+  parentLoginModal.hidden = false;
+  document.body.classList.add("parent-login-modal-open");
+  parentLoginModalCloseButton?.focus();
+}
+
+function closeParentLoginModal() {
+  if (!parentLoginModal) {
+    return;
+  }
+
+  parentLoginModal.hidden = true;
+  document.body.classList.remove("parent-login-modal-open");
+  parentPhoneInput?.focus();
 }
 
 function setParentSubmitting(isSubmitting) {
@@ -48,6 +76,7 @@ function clearParentSession() {
 
 async function handleParentLogin(event) {
   event.preventDefault();
+  closeParentLoginModal();
   setParentLoginError();
 
   const parentPhone = parentPhoneInput?.value?.trim() || "";
@@ -69,7 +98,8 @@ async function handleParentLogin(event) {
     const data = await response.json().catch(() => ({}));
 
     if (response.status === 404) {
-      throw new Error(data.error || "رقم الهاتف غير مسجل.");
+      openParentLoginModal();
+      return;
     }
 
     if (!response.ok || !data.token) {
@@ -88,6 +118,16 @@ async function handleParentLogin(event) {
     setParentSubmitting(false);
   }
 }
+
+parentLoginModalCloseButtons.forEach((button) => {
+  button.addEventListener("click", closeParentLoginModal);
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && parentLoginModal && !parentLoginModal.hidden) {
+    closeParentLoginModal();
+  }
+});
 
 if (parentLoginForm && parentPhoneInput) {
   parentLoginForm.addEventListener("submit", handleParentLogin);
