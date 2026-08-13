@@ -45,6 +45,10 @@ const approvedStudentMicrophones = new Set();
 const CLASSROOM_TEACHER_SOURCE = "__teacher__";
 const classroomAudioMixers = new Map();
 const classroomAudioSources = new Map();
+// Maps each listening student to the outbound audio senders carrying approved
+// classmates. These are intentionally separate from the teacher audio mix.
+const studentAudioRelaySenders = new Map();
+const pendingStudentAudioRelayOffers = new Set();
 let classroomAudioContext;
 const iceDisconnectTimers = Object.create(null);
 const ICE_DISCONNECT_GRACE_MS = 8_000;
@@ -661,6 +665,10 @@ function clearAttendees() {
 }
 
 function removeStudentAudio(socketId) {
+  for (const recipientSocketId of Object.keys(peerConnections)) {
+    removeStudentAudioRelaySourceFromRecipient(socketId, recipientSocketId);
+  }
+
   const audio = studentAudioElements.get(socketId);
   if (!audio) {
     return;
@@ -744,21 +752,143 @@ function connectAudioSourceToRecipient(sourceKey, recipientSocketId) {
   mixer.gains.set(sourceKey, gain);
 }
 
+function getStudentAudioRelayMap(recipientSocketId) {
+  let relaySenders = studentAudioRelaySenders.get(recipientSocketId);
+  if (!relaySenders) {
+    relaySenders = new Map();
+    studentAudioRelaySenders.set(recipientSocketId, relaySenders);
+  }
+  return relaySenders;
+}
+
+function queueStudentAudioRelayOffer(recipientSocketId, retryCount = 0) {
+  if (retryCount === 0 && pendingStudentAudioRelayOffers.has(recipientSocketId)) {
+    return;
+  }
+
+  pendingStudentAudioRelayOffers.add(recipientSocketId);
+  queueMicrotask(async () => {
+    const peerConnection = peerConnections[recipientSocketId];
+    if (!peerConnection || peerConnection.signalingState === "closed") {
+      pendingStudentAudioRelayOffers.delete(recipientSocketId);
+      return;
+    }
+
+    // A microphone can be opened while the viewer is still answering the first
+    // offer. Wait for that exchange instead of losing the new classmate track.
+    if (peerConnection.makingOffer || peerConnection.signalingState !== "stable") {
+      if (retryCount < 30) {
+        window.setTimeout(() => {
+          queueStudentAudioRelayOffer(recipientSocketId, retryCount + 1);
+        }, 100);
+      } else {
+        console.warn("Timed out waiting to relay classmate audio to a student.");
+        pendingStudentAudioRelayOffers.delete(recipientSocketId);
+      }
+      return;
+    }
+
+    pendingStudentAudioRelayOffers.delete(recipientSocketId);
+    // Adding a classmate's track needs SDP renegotiation only for this listener.
+    // It never reloads the viewer page or changes any other student's session.
+    await createAndSendOffer(recipientSocketId);
+  });
+}
+
+function connectStudentAudioToRecipient(speakerSocketId, recipientSocketId) {
+  if (speakerSocketId === recipientSocketId) {
+    return;
+  }
+
+  const peerConnection = peerConnections[recipientSocketId];
+  const sourceStream = studentAudioElements.get(speakerSocketId)?.srcObject;
+  const sourceTrack = sourceStream instanceof MediaStream
+    ? sourceStream.getAudioTracks().find((track) => track.readyState === "live")
+    : null;
+
+  if (!peerConnection || !sourceTrack || peerConnection.signalingState === "closed") {
+    return;
+  }
+
+  const relaySenders = getStudentAudioRelayMap(recipientSocketId);
+  const existingSender = relaySenders.get(speakerSocketId);
+  if (existingSender?.track?.id === sourceTrack.id) {
+    return;
+  }
+
+  if (existingSender) {
+    existingSender.replaceTrack(sourceTrack).catch((error) => {
+      console.warn("Unable to replace a classmate audio track:", error);
+    });
+    return;
+  }
+
+  const sender = peerConnection.addTrack(sourceTrack, sourceStream);
+  relaySenders.set(speakerSocketId, sender);
+  void tuneOutboundSender(sender, "audio");
+  queueStudentAudioRelayOffer(recipientSocketId);
+}
+
+function disconnectStudentAudioFromRecipient(speakerSocketId, recipientSocketId) {
+  const relaySenders = studentAudioRelaySenders.get(recipientSocketId);
+  const sender = relaySenders?.get(speakerSocketId);
+  if (!sender || !sender.track) {
+    return;
+  }
+
+  // Keep the negotiated sender ready for the next teacher approval. Reopening
+  // the mic then replaces the track immediately instead of adding m-lines.
+  sender.replaceTrack(null).catch((error) => {
+    console.warn("Unable to stop a classmate audio track:", error);
+  });
+}
+
+function removeStudentAudioRelaySourceFromRecipient(speakerSocketId, recipientSocketId) {
+  const relaySenders = studentAudioRelaySenders.get(recipientSocketId);
+  const sender = relaySenders?.get(speakerSocketId);
+  if (!sender) {
+    return;
+  }
+
+  sender.replaceTrack(null).catch(() => {});
+  relaySenders.delete(speakerSocketId);
+  if (relaySenders.size === 0) {
+    studentAudioRelaySenders.delete(recipientSocketId);
+  }
+}
+
+function clearStudentAudioRelayForRecipient(recipientSocketId) {
+  const relaySenders = studentAudioRelaySenders.get(recipientSocketId);
+  if (!relaySenders) {
+    return;
+  }
+
+  for (const sender of relaySenders.values()) {
+    sender.replaceTrack(null).catch(() => {});
+  }
+  studentAudioRelaySenders.delete(recipientSocketId);
+  pendingStudentAudioRelayOffers.delete(recipientSocketId);
+}
+
 function syncApprovedStudentAudioSource(studentSocketId) {
   const existingStudentStream = studentAudioElements.get(studentSocketId)?.srcObject;
   const hasLiveAudio = existingStudentStream instanceof MediaStream && existingStudentStream
     .getAudioTracks()
     .some((track) => track.readyState === "live");
 
-  if (approvedStudentMicrophones.has(studentSocketId) && hasLiveAudio) {
-    const registeredSource = classroomAudioSources.get(studentSocketId);
-    if (registeredSource?.stream !== existingStudentStream) {
-      addClassroomAudioSource(studentSocketId, existingStudentStream);
+  for (const recipientSocketId of Object.keys(peerConnections)) {
+    if (approvedStudentMicrophones.has(studentSocketId) && hasLiveAudio) {
+      connectStudentAudioToRecipient(studentSocketId, recipientSocketId);
+    } else {
+      disconnectStudentAudioFromRecipient(studentSocketId, recipientSocketId);
     }
-    return;
   }
+}
 
-  removeClassroomAudioSource(studentSocketId);
+function syncApprovedAudioForNewRecipient(recipientSocketId) {
+  for (const speakerSocketId of approvedStudentMicrophones) {
+    connectStudentAudioToRecipient(speakerSocketId, recipientSocketId);
+  }
 }
 
 function applyStudentMicrophoneState(studentSocketId, enabled) {
@@ -779,19 +909,9 @@ function applyStudentMicrophoneState(studentSocketId, enabled) {
     syncStudentMicButton(attendee, studentSocketId, Boolean(enabled));
   }
 
-  // The outbound mix track was negotiated when the learner joined. Changing
-  // its connected sources is instantaneous and does not renegotiate or reload
-  // any listener page.
+  // Relay the opened student's track directly to every other viewer. This is
+  // independent of the teacher's audio channel and has no browser page reload.
   syncApprovedStudentAudioSource(studentSocketId);
-}
-
-function restoreKnownStudentAudioSources() {
-  // A learner may join after another learner's track was received. Re-register
-  // every approved, live incoming track before building the new recipient mix
-  // so late joiners never start with teacher audio alone.
-  for (const speakerSocketId of studentAudioElements.keys()) {
-    syncApprovedStudentAudioSource(speakerSocketId);
-  }
 }
 
 function createRecipientAudioMix(studentSocketId) {
@@ -802,14 +922,13 @@ function createRecipientAudioMix(studentSocketId) {
   if (classroomAudioContext.state === "suspended") {
     classroomAudioContext.resume().catch(() => {});
   }
-  restoreKnownStudentAudioSources();
   removeRecipientAudioMix(studentSocketId);
   const destination = classroomAudioContext.createMediaStreamDestination();
   classroomAudioMixers.set(studentSocketId, { destination, gains: new Map() });
 
-  for (const sourceKey of classroomAudioSources.keys()) {
-    connectAudioSourceToRecipient(sourceKey, studentSocketId);
-  }
+  // Only the teacher source belongs in this stable teacher-audio channel.
+  // Classmate audio is delivered by separate direct relay senders below.
+  connectAudioSourceToRecipient(CLASSROOM_TEACHER_SOURCE, studentSocketId);
 
   return destination.stream;
 }
@@ -981,12 +1100,14 @@ function closePeerConnection(socketId) {
   }
 
   delete pendingIceCandidates[socketId];
+  clearStudentAudioRelayForRecipient(socketId);
   removeRecipientAudioMix(socketId);
   removeStudentAudio(socketId);
 }
 
 function closeAllPeerConnections() {
   approvedStudentMicrophones.clear();
+  Array.from(studentAudioRelaySenders.keys()).forEach(clearStudentAudioRelayForRecipient);
   Object.keys(peerConnections).forEach(closePeerConnection);
   Object.keys(pendingIceCandidates).forEach((socketId) => {
     delete pendingIceCandidates[socketId];
@@ -1072,6 +1193,9 @@ function createPeerConnection(studentSocketId) {
   pendingIceCandidates[studentSocketId] = [];
 
   addTeacherTracks(peerConnection, studentSocketId);
+  // Include all already-approved classmates in this learner's very first SDP
+  // offer, so a late joiner does not wait for a second negotiation to hear them.
+  syncApprovedAudioForNewRecipient(studentSocketId);
   attachStudentAudio(peerConnection, studentSocketId);
 
   peerConnection.onicecandidate = (event) => {
