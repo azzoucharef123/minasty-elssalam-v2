@@ -455,7 +455,10 @@ function enterLiveClass() {
   }
 
   persistStudentSession(currentStudent);
-  window.location.assign("./student-live.html");
+  // Mark this handoff as an intentional one-click classroom entry. The viewer
+  // consumes the flag and joins as soon as its Socket connection is ready.
+  sessionStorage.setItem("joinLiveClassImmediately", "true");
+  window.location.assign("./student-live.html?join=direct");
 }
 
 function logout() {

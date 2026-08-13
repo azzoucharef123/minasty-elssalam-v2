@@ -47,6 +47,10 @@ const ACCEPTED_QUESTION_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image
 let selectedQuestionImageFile = null;
 let selectedQuestionImagePreviewUrl = null;
 const renderedQuestionImageUrls = new Set();
+const directClassEntryRequested =
+  sessionStorage.getItem("joinLiveClassImmediately") === "true" ||
+  new URLSearchParams(window.location.search).get("join") === "direct";
+let initialAutoJoinPending = directClassEntryRequested;
 
 // The viewer stores teacher-provided normalized segments only; there is no
 // student drawing input or outbound drawing event anywhere in this client.
@@ -132,6 +136,15 @@ const { studentId, studentName, level } = readStoredStudent();
  * Keep status text accessible and use explicit modes rather than injecting
  * server-provided strings as markup.
  */
+function consumeDirectClassEntry() {
+  initialAutoJoinPending = false;
+  sessionStorage.removeItem("joinLiveClassImmediately");
+
+  if (window.location.search) {
+    window.history.replaceState({}, document.title, "./student-live.html");
+  }
+}
+
 function setViewerStatus(message, mode = "neutral") {
   elements.statusText.textContent = message;
   elements.status.classList.toggle("is-live", mode === "live");
@@ -1025,6 +1038,11 @@ async function joinClass({ rejoin = false } = {}) {
       scheduleClassRecovery(1_000);
       return;
     }
+    if (initialAutoJoinPending) {
+      elements.joinButton.hidden = true;
+      setViewerStatus("جارٍ الاتصال بالخادم للدخول إلى الحصة…", "warning");
+      return;
+    }
     setViewerStatus("تعذر الانضمام لأن الاتصال بالخادم غير متاح.", "error");
     return;
   }
@@ -1053,6 +1071,7 @@ async function joinClass({ rejoin = false } = {}) {
     isJoining = false;
     isRecoveringStream = false;
     recoveryAttempts = 0;
+    consumeDirectClassEntry();
     clearRecoveryTimer();
     elements.joinButton.hidden = true;
     elements.raiseHandButton.hidden = false;
@@ -1143,6 +1162,13 @@ socket.on("connect", () => {
       scheduleClassRecovery(250);
       return;
     }
+  }
+
+  if (initialAutoJoinPending && !joinedClass && !isJoining) {
+    elements.joinButton.hidden = true;
+    setViewerStatus("جارٍ الدخول إلى الحصة مباشرة…", "warning");
+    void joinClass();
+    return;
   }
 
   if (!joinedClass && !isJoining) {
@@ -1423,6 +1449,15 @@ if (!studentId || !studentName || !level) {
   // The viewer is opened only from a verified parent/student session. Join
   // automatically so the learner receives the teacher's live screen and audio
   // without having to discover or press an extra button.
+  // Whether the viewer was opened from the direct button or restored normally,
+  // wait for Socket.io instead of failing early when the page loads faster than
+  // the signaling connection.
+  initialAutoJoinPending = true;
+  if (directClassEntryRequested) {
+    elements.joinButton.hidden = true;
+    setViewerStatus("جارٍ الدخول إلى الحصة مباشرة…", "warning");
+  }
+
   window.setTimeout(() => {
     void joinClass();
   }, 0);
