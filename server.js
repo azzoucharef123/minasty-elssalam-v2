@@ -138,7 +138,10 @@ const activeSubjectByLevel = new Map();
 // stream. This map reserves a room only for its original teacher while the
 // teacher's browser reconnects with its per-class recovery token.
 const pendingTeacherRecoveryByLevel = new Map();
-const TEACHER_RECOVERY_GRACE_MS = 45_000;
+// A full browser refresh drops the local screen-share stream. Keep the room
+// reserved long enough for the teacher to reload, select the screen again, and
+// reclaim the same classroom without forcing students out.
+const TEACHER_RECOVERY_GRACE_MS = 180_000;
 
 /**
  * Tracks only active WebRTC classroom sockets, keyed by socket ID. Passive

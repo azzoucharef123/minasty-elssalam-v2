@@ -47,6 +47,9 @@ let classResumeToken = null;
 let reconnectingLiveClass = false;
 const renderedQuestionImageUrls = new Set();
 let questionImageModalPreviousFocus = null;
+const TEACHER_LIVE_RECOVERY_KEY = "teacherLiveClassRecovery";
+let pendingPageRecovery = null;
+let isPageNavigatingAway = false;
 
 const elements = {
   localVideo: document.getElementById("local-video"),
@@ -103,6 +106,42 @@ function closeQuestionImageModal() {
   document.body.style.overflow = "";
   questionImageModalPreviousFocus?.focus?.();
   questionImageModalPreviousFocus = null;
+}
+
+function persistLiveClassRecovery() {
+  if (!activeLevel || !activeSubject || !classResumeToken) {
+    return;
+  }
+
+  sessionStorage.setItem(
+    TEACHER_LIVE_RECOVERY_KEY,
+    JSON.stringify({ level: activeLevel, subject: activeSubject, resumeToken: classResumeToken })
+  );
+}
+
+function clearLiveClassRecovery() {
+  sessionStorage.removeItem(TEACHER_LIVE_RECOVERY_KEY);
+  pendingPageRecovery = null;
+}
+
+function readLiveClassRecovery() {
+  try {
+    const recovery = JSON.parse(sessionStorage.getItem(TEACHER_LIVE_RECOVERY_KEY) || "null");
+    if (
+      recovery &&
+      typeof recovery.level === "string" &&
+      ["MATH", "PHYSICS"].includes(recovery.subject) &&
+      typeof recovery.resumeToken === "string" &&
+      /^[a-zA-Z0-9-]{16,128}$/.test(recovery.resumeToken)
+    ) {
+      return recovery;
+    }
+  } catch {
+    // Ignore a malformed stale browser-session value.
+  }
+
+  sessionStorage.removeItem(TEACHER_LIVE_RECOVERY_KEY);
+  return null;
 }
 
 function createClassResumeToken() {
@@ -975,6 +1014,7 @@ async function resumeLiveClassAfterSocketReconnect() {
 
   reconnectingLiveClass = true;
   try {
+    persistLiveClassRecovery();
     setStudioStatus("عاد الاتصال بالخادم. جارٍ استعادة الحصة دون إيقاف الشاشة…", "live");
     const response = await emitWithAcknowledgement("teacher_start_room", {
       level: activeLevel,
@@ -1002,6 +1042,7 @@ async function endLiveClass({ notifyServer = true, statusMessage } = {}) {
 
   const levelToEnd = activeLevel;
   const hadActiveClass = classActive;
+  clearLiveClassRecovery();
   isEnding = true;
   classActive = false;
   updateControls();
@@ -1025,6 +1066,7 @@ async function endLiveClass({ notifyServer = true, statusMessage } = {}) {
     activeSubject = null;
     classResumeToken = null;
     reconnectingLiveClass = false;
+    isPageNavigatingAway = false;
     isEnding = false;
     updateControls();
     setStudioStatus(statusMessage || "تم إنهاء الحصة المباشرة.", "neutral");
@@ -1070,6 +1112,13 @@ async function startLiveClass() {
   const selectedLevel = elements.levelSelect.value;
   const selectedSubject = elements.subjectSelect.value;
   const selectedSubjectName = selectedSubject === "PHYSICS" ? "الفيزياء" : "الرياضيات";
+  const pageRecovery =
+    pendingPageRecovery &&
+    pendingPageRecovery.level === selectedLevel &&
+    pendingPageRecovery.subject === selectedSubject
+      ? pendingPageRecovery
+      : null;
+  const isResumingAfterPageRefresh = Boolean(pageRecovery);
   isStarting = true;
   updateControls();
   setStudioStatus("بانتظار اختيار الشاشة للمشاركة…", "neutral");
@@ -1099,7 +1148,7 @@ async function startLiveClass() {
     // classroom immediately instead of streaming a frozen or black screen.
     const displayTrack = screenStream.getVideoTracks()[0];
     displayTrack.onended = () => {
-      if (classActive && !isEnding) {
+      if (classActive && !isEnding && !isPageNavigatingAway) {
         endLiveClass({
           notifyServer: true,
           statusMessage: "تم إيقاف مشاركة الشاشة، لذلك أُغلقت الحصة.",
@@ -1129,16 +1178,18 @@ async function startLiveClass() {
     // from being ignored between the server joining the teacher room and its ACK.
     activeLevel = selectedLevel;
     activeSubject = selectedSubject;
-    classResumeToken = createClassResumeToken();
+    classResumeToken = pageRecovery?.resumeToken || createClassResumeToken();
     classActive = true;
 
-    await emitWithAcknowledgement("teacher_start_room", {
+    const roomResponse = await emitWithAcknowledgement("teacher_start_room", {
       level: selectedLevel,
       subject: selectedSubject,
       resumeToken: classResumeToken,
     });
 
-    const baseMessage = `الحصة مباشرة الآن — ${selectedLevel} | ${selectedSubjectName}`;
+    pendingPageRecovery = null;
+    persistLiveClassRecovery();
+    const baseMessage = `${isResumingAfterPageRefresh || roomResponse?.resumed ? "تم استئناف الحصة" : "الحصة مباشرة الآن"} — ${selectedLevel} | ${selectedSubjectName}`;
     setStudioStatus(
       microphoneUnavailableMessage ? `${baseMessage} (بدون مايك)` : baseMessage,
       "live"
@@ -1148,7 +1199,10 @@ async function startLiveClass() {
     classActive = false;
     activeLevel = null;
     activeSubject = null;
-    classResumeToken = null;
+    if (!isResumingAfterPageRefresh) {
+      clearLiveClassRecovery();
+      classResumeToken = null;
+    }
     closeAllPeerConnections();
     clearAttendees();
     stopLocalStreams();
@@ -1463,18 +1517,28 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-// Attempt a final room-end notification on page exit. The backend's disconnect
-// handler is the reliable fallback if the browser cannot complete this emit.
-window.addEventListener("pagehide", () => {
-  if (classActive && activeLevel && socket.connected) {
-    socket.emit("teacher_end_class", { level: activeLevel });
+function preserveClassroomForPageRefresh() {
+  isPageNavigatingAway = true;
+  if (classActive) {
+    persistLiveClassRecovery();
   }
+}
 
-  classActive = false;
+// A refresh must not be interpreted as a teacher ending the class. The browser
+// stops local media during navigation; the saved room token lets the teacher
+// resume with a new screen selection after the page returns.
+window.addEventListener("beforeunload", preserveClassroomForPageRefresh);
+window.addEventListener("pagehide", () => {
+  preserveClassroomForPageRefresh();
   closeAllPeerConnections();
-  clearTeacherBoard({ broadcast: false });
-  stopLocalStreams();
 });
+
+pendingPageRecovery = readLiveClassRecovery();
+if (pendingPageRecovery) {
+  elements.levelSelect.value = pendingPageRecovery.level;
+  elements.subjectSelect.value = pendingPageRecovery.subject;
+  setStudioStatus("تم حفظ الحصة السابقة. اضغط «بدء الحصة المباشرة» واختر الشاشة لاستئنافها.", "neutral");
+}
 
 updateAttendeeCount();
 updateControls();
