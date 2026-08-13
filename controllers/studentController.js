@@ -66,14 +66,18 @@ async function registerStudent(req, res) {
       });
     }
 
-    const existingStudent = await prisma.student.findUnique({
-      where: { parentPhone },
+    const existingStudent = await prisma.student.findFirst({
+      where: {
+        studentName,
+        parentPhone,
+        level,
+      },
       select: { id: true },
     });
 
     if (existingStudent) {
       return res.status(400).json({
-        error: "رقم هاتف الولي مسجل بالفعل.",
+        error: "هذا التلميذ مسجل بالفعل في هذا المستوى الدراسي بهذا الرقم.",
       });
     }
 
@@ -101,7 +105,7 @@ async function registerStudent(req, res) {
     // A concurrent registration can still race the pre-check; retain the same
     // client-safe response for Prisma's unique constraint violation.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return res.status(400).json({ error: "رقم هاتف الولي مسجل بالفعل." });
+      return res.status(400).json({ error: "هذا التلميذ مسجل بالفعل في هذا المستوى الدراسي بهذا الرقم." });
     }
 
     console.error("Student registration failed:", error);
@@ -113,18 +117,20 @@ async function registerStudent(req, res) {
 async function getStudentForParent(req, res) {
   try {
     const parentPhone = normalizeParentPhone(req.params.phone);
-    const student = await prisma.student.findUnique({
+    const students = await prisma.student.findMany({
       where: { parentPhone },
+      orderBy: { createdAt: "desc" },
     });
 
-    if (!student) {
+    if (!students || students.length === 0) {
       return res.status(404).json({ error: "رقم الهاتف غير مسجل." });
     }
 
-    return res.status(200).json(student);
+    // Return the array of students for the parent to choose from.
+    return res.status(200).json(students);
   } catch (error) {
-    console.error("Parent student lookup failed:", error);
-    return res.status(500).json({ error: "تعذر تحميل بيانات التلميذ حالياً." });
+    console.error("Parent students lookup failed:", error);
+    return res.status(500).json({ error: "تعذر تحميل بيانات التلاميذ حالياً." });
   }
 }
 

@@ -19,10 +19,13 @@ const elements = {
   logoutButton: document.getElementById("logout-btn"),
   materialsList: document.getElementById("materials-list"),
   attendanceCount: document.getElementById("attendance-count"),
+  studentSwitcher: document.getElementById("student-switcher"),
+  studentSwitcherList: document.getElementById("student-switcher-list"),
 };
 
 let socket = null;
 let currentStudent = null;
+let currentStudents = [];
 let currentLobbyLevel = null;
 
 function clearParentSession() {
@@ -36,6 +39,8 @@ function clearParentSession() {
     "currentStudent",
     "student",
     "loggedInStudent",
+    "selectedStudentId",
+    "parentStudents",
     "userRole",
   ].forEach((key) => sessionStorage.removeItem(key));
 }
@@ -85,6 +90,73 @@ function getInitials(name) {
       .map((word) => word.charAt(0))
       .join("") || "ت"
   );
+}
+
+function renderStudentSwitcher(students) {
+  if (!elements.studentSwitcher || !elements.studentSwitcherList) {
+    return;
+  }
+
+  const hasMultipleStudents = students.length > 1;
+  elements.studentSwitcher.hidden = !hasMultipleStudents;
+  elements.studentSwitcherList.replaceChildren();
+
+  if (!hasMultipleStudents) {
+    return;
+  }
+
+  for (const student of students) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "student-switcher-card";
+    button.setAttribute("role", "listitem");
+    button.classList.toggle("is-active", currentStudent?.id === student.id);
+    button.setAttribute(
+      "aria-label",
+      `عرض ملف التلميذ ${student.studentName}، ${student.level}`
+    );
+
+    const avatar = document.createElement("span");
+    avatar.className = "student-switcher-avatar";
+    avatar.setAttribute("aria-hidden", "true");
+    avatar.textContent = getInitials(student.studentName);
+
+    const copy = document.createElement("span");
+    copy.className = "student-switcher-card-copy";
+
+    const name = document.createElement("strong");
+    name.textContent = student.studentName;
+    const level = document.createElement("small");
+    level.textContent = student.level;
+    copy.append(name, level);
+
+    const check = document.createElement("span");
+    check.className = "student-switcher-check";
+    check.setAttribute("aria-hidden", "true");
+    check.textContent = "✓";
+
+    button.append(avatar, copy, check);
+    button.addEventListener("click", () => selectStudent(student.id));
+    elements.studentSwitcherList.append(button);
+  }
+}
+
+function selectStudent(studentId) {
+  const student = currentStudents.find((item) => item.id === studentId);
+  if (!student) {
+    return;
+  }
+
+  currentStudent = student;
+  sessionStorage.setItem("selectedStudentId", student.id);
+  sessionStorage.setItem("parentStudents", JSON.stringify(currentStudents));
+  persistStudentSession(student);
+  renderStudentSwitcher(currentStudents);
+  renderStudent(student);
+  elements.dashboardContent.hidden = false;
+  clearError();
+  emitLobbyJoin(student.level);
+  void loadAttendanceCount(student.id);
 }
 
 function renderStudent(student) {
@@ -336,13 +408,25 @@ async function loadDashboard() {
       throw new Error(payload.error || payload.message || "تعذر تحميل بيانات التلميذ.");
     }
 
-    currentStudent = payload;
-    persistStudentSession(currentStudent);
-    renderStudent(currentStudent);
+    const students = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.students)
+        ? payload.students
+        : payload?.id
+          ? [payload]
+          : [];
 
-    elements.dashboardContent.hidden = false;
-    emitLobbyJoin(currentStudent.level);
-    void loadAttendanceCount(currentStudent.id);
+    if (!students.length) {
+      throw new Error("لم يتم العثور على تلاميذ مرتبطين بهذا الرقم.");
+    }
+
+    currentStudents = students;
+    sessionStorage.setItem("parentStudents", JSON.stringify(currentStudents));
+
+    const storedStudentId = sessionStorage.getItem("selectedStudentId");
+    const selectedStudent =
+      currentStudents.find((student) => student.id === storedStudentId) || currentStudents[0];
+    selectStudent(selectedStudent.id);
   } catch (error) {
     if (!/انتهت الجلسة/.test(error.message)) {
       console.error("Unable to load parent dashboard:", error);

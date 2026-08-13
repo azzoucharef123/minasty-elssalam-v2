@@ -162,6 +162,19 @@
   color: #1d4ed8;
 }
 
+.confirmation-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 480px) {
+  .confirmation-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
 .parent-login-dialog-close:focus-visible,
 .parent-login-modal-close:focus-visible,
 .parent-register-action:focus-visible,

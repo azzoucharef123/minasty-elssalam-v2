@@ -5,6 +5,10 @@ const submitBtn = document.getElementById("submit-btn");
 const message = document.getElementById("register-message");
 const confirmation = document.getElementById("registration-confirmation");
 const confirmationText = document.getElementById("registration-confirmation-text");
+const registerAnotherBtn = document.getElementById("register-another-btn");
+const goToDashboardBtn = document.getElementById("go-to-dashboard-btn");
+
+let lastRegisteredPhone = "";
 
 function showRegistrationError(text) {
   message.textContent = text;
@@ -13,6 +17,28 @@ function showRegistrationError(text) {
 }
 
 if (registerForm && submitBtn && message && confirmation && confirmationText) {
+  registerAnotherBtn?.addEventListener("click", () => {
+    confirmation.hidden = true;
+    registerForm.reset();
+    if (lastRegisteredPhone) {
+      const phoneInput = document.getElementById("parent-phone");
+      if (phoneInput) phoneInput.value = lastRegisteredPhone;
+    }
+    submitBtn.disabled = false;
+    submitBtn.textContent = "إتمام التسجيل";
+    const nameInput = document.getElementById("student-name");
+    nameInput?.focus();
+  });
+
+  goToDashboardBtn?.addEventListener("click", () => {
+    if (lastRegisteredPhone) {
+      sessionStorage.setItem("pendingParentPhone", lastRegisteredPhone);
+      window.location.replace("./parent-login.html?autologin=1");
+    } else {
+      window.location.assign("./parent-login.html");
+    }
+  });
+
   registerForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -47,16 +73,9 @@ if (registerForm && submitBtn && message && confirmation && confirmationText) {
         throw new Error(data.error || "تعذر إتمام التسجيل.");
       }
 
-      const registeredPhone = data?.data?.parentPhone || payload.parentPhone;
-      confirmationText.textContent = `تم تأكيد تسجيل ${payload.studentName} بنجاح. سيتم نقلك الآن إلى بوابة الولي.`;
+      lastRegisteredPhone = data?.data?.parentPhone || payload.parentPhone;
+      confirmationText.textContent = `تم تأكيد تسجيل ${payload.studentName} بنجاح. يمكنك الآن تسجيل تلميذ آخر بنفس الرقم أو الدخول لمتابعة التقدم.`;
       confirmation.hidden = false;
-
-      // The number never appears in the URL. The parent portal consumes it once
-      // from the active browser session and signs in through the protected API.
-      window.setTimeout(() => {
-        sessionStorage.setItem("pendingParentPhone", registeredPhone);
-        window.location.replace("./parent-login.html?autologin=1");
-      }, 1400);
     } catch (error) {
       console.error("Student registration failed:", error);
       showRegistrationError(error.message || "حدث خطأ في الاتصال.");

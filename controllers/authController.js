@@ -95,7 +95,7 @@ async function parentLogin(req, res) {
       return res.status(400).json({ error: "رقم هاتف الولي مطلوب." });
     }
 
-    const student = await prisma.student.findUnique({
+    const students = await prisma.student.findMany({
       where: { parentPhone },
       select: {
         id: true,
@@ -108,16 +108,17 @@ async function parentLogin(req, res) {
         physicsEnrollment: true,
         liveAccessEnabled: true,
       },
+      orderBy: { createdAt: "desc" },
     });
 
-    if (!student) {
+    if (!students || students.length === 0) {
       return res.status(404).json({ error: "رقم الهاتف غير مسجل." });
     }
 
+    // Token now represents the parent session for all their students.
     const token = createToken({
       role: "parent",
-      phone: student.parentPhone,
-      studentId: student.id,
+      phone: parentPhone,
     });
 
     return res.status(200).json({
@@ -125,17 +126,17 @@ async function parentLogin(req, res) {
       tokenType: "Bearer",
       expiresIn: JWT_EXPIRES_IN,
       role: "parent",
-      parentPhone: student.parentPhone,
-      student: {
-        id: student.id,
-        studentName: student.studentName,
-        level: student.level,
-        paymentStage: student.paymentStage,
-        amountDue: student.amountDue,
-        mathEnrollment: student.mathEnrollment,
-        physicsEnrollment: student.physicsEnrollment,
-        liveAccessEnabled: student.liveAccessEnabled,
-      },
+      parentPhone,
+      students: students.map((s) => ({
+        id: s.id,
+        studentName: s.studentName,
+        level: s.level,
+        paymentStage: s.paymentStage,
+        amountDue: s.amountDue,
+        mathEnrollment: s.mathEnrollment,
+        physicsEnrollment: s.physicsEnrollment,
+        liveAccessEnabled: s.liveAccessEnabled,
+      })),
     });
   } catch (error) {
     console.error("Parent login failed:", error);
