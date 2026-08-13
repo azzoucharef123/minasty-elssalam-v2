@@ -683,6 +683,66 @@
         background: var(--viewer-red);
       }
 
+      .page-drag-handle {
+        position: fixed;
+        z-index: 30;
+        top: 50%;
+        left: max(0.5rem, env(safe-area-inset-left));
+        display: grid;
+        width: 2.65rem;
+        min-height: 5.8rem;
+        padding: 0.28rem;
+        place-items: center;
+        color: #dbeafe;
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(96, 165, 250, 0.45);
+        border-radius: 999px;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
+        cursor: grab;
+        touch-action: none;
+        transform: translateY(-50%);
+        transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      .page-drag-handle:hover {
+        background: rgba(30, 64, 175, 0.86);
+      }
+
+      .page-drag-handle.is-dragging {
+        cursor: grabbing;
+        background: rgba(37, 99, 235, 0.95);
+        box-shadow: 0 18px 36px rgba(37, 99, 235, 0.38);
+        transform: translateY(-50%) scale(1.16);
+      }
+
+      .page-drag-handle:focus-visible {
+        outline: 3px solid rgba(147, 197, 253, 0.75);
+        outline-offset: 3px;
+      }
+
+      .page-drag-handle svg {
+        width: 1.55rem;
+        height: 2.75rem;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2.2;
+        pointer-events: none;
+      }
+
+      .page-drag-handle span {
+        position: absolute;
+        width: 0.25rem;
+        height: 1.1rem;
+        background: currentColor;
+        border-radius: 999px;
+        opacity: 0.88;
+        pointer-events: none;
+      }
+
       @media (max-width: 68rem) {
         .viewer-shell {
           grid-template-rows: auto auto auto;
@@ -729,6 +789,12 @@
           min-height: 0;
           max-height: 17rem;
           border-radius: 0.8rem;
+        }
+
+        .page-drag-handle {
+          left: 0.45rem;
+          width: 2.55rem;
+          min-height: 5.35rem;
         }
 
         .viewer-controls-wrap {
@@ -847,6 +913,11 @@
           </form>
         </aside>
       </main>
+
+      <button id="page-drag-handle" class="page-drag-handle" type="button" aria-label="اسحب للأعلى أو للأسفل لتمرير الصفحة" title="اسحب لتمرير الصفحة">
+        <svg viewBox="0 0 24 48" aria-hidden="true"><path d="m6 11 6-6 6 6M12 5v38M6 37l6 6 6-6" /></svg>
+        <span aria-hidden="true"></span>
+      </button>
 
       <div class="viewer-controls-wrap">
         <div class="viewer-controls" aria-label="أدوات الحصة">

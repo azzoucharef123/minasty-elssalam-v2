@@ -59,6 +59,7 @@ let initialAutoJoinPending = directClassEntryRequested;
 // After the teacher ends a class, the viewer stays in a passive lobby and
 // automatically re-enters the next class for the same level.
 let waitingForNextClass = false;
+let pageDragState = null;
 
 // The viewer stores teacher-provided normalized segments only; there is no
 // student drawing input or outbound drawing event anywhere in this client.
@@ -87,6 +88,7 @@ const elements = {
   questionImagePreview: document.getElementById("question-image-preview"),
   questionImagePreviewImage: document.getElementById("question-image-preview-img"),
   removeQuestionImageButton: document.getElementById("remove-question-image-btn"),
+  pageDragHandle: document.getElementById("page-drag-handle"),
 };
 
 /**
@@ -190,6 +192,78 @@ function setViewerStatus(message, mode = "neutral") {
   elements.status.classList.toggle("is-live", mode === "live");
   elements.status.classList.toggle("is-warning", mode === "warning");
   elements.status.classList.toggle("is-error", mode === "error");
+}
+
+function getPageScrollLimit() {
+  return Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+}
+
+function scrollPageFromDrag(pointerY) {
+  if (!pageDragState) {
+    return;
+  }
+
+  const viewportHeight = Math.max(1, window.innerHeight);
+  const dragDistance = pointerY - pageDragState.startPointerY;
+  const targetScroll = pageDragState.startScrollTop + (dragDistance / viewportHeight) * getPageScrollLimit();
+  window.scrollTo({ top: Math.min(getPageScrollLimit(), Math.max(0, targetScroll)), behavior: "auto" });
+}
+
+function endPageDrag(pointerId) {
+  if (!pageDragState || (pointerId !== undefined && pageDragState.pointerId !== pointerId)) {
+    return;
+  }
+
+  elements.pageDragHandle?.classList.remove("is-dragging");
+  try {
+    elements.pageDragHandle?.releasePointerCapture(pageDragState.pointerId);
+  } catch {
+    // The pointer can already be released by the browser.
+  }
+  pageDragState = null;
+}
+
+function initializePageDragHandle() {
+  const handle = elements.pageDragHandle;
+  if (!handle) {
+    return;
+  }
+
+  handle.addEventListener("pointerdown", (event) => {
+    if (event.button !== undefined && event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+    pageDragState = {
+      pointerId: event.pointerId,
+      startPointerY: event.clientY,
+      startScrollTop: window.scrollY,
+    };
+    handle.classList.add("is-dragging");
+    handle.setPointerCapture(event.pointerId);
+  });
+
+  handle.addEventListener("pointermove", (event) => {
+    if (pageDragState?.pointerId === event.pointerId) {
+      event.preventDefault();
+      scrollPageFromDrag(event.clientY);
+    }
+  });
+
+  handle.addEventListener("pointerup", (event) => endPageDrag(event.pointerId));
+  handle.addEventListener("pointercancel", (event) => endPageDrag(event.pointerId));
+  handle.addEventListener("lostpointercapture", () => endPageDrag());
+  handle.addEventListener("keydown", (event) => {
+    const step = Math.round(window.innerHeight * 0.7);
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      window.scrollBy({ top: -step, behavior: "smooth" });
+    } else if (event.key === "ArrowDown" || event.key === " ") {
+      event.preventDefault();
+      window.scrollBy({ top: step, behavior: "smooth" });
+    }
+  });
 }
 
 function setPlaceholder(title, description) {
@@ -1558,6 +1632,7 @@ elements.questionImageInput?.addEventListener("change", () => {
 });
 elements.removeQuestionImageButton?.addEventListener("click", clearSelectedQuestionImage);
 initializeStudentCanvas();
+initializePageDragHandle();
 
 window.addEventListener("pagehide", () => {
   clearHandResetTimer();
