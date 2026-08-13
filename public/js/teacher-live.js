@@ -92,6 +92,93 @@ function normalizeChatMessage(value) {
   return typeof value === "string" ? value.trim().slice(0, MAX_CHAT_MESSAGE_LENGTH) : "";
 }
 
+const CHAT_URL_PATTERN = /(?:https?:\/\/|www\.)[^\s<>]+/giu;
+
+function parseChatUrl(value) {
+  const trimmed = String(value || "").replace(/[.,!؟،؛:;)]*$/u, "");
+  const withProtocol = /^www\./iu.test(trimmed) ? `https://${trimmed}` : trimmed;
+
+  try {
+    const parsed = new URL(withProtocol);
+    return ["http:", "https:"].includes(parsed.protocol) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function isFacebookUrl(parsedUrl) {
+  const host = parsedUrl.hostname.toLowerCase().replace(/^www\./u, "");
+  return host === "facebook.com" || host.endsWith(".facebook.com") || host === "fb.watch" || host === "fb.com";
+}
+
+function openFacebookInApp(event, url) {
+  const parsedUrl = parseChatUrl(url);
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
+
+  if (!parsedUrl || !isMobile || !isFacebookUrl(parsedUrl)) {
+    return;
+  }
+
+  event.preventDefault();
+  const fallbackUrl = parsedUrl.href;
+  const appUrl = `fb://facewebmodal/f?href=${encodeURIComponent(fallbackUrl)}`;
+  let didLeavePage = false;
+
+  const cancelFallbackIfHidden = () => {
+    if (document.hidden) {
+      didLeavePage = true;
+    }
+  };
+  document.addEventListener("visibilitychange", cancelFallbackIfHidden, { once: true });
+
+  window.location.href = appUrl;
+  window.setTimeout(() => {
+    if (!didLeavePage && !document.hidden) {
+      window.location.assign(fallbackUrl);
+    }
+  }, 1_100);
+}
+
+function appendChatBodyWithLinks(container, message) {
+  const text = String(message || "");
+  let cursor = 0;
+
+  for (const match of text.matchAll(CHAT_URL_PATTERN)) {
+    const rawUrl = match[0];
+    const displayUrl = rawUrl.replace(/[.,!؟،؛:;)]*$/u, "");
+    const matchIndex = match.index ?? 0;
+    const parsedUrl = parseChatUrl(displayUrl);
+
+    if (!parsedUrl) {
+      continue;
+    }
+
+    if (matchIndex > cursor) {
+      container.append(document.createTextNode(text.slice(cursor, matchIndex)));
+    }
+
+    const link = document.createElement("a");
+    link.className = "chat-external-link";
+    link.href = parsedUrl.href;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = displayUrl;
+    link.title = isFacebookUrl(parsedUrl)
+      ? "افتح منشور Facebook في التطبيق عند توفره"
+      : "فتح الرابط";
+    link.addEventListener("click", (event) => openFacebookInApp(event, parsedUrl.href));
+    container.append(link);
+    if (displayUrl.length < rawUrl.length) {
+      container.append(document.createTextNode(rawUrl.slice(displayUrl.length)));
+    }
+    cursor = matchIndex + rawUrl.length;
+  }
+
+  if (cursor < text.length || !container.childNodes.length) {
+    container.append(document.createTextNode(text.slice(cursor)));
+  }
+}
+
 function isViewingLatestMessages(container, threshold = 36) {
   return container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
 }
@@ -117,7 +204,7 @@ function appendTeacherChatMessage({ sender, message, kind }) {
 
   const body = document.createElement("span");
   body.className = "chat-message-body";
-  body.textContent = safeMessage;
+  appendChatBodyWithLinks(body, safeMessage);
 
   bubble.append(senderLabel, body);
   elements.chatBox.append(bubble);

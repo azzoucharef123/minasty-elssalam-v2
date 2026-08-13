@@ -373,6 +373,38 @@
         line-height: 1.65;
       }
 
+      .chat-external-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2rem;
+        max-width: 100%;
+        margin: 0.08rem 0;
+        padding: 0.14rem 0.35rem;
+        color: #dbeafe;
+        background: rgba(37, 99, 235, 0.28);
+        border: 1px solid rgba(147, 197, 253, 0.4);
+        border-radius: 0.36rem;
+        direction: ltr;
+        font-weight: 800;
+        text-decoration: underline;
+        text-underline-offset: 0.14rem;
+        transition: background 0.2s ease, transform 0.2s ease;
+      }
+
+      .chat-external-link::before {
+        content: "↗";
+        flex: 0 0 auto;
+        text-decoration: none;
+      }
+
+      .chat-external-link:hover,
+      .chat-external-link:focus-visible {
+        color: #ffffff;
+        background: rgba(37, 99, 235, 0.58);
+        outline: none;
+        transform: translateY(-0.05rem);
+      }
+
       .student-chat-form {
         display: flex;
         gap: 0.38rem;
