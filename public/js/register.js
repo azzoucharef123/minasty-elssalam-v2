@@ -6,12 +6,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDN3docm6VxGwPMx96nTU5ynce4tEpbwYo",
+  apiKey: "AIzaSyDN2docm6VxGwPMx96nTU5ynce4tEpbwYo",
   authDomain: "africa-cold-phone-verification.firebaseapp.com",
   projectId: "africa-cold-phone-verification",
   storageBucket: "africa-cold-phone-verification.firebasestorage.app",
   messagingSenderId: "873666713563",
-  appId: "1:873666713563:web:85bc0ff2e5b7790a871b9fe",
+  appId: "1:873666713563:web:85bc0f2e5b7790a871b9fe",
   measurementId: "G-FV016KBV97",
 };
 
