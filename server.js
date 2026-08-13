@@ -151,6 +151,10 @@ const activeSubjectByLevel = new Map();
 // stream. This map reserves a room only for its original teacher while the
 // teacher's browser reconnects with its per-class recovery token.
 const pendingTeacherRecoveryByLevel = new Map();
+// Server-owned microphone state keeps teacher approval authoritative through
+// renegotiation and short teacher recovery windows. Media itself remains direct
+// WebRTC; this map stores only the current permission state by socket ID.
+const openStudentMicsByLevel = new Map();
 // A full browser refresh drops the local screen-share stream. Keep the room
 // reserved long enough for the teacher to reload, select the screen again, and
 // reclaim the same classroom without forcing students out.
@@ -291,6 +295,29 @@ function clearPendingTeacherRecovery(level) {
   pendingTeacherRecoveryByLevel.delete(level);
 }
 
+function isStudentMicrophoneOpen(level, socketId) {
+  return openStudentMicsByLevel.get(level)?.has(socketId) || false;
+}
+
+function setStudentMicrophoneOpen(level, socketId, enabled) {
+  if (enabled) {
+    const openMics = openStudentMicsByLevel.get(level) || new Set();
+    openMics.add(socketId);
+    openStudentMicsByLevel.set(level, openMics);
+    return;
+  }
+
+  const openMics = openStudentMicsByLevel.get(level);
+  if (!openMics) {
+    return;
+  }
+
+  openMics.delete(socketId);
+  if (openMics.size === 0) {
+    openStudentMicsByLevel.delete(level);
+  }
+}
+
 function isValidRecoveryToken(value) {
   return typeof value === "string" && /^[a-zA-Z0-9-]{16,128}$/.test(value);
 }
@@ -307,6 +334,7 @@ async function closeClassroom(level, reason) {
   clearPendingTeacherRecovery(level);
   activeTeachersByLevel.delete(level);
   activeSubjectByLevel.delete(level);
+  openStudentMicsByLevel.delete(level);
 
   io.to(level).emit("class_ended", { level, reason });
   // Parent dashboards join a separate passive lobby. They receive only the
@@ -515,6 +543,7 @@ io.on("connection", (socket) => {
             .map((participant) => ({
               socketId: participant.id,
               studentName: participant.data.studentName || "تلميذ",
+              micEnabled: isStudentMicrophoneOpen(level, participant.id),
             }))
         : [];
 
@@ -942,10 +971,21 @@ io.on("connection", (socket) => {
       );
     }
 
+    // Persist the teacher decision before notifying the student. This makes the
+    // decision available to the teacher browser during a short reconnection and
+    // prevents a late-arriving audio track from being rebroadcast after closure.
+    setStudentMicrophoneOpen(level, targetSocketId, enabled);
+
     io.to(targetSocketId).emit(
       enabled ? "permission_granted" : "microphone_revoked",
       { level }
     );
+    // The teacher uses this authoritative event to update the existing stable
+    // Web Audio mix. No viewer page reload or peer-per-student route is needed.
+    io.to(socket.id).emit("student_mic_state_changed", {
+      socketId: targetSocketId,
+      enabled,
+    });
     acknowledge(acknowledgement, { ok: true, enabled });
   });
 
@@ -971,7 +1011,12 @@ io.on("connection", (socket) => {
       );
     }
 
+    setStudentMicrophoneOpen(level, targetSocketId, true);
     io.to(targetSocketId).emit("permission_granted", { level });
+    io.to(socket.id).emit("student_mic_state_changed", {
+      socketId: targetSocketId,
+      enabled: true,
+    });
     acknowledge(acknowledgement, { ok: true, enabled: true });
   });
 
@@ -1192,6 +1237,7 @@ io.on("connection", (socket) => {
     const { role, level, name } = user;
 
     if (role === "student") {
+      setStudentMicrophoneOpen(level, socket.id, false);
       const teacherSocketId = activeTeachersByLevel.get(level);
       const teacherSocket = teacherSocketId
         ? io.sockets.sockets.get(teacherSocketId)

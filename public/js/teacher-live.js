@@ -36,6 +36,10 @@ let cameraStream;
 const pendingIceCandidates = Object.create(null);
 const attendeeElements = new Map();
 const studentAudioElements = new Map();
+// This is the local authoritative mirror of the server's current teacher
+// approvals. A received student track is never mixed for the class unless its
+// socket ID is present here.
+const approvedStudentMicrophones = new Set();
 // Each approved student microphone is relayed from the teacher's browser to
 // every other student connection. The teacher remains the explicit audio hub.
 const CLASSROOM_TEACHER_SOURCE = "__teacher__";
@@ -740,23 +744,53 @@ function connectAudioSourceToRecipient(sourceKey, recipientSocketId) {
   mixer.gains.set(sourceKey, gain);
 }
 
+function syncApprovedStudentAudioSource(studentSocketId) {
+  const existingStudentStream = studentAudioElements.get(studentSocketId)?.srcObject;
+  const hasLiveAudio = existingStudentStream instanceof MediaStream && existingStudentStream
+    .getAudioTracks()
+    .some((track) => track.readyState === "live");
+
+  if (approvedStudentMicrophones.has(studentSocketId) && hasLiveAudio) {
+    const registeredSource = classroomAudioSources.get(studentSocketId);
+    if (registeredSource?.stream !== existingStudentStream) {
+      addClassroomAudioSource(studentSocketId, existingStudentStream);
+    }
+    return;
+  }
+
+  removeClassroomAudioSource(studentSocketId);
+}
+
+function applyStudentMicrophoneState(studentSocketId, enabled) {
+  if (!studentSocketId) {
+    return;
+  }
+
+  if (enabled) {
+    approvedStudentMicrophones.add(studentSocketId);
+  } else {
+    approvedStudentMicrophones.delete(studentSocketId);
+  }
+
+  const attendee = attendeeElements.get(studentSocketId);
+  if (attendee) {
+    attendee.classList.remove("is-hand-raised");
+    attendee.querySelector(".attendee-hand")?.remove();
+    syncStudentMicButton(attendee, studentSocketId, Boolean(enabled));
+  }
+
+  // The outbound mix track was negotiated when the learner joined. Changing
+  // its connected sources is instantaneous and does not renegotiate or reload
+  // any listener page.
+  syncApprovedStudentAudioSource(studentSocketId);
+}
+
 function restoreKnownStudentAudioSources() {
   // A learner may join after another learner's track was received. Re-register
-  // every live, known incoming track before building the new recipient mix so
-  // late joiners never start with teacher audio alone.
-  for (const [speakerSocketId, audio] of studentAudioElements) {
-    if (classroomAudioSources.has(speakerSocketId)) {
-      continue;
-    }
-
-    const stream = audio.srcObject;
-    const hasLiveAudio = stream instanceof MediaStream && stream
-      .getAudioTracks()
-      .some((track) => track.readyState === "live");
-
-    if (hasLiveAudio) {
-      addClassroomAudioSource(speakerSocketId, stream);
-    }
+  // every approved, live incoming track before building the new recipient mix
+  // so late joiners never start with teacher audio alone.
+  for (const speakerSocketId of studentAudioElements.keys()) {
+    syncApprovedStudentAudioSource(speakerSocketId);
   }
 }
 
@@ -886,12 +920,15 @@ function attachStudentAudio(peerConnection, studentSocketId) {
 
     const incomingStream = event.streams?.[0] || new MediaStream([event.track]);
     audio.srcObject = incomingStream;
-    addClassroomAudioSource(studentSocketId, incomingStream);
+    // The incoming track may arrive just after the permission event. Attach it
+    // to every persistent recipient mix only when the teacher has approved it.
+    syncApprovedStudentAudioSource(studentSocketId);
     audio.play().catch((error) => {
       console.warn('Unable to play approved student microphone:', error);
     });
 
     event.track.addEventListener('ended', () => {
+      approvedStudentMicrophones.delete(studentSocketId);
       removeStudentAudio(studentSocketId);
       removeClassroomAudioSource(studentSocketId);
     }, { once: true });
@@ -912,6 +949,7 @@ function clearIceDisconnectTimer(socketId) {
  */
 function removeStudentConnection(socketId, { statusMessage } = {}) {
   clearIceDisconnectTimer(socketId);
+  approvedStudentMicrophones.delete(socketId);
   removeClassroomAudioSource(socketId);
   closePeerConnection(socketId);
   removeAttendee(socketId);
@@ -948,6 +986,7 @@ function closePeerConnection(socketId) {
 }
 
 function closeAllPeerConnections() {
+  approvedStudentMicrophones.clear();
   Object.keys(peerConnections).forEach(closePeerConnection);
   Object.keys(pendingIceCandidates).forEach((socketId) => {
     delete pendingIceCandidates[socketId];
@@ -1507,24 +1546,9 @@ async function setStudentMicrophone(socketId, enabled, button) {
       enabled,
     });
 
-    const attendee = attendeeElements.get(socketId);
-    attendee?.classList.toggle("is-hand-raised", false);
-    attendee?.querySelector(".attendee-hand")?.remove();
-
-    if (attendee) {
-      syncStudentMicButton(attendee, socketId, enabled);
-    }
-
-    if (enabled) {
-      // On a second opening the incoming WebRTC track already exists, so no
-      // new ontrack event fires. Reconnect that existing stream to the mix.
-      const existingStudentStream = studentAudioElements.get(socketId)?.srcObject;
-      if (existingStudentStream instanceof MediaStream) {
-        addClassroomAudioSource(socketId, existingStudentStream);
-      }
-    } else {
-      removeClassroomAudioSource(socketId);
-    }
+    // Apply locally without waiting for any page navigation. The same server
+    // event also reaches this browser, keeping state correct after reconnects.
+    applyStudentMicrophoneState(socketId, enabled);
 
     setStudioStatus(
       enabled ? "تم فتح مايك التلميذ وأصبح صوته مسموعًا للصف." : "تم إغلاق مايك التلميذ.",
@@ -1573,6 +1597,28 @@ socket.on("student_joined", async (data = {}) => {
   const attendee = upsertAttendee(socketId, studentName || "تلميذ");
   syncStudentMicButton(attendee, socketId, false);
   await createAndSendOffer(socketId);
+});
+
+socket.on("student_mic_state_changed", (data = {}) => {
+  const { socketId, enabled } = data;
+  applyStudentMicrophoneState(socketId, Boolean(enabled));
+});
+
+socket.on("recovery_students", async (data = {}) => {
+  if (!classActive || !Array.isArray(data.students)) {
+    return;
+  }
+
+  for (const student of data.students) {
+    if (!student?.socketId) {
+      continue;
+    }
+
+    const attendee = upsertAttendee(student.socketId, student.studentName || "تلميذ");
+    syncStudentMicButton(attendee, student.socketId, Boolean(student.micEnabled));
+    applyStudentMicrophoneState(student.socketId, Boolean(student.micEnabled));
+    await createAndSendOffer(student.socketId);
+  }
 });
 
 socket.on("webrtc_answer", async (data = {}) => {
