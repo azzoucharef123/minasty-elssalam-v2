@@ -43,6 +43,8 @@ let activeSubject = null;
 let classActive = false;
 let isStarting = false;
 let isEnding = false;
+let classResumeToken = null;
+let reconnectingLiveClass = false;
 
 const elements = {
   localVideo: document.getElementById("local-video"),
@@ -72,6 +74,16 @@ function setStudioStatus(message, mode = "neutral") {
   elements.liveStatusText.textContent = message;
   elements.liveStatus.classList.toggle("is-live", mode === "live");
   elements.liveStatus.classList.toggle("is-error", mode === "error");
+}
+
+function createClassResumeToken() {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+
+  const values = new Uint32Array(4);
+  window.crypto?.getRandomValues?.(values);
+  return Array.from(values, (value) => value.toString(36)).join("-") || `${Date.now()}-studio-recovery`;
 }
 
 const MAX_CHAT_MESSAGE_LENGTH = 800;
@@ -795,6 +807,37 @@ function stopLocalStreams() {
  * class-ended event, or a socket disconnect. The method is idempotent so
  * multiple events during shutdown cannot cause duplicate room-end requests.
  */
+async function resumeLiveClassAfterSocketReconnect() {
+  if (!classActive || !activeLevel || !activeSubject || !classResumeToken || reconnectingLiveClass) {
+    return;
+  }
+
+  if (!socket.connected) {
+    return;
+  }
+
+  reconnectingLiveClass = true;
+  try {
+    setStudioStatus("عاد الاتصال بالخادم. جارٍ استعادة الحصة دون إيقاف الشاشة…", "live");
+    const response = await emitWithAcknowledgement("teacher_start_room", {
+      level: activeLevel,
+      subject: activeSubject,
+      resumeToken: classResumeToken,
+    }, 12_000);
+
+    if (!response?.resumed) {
+      throw new Error("تعذر استعادة جلسة الحصة الحالية.");
+    }
+
+    setStudioStatus("تمت استعادة الحصة. جارٍ إعادة ربط التلاميذ بالبث…", "live");
+  } catch (error) {
+    console.error("Unable to restore live classroom after Socket reconnect:", error);
+    setStudioStatus(error.message || "تعذر استعادة الحصة بعد عودة الاتصال.", "error");
+  } finally {
+    reconnectingLiveClass = false;
+  }
+}
+
 async function endLiveClass({ notifyServer = true, statusMessage } = {}) {
   if (isEnding) {
     return;
@@ -823,6 +866,8 @@ async function endLiveClass({ notifyServer = true, statusMessage } = {}) {
     stopLocalStreams();
     activeLevel = null;
     activeSubject = null;
+    classResumeToken = null;
+    reconnectingLiveClass = false;
     isEnding = false;
     updateControls();
     setStudioStatus(statusMessage || "تم إنهاء الحصة المباشرة.", "neutral");
@@ -927,11 +972,13 @@ async function startLiveClass() {
     // from being ignored between the server joining the teacher room and its ACK.
     activeLevel = selectedLevel;
     activeSubject = selectedSubject;
+    classResumeToken = createClassResumeToken();
     classActive = true;
 
     await emitWithAcknowledgement("teacher_start_room", {
       level: selectedLevel,
       subject: selectedSubject,
+      resumeToken: classResumeToken,
     });
 
     const baseMessage = `الحصة مباشرة الآن — ${selectedLevel} | ${selectedSubjectName}`;
@@ -944,6 +991,7 @@ async function startLiveClass() {
     classActive = false;
     activeLevel = null;
     activeSubject = null;
+    classResumeToken = null;
     closeAllPeerConnections();
     clearAttendees();
     stopLocalStreams();
@@ -1044,6 +1092,11 @@ async function setStudentMicrophone(socketId, enabled, button) {
 // --- Classroom and signaling events from the Phase 7 Socket.io backend. ---
 
 socket.on("connect", () => {
+  if (classActive && classResumeToken) {
+    void resumeLiveClassAfterSocketReconnect();
+    return;
+  }
+
   if (!classActive) {
     setStudioStatus("الاستوديو جاهز", "neutral");
   }
@@ -1205,12 +1258,17 @@ socket.on("classroom_error", (data = {}) => {
 });
 
 socket.on("disconnect", () => {
-  if (classActive || screenStream || cameraStream) {
-    endLiveClass({
-      notifyServer: false,
-      statusMessage: "انقطع الاتصال بالخادم؛ تم إيقاف البث للحفاظ على الخصوصية.",
-    });
+  if (!classActive) {
+    return;
   }
+
+  // Preserve local screen/audio capture during a short signaling interruption.
+  // The server reserves this exact room for the same teacher token, and the
+  // connect handler rebuilds fresh peer connections without a page reload.
+  closeAllPeerConnections();
+  clearAttendees();
+  setStudioStatus("انقطع الاتصال بالخادم. جارٍ استعادة الحصة تلقائياً…", "error");
+  updateControls();
 });
 
 // --- User controls ---

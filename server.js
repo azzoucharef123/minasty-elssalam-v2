@@ -132,6 +132,11 @@ const io = new Server(httpServer, {
 const activeTeachersByLevel = new Map();
 // Stores the subject selected for each active level: MATH or PHYSICS.
 const activeSubjectByLevel = new Map();
+// A brief signaling outage must not end an otherwise healthy direct WebRTC
+// stream. This map reserves a room only for its original teacher while the
+// teacher's browser reconnects with its per-class recovery token.
+const pendingTeacherRecoveryByLevel = new Map();
+const TEACHER_RECOVERY_GRACE_MS = 45_000;
 
 /**
  * Tracks only active WebRTC classroom sockets, keyed by socket ID. Passive
@@ -256,7 +261,20 @@ function resetClassroomData(socket, level) {
     socket.data.role = null;
     socket.data.studentName = null;
     socket.data.studentId = null;
+    socket.data.classResumeToken = null;
   }
+}
+
+function clearPendingTeacherRecovery(level) {
+  const recovery = pendingTeacherRecoveryByLevel.get(level);
+  if (recovery?.timer) {
+    clearTimeout(recovery.timer);
+  }
+  pendingTeacherRecoveryByLevel.delete(level);
+}
+
+function isValidRecoveryToken(value) {
+  return typeof value === "string" && /^[a-zA-Z0-9-]{16,128}$/.test(value);
 }
 
 /**
@@ -268,6 +286,7 @@ async function closeClassroom(level, reason) {
 
   // Revoke authority first so no signaling event can be accepted while the
   // room is being cleaned up asynchronously.
+  clearPendingTeacherRecovery(level);
   activeTeachersByLevel.delete(level);
   activeSubjectByLevel.delete(level);
 
@@ -327,18 +346,27 @@ io.on("connection", (socket) => {
         ? io.sockets.sockets.get(teacherSocketId)
         : null;
       const isClassLive = Boolean(teacherSocket && isInLevelRoom(teacherSocket, level));
+      const isClassRecovering = pendingTeacherRecoveryByLevel.has(level);
 
       // A parent who opens the dashboard after the teacher starts must still
       // see the banner; they should not have to wait for another start event.
       const subject = activeSubjectByLevel.get(level) || null;
       if (isClassLive) {
         socket.emit("live_class_started", { level, subject });
+      } else if (isClassRecovering) {
+        socket.emit("live_class_recovering", { level, subject });
       } else if (teacherSocketId) {
         activeTeachersByLevel.delete(level);
         activeSubjectByLevel.delete(level);
       }
 
-      acknowledge(acknowledgement, { ok: true, level, subject, isClassLive });
+      acknowledge(acknowledgement, {
+        ok: true,
+        level,
+        subject,
+        isClassLive,
+        isClassRecovering,
+      });
     } catch (error) {
       console.error("[Socket.io] join_level_lobby failed:", error);
       emitClassroomError(
@@ -357,7 +385,8 @@ io.on("connection", (socket) => {
   socket.on("teacher_start_room", async (data = {}, acknowledgement) => {
     try {
       const level = normalizeText(data.level);
-      const subject = normalizeText(data.subject).toUpperCase();
+      let subject = normalizeText(data.subject).toUpperCase();
+      const resumeToken = normalizeText(data.resumeToken);
 
       if (!isValidLevel(level)) {
         return emitClassroomError(
@@ -373,6 +402,15 @@ io.on("connection", (socket) => {
           socket,
           "teacher_start_room",
           "اختر مادة صالحة للحصة: الرياضيات أو الفيزياء.",
+          acknowledgement
+        );
+      }
+
+      if (!isValidRecoveryToken(resumeToken)) {
+        return emitClassroomError(
+          socket,
+          "teacher_start_room",
+          "تعذر تأكيد جلسة الاستوديو. أعد بدء الحصة.",
           acknowledgement
         );
       }
@@ -401,6 +439,8 @@ io.on("connection", (socket) => {
       const currentTeacherSocket = currentTeacherSocketId
         ? io.sockets.sockets.get(currentTeacherSocketId)
         : null;
+      const pendingRecovery = pendingTeacherRecoveryByLevel.get(level);
+      const isResuming = Boolean(pendingRecovery);
 
       // At this stage a level accepts one active broadcaster. Authentication
       // middleware should later ensure that only an authenticated teacher can
@@ -414,8 +454,30 @@ io.on("connection", (socket) => {
         );
       }
 
-      // Clear a stale mapping left by an unexpectedly terminated process/socket.
-      if (!currentTeacherSocket && currentTeacherSocketId) {
+      // Only the teacher that started this class can reclaim it during the
+      // short recovery window. This prevents another browser from hijacking a
+      // live room after an interrupted network connection.
+      if (pendingRecovery) {
+        if (pendingRecovery.resumeToken !== resumeToken) {
+          return emitClassroomError(
+            socket,
+            "teacher_start_room",
+            "الحصة تستعيد اتصال الأستاذ. لا يمكن بدء جلسة جديدة لهذا المستوى الآن.",
+            acknowledgement
+          );
+        }
+        if (pendingRecovery.subject !== subject) {
+          return emitClassroomError(
+            socket,
+            "teacher_start_room",
+            "لا يمكن تغيير مادة الحصة أثناء استعادة الاتصال.",
+            acknowledgement
+          );
+        }
+        clearPendingTeacherRecovery(level);
+      } else if (!currentTeacherSocket && currentTeacherSocketId) {
+        // Clear only truly stale state. A room in a pending recovery window is
+        // deliberately preserved above.
         activeTeachersByLevel.delete(level);
         activeSubjectByLevel.delete(level);
       }
@@ -424,15 +486,32 @@ io.on("connection", (socket) => {
       socket.data.role = "teacher";
       socket.data.roomLevel = level;
       socket.data.studentName = null;
+      socket.data.classResumeToken = resumeToken;
       activeTeachersByLevel.set(level, socket.id);
       activeSubjectByLevel.set(level, subject);
       users.set(socket.id, { role: "teacher", level, name: "الأستاذ" });
 
-      // Notify only passive parent dashboards that observe this exact level.
-      io.to(`${level}_lobby`).emit("live_class_started", { level, subject });
-      socket.emit("room_ready", { level, subject, role: "teacher" });
-      acknowledge(acknowledgement, { ok: true, level, subject, role: "teacher" });
-      console.info(`[Socket.io] Teacher ${socket.id} started room: ${level} (${subject})`);
+      const recoveryStudents = isResuming
+        ? (await io.in(level).fetchSockets())
+            .filter((participant) => participant.id !== socket.id && participant.data.role === "student")
+            .map((participant) => ({
+              socketId: participant.id,
+              studentName: participant.data.studentName || "تلميذ",
+            }))
+        : [];
+
+      if (isResuming) {
+        io.to(level).emit("teacher_reconnected", { level, subject });
+        io.to(`${level}_lobby`).emit("live_class_resumed", { level, subject });
+        socket.emit("recovery_students", { level, students: recoveryStudents });
+      } else {
+        // Notify only passive parent dashboards that observe this exact level.
+        io.to(`${level}_lobby`).emit("live_class_started", { level, subject });
+      }
+
+      socket.emit("room_ready", { level, subject, role: "teacher", resumed: isResuming });
+      acknowledge(acknowledgement, { ok: true, level, subject, role: "teacher", resumed: isResuming });
+      console.info(`[Socket.io] Teacher ${socket.id} ${isResuming ? "resumed" : "started"} room: ${level} (${subject})`);
     } catch (error) {
       console.error("[Socket.io] teacher_start_room failed:", error);
       emitClassroomError(
@@ -518,8 +597,20 @@ io.on("connection", (socket) => {
         ? io.sockets.sockets.get(teacherSocketId)
         : null;
 
-      // Do not add students to a room without a reachable broadcaster.
+      // Do not add students to a room without a reachable broadcaster. During
+      // the teacher's short reconnection window, preserve the room state and
+      // tell the viewer to retry automatically rather than treating it as ended.
       if (!teacherSocket || !isInLevelRoom(teacherSocket, level)) {
+        if (pendingTeacherRecoveryByLevel.has(level)) {
+          const recoveryMessage = "الأستاذ يعيد الاتصال الآن. جارٍ استعادة الحصة تلقائياً…";
+          socket.emit("room_recovering", { level, message: recoveryMessage });
+          return acknowledge(acknowledgement, {
+            ok: false,
+            recovering: true,
+            error: recoveryMessage,
+          });
+        }
+
         activeTeachersByLevel.delete(level);
         activeSubjectByLevel.delete(level);
         socket.emit("room_unavailable", {
@@ -575,10 +666,11 @@ io.on("connection", (socket) => {
 
       // Only the active teacher receives the student identity/socket ID.
       // Other students receive no attendee or signaling information.
-      if (!isAlreadyJoined) {
+      if (!isAlreadyJoined || data.rejoin === true) {
         io.to(teacherSocketId).emit("student_joined", {
           socketId: socket.id,
           studentName,
+          recovering: data.rejoin === true,
         });
       }
 
@@ -1053,13 +1145,35 @@ io.on("connection", (socket) => {
     }
 
     if (role === "teacher" && activeTeachersByLevel.get(level) === socket.id) {
-      // Notify the private classroom immediately so viewers can show a clear
-      // connection-loss state before class_ended performs full room cleanup.
-      io.to(level).emit("teacher_disconnected", { level });
+      const resumeToken = socket.data.classResumeToken;
 
-      // `closeClassroom` is intentionally not awaited because Socket.io invokes
-      // disconnect listeners synchronously. Errors are handled to avoid an
-      // unhandled rejection during cleanup.
+      // Preserve the classroom briefly for a transient transport failure. The
+      // direct WebRTC stream may remain healthy, and the original teacher can
+      // reclaim the room with a token kept only in that browser session.
+      if (isValidRecoveryToken(resumeToken)) {
+        clearPendingTeacherRecovery(level);
+        const timer = setTimeout(() => {
+          const recovery = pendingTeacherRecoveryByLevel.get(level);
+          if (recovery?.resumeToken !== resumeToken) {
+            return;
+          }
+
+          closeClassroom(level, "teacher_disconnected").catch((error) => {
+            console.error("[Socket.io] delayed disconnect cleanup failed:", error);
+          });
+        }, TEACHER_RECOVERY_GRACE_MS);
+
+        pendingTeacherRecoveryByLevel.set(level, {
+          resumeToken,
+          subject: activeSubjectByLevel.get(level),
+          timer,
+        });
+        io.to(level).emit("teacher_reconnecting", { level });
+        io.to(`${level}_lobby`).emit("live_class_recovering", { level });
+        console.info(`[Socket.io] Holding room ${level} for teacher reconnection.`);
+        return;
+      }
+
       closeClassroom(level, "teacher_disconnected").catch((error) => {
         console.error("[Socket.io] disconnect cleanup failed:", error);
       });

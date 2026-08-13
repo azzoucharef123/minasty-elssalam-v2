@@ -37,6 +37,10 @@ let microphonePermissionGranted = false;
 let isRequestingMicrophone = false;
 let handResetTimer = null;
 let didLoseSocketConnection = false;
+let isRecoveringStream = false;
+let recoveryAttempts = 0;
+let recoveryTimer = null;
+const MAX_RECOVERY_ATTEMPTS = 8;
 const pendingIceCandidates = [];
 
 // The viewer stores teacher-provided normalized segments only; there is no
@@ -329,7 +333,7 @@ function clearStudentChat() {
 }
 
 function updateChatControls() {
-  const canSend = joinedClass && !isJoining && socket.connected;
+  const canSend = joinedClass && !isJoining && !isRecoveringStream && socket.connected;
   elements.chatInput.disabled = !canSend;
   elements.chatSendButton.disabled = !canSend || !normalizeChatMessage(elements.chatInput.value);
 }
@@ -488,8 +492,12 @@ function attachTeacherTrack(event) {
 
   if (track.kind === "video") {
     requestAnimationFrame(resizeStudentCanvas);
+    clearRecoveryTimer();
+    recoveryAttempts = 0;
+    isRecoveringStream = false;
     elements.placeholder.hidden = true;
     hideConnectionOverlay();
+    updateChatControls();
     setViewerStatus("صورة الحصة المباشرة متصلة.", "live");
   }
 
@@ -506,6 +514,47 @@ function attachTeacherTrack(event) {
     console.warn("Unable to start remote classroom video:", error);
     setViewerStatus("اضغط زر تشغيل الفيديو في المشغّل لبدء العرض.", "warning");
   });
+}
+
+function clearRecoveryTimer() {
+  if (recoveryTimer) {
+    window.clearTimeout(recoveryTimer);
+    recoveryTimer = null;
+  }
+}
+
+function scheduleClassRecovery(delayMs = 1_000) {
+  if (!joinedClass || recoveryTimer || recoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
+    return;
+  }
+
+  recoveryTimer = window.setTimeout(() => {
+    recoveryTimer = null;
+    void joinClass({ rejoin: true });
+  }, delayMs);
+}
+
+/** Keep the same viewer page alive while a fresh WebRTC offer is requested. */
+function beginStreamRecovery(message) {
+  if (!joinedClass && !isJoining) {
+    return;
+  }
+
+  clearHandResetTimer();
+  closePeerConnection();
+  resetRemoteMedia();
+  isJoining = false;
+  joinedClass = true;
+  isRecoveringStream = true;
+  elements.joinButton.hidden = true;
+  elements.joinButton.disabled = true;
+  setButtonLabel(elements.joinButton, "جارٍ استعادة البث…");
+  elements.raiseHandButton.hidden = true;
+  updateChatControls();
+  setPlaceholder("جارٍ استعادة الحصة", message || "سيُعاد الاتصال بالبث تلقائياً دون تحديث الصفحة.");
+  setViewerStatus(message || "انقطع البث مؤقتاً. جارٍ استعادته تلقائياً…", "warning");
+  showConnectionOverlay(message || "انقطع البث مؤقتاً. جارٍ استعادته تلقائياً…", "warning");
+  scheduleClassRecovery(Math.min(1_000 * (2 ** recoveryAttempts), 8_000));
 }
 
 function closePeerConnection() {
@@ -535,6 +584,9 @@ function closePeerConnection() {
  */
 function resetViewerState({ message, mode = "neutral", showJoin = true } = {}) {
   clearHandResetTimer();
+  clearRecoveryTimer();
+  isRecoveringStream = false;
+  recoveryAttempts = 0;
   closePeerConnection();
   stopLocalAudio();
   clearStudentBoard();
@@ -664,12 +716,7 @@ function createViewerPeerConnection() {
     }
 
     if (pc.connectionState === "failed") {
-      resetViewerState({
-        message: "انقطع اتصال البث. أعد الانضمام للمحاولة مرة أخرى.",
-        mode: "error",
-        showJoin: true,
-      });
-      showConnectionOverlay("اتصال البث غير مستقر. يرجى إعادة الانضمام للحصة.");
+      beginStreamRecovery("انقطع اتصال البث. جارٍ استعادته تلقائياً…");
     }
   };
 
@@ -681,23 +728,23 @@ function createViewerPeerConnection() {
     const { iceConnectionState } = pc;
 
     if (iceConnectionState === "connected" || iceConnectionState === "completed") {
+      clearRecoveryTimer();
+      recoveryAttempts = 0;
+      isRecoveringStream = false;
       hideConnectionOverlay();
+      updateChatControls();
       return;
     }
 
     if (iceConnectionState === "disconnected") {
-      showConnectionOverlay("اتصال البث غير مستقر. جاري محاولة استعادة الاتصال...", "warning");
-      setViewerStatus("اتصال البث غير مستقر. جاري محاولة الاستعادة...", "warning");
+      showConnectionOverlay("اتصال البث غير مستقر. جارٍ محاولة الاستعادة…", "warning");
+      setViewerStatus("اتصال البث غير مستقر. جارٍ محاولة الاستعادة…", "warning");
+      scheduleClassRecovery(3_000);
       return;
     }
 
     if (iceConnectionState === "failed") {
-      resetViewerState({
-        message: "فشل اتصال البث. أعد الانضمام للمحاولة مرة أخرى.",
-        mode: "error",
-        showJoin: true,
-      });
-      showConnectionOverlay("فشل اتصال البث. يرجى إعادة الانضمام للحصة.");
+      beginStreamRecovery("فشل اتصال البث. جارٍ إعادة الاتصال تلقائياً…");
     }
   };
 
@@ -786,12 +833,16 @@ async function enableApprovedMicrophone() {
   }
 }
 
-async function joinClass() {
-  if (joinedClass || isJoining) {
+async function joinClass({ rejoin = false } = {}) {
+  if ((joinedClass && !isRecoveringStream) || isJoining) {
     return;
   }
 
   if (!socket.connected) {
+    if (rejoin || isRecoveringStream) {
+      scheduleClassRecovery(1_000);
+      return;
+    }
     setViewerStatus("تعذر الانضمام لأن الاتصال بالخادم غير متاح.", "error");
     return;
   }
@@ -801,32 +852,55 @@ async function joinClass() {
   // returns to this browser.
   joinedClass = true;
   isJoining = true;
-  clearStudentChat();
+  if (!rejoin) {
+    clearStudentChat();
+  }
   updateChatControls();
   hideConnectionOverlay();
   elements.joinButton.disabled = true;
-  setButtonLabel(elements.joinButton, "جارٍ الانضمام…");
-  setPlaceholder("بانتظار البث المباشر", "تم إرسال طلب الانضمام إلى الأستاذ.");
-  setViewerStatus("بانتظار البث من الأستاذ…", "warning");
+  setButtonLabel(elements.joinButton, rejoin ? "جارٍ استعادة البث…" : "جارٍ الانضمام…");
+  setPlaceholder(
+    rejoin ? "جارٍ استعادة الحصة" : "بانتظار البث المباشر",
+    rejoin ? "يتم طلب بث جديد من الأستاذ تلقائياً." : "تم إرسال طلب الانضمام إلى الأستاذ."
+  );
+  setViewerStatus(rejoin ? "جارٍ استعادة اتصال البث…" : "بانتظار البث من الأستاذ…", "warning");
 
   try {
-    await emitWithAcknowledgement("student_join_room", { level, studentId });
+    await emitWithAcknowledgement("student_join_room", { level, studentId, rejoin });
 
     isJoining = false;
+    isRecoveringStream = false;
+    recoveryAttempts = 0;
+    clearRecoveryTimer();
     elements.joinButton.hidden = true;
     elements.raiseHandButton.hidden = false;
     setRaisedHandState({ waiting: false });
     updateChatControls();
-    setViewerStatus("انضممت إلى الحصة. جاري استقبال بث الأستاذ…", "warning");
+    setViewerStatus(rejoin ? "تمت إعادة الانضمام. جارٍ استقبال البث…" : "انضممت إلى الحصة. جارٍ استقبال بث الأستاذ…", "warning");
   } catch (error) {
     console.error("Unable to join classroom:", error);
-    joinedClass = false;
     isJoining = false;
+    const joinErrorMessage = error.message || "تعذر الانضمام إلى الحصة.";
+    const isLiveAccessBlocked = joinErrorMessage.includes("لم تقم بالدفع");
+    const isTemporaryRecovery = rejoin || isRecoveringStream || joinErrorMessage.includes("يعيد الاتصال");
+
+    if (isTemporaryRecovery && !isLiveAccessBlocked && recoveryAttempts < MAX_RECOVERY_ATTEMPTS) {
+      recoveryAttempts += 1;
+      joinedClass = true;
+      isRecoveringStream = true;
+      elements.joinButton.hidden = true;
+      setViewerStatus("الأستاذ يعيد الاتصال. جارٍ إعادة المحاولة تلقائياً…", "warning");
+      showConnectionOverlay("الأستاذ يعيد الاتصال. جارٍ إعادة المحاولة تلقائياً…", "warning");
+      scheduleClassRecovery(Math.min(1_000 * (2 ** recoveryAttempts), 8_000));
+      return;
+    }
+
+    joinedClass = false;
+    isRecoveringStream = false;
+    elements.joinButton.hidden = false;
     elements.joinButton.disabled = false;
     setButtonLabel(elements.joinButton, "انضمام للحصة");
     updateChatControls();
-    const joinErrorMessage = error.message || "تعذر الانضمام إلى الحصة.";
-    const isLiveAccessBlocked = joinErrorMessage.includes("لم تقم بالدفع");
     setViewerStatus(joinErrorMessage, "error");
     setPlaceholder(
       isLiveAccessBlocked ? "دخول الحصة غير متاح" : "الحصة غير متاحة",
@@ -882,9 +956,11 @@ function toggleMicrophone() {
 socket.on("connect", () => {
   if (didLoseSocketConnection) {
     didLoseSocketConnection = false;
-    hideConnectionOverlay();
-    setViewerStatus("عاد الاتصال بالخادم. يمكنك الانضمام إلى الحصة عند جاهزيتها.", "neutral");
-    return;
+    if (joinedClass || isRecoveringStream) {
+      setViewerStatus("عاد الاتصال بالخادم. جارٍ استعادة الحصة تلقائياً…", "warning");
+      scheduleClassRecovery(250);
+      return;
+    }
   }
 
   if (!joinedClass && !isJoining) {
@@ -993,7 +1069,7 @@ socket.on("webrtc_offer", async (data = {}) => {
     }
   } catch (error) {
     console.error("Unable to answer teacher WebRTC offer:", error);
-    setViewerStatus("تعذر اتصال البث. حاول الانضمام مرة أخرى.", "error");
+    beginStreamRecovery("تعذر اتصال البث. جارٍ إعادة المحاولة تلقائياً…");
   }
 });
 
@@ -1070,13 +1146,21 @@ socket.on("microphone_revoked", () => {
   setViewerStatus("أغلق الأستاذ المايك. يمكنك رفع اليد عند الحاجة.", "neutral");
 });
 
+socket.on("teacher_reconnecting", () => {
+  beginStreamRecovery("انقطع اتصال الأستاذ مؤقتاً. جارٍ استعادة الحصة تلقائياً…");
+});
+
+socket.on("teacher_reconnected", () => {
+  beginStreamRecovery("عاد الأستاذ. جارٍ ربط البث من جديد…");
+  scheduleClassRecovery(100);
+});
+
+socket.on("room_recovering", (data = {}) => {
+  beginStreamRecovery(data.message || "الأستاذ يعيد الاتصال الآن. جارٍ استعادة الحصة تلقائياً…");
+});
+
 socket.on("teacher_disconnected", () => {
-  resetViewerState({
-    message: "انقطع الاتصال بالأستاذ. جاري الانتظار...",
-    mode: "error",
-    showJoin: true,
-  });
-  showConnectionOverlay("انقطع الاتصال بالأستاذ. جاري الانتظار...");
+  beginStreamRecovery("انقطع اتصال الأستاذ مؤقتاً. جارٍ الانتظار دون تحديث الصفحة…");
 });
 
 socket.on("class_ended", (data = {}) => {
@@ -1107,16 +1191,12 @@ socket.on("disconnect", () => {
   didLoseSocketConnection = true;
 
   if (joinedClass || isJoining || pc) {
-    resetViewerState({
-      message: "انقطع الاتصال بالخادم. يرجى التحقق من الإنترنت.",
-      mode: "error",
-      showJoin: true,
-    });
+    beginStreamRecovery("انقطع الاتصال بالخادم. جارٍ إعادة الاتصال تلقائياً…");
   }
 
-  // Socket.io will attempt reconnection automatically; the connect handler
-  // restores a ready state once a fresh signaling connection is available.
-  showConnectionOverlay("انقطع الاتصال بالخادم. يرجى التحقق من الإنترنت.");
+  // Socket.io reconnects automatically; the connect handler asks the server
+  // for a fresh WebRTC offer while preserving this same viewer page.
+  showConnectionOverlay("انقطع الاتصال بالخادم. جارٍ إعادة الاتصال تلقائياً…", "warning");
 });
 
 // --- Viewer controls ---
@@ -1132,6 +1212,7 @@ initializeStudentCanvas();
 
 window.addEventListener("pagehide", () => {
   clearHandResetTimer();
+  clearRecoveryTimer();
   closePeerConnection();
   stopLocalAudio();
   clearStudentBoard();
