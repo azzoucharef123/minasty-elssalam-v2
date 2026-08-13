@@ -2,10 +2,8 @@
 
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
-const { PrismaClient } = require("@prisma/client");
 const { normalizeParentPhone } = require("../utils/phone");
-
-const prisma = new PrismaClient();
+const prisma = require("../lib/prisma");
 
 const JWT_ISSUER = "online-tutoring-platform";
 const JWT_AUDIENCE = "online-tutoring-platform-web";

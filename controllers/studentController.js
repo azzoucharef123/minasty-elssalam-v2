@@ -1,9 +1,8 @@
 "use strict";
 
-const { PrismaClient, Prisma } = require("@prisma/client");
+const { Prisma } = require("@prisma/client");
 const { normalizeParentPhone } = require("../utils/phone");
-
-const prisma = new PrismaClient();
+const prisma = require("../lib/prisma");
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 50;
