@@ -811,46 +811,66 @@ function connectStudentAudioToRecipient(speakerSocketId, recipientSocketId) {
   }
 
   const relaySenders = getStudentAudioRelayMap(recipientSocketId);
-  const existingSender = relaySenders.get(speakerSocketId);
-  if (existingSender?.track?.id === sourceTrack.id) {
+  const existingRelay = relaySenders.get(speakerSocketId);
+  if (
+    existingRelay?.sourceTrackId === sourceTrack.id &&
+    existingRelay.sender.track?.readyState === "live"
+  ) {
     return;
   }
 
-  if (existingSender) {
-    existingSender.replaceTrack(sourceTrack).catch((error) => {
+  // A cloned track is crucial here: some mobile WebRTC implementations do not
+  // reliably fan one received MediaStreamTrack out to multiple peer connections.
+  // Every listener receives its own independent copy of the speaker's audio.
+  const relayTrack = sourceTrack.clone();
+  const relayStream = new MediaStream([relayTrack]);
+
+  if (existingRelay) {
+    existingRelay.relayTrack?.stop();
+    existingRelay.sender.replaceTrack(relayTrack).catch((error) => {
+      relayTrack.stop();
       console.warn("Unable to replace a classmate audio track:", error);
+    });
+    relaySenders.set(speakerSocketId, {
+      sender: existingRelay.sender,
+      sourceTrackId: sourceTrack.id,
+      relayTrack,
     });
     return;
   }
 
-  const sender = peerConnection.addTrack(sourceTrack, sourceStream);
-  relaySenders.set(speakerSocketId, sender);
+  const sender = peerConnection.addTrack(relayTrack, relayStream);
+  relaySenders.set(speakerSocketId, { sender, sourceTrackId: sourceTrack.id, relayTrack });
   void tuneOutboundSender(sender, "audio");
   queueStudentAudioRelayOffer(recipientSocketId);
 }
 
 function disconnectStudentAudioFromRecipient(speakerSocketId, recipientSocketId) {
   const relaySenders = studentAudioRelaySenders.get(recipientSocketId);
-  const sender = relaySenders?.get(speakerSocketId);
-  if (!sender || !sender.track) {
+  const relay = relaySenders?.get(speakerSocketId);
+  if (!relay || !relay.sender.track) {
     return;
   }
 
   // Keep the negotiated sender ready for the next teacher approval. Reopening
   // the mic then replaces the track immediately instead of adding m-lines.
-  sender.replaceTrack(null).catch((error) => {
+  relay.relayTrack?.stop();
+  relay.sourceTrackId = null;
+  relay.relayTrack = null;
+  relay.sender.replaceTrack(null).catch((error) => {
     console.warn("Unable to stop a classmate audio track:", error);
   });
 }
 
 function removeStudentAudioRelaySourceFromRecipient(speakerSocketId, recipientSocketId) {
   const relaySenders = studentAudioRelaySenders.get(recipientSocketId);
-  const sender = relaySenders?.get(speakerSocketId);
-  if (!sender) {
+  const relay = relaySenders?.get(speakerSocketId);
+  if (!relay) {
     return;
   }
 
-  sender.replaceTrack(null).catch(() => {});
+  relay.relayTrack?.stop();
+  relay.sender.replaceTrack(null).catch(() => {});
   relaySenders.delete(speakerSocketId);
   if (relaySenders.size === 0) {
     studentAudioRelaySenders.delete(recipientSocketId);
@@ -863,8 +883,9 @@ function clearStudentAudioRelayForRecipient(recipientSocketId) {
     return;
   }
 
-  for (const sender of relaySenders.values()) {
-    sender.replaceTrack(null).catch(() => {});
+  for (const relay of relaySenders.values()) {
+    relay.relayTrack?.stop();
+    relay.sender.replaceTrack(null).catch(() => {});
   }
   studentAudioRelaySenders.delete(recipientSocketId);
   pendingStudentAudioRelayOffers.delete(recipientSocketId);
