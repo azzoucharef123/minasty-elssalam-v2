@@ -1,24 +1,35 @@
 "use strict";
 
-const parentLoginForm = document.querySelector(
-  "#parent-login-form, #login-form, form"
-);
+const ARABIC_DIGITS = {
+  "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4",
+  "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9",
+  "۰": "0", "۱": "1", "۲": "2", "۳": "3", "۴": "4",
+  "۵": "5", "۶": "6", "۷": "7", "۸": "8", "۹": "9",
+};
+
+const parentLoginForm = document.querySelector("#parent-login-form, #login-form, form");
 const parentPhoneInput = document.querySelector(
   "#parent-phone, #parentPhone, #phone, input[type='tel'], input[name='parentPhone']"
 );
+const parentPinInput = document.querySelector("#parent-pin, input[name='parentPin']");
 const parentLoginError = document.getElementById("login-error");
 const parentLoginModal = document.getElementById("parent-login-modal");
-const parentLoginModalCloseButtons = Array.from(
-  document.querySelectorAll("[data-close-parent-modal]")
-);
-const parentLoginModalCloseButton = parentLoginModal?.querySelector(
-  ".parent-login-modal-close"
-);
-const parentSubmitButton = parentLoginForm?.querySelector(
-  "button[type='submit'], input[type='submit']"
-);
+const parentLoginModalCloseButtons = Array.from(document.querySelectorAll("[data-close-parent-modal]"));
+const parentLoginModalCloseButton = parentLoginModal?.querySelector(".parent-login-modal-close");
+const parentSubmitButton = parentLoginForm?.querySelector("button[type='submit'], input[type='submit']");
 const loginQuery = new URLSearchParams(window.location.search);
 const shouldAutoLogin = loginQuery.get("autologin") === "1";
+
+function normalizeDigits(value, maximumLength) {
+  return String(value || "")
+    .replace(/[٠-٩۰-۹]/g, (digit) => ARABIC_DIGITS[digit] || digit)
+    .replace(/\D/g, "")
+    .slice(0, maximumLength);
+}
+
+function isValidParentPhone(value) {
+  return /^0[567]\d{8}$/.test(value);
+}
 
 function setParentLoginError(message = "") {
   if (!parentLoginError) {
@@ -56,7 +67,6 @@ function setParentSubmitting(isSubmitting) {
   }
 
   parentSubmitButton.disabled = isSubmitting;
-
   if (parentSubmitButton.tagName === "BUTTON") {
     parentSubmitButton.textContent = isSubmitting ? "جارٍ الدخول…" : "دخول";
   }
@@ -79,11 +89,20 @@ async function handleParentLogin(event) {
   closeParentLoginModal();
   setParentLoginError();
 
-  const parentPhone = parentPhoneInput?.value?.trim() || "";
+  const parentPhone = normalizeDigits(parentPhoneInput?.value, 10);
+  const parentPin = normalizeDigits(parentPinInput?.value, 4);
+  parentPhoneInput.value = parentPhone;
+  parentPinInput.value = parentPin;
 
-  if (!parentPhone) {
-    setParentLoginError("يرجى إدخال رقم هاتف الولي.");
+  if (!isValidParentPhone(parentPhone)) {
+    setParentLoginError("رقم الهاتف خاطئ: يجب أن يتكون من 10 أرقام ويبدأ بـ 05 أو 06 أو 07.");
     parentPhoneInput?.focus();
+    return;
+  }
+
+  if (!/^\d{4}$/.test(parentPin)) {
+    setParentLoginError("كلمة المرور يجب أن تتكون من 4 أرقام فقط.");
+    parentPinInput?.focus();
     return;
   }
 
@@ -93,7 +112,7 @@ async function handleParentLogin(event) {
     const response = await fetch("/api/auth/parent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ parentPhone }),
+      body: JSON.stringify({ parentPhone, parentPin }),
     });
     const data = await response.json().catch(() => ({}));
 
@@ -129,19 +148,28 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-if (parentLoginForm && parentPhoneInput) {
+if (parentLoginForm && parentPhoneInput && parentPinInput) {
   parentLoginForm.addEventListener("submit", handleParentLogin);
 
-  // Registration stores the verified phone only for this browser session. The
-  // parent portal consumes it once, fills the form, and submits it securely.
+  parentPhoneInput.addEventListener("input", () => {
+    parentPhoneInput.value = normalizeDigits(parentPhoneInput.value, 10);
+  });
+
+  parentPinInput.addEventListener("input", () => {
+    parentPinInput.value = normalizeDigits(parentPinInput.value, 4);
+  });
+
+  // After registration, prefill only the guardian number. The PIN is never kept
+  // in browser storage and must be entered by the parent.
   if (shouldAutoLogin) {
     const pendingParentPhone = sessionStorage.getItem("pendingParentPhone");
     if (pendingParentPhone) {
       sessionStorage.removeItem("pendingParentPhone");
-      parentPhoneInput.value = pendingParentPhone;
-      window.setTimeout(() => parentLoginForm.requestSubmit(), 120);
+      parentPhoneInput.value = normalizeDigits(pendingParentPhone, 10);
+      setParentLoginError("أدخل كلمة المرور ذات 4 أرقام لإتمام الدخول.");
+      window.setTimeout(() => parentPinInput.focus(), 120);
     }
   }
 } else {
-  console.error("Parent login markup is missing the form or phone input.");
+  console.error("Parent login markup is missing the form, phone input, or PIN input.");
 }

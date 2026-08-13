@@ -4,6 +4,11 @@ const fs = require("fs");
 const path = require("path");
 const { Prisma } = require("@prisma/client");
 const { normalizeParentPhone } = require("../utils/phone");
+const {
+  normalizeParentPin,
+  hashParentPin,
+  verifyParentPin,
+} = require("../utils/parentPin");
 const prisma = require("../lib/prisma");
 const { removeImageFile } = require("./liveChatController");
 
@@ -59,19 +64,19 @@ function parsePagination(query) {
 
 /** POST /api/students/register — public student registration. */
 async function registerStudent(req, res) {
-  console.log('Register student request body:', req.body);
   try {
     const studentName = normalizeText(req.body?.studentName);
     const parentPhone = normalizeParentPhone(req.body?.parentPhone);
+    const parentPin = normalizeParentPin(req.body?.parentPin);
     const level = normalizeText(req.body?.level);
     const uploadedCardFile = req.file;
 
-    if (!studentName || !parentPhone || !level) {
+    if (!studentName || !parentPhone || !parentPin || !level) {
       if (uploadedCardFile?.filename) {
         await removeUploadedCard(uploadedCardFile.filename);
       }
       return res.status(400).json({
-        error: "اسم التلميذ ورقم هاتف الولي والمستوى الدراسي حقول مطلوبة.",
+        error: "الاسم ورقم الهاتف وكلمة المرور من 4 أرقام والمستوى الدراسي حقول مطلوبة.",
       });
     }
 
@@ -107,21 +112,49 @@ async function registerStudent(req, res) {
       });
     }
 
-    const student = await prisma.student.create({
-      data: {
-        studentName,
-        parentPhone,
-        level,
-        paymentStatus: false,
-        paymentStage: "UNPAID",
-        amountDue: null,
-        mathEnrollment: true,
-        physicsEnrollment: true,
-        liveAccessEnabled: false,
-        mathNote: "",
-        physicsNote: "",
-        cardPhotoUrl: uploadedCardFile?.filename || null,
-      },
+    const existingCredential = await prisma.parentCredential.findUnique({
+      where: { parentPhone },
+      select: { pinHash: true },
+    });
+
+    if (existingCredential) {
+      const pinMatches = await verifyParentPin(parentPin, existingCredential.pinHash);
+      if (!pinMatches) {
+        if (uploadedCardFile?.filename) {
+          await removeUploadedCard(uploadedCardFile.filename);
+        }
+        return res.status(401).json({
+          error: "كلمة المرور لهذا الرقم غير صحيحة. استخدم كلمة المرور ذات 4 أرقام التي أنشأتها سابقًا.",
+        });
+      }
+    }
+
+    const student = await prisma.$transaction(async (tx) => {
+      if (!existingCredential) {
+        await tx.parentCredential.create({
+          data: {
+            parentPhone,
+            pinHash: await hashParentPin(parentPin),
+          },
+        });
+      }
+
+      return tx.student.create({
+        data: {
+          studentName,
+          parentPhone,
+          level,
+          paymentStatus: false,
+          paymentStage: "UNPAID",
+          amountDue: null,
+          mathEnrollment: true,
+          physicsEnrollment: true,
+          liveAccessEnabled: false,
+          mathNote: "",
+          physicsNote: "",
+          cardPhotoUrl: uploadedCardFile?.filename || null,
+        },
+      });
     });
 
     return res.status(201).json({

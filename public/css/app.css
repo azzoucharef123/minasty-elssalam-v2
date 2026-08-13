@@ -448,3 +448,27 @@ body.parent-login-modal-open {
     padding: 0.85rem;
   }
 }
+
+/* Guardian PIN fields */
+.pin-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.pin-fields label {
+  min-width: 0;
+}
+
+.pin-fields input,
+#parent-pin {
+  direction: ltr;
+  letter-spacing: 0.24em;
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .pin-fields {
+    grid-template-columns: 1fr;
+  }
+}

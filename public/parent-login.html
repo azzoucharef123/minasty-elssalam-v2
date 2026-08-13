@@ -16,11 +16,14 @@
       <p>اطلع على ملفات طفلك، حضوره، وتفاصيل الحصة المباشرة.</p>
       <form id="parent-login-form" class="stack-form">
         <label for="parent-phone">رقم هاتف الولي</label>
-        <input id="parent-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="05xxxxxxxx" required />
+        <input id="parent-phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="0556960950" maxlength="10" required />
+        <small class="field-hint">10 أرقام فقط، ويجب أن يبدأ الرقم بـ 05 أو 06 أو 07.</small>
+        <label for="parent-pin">كلمة المرور <small class="field-hint">(4 أرقام)</small></label>
+        <input id="parent-pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="••••" pattern="[0-9]{4}" minlength="4" maxlength="4" required />
         <p id="login-error" class="form-error" hidden aria-live="polite"></p>
         <button class="cta-button cta-secondary" type="submit">دخول</button>
       </form>
-      <p class="muted">سجّل حسابًا جديدًا أولًا إذا لم يكن الرقم مسجلًا.</p>
+      <p class="muted">سجّل حسابًا جديدًا أولًا إذا لم يكن الرقم مسجلًا. للحسابات القديمة: اختر PIN من 4 أرقام عند أول دخول بعد هذا التحديث.</p>
     </section>
 
     <div id="parent-login-modal" class="parent-login-modal" hidden>

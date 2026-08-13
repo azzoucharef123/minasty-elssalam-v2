@@ -14,6 +14,8 @@ const registerAnotherBtn = document.getElementById("register-another-btn");
 const goToDashboardBtn = document.getElementById("go-to-dashboard-btn");
 const nameInput = document.getElementById("student-name");
 const phoneInput = document.getElementById("parent-phone");
+const parentPinInput = document.getElementById("parent-pin");
+const confirmParentPinInput = document.getElementById("confirm-parent-pin");
 const levelInput = document.getElementById("student-level");
 const universityCardField = document.getElementById("university-card-field");
 const cardPhotoInput = document.getElementById("card-photo");
@@ -22,6 +24,14 @@ let lastRegisteredPhone = "";
 
 function replaceArabicDigits(value) {
   return String(value || "").replace(/[٠-٩۰-۹]/g, (digit) => ARABIC_DIGITS[digit] || digit);
+}
+
+function normalizeDigits(value, maximumLength) {
+  return replaceArabicDigits(value).replace(/\D/g, "").slice(0, maximumLength);
+}
+
+function isValidParentPhone(value) {
+  return /^0[567]\d{8}$/.test(value);
 }
 
 function showRegistrationError(text) {
@@ -71,6 +81,16 @@ function initializeRegistration() {
 
   levelInput?.addEventListener("change", syncUniversityCardField);
 
+  phoneInput?.addEventListener("input", () => {
+    phoneInput.value = normalizeDigits(phoneInput.value, 10);
+  });
+
+  [parentPinInput, confirmParentPinInput].forEach((input) => {
+    input?.addEventListener("input", () => {
+      input.value = normalizeDigits(input.value, 4);
+    });
+  });
+
   registerAnotherBtn?.addEventListener("click", () => {
     confirmation.hidden = true;
     resetRegistrationForm({ keepPhone: true });
@@ -94,17 +114,42 @@ function initializeRegistration() {
     const formData = new FormData(registerForm);
     const payload = {
       studentName: String(formData.get("studentName") || "").trim(),
-      parentPhone: replaceArabicDigits(formData.get("parentPhone")).trim(),
+      parentPhone: normalizeDigits(formData.get("parentPhone"), 10),
+      parentPin: normalizeDigits(formData.get("parentPin"), 4),
+      confirmParentPin: normalizeDigits(formData.get("confirmParentPin"), 4),
       level: String(formData.get("level") || "").trim(),
     };
 
     phoneInput.value = payload.parentPhone;
+    parentPinInput.value = payload.parentPin;
+    confirmParentPinInput.value = payload.confirmParentPin;
+    formData.set("parentPhone", payload.parentPhone);
+    formData.set("parentPin", payload.parentPin);
+    formData.delete("confirmParentPin");
 
     const cardFile = cardPhotoInput?.files?.[0] || null;
     const isUniversityStudent = payload.level === "طالب جامعي";
 
-    if (!payload.studentName || !payload.parentPhone || !payload.level) {
-      showRegistrationError("يرجى إدخال الاسم واللقب ورقم الهاتف واختيار المستوى الدراسي.");
+    if (!payload.studentName || !payload.parentPhone || !payload.parentPin || !payload.confirmParentPin || !payload.level) {
+      showRegistrationError("يرجى إدخال الاسم ورقم الهاتف وكلمة المرور وتأكيدها واختيار المستوى الدراسي.");
+      return;
+    }
+
+    if (!isValidParentPhone(payload.parentPhone)) {
+      showRegistrationError("رقم الهاتف خاطئ: يجب أن يتكون من 10 أرقام ويبدأ بـ 05 أو 06 أو 07.");
+      phoneInput.focus();
+      return;
+    }
+
+    if (!/^\d{4}$/.test(payload.parentPin)) {
+      showRegistrationError("كلمة المرور يجب أن تتكون من 4 أرقام فقط.");
+      parentPinInput.focus();
+      return;
+    }
+
+    if (payload.parentPin !== payload.confirmParentPin) {
+      showRegistrationError("كلمتا المرور غير متطابقتين. أعد كتابتهما بنفس الأرقام الأربعة.");
+      confirmParentPinInput.focus();
       return;
     }
 

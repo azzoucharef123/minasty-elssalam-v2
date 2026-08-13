@@ -31,6 +31,13 @@ model Student {
   @@unique([studentName, parentPhone, level])
 }
 
+model ParentCredential {
+  parentPhone String   @id
+  pinHash     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model LiveQuestionImage {
   id        String   @id @default(uuid()) @db.Uuid
   studentId String   @db.Uuid

@@ -3,6 +3,11 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { normalizeParentPhone } = require("../utils/phone");
+const {
+  normalizeParentPin,
+  hashParentPin,
+  verifyParentPin,
+} = require("../utils/parentPin");
 const prisma = require("../lib/prisma");
 
 const JWT_ISSUER = "online-tutoring-platform";
@@ -79,7 +84,7 @@ async function teacherLogin(req, res) {
 
 /**
  * POST /api/auth/parent
- * Body: { parentPhone }
+ * Body: { parentPhone, parentPin }
  *
  * The parent JWT is bound to both their phone number and the matching student
  * UUID. Protected routes use the signed phone claim to prevent URL changes
@@ -88,9 +93,18 @@ async function teacherLogin(req, res) {
 async function parentLogin(req, res) {
   try {
     const parentPhone = normalizeParentPhone(req.body?.parentPhone);
+    const parentPin = normalizeParentPin(req.body?.parentPin);
 
     if (!parentPhone) {
-      return res.status(400).json({ error: "رقم هاتف الولي مطلوب." });
+      return res.status(400).json({
+        error: "رقم الهاتف يجب أن يتكون من 10 أرقام ويبدأ بـ 05 أو 06 أو 07.",
+      });
+    }
+
+    if (!parentPin) {
+      return res.status(400).json({
+        error: "كلمة المرور يجب أن تتكون من 4 أرقام فقط.",
+      });
     }
 
     const students = await prisma.student.findMany({
@@ -112,6 +126,24 @@ async function parentLogin(req, res) {
 
     if (!students || students.length === 0) {
       return res.status(404).json({ error: "رقم الهاتف غير مسجل." });
+    }
+
+    const credential = await prisma.parentCredential.findUnique({
+      where: { parentPhone },
+      select: { pinHash: true },
+    });
+
+    // Parents registered before PIN support choose their four-digit PIN on the
+    // first successful post-update login. Existing sessions remain valid.
+    if (!credential) {
+      await prisma.parentCredential.create({
+        data: {
+          parentPhone,
+          pinHash: await hashParentPin(parentPin),
+        },
+      });
+    } else if (!(await verifyParentPin(parentPin, credential.pinHash))) {
+      return res.status(401).json({ error: "كلمة المرور غير صحيحة." });
     }
 
     // Token now represents the parent session for all their students.

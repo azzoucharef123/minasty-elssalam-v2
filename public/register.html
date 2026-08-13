@@ -24,8 +24,21 @@
 
         <label for="parent-phone">
           <span>أدخل رقم الهاتف شغال</span>
-          <input id="parent-phone" name="parentPhone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="0556960950" required>
+          <input id="parent-phone" name="parentPhone" type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="0556960950" maxlength="10" required>
+          <small class="field-hint">يجب أن يتكون من 10 أرقام ويبدأ بـ 05 أو 06 أو 07.</small>
         </label>
+
+        <div class="pin-fields" aria-label="كلمة المرور">
+          <label for="parent-pin">
+            <span>كلمة المرور <small class="field-hint">(4 أرقام)</small></span>
+            <input id="parent-pin" name="parentPin" type="password" inputmode="numeric" autocomplete="new-password" pattern="[0-9]{4}" minlength="4" maxlength="4" placeholder="••••" required>
+          </label>
+
+          <label for="confirm-parent-pin">
+            <span>أعد كتابة كلمة المرور</span>
+            <input id="confirm-parent-pin" name="confirmParentPin" type="password" inputmode="numeric" autocomplete="new-password" pattern="[0-9]{4}" minlength="4" maxlength="4" placeholder="••••" required>
+          </label>
+        </div>
 
         <section id="registration-details" class="registration-details" aria-labelledby="registration-details-title">
           <div class="verification-heading">
