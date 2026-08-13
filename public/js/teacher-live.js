@@ -46,6 +46,7 @@ let isEnding = false;
 let classResumeToken = null;
 let reconnectingLiveClass = false;
 const renderedQuestionImageUrls = new Set();
+let questionImageModalPreviousFocus = null;
 
 const elements = {
   localVideo: document.getElementById("local-video"),
@@ -65,6 +66,9 @@ const elements = {
   chatForm: document.getElementById("chat-form"),
   chatInput: document.getElementById("chat-input"),
   chatSendButton: document.getElementById("chat-send-btn"),
+  questionImageModal: document.getElementById("question-image-modal"),
+  questionImageModalImage: document.getElementById("question-image-modal-img"),
+  closeQuestionImageModalButton: document.getElementById("close-question-image-modal"),
 };
 
 /**
@@ -75,6 +79,30 @@ function setStudioStatus(message, mode = "neutral") {
   elements.liveStatusText.textContent = message;
   elements.liveStatus.classList.toggle("is-live", mode === "live");
   elements.liveStatus.classList.toggle("is-error", mode === "error");
+}
+
+function openQuestionImageModal(imageUrl) {
+  if (!elements.questionImageModal || !elements.questionImageModalImage || !imageUrl) {
+    return;
+  }
+
+  questionImageModalPreviousFocus = document.activeElement;
+  elements.questionImageModalImage.src = imageUrl;
+  elements.questionImageModal.hidden = false;
+  document.body.style.overflow = "hidden";
+  elements.closeQuestionImageModalButton?.focus();
+}
+
+function closeQuestionImageModal() {
+  if (!elements.questionImageModal || elements.questionImageModal.hidden) {
+    return;
+  }
+
+  elements.questionImageModal.hidden = true;
+  elements.questionImageModalImage?.removeAttribute("src");
+  document.body.style.overflow = "";
+  questionImageModalPreviousFocus?.focus?.();
+  questionImageModalPreviousFocus = null;
 }
 
 function createClassResumeToken() {
@@ -212,7 +240,16 @@ function appendTeacherChatMessage({ sender, message = "", kind, imageUrl = null 
     image.src = imageUrl;
     image.alt = "صورة واجب أو سؤال مرفقة من التلميذ";
     image.loading = "lazy";
-    image.addEventListener("click", () => openChatLinkInSeparateView({ preventDefault() {} }, imageUrl));
+    image.tabIndex = 0;
+    image.setAttribute("role", "button");
+    image.setAttribute("aria-label", "تكبير صورة سؤال التلميذ");
+    image.addEventListener("click", () => openQuestionImageModal(imageUrl));
+    image.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openQuestionImageModal(imageUrl);
+      }
+    });
     bubble.append(image);
   }
 
@@ -251,6 +288,7 @@ function clearTeacherChat() {
     return;
   }
 
+  closeQuestionImageModal();
   renderedQuestionImageUrls.forEach((url) => URL.revokeObjectURL(url));
   renderedQuestionImageUrls.clear();
   elements.chatBox.replaceChildren();
@@ -1413,6 +1451,17 @@ elements.endClassButton.addEventListener("click", () => {
 });
 elements.chatForm.addEventListener("submit", sendTeacherChatMessage);
 elements.chatInput.addEventListener("input", updateControls);
+elements.closeQuestionImageModalButton?.addEventListener("click", closeQuestionImageModal);
+elements.questionImageModal?.addEventListener("click", (event) => {
+  if (event.target === elements.questionImageModal) {
+    closeQuestionImageModal();
+  }
+});
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeQuestionImageModal();
+  }
+});
 
 // Attempt a final room-end notification on page exit. The backend's disconnect
 // handler is the reliable fallback if the browser cannot complete this emit.

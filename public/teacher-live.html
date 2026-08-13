@@ -738,6 +738,70 @@
         transform: translateY(-0.08rem);
       }
 
+      .question-image-modal {
+        position: fixed;
+        z-index: 100;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: clamp(1rem, 4vw, 3rem);
+        background: rgba(2, 6, 23, 0.82);
+        backdrop-filter: blur(7px);
+      }
+
+      .question-image-modal[hidden] {
+        display: none;
+      }
+
+      .question-image-modal-card {
+        position: relative;
+        display: grid;
+        width: min(100%, 62rem);
+        max-height: min(90vh, 52rem);
+        gap: 0.75rem;
+        padding: 0.85rem;
+        background: #0f1d31;
+        border: 1px solid rgba(147, 197, 253, 0.28);
+        border-radius: 1rem;
+        box-shadow: 0 24px 75px rgba(0, 0, 0, 0.45);
+      }
+
+      .question-image-modal-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding-inline: 0.2rem;
+      }
+
+      .question-image-modal-head strong {
+        color: #dbeafe;
+        font-size: 0.84rem;
+      }
+
+      .question-image-modal-close {
+        display: grid;
+        width: 2rem;
+        height: 2rem;
+        place-items: center;
+        color: #fecaca;
+        background: rgba(127, 29, 29, 0.55);
+        border: 1px solid rgba(248, 113, 113, 0.38);
+        border-radius: 0.5rem;
+        font-size: 1.35rem;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .question-image-modal img {
+        display: block;
+        width: 100%;
+        max-height: calc(90vh - 7rem);
+        object-fit: contain;
+        background: #020617;
+        border-radius: 0.65rem;
+      }
+
       .chat-form {
         display: flex;
         gap: 0.45rem;
@@ -1116,6 +1180,16 @@
           </section>
         </aside>
       </main>
+    </div>
+
+    <div id="question-image-modal" class="question-image-modal" role="dialog" aria-modal="true" aria-labelledby="question-image-modal-title" hidden>
+      <div class="question-image-modal-card">
+        <header class="question-image-modal-head">
+          <strong id="question-image-modal-title">صورة سؤال التلميذ</strong>
+          <button id="close-question-image-modal" class="question-image-modal-close" type="button" aria-label="إغلاق الصورة">×</button>
+        </header>
+        <img id="question-image-modal-img" alt="صورة سؤال التلميذ مكبّرة" />
+      </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
