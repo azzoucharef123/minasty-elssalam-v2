@@ -36,6 +36,10 @@ let cameraStream;
 const pendingIceCandidates = Object.create(null);
 const attendeeElements = new Map();
 const studentAudioElements = new Map();
+// Each approved student microphone is relayed from the teacher's browser to
+// every other student connection. The teacher remains the explicit audio hub.
+const activeStudentSpeakerTracks = new Map();
+const classroomSpeakerSenders = new Map();
 const iceDisconnectTimers = Object.create(null);
 const ICE_DISCONNECT_GRACE_MS = 8_000;
 let activeLevel = null;
@@ -662,6 +666,102 @@ function removeStudentAudio(socketId) {
   studentAudioElements.delete(socketId);
 }
 
+function speakerSenderMapFor(recipientSocketId) {
+  let senderMap = classroomSpeakerSenders.get(recipientSocketId);
+  if (!senderMap) {
+    senderMap = new Map();
+    classroomSpeakerSenders.set(recipientSocketId, senderMap);
+  }
+  return senderMap;
+}
+
+function clearSpeakerRecipientsFor(studentSocketId) {
+  classroomSpeakerSenders.delete(studentSocketId);
+}
+
+function addActiveStudentSpeakerTracks(peerConnection, recipientSocketId) {
+  if (!peerConnection || peerConnection.signalingState === "closed") {
+    return false;
+  }
+
+  const senderMap = speakerSenderMapFor(recipientSocketId);
+  let addedTrack = false;
+
+  for (const [speakerSocketId, speaker] of activeStudentSpeakerTracks) {
+    // A student must never receive their own voice back through WebRTC.
+    if (speakerSocketId === recipientSocketId || senderMap.has(speakerSocketId)) {
+      continue;
+    }
+
+    const sender = peerConnection.addTrack(speaker.track, speaker.stream);
+    void tuneOutboundSender(sender, "audio");
+    senderMap.set(speakerSocketId, sender);
+    addedTrack = true;
+  }
+
+  return addedTrack;
+}
+
+async function syncClassroomSpeakersToRecipient(recipientSocketId) {
+  const peerConnection = peerConnections[recipientSocketId];
+  if (
+    !classActive ||
+    !peerConnection ||
+    peerConnection.signalingState !== "stable" ||
+    peerConnection.connectionState === "closed"
+  ) {
+    return;
+  }
+
+  if (addActiveStudentSpeakerTracks(peerConnection, recipientSocketId)) {
+    await createAndSendOffer(recipientSocketId);
+  }
+}
+
+async function broadcastStudentSpeakerTrack(speakerSocketId, track, stream) {
+  if (!classActive || !track || track.kind !== "audio") {
+    return;
+  }
+
+  activeStudentSpeakerTracks.set(speakerSocketId, { track, stream });
+  const recipientIds = Object.keys(peerConnections).filter((socketId) => socketId !== speakerSocketId);
+
+  await Promise.all(
+    recipientIds.map((recipientSocketId) => syncClassroomSpeakersToRecipient(recipientSocketId))
+  );
+}
+
+async function removeClassroomSpeaker(speakerSocketId) {
+  activeStudentSpeakerTracks.delete(speakerSocketId);
+
+  const renegotiations = [];
+  for (const [recipientSocketId, senderMap] of classroomSpeakerSenders) {
+    const sender = senderMap.get(speakerSocketId);
+    const peerConnection = peerConnections[recipientSocketId];
+    senderMap.delete(speakerSocketId);
+
+    if (!sender || !peerConnection || peerConnection.signalingState === "closed") {
+      continue;
+    }
+
+    try {
+      peerConnection.removeTrack(sender);
+      if (peerConnection.signalingState === "stable") {
+        renegotiations.push(createAndSendOffer(recipientSocketId));
+      }
+    } catch (error) {
+      console.warn("Unable to remove classroom speaker track:", error);
+    }
+  }
+
+  await Promise.all(renegotiations);
+}
+
+function clearAllClassroomSpeakers() {
+  activeStudentSpeakerTracks.clear();
+  classroomSpeakerSenders.clear();
+}
+
 /** Play an approved student's microphone locally in the teacher studio. */
 function attachStudentAudio(peerConnection, studentSocketId) {
   peerConnection.ontrack = (event) => {
@@ -683,13 +783,17 @@ function attachStudentAudio(peerConnection, studentSocketId) {
 
     const incomingStream = event.streams?.[0] || new MediaStream([event.track]);
     audio.srcObject = incomingStream;
+    void broadcastStudentSpeakerTrack(studentSocketId, event.track, incomingStream);
     audio.play().catch((error) => {
       // The teacher has already interacted with the studio controls, so this
       // normally succeeds. If a browser blocks it, leave a clear console trace.
       console.warn("Unable to play approved student microphone:", error);
     });
 
-    event.track.addEventListener("ended", () => removeStudentAudio(studentSocketId), {
+    event.track.addEventListener("ended", () => {
+      removeStudentAudio(studentSocketId);
+      void removeClassroomSpeaker(studentSocketId);
+    }, {
       once: true,
     });
   };
@@ -709,6 +813,7 @@ function clearIceDisconnectTimer(socketId) {
  */
 function removeStudentConnection(socketId, { statusMessage } = {}) {
   clearIceDisconnectTimer(socketId);
+  void removeClassroomSpeaker(socketId);
   closePeerConnection(socketId);
   removeAttendee(socketId);
 
@@ -739,6 +844,7 @@ function closePeerConnection(socketId) {
   }
 
   delete pendingIceCandidates[socketId];
+  clearSpeakerRecipientsFor(socketId);
   removeStudentAudio(socketId);
 }
 
@@ -747,6 +853,7 @@ function closeAllPeerConnections() {
   Object.keys(pendingIceCandidates).forEach((socketId) => {
     delete pendingIceCandidates[socketId];
   });
+  clearAllClassroomSpeakers();
 }
 
 /** Apply conservative per-peer quality limits so screen sharing stays smooth
@@ -816,6 +923,9 @@ function createPeerConnection(studentSocketId) {
   pendingIceCandidates[studentSocketId] = [];
 
   addTeacherTracks(peerConnection);
+  // Existing open student mics are included from the first offer for a learner
+  // who joins late, so they hear the ongoing classroom discussion immediately.
+  addActiveStudentSpeakerTracks(peerConnection, studentSocketId);
   attachStudentAudio(peerConnection, studentSocketId);
 
   peerConnection.onicecandidate = (event) => {
@@ -1287,8 +1397,12 @@ async function setStudentMicrophone(socketId, enabled, button) {
       syncStudentMicButton(attendee, socketId, enabled);
     }
 
+    if (!enabled) {
+      await removeClassroomSpeaker(socketId);
+    }
+
     setStudioStatus(
-      enabled ? "تم فتح مايك التلميذ." : "تم إغلاق مايك التلميذ.",
+      enabled ? "تم فتح مايك التلميذ وأصبح صوته مسموعًا للصف." : "تم إغلاق مايك التلميذ.",
       "live"
     );
   } catch (error) {
@@ -1347,6 +1461,9 @@ socket.on("webrtc_answer", async (data = {}) => {
   try {
     await peerConnection.setRemoteDescription(sdp);
     await flushPendingIceCandidates(fromSocketId);
+    // If another student already has an open mic, attach that classroom audio
+    // as soon as this new viewer's initial connection becomes stable.
+    await syncClassroomSpeakersToRecipient(fromSocketId);
   } catch (error) {
     console.error("Unable to apply a student WebRTC answer:", error);
     closePeerConnection(fromSocketId);
