@@ -56,6 +56,9 @@ const directClassEntryRequested =
   sessionStorage.getItem("joinLiveClassImmediately") === "true" ||
   new URLSearchParams(window.location.search).get("join") === "direct";
 let initialAutoJoinPending = directClassEntryRequested;
+// After the teacher ends a class, the viewer stays in a passive lobby and
+// automatically re-enters the next class for the same level.
+let waitingForNextClass = false;
 
 // The viewer stores teacher-provided normalized segments only; there is no
 // student drawing input or outbound drawing event anywhere in this client.
@@ -136,6 +139,9 @@ function readStoredStudent() {
 }
 
 const { studentId, studentName, level } = readStoredStudent();
+// The classroom is entered from the parent dashboard. Once identity is known,
+// keep the viewer hands-free even after a teacher ends and later restarts class.
+initialAutoJoinPending = initialAutoJoinPending || Boolean(studentId && level);
 
 /**
  * Keep status text accessible and use explicit modes rather than injecting
@@ -148,6 +154,35 @@ function consumeDirectClassEntry() {
   if (window.location.search) {
     window.history.replaceState({}, document.title, "./student-live.html");
   }
+}
+
+function waitForNextLiveClass(message = "بانتظار بدء الأستاذ للحصة التالية…") {
+  waitingForNextClass = true;
+  initialAutoJoinPending = false;
+  elements.joinButton.hidden = true;
+  elements.joinButton.disabled = true;
+  elements.raiseHandButton.hidden = true;
+  updateChatControls();
+  setPlaceholder("بانتظار الحصة التالية", "ستفتح الحصة تلقائياً فور أن يبدأ الأستاذ البث.");
+  setViewerStatus(message, "warning");
+
+  if (socket.connected && level) {
+    socket.emit("join_level_lobby", { level }, (response) => {
+      if (waitingForNextClass && response?.isClassLive) {
+        waitingForNextClass = false;
+        void joinClass({ prepareMicrophone: true });
+      }
+    });
+  }
+}
+
+function joinClassAutomaticallyFromLobby() {
+  if (!waitingForNextClass || joinedClass || isJoining) {
+    return;
+  }
+
+  waitingForNextClass = false;
+  void joinClass({ prepareMicrophone: true });
 }
 
 function setViewerStatus(message, mode = "neutral") {
@@ -841,9 +876,10 @@ function resetViewerState({ message, mode = "neutral", showJoin = true } = {}) {
   isJoining = false;
 
   resetRemoteMedia();
-  elements.joinButton.hidden = !showJoin;
-  elements.joinButton.disabled = false;
-  setButtonLabel(elements.joinButton, "انضمام للحصة");
+  // The learner never needs a manual join control inside the live classroom.
+  // The button remains hidden for backwards-compatible controller references.
+  elements.joinButton.hidden = true;
+  elements.joinButton.disabled = true;
 
   elements.raiseHandButton.hidden = true;
   setRaisedHandState({ waiting: false });
@@ -1162,17 +1198,25 @@ async function joinClass({ rejoin = false, prepareMicrophone = false } = {}) {
 
     joinedClass = false;
     isRecoveringStream = false;
-    elements.joinButton.hidden = false;
-    elements.joinButton.disabled = false;
-    setButtonLabel(elements.joinButton, "انضمام للحصة");
+
+    // `room_unavailable` already switches the page into its automatic waiting
+    // lobby. Do not overwrite that state with a manual join button here.
+    if (waitingForNextClass) {
+      return;
+    }
+
     updateChatControls();
     setViewerStatus(joinErrorMessage, "error");
     setPlaceholder(
       isLiveAccessBlocked ? "دخول الحصة غير متاح" : "الحصة غير متاحة",
       isLiveAccessBlocked
         ? joinErrorMessage
-        : "تأكد من أن الأستاذ بدأ الحصة ثم حاول مرة أخرى."
+        : "بانتظار بدء الأستاذ للحصة تلقائياً."
     );
+
+    if (!isLiveAccessBlocked) {
+      waitForNextLiveClass("الحصة غير نشطة الآن. ستنضم تلقائياً عند بدء الأستاذ للحصة.");
+    }
   }
 }
 
@@ -1228,10 +1272,15 @@ socket.on("connect", () => {
     }
   }
 
+  if (waitingForNextClass) {
+    waitForNextLiveClass();
+    return;
+  }
+
   if (initialAutoJoinPending && !joinedClass && !isJoining) {
     elements.joinButton.hidden = true;
     setViewerStatus("جارٍ الدخول إلى الحصة مباشرة…", "warning");
-    void joinClass();
+    void joinClass({ prepareMicrophone: true });
     return;
   }
 
@@ -1246,9 +1295,24 @@ socket.on("connect_error", () => {
 
 socket.on("room_joined", (data = {}) => {
   if (data.role === "student") {
+    waitingForNextClass = false;
     teacherSocketId = data.teacherSocketId || teacherSocketId;
     clearStudentBoard();
     requestAnimationFrame(resizeStudentCanvas);
+  }
+});
+
+// Passive waiting viewers receive this from their level lobby when the teacher
+// starts the next class. Rejoin occurs inside the current page with no button.
+socket.on("live_class_started", (data = {}) => {
+  if (data.level === level) {
+    joinClassAutomaticallyFromLobby();
+  }
+});
+
+socket.on("live_class_resumed", (data = {}) => {
+  if (data.level === level) {
+    joinClassAutomaticallyFromLobby();
   }
 });
 
@@ -1289,9 +1353,10 @@ socket.on("teacher_message_received", (data = {}) => {
 socket.on("room_unavailable", (data = {}) => {
   resetViewerState({
     message: data.message || "لا توجد حصة مباشرة نشطة لهذا المستوى حالياً.",
-    mode: "error",
-    showJoin: true,
+    mode: "neutral",
+    showJoin: false,
   });
+  waitForNextLiveClass("لا توجد حصة الآن. ستفتح تلقائياً عند بدء الأستاذ للحصة.");
 });
 
 /**
@@ -1442,15 +1507,17 @@ socket.on("class_ended", (data = {}) => {
     message: teacherDisconnected
       ? "انقطع اتصال الأستاذ، لذلك أُغلقت الحصة."
       : "أنهى الأستاذ الحصة المباشرة.",
-    mode: teacherDisconnected ? "error" : "neutral",
-    showJoin: true,
+    mode: "neutral",
+    showJoin: false,
   });
 
   if (teacherDisconnected) {
-    showConnectionOverlay("انقطع الاتصال بالأستاذ. جاري الانتظار...");
+    showConnectionOverlay("انقطع اتصال الأستاذ. جاري الانتظار...");
   } else {
     hideConnectionOverlay();
   }
+
+  waitForNextLiveClass("انتهت الحصة. ستفتح الحصة التالية تلقائياً عند بدء الأستاذ.");
 });
 
 socket.on("classroom_error", (data = {}) => {
@@ -1473,9 +1540,8 @@ socket.on("disconnect", () => {
 
 // --- Viewer controls ---
 
-elements.joinButton.addEventListener("click", () => {
-  void joinClass({ prepareMicrophone: true });
-});
+// No manual join action is exposed in the viewer. The element is retained only
+// for compatibility with existing page markup and remains hidden at all times.
 elements.enableAudioButton?.addEventListener("click", enableTeacherAudio);
 elements.remoteVideo?.addEventListener("volumechange", updateRemoteAudioControl);
 elements.raiseHandButton.addEventListener("click", raiseHand);
