@@ -301,35 +301,29 @@ function isFacebookUrl(parsedUrl) {
   return host === "facebook.com" || host.endsWith(".facebook.com") || host === "fb.watch" || host === "fb.com";
 }
 
-function openFacebookInApp(event, url) {
+function openChatLinkInSeparateView(event, url) {
   const parsedUrl = parseChatUrl(url);
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
-
-  if (!parsedUrl || !isMobile || !isFacebookUrl(parsedUrl)) {
+  if (!parsedUrl) {
     return;
   }
 
-  // A user gesture is required by mobile browsers before an application scheme
-  // can be opened. Facebook/Facebook Lite may claim the fb:// scheme; if neither
-  // app is available, the original HTTPS post opens safely as a fallback.
+  // Never replace the live-class page. Opening a separate browser view keeps
+  // the WebRTC page and its current peer connection intact behind the link.
   event.preventDefault();
-  const fallbackUrl = parsedUrl.href;
-  const appUrl = `fb://facewebmodal/f?href=${encodeURIComponent(fallbackUrl)}`;
-  let didLeavePage = false;
+  const openedWindow = window.open(parsedUrl.href, "_blank", "noopener,noreferrer");
 
-  const cancelFallbackIfHidden = () => {
-    if (document.hidden) {
-      didLeavePage = true;
-    }
-  };
-  document.addEventListener("visibilitychange", cancelFallbackIfHidden, { once: true });
-
-  window.location.href = appUrl;
-  window.setTimeout(() => {
-    if (!didLeavePage && !document.hidden) {
-      window.location.assign(fallbackUrl);
-    }
-  }, 1_100);
+  if (!openedWindow) {
+    // Some mobile browsers ignore window features but still honor a normal
+    // anchor target. Reuse the existing user gesture without navigating away
+    // from the classroom page.
+    const temporaryLink = document.createElement("a");
+    temporaryLink.href = parsedUrl.href;
+    temporaryLink.target = "_blank";
+    temporaryLink.rel = "noopener noreferrer";
+    document.body.append(temporaryLink);
+    temporaryLink.click();
+    temporaryLink.remove();
+  }
 }
 
 function appendChatBodyWithLinks(container, message) {
@@ -357,9 +351,9 @@ function appendChatBodyWithLinks(container, message) {
     link.rel = "noopener noreferrer";
     link.textContent = displayUrl;
     link.title = isFacebookUrl(parsedUrl)
-      ? "افتح منشور Facebook في التطبيق عند توفره"
-      : "فتح الرابط";
-    link.addEventListener("click", (event) => openFacebookInApp(event, parsedUrl.href));
+      ? "فتح منشور Facebook في تبويب مستقل مع إبقاء الحصة مفتوحة"
+      : "فتح الرابط في تبويب مستقل";
+    link.addEventListener("click", (event) => openChatLinkInSeparateView(event, parsedUrl.href));
     container.append(link);
     if (displayUrl.length < rawUrl.length) {
       container.append(document.createTextNode(rawUrl.slice(displayUrl.length)));
