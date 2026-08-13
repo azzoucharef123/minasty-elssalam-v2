@@ -188,20 +188,20 @@
       .remote-audio-toggle {
         position: absolute;
         z-index: 14;
+        top: 50%;
         right: 50%;
-        bottom: 1rem;
-        min-height: 2.7rem;
-        padding: 0.62rem 0.95rem;
+        min-height: 3.35rem;
+        padding: 0.82rem 1.2rem;
         color: #ffffff;
         background: rgba(37, 99, 235, 0.94);
         border: 1px solid rgba(191, 219, 254, 0.55);
         border-radius: 0.7rem;
         box-shadow: 0 10px 22px rgba(0, 0, 0, 0.32);
         font: inherit;
-        font-size: 0.78rem;
+        font-size: 0.9rem;
         font-weight: 800;
         cursor: pointer;
-        transform: translateX(50%);
+        transform: translate(50%, -50%);
       }
 
       .remote-audio-toggle[hidden] {
@@ -777,9 +777,8 @@
         }
 
         .remote-audio-toggle {
-          bottom: 0.65rem;
           max-width: calc(100% - 1.2rem);
-          font-size: 0.7rem;
+          font-size: 0.75rem;
         }
       }
 
@@ -815,7 +814,7 @@
       <main class="viewer-stage" aria-label="مشاهدة الحصة المباشرة">
         <div class="video-frame">
           <video id="remote-video" autoplay muted playsinline controls aria-label="بث الأستاذ المباشر"></video>
-          <button id="enable-audio-btn" class="remote-audio-toggle" type="button" hidden>تشغيل صوت الأستاذ</button>
+          <button id="enable-audio-btn" class="remote-audio-toggle" type="button" hidden>اضغط لتشغيل صوت الأستاذ</button>
 
           <div id="video-placeholder" class="video-placeholder">
             <span class="placeholder-icon" aria-hidden="true">

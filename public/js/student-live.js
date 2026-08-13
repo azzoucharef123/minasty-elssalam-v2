@@ -34,7 +34,12 @@ let isMakingRenegotiationOffer = false;
 let microphoneOfferSent = false;
 let microphoneNegotiated = false;
 let microphonePermissionGranted = false;
+// Browser permission and teacher permission are intentionally separate: the
+// first is prepared on entry, while the second alone enables transmission.
+let microphonePrepared = false;
+let isPreparingMicrophone = false;
 let isRequestingMicrophone = false;
+let isAttemptingTeacherAudio = false;
 let handResetTimer = null;
 let didLoseSocketConnection = false;
 let isRecoveringStream = false;
@@ -602,8 +607,41 @@ function stopLocalAudio() {
 
   localAudioStream = undefined;
   microphonePermissionGranted = false;
+  microphonePrepared = false;
+  isPreparingMicrophone = false;
   isRequestingMicrophone = false;
   updateMicControl();
+}
+
+/**
+ * Runs only from the learner's intentional join click when possible. It asks
+ * the browser for microphone access once, immediately turns the local track
+ * off, and keeps it private until the teacher explicitly opens the mic.
+ */
+async function prepareStudentMicrophone() {
+  if (microphonePrepared || isPreparingMicrophone || !navigator.mediaDevices?.getUserMedia) {
+    return;
+  }
+
+  isPreparingMicrophone = true;
+  try {
+    localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    localAudioStream.getAudioTracks().forEach((track) => {
+      track.enabled = false;
+    });
+    microphonePrepared = true;
+    setViewerStatus("تم تجهيز المايك للحصة. لن يعمل إلا عند سماح الأستاذ.", "live");
+  } catch (error) {
+    microphonePrepared = false;
+    if (error?.name === "NotAllowedError") {
+      setViewerStatus("يمكنك متابعة الحصة بصوت الأستاذ. لن يعمل مايكك إلا بعد السماح للمتصفح.", "warning");
+    } else if (error?.name === "NotFoundError") {
+      setViewerStatus("لم يتم العثور على مايك متاح. ستتابع الحصة بصوت الأستاذ.", "warning");
+    }
+  } finally {
+    isPreparingMicrophone = false;
+    updateMicControl();
+  }
 }
 
 function updateRemoteAudioControl() {
@@ -618,27 +656,41 @@ function updateRemoteAudioControl() {
   elements.enableAudioButton.hidden = !hasLiveRemoteAudio || !elements.remoteVideo.muted;
 }
 
-async function enableTeacherAudio() {
-  if (!remoteMediaStream) {
-    return;
+async function startTeacherAudio({ userInitiated = false } = {}) {
+  if (!remoteMediaStream || isAttemptingTeacherAudio) {
+    return false;
   }
 
-  elements.enableAudioButton.disabled = true;
+  isAttemptingTeacherAudio = true;
+  if (elements.enableAudioButton) elements.enableAudioButton.disabled = true;
   elements.remoteVideo.muted = false;
 
   try {
     await elements.remoteVideo.play();
-    setViewerStatus("صوت الأستاذ يعمل الآن.", "live");
+    if (userInitiated) {
+      setViewerStatus("صوت الأستاذ يعمل الآن.", "live");
+    }
+    return true;
   } catch (error) {
-    // Keep the video view usable even when a browser still requires another
-    // explicit permission or user interaction before it will play sound.
-    console.warn("Unable to unmute teacher audio:", error);
+    // Some mobile browsers forbid audible autoplay after navigation. Keep the
+    // lesson visible, show one prominent fallback, and never interrupt WebRTC.
+    console.warn("Unable to start teacher audio automatically:", error);
     elements.remoteVideo.muted = true;
-    setViewerStatus("اضغط تشغيل صوت الأستاذ مرة أخرى للسماح بالصوت.", "warning");
+    if (userInitiated) {
+      setViewerStatus("تعذر تشغيل الصوت. اضغط الزر الظاهر داخل البث مرة واحدة.", "warning");
+    } else {
+      setViewerStatus("صوت الأستاذ جاهز. إن لم يبدأ تلقائياً اضغط الزر الكبير داخل البث مرة واحدة.", "warning");
+    }
+    return false;
   } finally {
-    elements.enableAudioButton.disabled = false;
+    isAttemptingTeacherAudio = false;
+    if (elements.enableAudioButton) elements.enableAudioButton.disabled = false;
     updateRemoteAudioControl();
   }
+}
+
+async function enableTeacherAudio() {
+  await startTeacherAudio({ userInitiated: true });
 }
 
 function resetRemoteMedia() {
@@ -646,6 +698,7 @@ function resetRemoteMedia() {
   pendingRemoteAudioTracks.length = 0;
   elements.remoteVideo.srcObject = null;
   elements.remoteVideo.muted = true;
+  isAttemptingTeacherAudio = false;
   updateRemoteAudioControl();
 }
 
@@ -680,7 +733,9 @@ function attachTeacherTrack(event) {
       }
     });
     elements.remoteVideo.srcObject = remoteMediaStream;
-    elements.remoteVideo.muted = true;
+    // Attempt audible playback first. When a browser allows it, the learner
+    // hears the teacher without discovering a separate audio button.
+    elements.remoteVideo.muted = false;
   } else if (remoteMediaStream) {
     addUniqueTrack(remoteMediaStream, track);
   }
@@ -703,12 +758,9 @@ function attachTeacherTrack(event) {
   track.addEventListener("unmute", updateRemoteAudioControl);
   updateRemoteAudioControl();
 
-  // The video is deliberately muted first so browsers can start the display
-  // without blocking it. The viewer can then explicitly enable sound.
-  elements.remoteVideo.play().catch((error) => {
-    console.warn("Unable to start remote classroom video:", error);
-    setViewerStatus("اضغط زر تشغيل الفيديو في المشغّل لبدء العرض.", "warning");
-  });
+  // First try the teacher's voice automatically. A single, highly visible
+  // fallback is kept only for browsers that enforce an audible-autoplay block.
+  void startTeacherAudio();
 }
 
 function clearRecoveryTimer() {
@@ -986,7 +1038,12 @@ async function enableApprovedMicrophone() {
   const existingTrack = localAudioStream?.getAudioTracks()[0];
   if (existingTrack) {
     existingTrack.enabled = true;
+    const isAlreadyAttached = pc.getSenders().some((sender) => sender.track?.id === existingTrack.id);
+    if (!isAlreadyAttached) {
+      pc.addTrack(existingTrack, localAudioStream);
+    }
     updateMicControl();
+    await negotiateStudentMicrophone();
     return;
   }
 
@@ -995,6 +1052,7 @@ async function enableApprovedMicrophone() {
 
   try {
     localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    microphonePrepared = true;
 
     // The peer might have been closed while the permission prompt was open.
     if (!pc || !teacherSocketId || !joinedClass) {
@@ -1028,7 +1086,13 @@ async function enableApprovedMicrophone() {
   }
 }
 
-async function joinClass({ rejoin = false } = {}) {
+async function joinClass({ rejoin = false, prepareMicrophone = false } = {}) {
+  // A user-initiated click is the best moment to obtain browser mic permission.
+  // Automatic recovery and direct reconnects never request it unexpectedly.
+  if (!rejoin && prepareMicrophone) {
+    await prepareStudentMicrophone();
+  }
+
   if ((joinedClass && !isRecoveringStream) || isJoining) {
     return;
   }
@@ -1409,7 +1473,9 @@ socket.on("disconnect", () => {
 
 // --- Viewer controls ---
 
-elements.joinButton.addEventListener("click", joinClass);
+elements.joinButton.addEventListener("click", () => {
+  void joinClass({ prepareMicrophone: true });
+});
 elements.enableAudioButton?.addEventListener("click", enableTeacherAudio);
 elements.remoteVideo?.addEventListener("volumechange", updateRemoteAudioControl);
 elements.raiseHandButton.addEventListener("click", raiseHand);
@@ -1446,6 +1512,16 @@ if (!studentId || !studentName || !level) {
   updateMicControl();
   updateChatControls();
   setViewerStatus("جاري الاتصال بالحصة…", "neutral");
+
+  // The parent dashboard may have already obtained this browser permission in
+  // the exact classroom-entry click. Reopen a disabled local track now without
+  // another prompt so teacher approval can work immediately later.
+  const micWasPreparedDuringEntry = sessionStorage.getItem("studentMicPreflight") === "granted";
+  sessionStorage.removeItem("studentMicPreflight");
+  if (micWasPreparedDuringEntry) {
+    void prepareStudentMicrophone();
+  }
+
   // The viewer is opened only from a verified parent/student session. Join
   // automatically so the learner receives the teacher's live screen and audio
   // without having to discover or press an extra button.

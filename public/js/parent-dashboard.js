@@ -43,6 +43,7 @@ function clearParentSession() {
     "selectedStudentId",
     "parentStudents",
     "userRole",
+    "studentMicPreflight",
   ].forEach((key) => sessionStorage.removeItem(key));
 }
 
@@ -441,7 +442,27 @@ async function loadDashboard() {
   }
 }
 
-function enterLiveClass() {
+async function prepareStudentMicrophonePermission() {
+  sessionStorage.removeItem("studentMicPreflight");
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return;
+  }
+
+  try {
+    // This is called inside the parent's intentional classroom-entry click.
+    // The stream is immediately stopped: it exists only to save the browser
+    // permission for the viewer, not to transmit any student audio here.
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((track) => track.stop());
+    sessionStorage.setItem("studentMicPreflight", "granted");
+  } catch (error) {
+    // The class remains viewable if the learner chooses not to share a mic.
+    console.info("Student microphone preflight was not granted:", error?.name || error);
+  }
+}
+
+async function enterLiveClass() {
   if (!currentStudent) {
     showError("تعذر فتح الحصة قبل تحميل بيانات التلميذ.");
     return;
@@ -454,11 +475,24 @@ function enterLiveClass() {
     return;
   }
 
+  const originalLabel = elements.joinLiveClassButton?.textContent;
+  if (elements.joinLiveClassButton) {
+    elements.joinLiveClassButton.disabled = true;
+    elements.joinLiveClassButton.textContent = "جارٍ تجهيز الحصة…";
+  }
+
+  // Use this exact user gesture to request the browser mic permission once.
+  // On return, the viewer keeps the track disabled until teacher approval.
+  await prepareStudentMicrophonePermission();
   persistStudentSession(currentStudent);
-  // Mark this handoff as an intentional one-click classroom entry. The viewer
-  // consumes the flag and joins as soon as its Socket connection is ready.
   sessionStorage.setItem("joinLiveClassImmediately", "true");
   window.location.assign("./student-live.html?join=direct");
+
+  // Navigation normally begins immediately; this is only a safe fallback.
+  if (elements.joinLiveClassButton) {
+    elements.joinLiveClassButton.disabled = false;
+    elements.joinLiveClassButton.textContent = originalLabel || "الدخول إلى الحصة";
+  }
 }
 
 function logout() {
@@ -513,7 +547,9 @@ function initializeLobbySocket() {
 if (!getParentToken()) {
   // getParentToken has already initiated the login redirect.
 } else {
-  elements.joinLiveClassButton?.addEventListener("click", enterLiveClass);
+  elements.joinLiveClassButton?.addEventListener("click", () => {
+    void enterLiveClass();
+  });
   elements.logoutButton?.addEventListener("click", logout);
   initializeLobbySocket();
   loadDashboard();
