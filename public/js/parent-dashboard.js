@@ -27,6 +27,12 @@ const elements = {
   parentScheduleList: document.getElementById("parent-schedule-list"),
   teacherAbsenceNotice: document.getElementById("teacher-absence-notice"),
   logoutButton: document.getElementById("logout-btn"),
+  lessonVideoList: document.getElementById("lesson-video-list"),
+  lessonRepositoryLevelCaption: document.getElementById("lesson-repository-level-caption"),
+  lessonVideoModal: document.getElementById("lesson-video-modal"),
+  lessonVideoModalTitle: document.getElementById("lesson-video-modal-title"),
+  lessonVideoFrame: document.getElementById("lesson-video-frame"),
+  lessonVideoClose: document.getElementById("lesson-video-close"),
   materialsList: document.getElementById("materials-list"),
   attendanceCount: document.getElementById("attendance-count"),
   studentSwitcher: document.getElementById("student-switcher"),
@@ -307,6 +313,7 @@ function selectStudent(studentId) {
   emitLobbyJoin(student.level);
   void loadAttendanceCount(student.id);
   void loadParentSchedule(student.level);
+  void loadLessonVideos(student.level);
 }
 
 function secondaryPaymentStateLabel(student) {
@@ -441,109 +448,92 @@ async function parentFetch(url, options = {}) {
   return response;
 }
 
-function formatMaterialDate(value) {
+function formatLessonVideoDate(value) {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "تاريخ غير متاح";
-  }
-
+  if (Number.isNaN(date.getTime())) return "تاريخ غير متاح";
   return new Intl.DateTimeFormat("ar-DZ", { dateStyle: "medium" }).format(date);
 }
 
-function isSafeMaterialUrl(fileUrl) {
-  return /^\/uploads\/[A-Za-z0-9_.%\-]+$/.test(String(fileUrl || ""));
+function isSafeLessonPreviewUrl(value) {
+  return /^https:\/\/drive\.google\.com\/file\/d\/[A-Za-z0-9_-]{20,200}\/preview$/.test(String(value || ""));
 }
 
-function renderMaterials(materials) {
-  if (!elements.materialsList) {
+function closeLessonVideo() {
+  if (elements.lessonVideoModal) elements.lessonVideoModal.hidden = true;
+  if (elements.lessonVideoFrame) elements.lessonVideoFrame.removeAttribute("src");
+}
+
+function openLessonVideo(video) {
+  if (!isSafeLessonPreviewUrl(video?.previewUrl) || !elements.lessonVideoModal || !elements.lessonVideoFrame) {
     return;
   }
+  if (elements.lessonVideoModalTitle) elements.lessonVideoModalTitle.textContent = video.title || "مشاهدة الحصة";
+  elements.lessonVideoFrame.src = video.previewUrl;
+  elements.lessonVideoModal.hidden = false;
+}
 
-  elements.materialsList.replaceChildren();
+function renderLessonVideos(videos) {
+  if (!elements.lessonVideoList) return;
+  elements.lessonVideoList.replaceChildren();
 
-  if (!materials.length) {
+  if (!videos.length) {
     const empty = document.createElement("p");
-    empty.className = "materials-empty";
-    empty.textContent = "لا توجد ملفات حالياً";
-    elements.materialsList.append(empty);
+    empty.className = "lesson-video-empty";
+    empty.textContent = "لا توجد حصص مسجلة في مستودع هذا المستوى حالياً.";
+    elements.lessonVideoList.append(empty);
     return;
   }
 
-  for (const material of materials) {
-    if (!isSafeMaterialUrl(material.fileUrl)) {
-      continue;
-    }
-
-    const link = document.createElement("a");
-    link.className = "material-list-item";
-    link.href = material.fileUrl;
-    link.download = "";
-    link.setAttribute("aria-label", `تحميل الملف: ${material.title || "ملف تعليمي"}`);
-
-    const icon = document.createElement("span");
-    icon.className = "material-list-icon";
-    icon.setAttribute("aria-hidden", "true");
-    icon.textContent = "▣";
-
-    const copy = document.createElement("span");
-    copy.className = "material-list-copy";
-
+  videos.forEach((video) => {
+    if (!isSafeLessonPreviewUrl(video?.previewUrl)) return;
+    const item = document.createElement("article");
+    item.className = "lesson-video-item";
+    const copy = document.createElement("div");
+    copy.className = "lesson-video-copy";
     const title = document.createElement("strong");
-    title.className = "material-list-title";
-    title.textContent = String(material.title || "ملف تعليمي");
-
+    title.textContent = video.title || "حصة مسجلة";
     const date = document.createElement("small");
-    date.className = "material-list-date";
-    date.textContent = `أُضيف في ${formatMaterialDate(material.createdAt)}`;
-
-    const downloadIcon = document.createElement("span");
-    downloadIcon.className = "material-download-icon";
-    downloadIcon.setAttribute("aria-hidden", "true");
-    downloadIcon.textContent = "↓";
-
+    date.textContent = `أضيفت في ${formatLessonVideoDate(video.createdAt)}`;
     copy.append(title, date);
-    link.append(icon, copy, downloadIcon);
-    elements.materialsList.append(link);
-  }
+    const watch = document.createElement("button");
+    watch.type = "button";
+    watch.className = "watch-lesson-video-btn";
+    watch.textContent = "مشاهدة الحصة";
+    watch.addEventListener("click", () => openLessonVideo(video));
+    item.append(copy, watch);
+    elements.lessonVideoList.append(item);
+  });
 
-  if (!elements.materialsList.childElementCount) {
-    renderMaterials([]);
-  }
+  if (!elements.lessonVideoList.childElementCount) renderLessonVideos([]);
 }
 
-async function loadMaterials(level) {
-  if (!elements.materialsList || !level) {
-    return;
+async function loadLessonVideos(level) {
+  if (!elements.lessonVideoList || !level) return;
+  if (elements.lessonRepositoryLevelCaption) {
+    elements.lessonRepositoryLevelCaption.textContent = `فيديوهات حصص ${level} متاحة للمشاهدة داخل المنصة.`;
   }
-
-  elements.materialsList.replaceChildren();
+  elements.lessonVideoList.replaceChildren();
   const loading = document.createElement("p");
-  loading.className = "materials-empty";
-  loading.textContent = "جارٍ تحميل الملفات...";
-  elements.materialsList.append(loading);
+  loading.className = "lesson-video-empty";
+  loading.textContent = "جارٍ تحميل مستودع الدروس…";
+  elements.lessonVideoList.append(loading);
 
   try {
-    const response = await parentFetch(`/api/materials/${encodeURIComponent(level)}`, {
+    const response = await parentFetch(`/api/lesson-videos/${encodeURIComponent(level)}`, {
       headers: { Accept: "application/json" },
     });
     const payload = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(payload.error || "تعذر تحميل الملفات حالياً.");
-    }
-
-    renderMaterials(Array.isArray(payload.data) ? payload.data : []);
+    if (!response.ok) throw new Error(payload.error || "تعذر تحميل مستودع الدروس.");
+    if (!currentStudent || currentStudent.level !== level) return;
+    renderLessonVideos(Array.isArray(payload.data) ? payload.data : []);
   } catch (error) {
-    if (/انتهت الجلسة/.test(error.message)) {
-      return;
-    }
-
-    console.error("Unable to load course materials:", error);
-    elements.materialsList.replaceChildren();
+    if (/انتهت الجلسة/.test(error.message)) return;
+    console.error("Unable to load lesson videos:", error);
+    if (!currentStudent || currentStudent.level !== level) return;
     const unavailable = document.createElement("p");
-    unavailable.className = "materials-empty";
-    unavailable.textContent = "تعذر تحميل الملفات حالياً.";
-    elements.materialsList.append(unavailable);
+    unavailable.className = "lesson-video-empty";
+    unavailable.textContent = "تعذر تحميل مستودع الدروس حالياً.";
+    elements.lessonVideoList.replaceChildren(unavailable);
   }
 }
 
@@ -959,6 +949,10 @@ if (!getParentToken()) {
     void uploadReplacementCard();
   });
   elements.logoutButton?.addEventListener("click", logout);
+  elements.lessonVideoClose?.addEventListener("click", closeLessonVideo);
+  elements.lessonVideoModal?.addEventListener("click", (event) => {
+    if (event.target === elements.lessonVideoModal) closeLessonVideo();
+  });
   elements.callTeacherNowButton?.addEventListener("click", () => {
     closePaymentAccessModal();
   });
@@ -974,6 +968,7 @@ if (!getParentToken()) {
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       closePaymentAccessModal();
+      closeLessonVideo();
     }
   });
   window.addEventListener("focus", refreshAccessAfterReturningFromCall);

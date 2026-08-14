@@ -61,6 +61,12 @@ const elements = {
   scheduleLevelCaption: document.getElementById("schedule-level-caption"),
   teacherAbsenceButton: document.getElementById("teacher-absence-btn"),
   teacherAbsenceStatus: document.getElementById("teacher-absence-status"),
+  lessonVideoForm: document.getElementById("lesson-video-form"),
+  lessonVideoTitle: document.getElementById("lesson-video-title"),
+  lessonVideoUrl: document.getElementById("lesson-video-url"),
+  lessonVideoSubmit: document.getElementById("lesson-video-submit"),
+  lessonVideoList: document.getElementById("teacher-lesson-video-list"),
+  lessonRepositoryCaption: document.getElementById("lesson-repository-caption"),
 };
 
 let currentLevel =
@@ -74,6 +80,7 @@ let scheduledClasses = [];
 let teacherAbsent = false;
 let editingScheduledClassId = null;
 let paymentStatusStudentId = null;
+let lessonVideos = [];
 
 function clearTeacherSession() {
   sessionStorage.removeItem(TEACHER_TOKEN_KEY);
@@ -351,6 +358,116 @@ async function loadLevelSchedule() {
   } catch (error) {
     console.error("Unable to load level schedule:", error);
     showDashboardError(error.message || "تعذر تحميل برنامج الحصص.");
+  }
+}
+
+function renderLessonVideos() {
+  if (elements.lessonRepositoryCaption) {
+    elements.lessonRepositoryCaption.textContent = `أضف رابط فيديو Google Drive لحصص ${currentLevel} ليشاهده التلاميذ داخل حساباتهم.`;
+  }
+  if (!elements.lessonVideoList) return;
+
+  elements.lessonVideoList.replaceChildren();
+  if (!lessonVideos.length) {
+    const empty = document.createElement("p");
+    empty.className = "teacher-lesson-empty";
+    empty.textContent = "لا توجد فيديوهات مضافة لهذا المستوى بعد.";
+    elements.lessonVideoList.append(empty);
+    return;
+  }
+
+  lessonVideos.forEach((video) => {
+    const item = document.createElement("article");
+    item.className = "teacher-lesson-video-item";
+    const copy = document.createElement("div");
+    copy.className = "teacher-lesson-video-copy";
+    const title = document.createElement("strong");
+    title.textContent = video.title || "حصة مسجلة";
+    const date = document.createElement("small");
+    date.textContent = `أضيفت في ${formatScheduledDate(video.createdAt)}`;
+    copy.append(title, date);
+
+    const actions = document.createElement("div");
+    actions.className = "teacher-lesson-video-actions";
+    const open = document.createElement("a");
+    open.href = video.driveUrl;
+    open.target = "_blank";
+    open.rel = "noopener noreferrer";
+    open.textContent = "فتح الرابط";
+    const remove = createButton("حذف", "delete", () => void deleteLessonVideo(video.id));
+    actions.append(open, remove);
+    item.append(copy, actions);
+    elements.lessonVideoList.append(item);
+  });
+}
+
+async function loadLessonVideos() {
+  if (!elements.lessonVideoList) return;
+
+  try {
+    const response = await teacherFetch(`/api/lesson-videos/${encodeURIComponent(currentLevel)}`, {
+      headers: { Accept: "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر تحميل مستودع الدروس.");
+    lessonVideos = Array.isArray(payload.data) ? payload.data : [];
+    renderLessonVideos();
+  } catch (error) {
+    console.error("Unable to load lesson videos:", error);
+    lessonVideos = [];
+    renderLessonVideos();
+    showDashboardError(error.message || "تعذر تحميل مستودع الدروس.");
+  }
+}
+
+async function saveLessonVideo(event) {
+  event.preventDefault();
+  const title = elements.lessonVideoTitle?.value.trim() || "";
+  const driveUrl = elements.lessonVideoUrl?.value.trim() || "";
+  if (!title || !driveUrl) {
+    showDashboardError("أدخل عنوان الحصة ورابط Google Drive أولاً.");
+    return;
+  }
+
+  elements.lessonVideoSubmit.disabled = true;
+  try {
+    const response = await teacherFetch("/api/lesson-videos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ level: currentLevel, title, driveUrl }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر حفظ رابط الحصة.");
+
+    elements.lessonVideoForm.reset();
+    showToast("تمت إضافة الفيديو إلى مستودع هذا المستوى.");
+    await loadLessonVideos();
+  } catch (error) {
+    console.error("Unable to save lesson video:", error);
+    showDashboardError(error.message || "تعذر حفظ رابط الحصة.");
+  } finally {
+    elements.lessonVideoSubmit.disabled = false;
+  }
+}
+
+async function deleteLessonVideo(videoId) {
+  if (!window.confirm("هل تريد حذف رابط هذه الحصة من المستودع؟ لن يُحذف الفيديو من Google Drive.")) {
+    return;
+  }
+
+  try {
+    const response = await teacherFetch(`/api/lesson-videos/${encodeURIComponent(videoId)}`, {
+      method: "DELETE",
+      headers: { Accept: "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر حذف رابط الحصة.");
+
+    showToast("تم حذف رابط الحصة من المستودع.");
+    await loadLessonVideos();
+  } catch (error) {
+    console.error("Unable to delete lesson video:", error);
+    showDashboardError(error.message || "تعذر حذف رابط الحصة.");
   }
 }
 
@@ -636,7 +753,7 @@ async function fetchStudents(level = currentLevel) {
     // so this dashboard remains compatible during a staged deployment.
     currentStudents = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
     resetScheduleForm();
-    await loadLevelSchedule();
+    await Promise.all([loadLevelSchedule(), loadLessonVideos()]);
     applyFilters();
   } catch (error) {
     if (!/انتهت الجلسة/.test(error.message)) {
@@ -1258,6 +1375,7 @@ if (!getTeacherToken()) {
     if (event.target === elements.paymentStatusModal) closePaymentStatusModal();
   });
   elements.scheduleForm?.addEventListener("submit", saveScheduledClass);
+elements.lessonVideoForm?.addEventListener("submit", saveLessonVideo);
   elements.scheduleCancelButton?.addEventListener("click", resetScheduleForm);
   elements.teacherAbsenceButton?.addEventListener("click", () => void toggleTeacherAbsence());
   elements.subscriptionForm?.addEventListener("submit", saveSubscription);

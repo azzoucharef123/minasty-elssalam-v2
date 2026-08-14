@@ -95,3 +95,16 @@ model Material {
 
   @@index([level, createdAt(sort: Desc)])
 }
+
+model LessonVideo {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  level       String
+  driveFileId String
+  driveUrl    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([level, driveFileId])
+  @@index([level, createdAt(sort: Desc)])
+}

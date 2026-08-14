@@ -117,12 +117,14 @@ const studentRoutes = require("./routes/studentRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
 const liveChatRoutes = require("./routes/liveChatRoutes");
 const scheduleRoutes = require("./routes/scheduleRoutes");
+const lessonVideoRoutes = require("./routes/lessonVideoRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/students", studentRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/live-chat", liveChatRoutes);
 app.use("/api/schedules", scheduleRoutes);
+app.use("/api/lesson-videos", lessonVideoRoutes);
 
 // Course-material uploads are intentionally disabled. Block the legacy public
 // path before the general static middleware so old files cannot be downloaded.

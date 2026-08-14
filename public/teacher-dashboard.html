@@ -123,6 +123,23 @@
         <div id="scheduled-class-list" class="scheduled-class-list" aria-live="polite"></div>
       </section>
 
+      <section class="lesson-repository-manager" aria-labelledby="lesson-repository-title">
+        <header class="lesson-repository-head">
+          <div>
+            <span class="schedule-kicker">مستودع الدروس</span>
+            <h3 id="lesson-repository-title">فيديوهات الحصص المسجلة</h3>
+            <p id="lesson-repository-caption">أضف رابط فيديو Google Drive للمستوى المختار ليشاهده التلاميذ داخل حساباتهم.</p>
+          </div>
+        </header>
+        <form id="lesson-video-form" class="lesson-video-form" novalidate>
+          <label>عنوان الحصة<input id="lesson-video-title" type="text" maxlength="160" placeholder="مثال: مراجعة الدوال — الحصة الأولى" required /></label>
+          <label>رابط فيديو Google Drive<input id="lesson-video-url" type="url" inputmode="url" placeholder="https://drive.google.com/file/d/.../view" required /></label>
+          <button id="lesson-video-submit" class="lesson-video-submit" type="submit">إضافة إلى مستودع المستوى</button>
+        </form>
+        <p class="lesson-repository-note">تأكد من ضبط الفيديو في Google Drive على «أي شخص لديه الرابط — مشاهد» حتى يستطيع تلاميذ المستوى مشاهدته.</p>
+        <div id="teacher-lesson-video-list" class="teacher-lesson-video-list" aria-live="polite"></div>
+      </section>
+
       <section class="roster-toolbar" aria-label="بحث وتصفية التلاميذ">
         <label class="teacher-search-field" for="student-search"><span>البحث</span><input id="student-search" placeholder="البحث باسم التلميذ..." /></label>
         <label class="teacher-filter-field" for="payment-filter"><span>نوع الاشتراك</span><select id="payment-filter"><option value="all">كل الاشتراكات</option><option value="paid">اشتراك مدفوع</option><option value="unpaid">اشتراك مجاني</option></select></label>
