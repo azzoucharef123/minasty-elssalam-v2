@@ -620,10 +620,16 @@ function updateControls() {
   elements.chatInput.disabled = !classActive || isEnding;
   elements.chatSendButton.disabled = !classActive || isEnding || !normalizeChatMessage(elements.chatInput.value);
 
+  const hasSavedClassToResume = Boolean(pendingPageRecovery && !classActive && !isStarting);
   elements.startButton.classList.toggle("is-live", classActive);
+  elements.startButton.classList.toggle("is-resume", hasSavedClassToResume);
   setButtonLabel(
     elements.startButton,
-    classActive ? "الحصة المباشرة نشطة" : "بدء الحصة المباشرة"
+    classActive
+      ? "الحصة المباشرة نشطة"
+      : hasSavedClassToResume
+        ? "استئناف الحصة المحفوظة"
+        : "بدء الحصة المباشرة"
   );
 
   const audioIsEnabled = hasAudio && getAllAudioTracks().some((track) => track.enabled);
@@ -2143,7 +2149,7 @@ pendingPageRecovery = readLiveClassRecovery();
 if (pendingPageRecovery) {
   elements.levelSelect.value = pendingPageRecovery.level;
   syncClassTypeSelector({ selectedValue: pendingPageRecovery.subject });
-  setStudioStatus("تم حفظ الحصة السابقة. اضغط «بدء الحصة المباشرة» واختر الشاشة لاستئنافها.", "neutral");
+  setStudioStatus("تم تحديث الاستوديو والحصة ما تزال محفوظة للتلاميذ. اضغط «استئناف الحصة المحفوظة» واختر الشاشة لإعادة البث فورًا.", "neutral");
 } else {
   syncClassTypeSelector();
 }
