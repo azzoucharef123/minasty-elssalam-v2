@@ -368,6 +368,15 @@ async function updateStudentStatusAndNotes(req, res) {
       },
     });
 
+    // Parent dashboards observing this level receive only the changed student
+    // identifier and current class-access flag. They then refresh their own
+    // authenticated data without a manual page reload.
+    const io = req.app.get("io");
+    io?.to(`${student.level}_lobby`).emit("student_live_access_updated", {
+      studentId: student.id,
+      liveAccessEnabled: student.liveAccessEnabled,
+    });
+
     return res.status(200).json({
       status: "success",
       data: student,

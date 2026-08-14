@@ -137,6 +137,10 @@ const io = new Server(httpServer, {
   pingTimeout: 60_000,
 });
 
+// REST controllers use this server-owned reference only to publish minimal
+// non-sensitive dashboard refresh events after a teacher changes a student.
+app.set("io", io);
+
 /**
  * Maps each study level to its active teacher socket ID.
  *

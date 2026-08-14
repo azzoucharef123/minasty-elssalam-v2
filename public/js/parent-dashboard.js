@@ -569,6 +569,16 @@ function initializeLobbySocket() {
     setLiveClassVisible(false);
   });
 
+  socket.on("student_live_access_updated", (data = {}) => {
+    if (!currentStudent || data.studentId !== currentStudent.id) {
+      return;
+    }
+
+    // The teacher has just opened or blocked this exact learner's class access.
+    // Refresh authenticated dashboard data immediately without reloading the page.
+    void loadDashboard({ backgroundRefresh: true });
+  });
+
   socket.on("disconnect", () => {
     // Never leave an unverified positive state visible while the status socket
     // is unavailable. The ACK restores it once Socket.io reconnects.
