@@ -28,6 +28,9 @@ app.disable("x-powered-by");
 app.use(
   helmet({
     crossOriginEmbedderPolicy: false,
+    // Google Identity uses a controlled Google popup for the teacher's explicit
+    // Drive authorization. Allow popups while retaining same-origin isolation.
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
     contentSecurityPolicy: {
       useDefaults: true,
       directives: {
@@ -43,11 +46,13 @@ app.use(
         "script-src": [
           "'self'",
           "https://www.gstatic.com",
+          "https://accounts.google.com",
           "https://www.google.com",
           "https://www.recaptcha.net",
         ],
         "frame-src": [
           "'self'",
+          "https://accounts.google.com",
           "https://www.google.com",
           "https://recaptcha.google.com",
           "https://www.recaptcha.net",
