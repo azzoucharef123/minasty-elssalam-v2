@@ -28,6 +28,7 @@
     attendanceList: document.getElementById("public-attendance-list"),
     attendanceCount: document.getElementById("attendance-count"),
     guestActions: document.getElementById("guest-actions"),
+    paidRegistrationLink: document.getElementById("paid-registration-link"),
     raiseHand: document.getElementById("raise-public-hand"),
     guestMicStatus: document.getElementById("guest-mic-status"),
     nicknameOverlay: document.getElementById("public-nickname-overlay"),
@@ -426,6 +427,7 @@
       guestJoined = true;
       elements.nicknameOverlay.hidden = true;
       elements.guestActions.hidden = false;
+      elements.paidRegistrationLink.hidden = false;
       setGuestMicUi(guestMicOpen);
       setStatus(result.isLive ? "بانتظار استقبال البث…" : "بانتظار أن يبدأ الأستاذ الحصة…");
     });

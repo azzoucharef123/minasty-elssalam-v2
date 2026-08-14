@@ -31,7 +31,9 @@
     .button.ghost { background:#263b5b; }
     .button.success { background:linear-gradient(135deg,#16a34a,#15803d); }
     .button.warn { background:#a16207; }
-    .button[hidden], .host-only[hidden], .guest-only[hidden] { display:none; }
+    .paid-registration-link { display:inline-flex; align-items:center; justify-content:center; min-height:2.75rem; padding:.55rem .9rem; border:1px solid #facc15; border-radius:.7rem; color:#fef08a; background:linear-gradient(135deg,#dc2626,#991b1b); font-weight:900; text-align:center; text-decoration:none; box-shadow:0 6px 18px rgba(153,27,27,.28); transition:transform .2s ease, box-shadow .2s ease; }
+    .paid-registration-link:hover, .paid-registration-link:focus-visible { transform:translateY(-2px); box-shadow:0 10px 24px rgba(153,27,27,.42); outline:0; }
+    .paid-registration-link[hidden], .button[hidden], .host-only[hidden], .guest-only[hidden] { display:none; }
     .button:disabled { cursor:not-allowed; opacity:.56; }
     .invite { display:grid; grid-template-columns:1fr auto; gap:.5rem; width:100%; padding:.7rem; border:1px solid rgba(96,165,250,.3); border-radius:.8rem; background:#102a51; }
     .invite label { grid-column:1/-1; color:#bfdbfe; font-size:.78rem; font-weight:800; }
@@ -62,7 +64,8 @@
     .join-card p { margin:.25rem 0 1rem; color:#cbd5e1; line-height:1.7; font-size:.87rem; }
     .join-card label { display:block; margin-bottom:.4rem; color:#bfdbfe; font-size:.83rem; font-weight:800; }
     .join-card input { width:100%; margin-bottom:.8rem; padding:.75rem; color:#f8fafc; border:1px solid var(--edge); border-radius:.65rem; background:#071a32; }
-    .join-card .button { width:100%; }
+    .join-card .button, .join-card .paid-registration-link { width:100%; }
+    .join-card .paid-registration-link { margin-top:.55rem; }
     .messages { min-height:10rem; padding:.8rem; overflow:auto; display:flex; flex-direction:column; gap:.55rem; }
     .message { max-width:92%; padding:.55rem .65rem; border-radius:.7rem; background:#1e365b; line-height:1.55; word-break:break-word; }
     .message strong { display:block; margin-bottom:.12rem; color:#bfdbfe; font-size:.73rem; }
@@ -100,6 +103,7 @@
             <button id="raise-public-hand" class="button warn" type="button">رفع اليد</button>
             <span id="guest-mic-status" class="guest-mic-status closed">المايك مغلق</span>
           </div>
+          <a id="paid-registration-link" class="paid-registration-link guest-only" href="./register.html" hidden>التسجيل في الحصص المدفوعة</a>
           <p id="public-status" class="status">جارٍ الاتصال…</p>
         </div>
       </section>
@@ -123,6 +127,7 @@
       <label for="public-nickname">الاسم المستعار</label>
       <input id="public-nickname" maxlength="120" autocomplete="name" required placeholder="مثال: محمد" />
       <button class="button primary" type="submit">دخول الحصة</button>
+      <a class="paid-registration-link" href="./register.html">التسجيل في الحصص المدفوعة</a>
     </form>
   </div>
   <audio id="public-guest-audio" autoplay></audio>
