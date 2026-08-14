@@ -23,6 +23,7 @@ const elements = {
   studentSwitcher: document.getElementById("student-switcher"),
   studentSwitcherList: document.getElementById("student-switcher-list"),
   paymentAccessModal: document.getElementById("payment-access-modal"),
+  callTeacherNowButton: document.getElementById("call-teacher-now-btn"),
   declineRegistrationButton: document.getElementById("decline-registration-btn"),
 };
 
@@ -30,6 +31,7 @@ let socket = null;
 let currentStudent = null;
 let currentStudents = [];
 let currentLobbyLevel = null;
+let paymentReturnRefreshTimer = null;
 
 function clearParentSession() {
   [
@@ -410,17 +412,19 @@ function emitLobbyJoin(level) {
   });
 }
 
-async function loadDashboard() {
+async function loadDashboard({ backgroundRefresh = false } = {}) {
   const parentPhone = sessionStorage.getItem("parentPhone");
 
   if (!parentPhone || !getParentToken()) {
     return;
   }
 
-  clearError();
-  elements.loadingState.hidden = false;
-  elements.dashboardContent.hidden = true;
-  setLiveClassVisible(false);
+  if (!backgroundRefresh) {
+    clearError();
+    elements.loadingState.hidden = false;
+    elements.dashboardContent.hidden = true;
+    setLiveClassVisible(false);
+  }
 
   try {
     const response = await parentFetch(
@@ -455,10 +459,14 @@ async function loadDashboard() {
   } catch (error) {
     if (!/انتهت الجلسة/.test(error.message)) {
       console.error("Unable to load parent dashboard:", error);
-      showError(error.message || "تعذر تحميل بيانات التلميذ. حاول مرة أخرى.");
+      if (!backgroundRefresh) {
+        showError(error.message || "تعذر تحميل بيانات التلميذ. حاول مرة أخرى.");
+      }
     }
   } finally {
-    elements.loadingState.hidden = true;
+    if (!backgroundRefresh) {
+      elements.loadingState.hidden = true;
+    }
   }
 }
 
@@ -512,6 +520,17 @@ async function enterLiveClass() {
     elements.joinLiveClassButton.disabled = false;
     elements.joinLiveClassButton.textContent = originalLabel || "الدخول إلى الحصة";
   }
+}
+
+function refreshAccessAfterReturningFromCall() {
+  if (document.hidden || paymentReturnRefreshTimer) {
+    return;
+  }
+
+  paymentReturnRefreshTimer = window.setTimeout(() => {
+    paymentReturnRefreshTimer = null;
+    void loadDashboard({ backgroundRefresh: true });
+  }, 450);
 }
 
 function logout() {
@@ -570,6 +589,9 @@ if (!getParentToken()) {
     void enterLiveClass();
   });
   elements.logoutButton?.addEventListener("click", logout);
+  elements.callTeacherNowButton?.addEventListener("click", () => {
+    closePaymentAccessModal();
+  });
   elements.declineRegistrationButton?.addEventListener("click", () => {
     closePaymentAccessModal();
     window.location.assign("./index.html");
@@ -582,6 +604,13 @@ if (!getParentToken()) {
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       closePaymentAccessModal();
+    }
+  });
+  window.addEventListener("focus", refreshAccessAfterReturningFromCall);
+  window.addEventListener("pageshow", refreshAccessAfterReturningFromCall);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      refreshAccessAfterReturningFromCall();
     }
   });
   initializeLobbySocket();
