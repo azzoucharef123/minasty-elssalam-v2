@@ -17,10 +17,6 @@ const phoneInput = document.getElementById("parent-phone");
 const parentPinInput = document.getElementById("parent-pin");
 const confirmParentPinInput = document.getElementById("confirm-parent-pin");
 const levelInput = document.getElementById("student-level");
-const secondarySubscriptionField = document.getElementById("secondary-subscription-field");
-const secondaryReceiptField = document.getElementById("secondary-receipt-field");
-const subscriptionTypeInput = document.getElementById("subscription-type");
-const paymentReceiptInput = document.getElementById("payment-receipt");
 const universityCardField = document.getElementById("university-card-field");
 const cardPhotoInput = document.getElementById("card-photo");
 
@@ -52,24 +48,6 @@ function clearRegistrationMessage() {
 
 function syncUniversityCardField() {
   const isUniversityStudent = levelInput?.value === "طالب جامعي";
-  const isSecondaryStudent = Boolean(levelInput?.value) && !isUniversityStudent;
-
-  if (secondarySubscriptionField) {
-    secondarySubscriptionField.hidden = !isSecondaryStudent;
-  }
-  if (secondaryReceiptField) {
-    secondaryReceiptField.hidden = !isSecondaryStudent;
-  }
-  if (subscriptionTypeInput) {
-    subscriptionTypeInput.required = isSecondaryStudent;
-    subscriptionTypeInput.disabled = !isSecondaryStudent;
-    if (!isSecondaryStudent) subscriptionTypeInput.value = "";
-  }
-  if (paymentReceiptInput) {
-    paymentReceiptInput.required = isSecondaryStudent;
-    paymentReceiptInput.disabled = !isSecondaryStudent;
-    if (!isSecondaryStudent) paymentReceiptInput.value = "";
-  }
 
   if (universityCardField) {
     universityCardField.hidden = !isUniversityStudent;
@@ -136,7 +114,6 @@ function initializeRegistration() {
       parentPin: normalizeDigits(formData.get("parentPin"), 4),
       confirmParentPin: normalizeDigits(formData.get("confirmParentPin"), 4),
       level: String(formData.get("level") || "").trim(),
-      subscriptionType: String(formData.get("subscriptionType") || "").trim().toUpperCase(),
     };
 
     phoneInput.value = payload.parentPhone;
@@ -147,9 +124,7 @@ function initializeRegistration() {
     formData.delete("confirmParentPin");
 
     const cardFile = cardPhotoInput?.files?.[0] || null;
-    const paymentReceiptFile = paymentReceiptInput?.files?.[0] || null;
     const isUniversityStudent = payload.level === "طالب جامعي";
-    const isSecondaryStudent = Boolean(payload.level) && !isUniversityStudent;
 
     if (!payload.studentName || !payload.parentPhone || !payload.parentPin || !payload.confirmParentPin || !payload.level) {
       showRegistrationError("يرجى إدخال الاسم ورقم الهاتف وكلمة المرور وتأكيدها واختيار المستوى الدراسي.");
@@ -180,30 +155,14 @@ function initializeRegistration() {
       return;
     }
 
-    if (isSecondaryStudent && !["BOTH", "MATH", "PHYSICS"].includes(payload.subscriptionType)) {
-      showRegistrationError("اختر نوع الاشتراك: رياضيات وفيزياء، رياضيات فقط، أو فيزياء فقط.");
-      subscriptionTypeInput?.focus();
-      return;
-    }
-
-    if (isSecondaryStudent && !paymentReceiptFile) {
-      showRegistrationError("يرجى رفع وصل الدفع لإرساله إلى الأستاذ.");
-      paymentReceiptInput?.focus();
-      return;
-    }
-
-    const filesToValidate = [
-      cardFile ? { file: cardFile, label: "صورة البطاقة" } : null,
-      paymentReceiptFile ? { file: paymentReceiptFile, label: "وصل الدفع" } : null,
-    ].filter(Boolean);
-    for (const { file, label } of filesToValidate) {
+    if (cardFile) {
       const allowedTypes = ["image/jpeg", "image/png"];
-      if (!allowedTypes.includes(file.type)) {
-        showRegistrationError(`${label} يجب أن تكون بصيغة JPG أو PNG.`);
+      if (!allowedTypes.includes(cardFile.type)) {
+        showRegistrationError("صورة البطاقة يجب أن تكون بصيغة JPG أو PNG.");
         return;
       }
-      if (file.size > 5 * 1024 * 1024) {
-        showRegistrationError(`حجم ${label} يجب ألا يتجاوز 5 ميغابايت.`);
+      if (cardFile.size > 5 * 1024 * 1024) {
+        showRegistrationError("حجم صورة البطاقة يجب ألا يتجاوز 5 ميغابايت.");
         return;
       }
     }

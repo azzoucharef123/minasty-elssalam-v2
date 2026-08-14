@@ -64,24 +64,16 @@ function parsePagination(query) {
 
 /** POST /api/students/register — public student registration. */
 async function registerStudent(req, res) {
-  const uploadedCardFile = req.files?.cardPhoto?.[0] || null;
-  const uploadedReceiptFile = req.files?.paymentReceipt?.[0] || null;
-  const uploadedFiles = [uploadedCardFile, uploadedReceiptFile].filter(Boolean);
-  const removeRegistrationFiles = async () => {
-    await Promise.all(uploadedFiles.map((file) => removeUploadedCard(file.filename)));
-  };
+  const uploadedCardFile = req.file;
 
   try {
     const studentName = normalizeText(req.body?.studentName);
     const parentPhone = normalizeParentPhone(req.body?.parentPhone);
     const parentPin = normalizeParentPin(req.body?.parentPin);
     const level = normalizeText(req.body?.level);
-    const subscriptionType = normalizeText(req.body?.subscriptionType).toUpperCase();
-    const isUniversityStudent = level === "طالب جامعي";
-    const validSecondarySubscriptions = new Set(["BOTH", "MATH", "PHYSICS"]);
 
     if (!studentName || !parentPhone || !parentPin || !level) {
-      await removeRegistrationFiles();
+      if (uploadedCardFile?.filename) await removeUploadedCard(uploadedCardFile.filename);
       return res.status(400).json({
         error: "الاسم ورقم الهاتف وكلمة المرور من 4 أرقام والمستوى الدراسي حقول مطلوبة.",
       });
@@ -93,39 +85,20 @@ async function registerStudent(req, res) {
     });
 
     if (existingStudent) {
-      await removeRegistrationFiles();
+      if (uploadedCardFile?.filename) await removeUploadedCard(uploadedCardFile.filename);
       return res.status(400).json({
         error: "هذا التلميذ مسجل بالفعل في هذا المستوى الدراسي بهذا الرقم.",
       });
     }
 
-    if (isUniversityStudent) {
-      if (!uploadedCardFile) {
-        await removeRegistrationFiles();
-        return res.status(400).json({ error: "صورة بطاقة الطالب الجامعي مطلوبة لإكمال التسجيل." });
-      }
-      if (uploadedReceiptFile) {
-        await removeRegistrationFiles();
-        return res.status(400).json({ error: "وصل الدفع مخصص لاشتراك التلاميذ من السنة الأولى إلى الرابعة." });
-      }
-    } else {
-      if (!validSecondarySubscriptions.has(subscriptionType)) {
-        await removeRegistrationFiles();
-        return res.status(400).json({ error: "اختر نوع الاشتراك: رياضيات وفيزياء، رياضيات فقط، أو فيزياء فقط." });
-      }
-      if (!uploadedReceiptFile) {
-        await removeRegistrationFiles();
-        return res.status(400).json({ error: "يرجى رفع وصل الدفع لإرسال طلب الاشتراك إلى الأستاذ." });
-      }
-      if (uploadedCardFile) {
-        await removeRegistrationFiles();
-        return res.status(400).json({ error: "صورة البطاقة متاحة للطالب الجامعي فقط." });
-      }
+    const isUniversityStudent = level === "طالب جامعي";
+    if (isUniversityStudent && !uploadedCardFile) {
+      return res.status(400).json({ error: "صورة بطاقة الطالب الجامعي مطلوبة لإكمال التسجيل." });
     }
-
-    const mathEnrollment = isUniversityStudent || ["BOTH", "MATH"].includes(subscriptionType);
-    const physicsEnrollment = isUniversityStudent || ["BOTH", "PHYSICS"].includes(subscriptionType);
-    const amountDue = isUniversityStudent ? null : subscriptionType === "BOTH" ? 2000 : 1000;
+    if (!isUniversityStudent && uploadedCardFile) {
+      await removeUploadedCard(uploadedCardFile.filename);
+      return res.status(400).json({ error: "رفع صورة البطاقة متاح للطلاب الجامعيين فقط." });
+    }
 
     const existingCredential = await prisma.parentCredential.findUnique({
       where: { parentPhone },
@@ -135,7 +108,7 @@ async function registerStudent(req, res) {
     if (existingCredential) {
       const pinMatches = await verifyParentPin(parentPin, existingCredential.pinHash);
       if (!pinMatches) {
-        await removeRegistrationFiles();
+        if (uploadedCardFile?.filename) await removeUploadedCard(uploadedCardFile.filename);
         return res.status(401).json({
           error: "كلمة المرور لهذا الرقم غير صحيحة. استخدم كلمة المرور ذات 4 أرقام التي أنشأتها سابقًا.",
         });
@@ -156,18 +129,16 @@ async function registerStudent(req, res) {
           level,
           paymentStatus: false,
           paymentStage: "UNPAID",
-          amountDue,
-          mathEnrollment,
-          physicsEnrollment,
+          amountDue: null,
+          mathEnrollment: true,
+          physicsEnrollment: true,
           liveAccessEnabled: false,
           mathNote: "",
           physicsNote: "",
           cardPhotoUrl: uploadedCardFile?.filename || null,
-          paymentReceiptUrl: uploadedReceiptFile?.filename || null,
-          paymentReceiptPending: Boolean(uploadedReceiptFile),
-          paymentReceiptSubmittedAt: uploadedReceiptFile ? new Date() : null,
-          // University accounts need identity review; secondary accounts need
-          // payment approval before class and repository access is granted.
+          paymentReceiptUrl: null,
+          paymentReceiptPending: false,
+          paymentReceiptSubmittedAt: null,
           accountActive: !isUniversityStudent,
           cardReuploadRequested: false,
         },
@@ -177,11 +148,11 @@ async function registerStudent(req, res) {
     return res.status(201).json({ status: "success", data: student });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      await removeRegistrationFiles();
+      if (uploadedCardFile?.filename) await removeUploadedCard(uploadedCardFile.filename);
       return res.status(400).json({ error: "هذا التلميذ مسجل بالفعل في هذا المستوى الدراسي بهذا الرقم." });
     }
 
-    await removeRegistrationFiles();
+    if (uploadedCardFile?.filename) await removeUploadedCard(uploadedCardFile.filename);
     console.error("Student registration failed:", error);
     return res.status(500).json({ error: "تعذر تسجيل التلميذ حالياً." });
   }
@@ -463,7 +434,7 @@ async function replaceStudentCard(req, res) {
   }
 }
 
-/** POST /api/students/:id/payment-receipt — owning parent submits university upgrade proof. */
+/** POST /api/students/:id/payment-receipt — owning parent submits payment proof. */
 async function submitPaymentReceipt(req, res) {
   const uploadedReceiptFile = req.file;
 
@@ -489,30 +460,42 @@ async function submitPaymentReceipt(req, res) {
       return res.status(403).json({ error: "لا تملك صلاحية إرسال وصل دفع لهذا الطالب." });
     }
 
-    if (student.level !== "طالب جامعي") {
-      await removeUploadedCard(uploadedReceiptFile.filename);
-      return res.status(400).json({ error: "طلب الترقية بالدفع متاح للطالب الجامعي فقط." });
-    }
-
     if (student.paymentStage === "PAID" || student.paymentStatus) {
       await removeUploadedCard(uploadedReceiptFile.filename);
       return res.status(400).json({ error: "هذا الحساب لديه اشتراك مدفوع بالفعل." });
     }
 
+    const isUniversityStudent = student.level === "طالب جامعي";
+    const subscriptionType = normalizeText(req.body?.subscriptionType).toUpperCase();
+    const validSubscriptionTypes = new Set(["BOTH", "MATH", "PHYSICS"]);
+    if (!isUniversityStudent && !validSubscriptionTypes.has(subscriptionType)) {
+      await removeUploadedCard(uploadedReceiptFile.filename);
+      return res.status(400).json({ error: "اختر نوع الاشتراك قبل إرسال وصل الدفع." });
+    }
+
+    const updateData = {
+      paymentReceiptUrl: uploadedReceiptFile.filename,
+      paymentReceiptPending: true,
+      paymentReceiptSubmittedAt: new Date(),
+    };
+    if (!isUniversityStudent) {
+      updateData.mathEnrollment = ["BOTH", "MATH"].includes(subscriptionType);
+      updateData.physicsEnrollment = ["BOTH", "PHYSICS"].includes(subscriptionType);
+      updateData.amountDue = subscriptionType === "BOTH" ? 2000 : 1000;
+    }
+
     const updatedStudent = await prisma.student.update({
       where: { id: student.id },
-      data: {
-        paymentReceiptUrl: uploadedReceiptFile.filename,
-        paymentReceiptPending: true,
-        paymentReceiptSubmittedAt: new Date(),
-      },
+      data: updateData,
     });
     await removeUploadedCard(student.paymentReceiptUrl);
     notifyPaymentReceiptStatus(req, updatedStudent);
 
     return res.status(200).json({
       status: "success",
-      message: "تم إرسال وصل الدفع. سيؤكد الأستاذ الترقية بعد مراجعة الوصل.",
+      message: isUniversityStudent
+        ? "تم إرسال وصل الدفع. سيؤكد الأستاذ الترقية بعد مراجعة الوصل."
+        : "تم إرسال الوصل واختيار الاشتراك. سيؤكد الأستاذ الدفع بعد المراجعة.",
       data: updatedStudent,
     });
   } catch (error) {

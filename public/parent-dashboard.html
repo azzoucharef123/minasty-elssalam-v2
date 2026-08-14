@@ -1224,6 +1224,34 @@
           </div>
         </section>
 
+        <section id="secondary-payment-upgrade" class="university-payment-upgrade secondary-payment-upgrade" hidden aria-live="polite">
+          <h2>ترقية حسابي</h2>
+          <p>اختر المواد التي تريد الاشتراك فيها، ثم ارفع وصل الدفع للتمتع بالحصص المباشرة ومقاطع الدروس المسجلة.</p>
+          <button id="secondary-upgrade-button" class="university-upgrade-button" type="button">ترقية حسابي والتمتع بالحصص المسجلة والمباشرة</button>
+
+          <div id="secondary-payment-transfer" class="university-payment-transfer" hidden>
+            <h3>اختر نوع الاشتراك</h3>
+            <label for="secondary-subscription-type">المواد والسعر</label>
+            <select id="secondary-subscription-type" class="secondary-subscription-type">
+              <option value="" selected disabled>اختر الاشتراك</option>
+              <option value="BOTH">رياضيات وفيزياء — 2000 دج</option>
+              <option value="MATH">رياضيات فقط — 1000 دج</option>
+              <option value="PHYSICS">فيزياء فقط — 1000 دج</option>
+            </select>
+            <dl class="parent-payment-details">
+              <div><dt>صاحب الحساب</dt><dd>Charef Azzeddine</dd></div>
+              <div><dt>الولاية</dt><dd>Biskra</dd></div>
+              <div><dt>CCP</dt><dd>17570324</dd></div>
+              <div><dt>المفتاح</dt><dd>04</dd></div>
+              <div><dt>BaridiMob</dt><dd>00799999001757032404</dd></div>
+            </dl>
+            <label for="secondary-payment-receipt-input">ارفع وصل الدفع من البريد أو BaridiMob</label>
+            <input id="secondary-payment-receipt-input" class="parent-payment-receipt-input" type="file" accept="image/jpeg,image/png" capture="environment" />
+            <button id="secondary-payment-submit" class="parent-payment-submit" type="button">إرسال وصل الدفع للأستاذ</button>
+            <p id="secondary-payment-pending" class="parent-payment-pending" hidden></p>
+          </div>
+        </section>
+
         <section id="card-reupload-panel" class="card-reupload-panel" hidden aria-live="polite">
           <div>
             <strong>يجب إعادة رفع بطاقة الطالب</strong>

@@ -59,19 +59,11 @@ function cardFileFilter(_req, file, callback) {
 const cardUpload = multer({
   storage: cardStorage,
   fileFilter: cardFileFilter,
-  limits: { files: 2, fileSize: MAX_CARD_SIZE_BYTES },
+  limits: { files: 1, fileSize: MAX_CARD_SIZE_BYTES },
 });
 
-// Public: a new family can register with either a university card or a
-// secondary-school payment receipt, depending on the selected level.
-router.post(
-  "/register",
-  cardUpload.fields([
-    { name: "cardPhoto", maxCount: 1 },
-    { name: "paymentReceipt", maxCount: 1 },
-  ]),
-  registerStudent
-);
+// Public: a new family must be able to register before an account exists.
+router.post("/register", cardUpload.single("cardPhoto"), registerStudent);
 
 // Parent-only: the signed phone claim must equal the requested URL phone.
 router.get("/parent/:phone", verifyToken, isParentAccessingOwnRecord, getStudentForParent);

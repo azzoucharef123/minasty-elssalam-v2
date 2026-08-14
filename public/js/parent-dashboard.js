@@ -25,6 +25,13 @@ const elements = {
   parentPaymentSubmit: document.getElementById("parent-payment-submit"),
   parentPaymentPending: document.getElementById("parent-payment-pending"),
   parentPaymentConfirmed: document.getElementById("parent-payment-confirmed"),
+  secondaryPaymentUpgrade: document.getElementById("secondary-payment-upgrade"),
+  secondaryUpgradeButton: document.getElementById("secondary-upgrade-button"),
+  secondaryPaymentTransfer: document.getElementById("secondary-payment-transfer"),
+  secondarySubscriptionType: document.getElementById("secondary-subscription-type"),
+  secondaryPaymentReceiptInput: document.getElementById("secondary-payment-receipt-input"),
+  secondaryPaymentSubmit: document.getElementById("secondary-payment-submit"),
+  secondaryPaymentPending: document.getElementById("secondary-payment-pending"),
   parentScheduleList: document.getElementById("parent-schedule-list"),
   teacherAbsenceNotice: document.getElementById("teacher-absence-notice"),
   logoutButton: document.getElementById("logout-btn"),
@@ -55,6 +62,7 @@ let currentLobbyLevel = null;
 let paymentReturnRefreshTimer = null;
 let activeLiveClassType = null;
 let universityPaymentTransferRequested = false;
+let secondaryPaymentTransferRequested = false;
 let lessonVideoPreviousFocus = null;
 let parentScheduledClasses = [];
 let parentTeacherAbsent = false;
@@ -406,6 +414,40 @@ function renderUniversityPaymentUpgrade(student, isPaidSubscription) {
   }
 }
 
+function renderSecondaryPaymentUpgrade(student) {
+  const isSecondaryStudent = Boolean(student) && student.level !== "طالب جامعي";
+  const paymentStage = student?.paymentStage || (student?.paymentStatus ? "PAID" : "UNPAID");
+  const showUpgrade = isSecondaryStudent && paymentStage === "UNPAID";
+  const receiptPending = Boolean(student?.paymentReceiptPending);
+
+  if (elements.secondaryPaymentUpgrade) {
+    elements.secondaryPaymentUpgrade.hidden = !showUpgrade;
+  }
+  if (!showUpgrade) {
+    secondaryPaymentTransferRequested = false;
+    return;
+  }
+
+  if (elements.secondaryUpgradeButton) {
+    elements.secondaryUpgradeButton.hidden = receiptPending;
+  }
+  if (elements.secondaryPaymentTransfer) {
+    elements.secondaryPaymentTransfer.hidden = !secondaryPaymentTransferRequested;
+  }
+  if (elements.secondaryPaymentReceiptInput) {
+    elements.secondaryPaymentReceiptInput.disabled = receiptPending;
+  }
+  if (elements.secondaryPaymentSubmit) {
+    elements.secondaryPaymentSubmit.disabled = receiptPending;
+  }
+  if (elements.secondaryPaymentPending) {
+    elements.secondaryPaymentPending.hidden = !receiptPending;
+    elements.secondaryPaymentPending.textContent = receiptPending
+      ? "تم إرسال الوصل واختيار الاشتراك. ينتظر الطلب مراجعة الأستاذ وتأكيد الدفع."
+      : "";
+  }
+}
+
 function renderStudent(student) {
   elements.studentAvatar.textContent = getInitials(student.studentName);
   elements.studentName.textContent = student.studentName;
@@ -451,6 +493,7 @@ function renderStudent(student) {
       : `حالة الدفع: ${secondaryPaymentStateLabel(student)}`;
   }
   renderUniversityPaymentUpgrade(student, isPaid);
+  renderSecondaryPaymentUpgrade(student);
 }
 
 /**
@@ -822,6 +865,61 @@ function openUniversityPaymentTransfer() {
   }
 }
 
+function openSecondaryPaymentTransfer() {
+  secondaryPaymentTransferRequested = true;
+  if (elements.secondaryPaymentTransfer) {
+    elements.secondaryPaymentTransfer.hidden = false;
+    elements.secondaryPaymentTransfer.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+async function submitSecondaryPaymentReceipt() {
+  const receipt = elements.secondaryPaymentReceiptInput?.files?.[0];
+  const subscriptionType = elements.secondarySubscriptionType?.value;
+  if (!receipt || !currentStudent) {
+    showError("اختر صورة وصل الدفع أولاً.");
+    return;
+  }
+  if (!["BOTH", "MATH", "PHYSICS"].includes(subscriptionType)) {
+    showError("اختر نوع الاشتراك قبل إرسال الوصل.");
+    elements.secondarySubscriptionType?.focus();
+    return;
+  }
+
+  const originalLabel = elements.secondaryPaymentSubmit?.textContent;
+  if (elements.secondaryPaymentSubmit) {
+    elements.secondaryPaymentSubmit.disabled = true;
+    elements.secondaryPaymentSubmit.textContent = "جارٍ إرسال الوصل…";
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append("paymentReceipt", receipt);
+    formData.append("subscriptionType", subscriptionType);
+    const response = await parentFetch(
+      `/api/students/${encodeURIComponent(currentStudent.id)}/payment-receipt`,
+      { method: "POST", body: formData }
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "تعذر إرسال وصل الدفع.");
+    }
+
+    elements.secondaryPaymentReceiptInput.value = "";
+    secondaryPaymentTransferRequested = true;
+    await loadDashboard({ backgroundRefresh: true });
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) {
+      showError(error.message || "تعذر إرسال وصل الدفع.");
+    }
+  } finally {
+    if (elements.secondaryPaymentSubmit && !currentStudent?.paymentReceiptPending) {
+      elements.secondaryPaymentSubmit.disabled = false;
+      elements.secondaryPaymentSubmit.textContent = originalLabel || "إرسال وصل الدفع للأستاذ";
+    }
+  }
+}
+
 async function submitUniversityPaymentReceipt() {
   const receipt = elements.parentPaymentReceiptInput?.files?.[0];
   if (!receipt || !currentStudent) {
@@ -1005,6 +1103,10 @@ if (!getParentToken()) {
   elements.universityUpgradeButton?.addEventListener("click", openUniversityPaymentTransfer);
   elements.parentPaymentSubmit?.addEventListener("click", () => {
     void submitUniversityPaymentReceipt();
+  });
+  elements.secondaryUpgradeButton?.addEventListener("click", openSecondaryPaymentTransfer);
+  elements.secondaryPaymentSubmit?.addEventListener("click", () => {
+    void submitSecondaryPaymentReceipt();
   });
   elements.replacementCardButton?.addEventListener("click", () => {
     elements.replacementCardInput?.click();
