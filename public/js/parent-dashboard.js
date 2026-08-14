@@ -48,6 +48,7 @@ let activeLiveClassType = null;
 let universityPaymentTransferRequested = false;
 let parentScheduledClasses = [];
 let parentTeacherAbsent = false;
+let teacherAbsenceLevel = null;
 
 function clearParentSession() {
   [
@@ -219,8 +220,11 @@ function formatParentScheduleDate(value) {
 }
 
 function renderParentSchedule() {
+  const isAbsenceForCurrentStudent = Boolean(
+    parentTeacherAbsent && currentStudent && teacherAbsenceLevel === currentStudent.level
+  );
   if (elements.teacherAbsenceNotice) {
-    elements.teacherAbsenceNotice.hidden = !parentTeacherAbsent;
+    elements.teacherAbsenceNotice.hidden = !isAbsenceForCurrentStudent;
   }
   if (!elements.parentScheduleList) return;
   elements.parentScheduleList.replaceChildren();
@@ -260,6 +264,7 @@ async function loadParentSchedule(level) {
 
     parentScheduledClasses = Array.isArray(payload.scheduledClasses) ? payload.scheduledClasses : [];
     parentTeacherAbsent = payload.teacherAbsent === true;
+    teacherAbsenceLevel = parentTeacherAbsent ? level : null;
     renderParentSchedule();
   } catch (error) {
     console.error("Unable to load parent schedule:", error);
@@ -273,6 +278,11 @@ function selectStudent(studentId) {
   }
 
   currentStudent = student;
+  // Never carry an absence announcement from a previously selected level while
+  // this student's own schedule is loading.
+  parentTeacherAbsent = false;
+  teacherAbsenceLevel = null;
+  renderParentSchedule();
   sessionStorage.setItem("selectedStudentId", student.id);
   sessionStorage.setItem("parentStudents", JSON.stringify(currentStudents));
   persistStudentSession(student);
@@ -888,6 +898,7 @@ function initializeLobbySocket() {
     }
 
     parentTeacherAbsent = data.isAbsent === true;
+    teacherAbsenceLevel = parentTeacherAbsent ? data.level : null;
     renderParentSchedule();
   });
 
