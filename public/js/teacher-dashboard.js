@@ -9,6 +9,7 @@ const elements = {
   tableEmptyState: document.querySelector("#table-empty-state, #empty-state"),
   dashboardError: document.querySelector("#dashboard-error, #message-box"),
   logoutButton: document.querySelector("#logout-btn, [data-action='logout']"),
+  publicInviteButton: document.getElementById("public-invite-btn"),
 
   toast: document.querySelector("#toast, #success-toast"),
   searchInput: document.getElementById("student-search"),
@@ -1220,12 +1221,35 @@ function logoutTeacher() {
   window.location.replace("./teacher-login.html");
 }
 
+async function createPublicInvite() {
+  const createSecureId = () => window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 16)}`;
+  const roomId = createSecureId();
+  const hostToken = createSecureId();
+  const hostUrl = new URL("./public-class.html", window.location.href);
+  hostUrl.searchParams.set("host", roomId);
+  hostUrl.searchParams.set("token", hostToken);
+  const inviteUrl = new URL("./public-class.html", window.location.href);
+  inviteUrl.searchParams.set("room", roomId);
+
+  try {
+    await navigator.clipboard.writeText(inviteUrl.toString());
+    showToast("تم إنشاء رابط دعوة عام ونسخه. افتح الحصة ثم أرسله لمن تريد.");
+  } catch (_) {
+    showToast("تم إنشاء الحصة العامة. انسخ الرابط من صفحة الحصة بعد فتحها.");
+  }
+
+  const publicWindow = window.open(hostUrl.toString(), "_blank");
+  if (publicWindow) publicWindow.opener = null;
+  else window.location.assign(hostUrl.toString());
+}
+
 if (!getTeacherToken()) {
   // getTeacherToken has already redirected; no protected initialization occurs.
 } else {
   elements.levelButtons.forEach((button) => {
     button.addEventListener("click", () => fetchStudents(button.dataset.level));
   });
+  elements.publicInviteButton?.addEventListener("click", () => { void createPublicInvite(); });
 
   elements.paymentStatusForm?.addEventListener("submit", savePaymentStatus);
   elements.paymentStatusStage?.addEventListener("change", syncPaymentAmountField);

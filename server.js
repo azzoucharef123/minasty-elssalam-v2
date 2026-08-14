@@ -11,6 +11,7 @@ const http = require("http");
 const cors = require("cors");
 const helmet = require("helmet");
 const path = require("path");
+const crypto = require("crypto");
 const { Server } = require("socket.io");
 const prisma = require("./lib/prisma");
 
@@ -173,6 +174,9 @@ const TEACHER_RECOVERY_GRACE_MS = 180_000;
  * Value shape: { role: "teacher" | "student", level: string, name: string }
  */
 const users = new Map();
+// Independent public invite rooms. They have no student registration, level,
+// payment, or subject information and exist only while the host is connected.
+const publicInviteRooms = new Map();
 
 const MAX_LEVEL_LENGTH = 100;
 const MAX_NAME_LENGTH = 120;
@@ -181,6 +185,7 @@ const UNIVERSITY_LEVEL = "طالب جامعي";
 const SCHOOL_SUBJECTS = new Set(["MATH", "PHYSICS"]);
 const UNIVERSITY_SUBSCRIPTION_TYPES = new Set(["PAID", "FREE"]);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const PUBLIC_ROOM_ID_PATTERN = /^[a-zA-Z0-9_-]{16,128}$/;
 
 /** Return a trimmed string, or an empty string for a non-string input. */
 function normalizeText(value) {
@@ -212,6 +217,21 @@ function normalizeChatMessage(value) {
 
 function isValidStudentId(studentId) {
   return UUID_PATTERN.test(studentId);
+}
+
+function isValidPublicRoomId(roomId) {
+  return PUBLIC_ROOM_ID_PATTERN.test(roomId);
+}
+
+function publicRoomName(roomId) {
+  return `public-invite:${roomId}`;
+}
+
+function isInSamePublicRoom(sourceSocket, targetSocket) {
+  return Boolean(
+    sourceSocket?.data?.publicRoomId &&
+      sourceSocket.data.publicRoomId === targetSocket?.data?.publicRoomId
+  );
 }
 
 function isValidSocketId(socketId) {
@@ -424,6 +444,138 @@ io.on("connection", (socket) => {
   socket.data.studentName = null;
   socket.data.studentId = null;
   socket.data.lobbyLevel = null;
+  socket.data.publicRoomId = null;
+  socket.data.publicRole = null;
+
+  /**
+   * Public invite room: independent from all academic level, payment, subject,
+   * and registration rules. The room owner shares screen/audio; visitors join
+   * anonymously and receive only the public WebRTC signals and chat messages.
+   */
+  socket.on("public_host_start", async (data = {}, acknowledgement) => {
+    const roomId = normalizeText(data.roomId);
+    const hostToken = normalizeText(data.hostToken);
+    if (!isValidPublicRoomId(roomId) || !isValidPublicRoomId(hostToken)) {
+      return emitClassroomError(socket, "public_host_start", "رابط الدعوة غير صالح.", acknowledgement);
+    }
+
+    const roomName = publicRoomName(roomId);
+    const existing = publicInviteRooms.get(roomId);
+    const existingHost = existing?.hostSocketId ? io.sockets.sockets.get(existing.hostSocketId) : null;
+    if (existingHost && existingHost.id !== socket.id) {
+      return emitClassroomError(socket, "public_host_start", "هذه الدعوة قيد الاستخدام بالفعل.", acknowledgement);
+    }
+    if (existing?.hostToken && existing.hostToken !== hostToken) {
+      return emitClassroomError(socket, "public_host_start", "رمز تحكم المضيف غير صالح.", acknowledgement);
+    }
+
+    await socket.join(roomName);
+    socket.data.publicRoomId = roomId;
+    socket.data.publicRole = "host";
+    publicInviteRooms.set(roomId, { hostSocketId: socket.id, hostToken });
+
+    const guests = (await io.in(roomName).fetchSockets())
+      .filter((peer) => peer.id !== socket.id && peer.data.publicRole === "guest")
+      .map((peer) => peer.id);
+    guests.forEach((guestSocketId) => {
+      socket.emit("public_guest_joined", { socketId: guestSocketId });
+    });
+    acknowledge(acknowledgement, { ok: true, roomId, guests });
+  });
+
+  socket.on("public_join_room", async (data = {}, acknowledgement) => {
+    const roomId = normalizeText(data.roomId);
+    if (!isValidPublicRoomId(roomId)) {
+      return emitClassroomError(socket, "public_join_room", "رابط الدعوة غير صالح.", acknowledgement);
+    }
+
+    const roomName = publicRoomName(roomId);
+    if (!publicInviteRooms.has(roomId)) {
+      publicInviteRooms.set(roomId, { hostSocketId: null, hostToken: null });
+    }
+    await socket.join(roomName);
+    socket.data.publicRoomId = roomId;
+    socket.data.publicRole = "guest";
+
+    const hostSocketId = publicInviteRooms.get(roomId)?.hostSocketId || null;
+    const hostSocket = hostSocketId ? io.sockets.sockets.get(hostSocketId) : null;
+    if (hostSocket && hostSocket.id !== socket.id) {
+      hostSocket.emit("public_guest_joined", { socketId: socket.id });
+    }
+    acknowledge(acknowledgement, { ok: true, roomId, isLive: Boolean(hostSocket) });
+  });
+
+  socket.on("public_webrtc_offer", (data = {}, acknowledgement) => {
+    const targetSocketId = normalizeText(data.targetSocketId);
+    const targetSocket = io.sockets.sockets.get(targetSocketId);
+    if (
+      socket.data.publicRole !== "host" ||
+      !targetSocket ||
+      !isInSamePublicRoom(socket, targetSocket) ||
+      !isValidSessionDescription(data.sdp)
+    ) {
+      return emitClassroomError(socket, "public_webrtc_offer", "تعذر إرسال بث الدعوة العامة.", acknowledgement);
+    }
+    targetSocket.emit("public_webrtc_offer", { fromSocketId: socket.id, sdp: data.sdp });
+    acknowledge(acknowledgement, { ok: true });
+  });
+
+  socket.on("public_webrtc_answer", (data = {}, acknowledgement) => {
+    const targetSocketId = normalizeText(data.targetSocketId);
+    const targetSocket = io.sockets.sockets.get(targetSocketId);
+    if (
+      socket.data.publicRole !== "guest" ||
+      !targetSocket ||
+      !isInSamePublicRoom(socket, targetSocket) ||
+      !isValidSessionDescription(data.sdp)
+    ) {
+      return emitClassroomError(socket, "public_webrtc_answer", "تعذر تأكيد بث الدعوة العامة.", acknowledgement);
+    }
+    targetSocket.emit("public_webrtc_answer", { fromSocketId: socket.id, sdp: data.sdp });
+    acknowledge(acknowledgement, { ok: true });
+  });
+
+  socket.on("public_webrtc_ice", (data = {}, acknowledgement) => {
+    const targetSocketId = normalizeText(data.targetSocketId);
+    const targetSocket = io.sockets.sockets.get(targetSocketId);
+    if (!targetSocket || !isInSamePublicRoom(socket, targetSocket) || !isValidIceCandidate(data.candidate)) {
+      return emitClassroomError(socket, "public_webrtc_ice", "تعذر ربط بث الدعوة العامة.", acknowledgement);
+    }
+    targetSocket.emit("public_webrtc_ice", { fromSocketId: socket.id, candidate: data.candidate });
+    acknowledge(acknowledgement, { ok: true });
+  });
+
+  socket.on("public_chat_message", (data = {}, acknowledgement) => {
+    const message = normalizeChatMessage(data.message);
+    const roomId = socket.data.publicRoomId;
+    if (!roomId || !message) {
+      return emitClassroomError(socket, "public_chat_message", "تعذر إرسال الرسالة.", acknowledgement);
+    }
+    io.to(publicRoomName(roomId)).emit("public_chat_message", {
+      sender: socket.data.publicRole === "host" ? "الأستاذ" : "ضيف",
+      message,
+      sentAt: new Date().toISOString(),
+    });
+    acknowledge(acknowledgement, { ok: true });
+  });
+
+  socket.on("public_host_end", async (_data = {}, acknowledgement) => {
+    const roomId = socket.data.publicRoomId;
+    const room = roomId ? publicInviteRooms.get(roomId) : null;
+    if (!roomId || socket.data.publicRole !== "host" || room?.hostSocketId !== socket.id) {
+      return emitClassroomError(socket, "public_host_end", "لا تملك صلاحية إنهاء هذه الدعوة.", acknowledgement);
+    }
+    const roomName = publicRoomName(roomId);
+    publicInviteRooms.delete(roomId);
+    io.to(roomName).emit("public_room_ended", { roomId });
+    const peers = await io.in(roomName).fetchSockets();
+    await Promise.all(peers.map(async (peer) => {
+      await peer.leave(roomName);
+      peer.data.publicRoomId = null;
+      peer.data.publicRole = null;
+    }));
+    acknowledge(acknowledgement, { ok: true });
+  });
 
   /**
    * Parent dashboards observe a passive room for the student's level. Lobby
@@ -1498,6 +1650,19 @@ io.on("connection", (socket) => {
    * the existing class-close path removes every remaining socket and record.
    */
   socket.on("disconnect", (reason) => {
+    const publicRoomId = socket.data.publicRoomId;
+    const publicRole = socket.data.publicRole;
+    if (publicRoomId) {
+      const roomName = publicRoomName(publicRoomId);
+      const publicRoom = publicInviteRooms.get(publicRoomId);
+      if (publicRole === "host" && publicRoom?.hostSocketId === socket.id) {
+        publicInviteRooms.delete(publicRoomId);
+        io.to(roomName).emit("public_room_ended", { roomId: publicRoomId });
+      } else if (publicRole === "guest" && publicRoom?.hostSocketId) {
+        io.to(publicRoom.hostSocketId).emit("public_guest_left", { socketId: socket.id });
+      }
+    }
+
     const user = users.get(socket.id);
     users.delete(socket.id);
     console.info(`[Socket.io] Client disconnected: ${socket.id} (${reason})`);

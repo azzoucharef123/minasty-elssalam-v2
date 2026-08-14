@@ -1194,3 +1194,22 @@ body.parent-login-modal-open {
   line-height: 1;
   cursor: pointer;
 }
+
+/* Public invite action in the teacher dashboard */
+.topbar-public-invite {
+  min-height: 2.45rem;
+  padding: 0.48rem 0.85rem;
+  color: #dbeafe;
+  border: 1px solid rgba(147, 197, 253, 0.5);
+  border-radius: 0.72rem;
+  background: rgba(37, 99, 235, 0.2);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.topbar-public-invite:hover {
+  background: rgba(37, 99, 235, 0.42);
+  transform: translateY(-1px);
+}
