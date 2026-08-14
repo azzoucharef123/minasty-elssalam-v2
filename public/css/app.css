@@ -614,3 +614,47 @@ body.parent-login-modal-open {
 @media (max-width: 980px) { .bento-live-card { grid-column: span 7; }.bento-stats-card { grid-column: span 5; }.bento-payment-card { grid-column: span 4; }.bento-subject-card { grid-column: span 4; }.bento-quick-card { grid-column: span 4; }.bento-activity-card { grid-column: span 12; min-height: 9.5rem; }.bento-activity-card p { max-width: 65%; } }
 @media (max-width: 720px) { .teacher-topbar { padding: 0.72rem 1rem; }.teacher-presence { display: none; }.teacher-workspace { width: min(94%, 38rem); padding-top: 1.45rem; }.teacher-welcome,.roster-heading { align-items: stretch; flex-direction: column; }.welcome-side { justify-items: stretch; }.dashboard-date { text-align: right; }.welcome-live-cta,.roster-studio-link { justify-content: center; }.bento-live-card,.bento-stats-card,.bento-payment-card,.bento-subject-card,.bento-quick-card,.bento-activity-card { grid-column: span 12; }.bento-activity-card p { max-width: 100%; }.roster-toolbar { grid-template-columns: 1fr; }.filtered-results-label { justify-self: start; }.teacher-roster { padding: 1rem; } }
 @media (max-width: 490px) { .teacher-brand small,.topbar-logout { display: none; }.teacher-topbar-actions { gap: 0.35rem; }.topbar-studio-link { font-size: 0.69rem; }.bento-card { padding: 1.1rem; }.bento-stat-row { margin-top: 1rem; }.quick-action-grid { grid-template-columns: 1fr; }.teacher-level-tabs { gap: 0.45rem; }.teacher-level-tabs .level-btn { padding: 0.55rem 0.7rem; }.table-status { display: none; } }
+
+/* Teacher roster: university card review and account activation */
+.teacher-student-identity {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.teacher-account-status {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  width: fit-content;
+  padding: 0.2rem 0.48rem;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.teacher-account-status.is-active {
+  color: #047857;
+  background: #ecfdf5;
+}
+
+.teacher-account-status.is-inactive {
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.card-reupload-btn {
+  color: #9a3412;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+}
+
+.card-reupload-btn:hover:not(:disabled) {
+  color: #ffffff;
+  background: #c2410c;
+}
+
+.card-reupload-btn:disabled {
+  opacity: 0.68;
+  cursor: not-allowed;
+}

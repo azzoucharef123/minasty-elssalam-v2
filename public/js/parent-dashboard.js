@@ -11,6 +11,10 @@ const elements = {
   studentAvatar: document.getElementById("student-avatar"),
   studentName: document.getElementById("student-name"),
   studentLevel: document.getElementById("student-level"),
+  accountStatus: document.getElementById("account-status"),
+  cardReuploadPanel: document.getElementById("card-reupload-panel"),
+  replacementCardInput: document.getElementById("replacement-card-input"),
+  replacementCardButton: document.getElementById("replacement-card-button"),
   paymentStatus: document.getElementById("payment-status"),
   logoutButton: document.getElementById("logout-btn"),
   materialsList: document.getElementById("materials-list"),
@@ -186,6 +190,18 @@ function renderStudent(student) {
   if (elements.universityDashboardLink) {
     elements.universityDashboardLink.hidden = student.level !== "طالب جامعي";
   }
+  const accountActive = student.accountActive !== false && !student.cardReuploadRequested;
+  if (elements.accountStatus) {
+    elements.accountStatus.textContent = accountActive ? "حساب مفعل" : "حساب غير مفعل";
+    elements.accountStatus.classList.toggle("is-active", accountActive);
+    elements.accountStatus.classList.toggle("is-inactive", !accountActive);
+  }
+  if (elements.cardReuploadPanel) {
+    elements.cardReuploadPanel.hidden = !(
+      student.level === "طالب جامعي" && Boolean(student.cardReuploadRequested)
+    );
+  }
+
   const paymentStage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
   const isPaid = paymentStage === "PAID";
   elements.paymentStatus.textContent = isPaid ? "اشتراك مدفوع" : "اشتراك مجاني";
@@ -507,6 +523,44 @@ function refreshAccessAfterReturningFromCall() {
   }, 450);
 }
 
+async function uploadReplacementCard() {
+  const file = elements.replacementCardInput?.files?.[0];
+  if (!file || !currentStudent) {
+    return;
+  }
+
+  const originalLabel = elements.replacementCardButton?.textContent;
+  if (elements.replacementCardButton) {
+    elements.replacementCardButton.disabled = true;
+    elements.replacementCardButton.textContent = "جارٍ رفع البطاقة…";
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append("cardPhoto", file);
+    const response = await parentFetch(
+      `/api/students/${encodeURIComponent(currentStudent.id)}/card-photo`,
+      { method: "POST", body: formData }
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "تعذر رفع البطاقة الجديدة.");
+    }
+
+    elements.replacementCardInput.value = "";
+    await loadDashboard({ backgroundRefresh: true });
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) {
+      showError(error.message || "تعذر رفع البطاقة الجديدة.");
+    }
+  } finally {
+    if (elements.replacementCardButton) {
+      elements.replacementCardButton.disabled = false;
+      elements.replacementCardButton.textContent = originalLabel || "رفع بطاقة جديدة";
+    }
+  }
+}
+
 function logout() {
   clearParentSession();
   window.location.replace("./parent-login.html");
@@ -553,6 +607,14 @@ function initializeLobbySocket() {
     void loadDashboard({ backgroundRefresh: true });
   });
 
+  socket.on("student_account_status_updated", (data = {}) => {
+    if (!currentStudent || data.studentId !== currentStudent.id) {
+      return;
+    }
+
+    void loadDashboard({ backgroundRefresh: true });
+  });
+
   socket.on("disconnect", () => {
     // Never leave an unverified positive state visible while the status socket
     // is unavailable. The ACK restores it once Socket.io reconnects.
@@ -571,6 +633,12 @@ if (!getParentToken()) {
 } else {
   elements.joinLiveClassButton?.addEventListener("click", () => {
     void enterLiveClass();
+  });
+  elements.replacementCardButton?.addEventListener("click", () => {
+    elements.replacementCardInput?.click();
+  });
+  elements.replacementCardInput?.addEventListener("change", () => {
+    void uploadReplacementCard();
   });
   elements.logoutButton?.addEventListener("click", logout);
   elements.callTeacherNowButton?.addEventListener("click", () => {

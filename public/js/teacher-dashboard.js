@@ -91,6 +91,13 @@ function paymentStageMeta(student) {
     : { label: "اشتراك مجاني", className: "is-unpaid" };
 }
 
+function accountStatusMeta(student) {
+  const active = student.accountActive !== false && !student.cardReuploadRequested;
+  return active
+    ? { label: "حساب مفعل", className: "is-active" }
+    : { label: "حساب غير مفعل", className: "is-inactive" };
+}
+
 function showToast(message) {
   if (!elements.toast) {
     return;
@@ -250,6 +257,29 @@ function renderTable(studentsArray) {
       deleteButton
     );
 
+    const identity = document.createElement("div");
+    identity.className = "teacher-student-identity";
+    const studentName = document.createElement("strong");
+    studentName.textContent = student.studentName;
+    const accountStatus = document.createElement("span");
+    const accountMeta = accountStatusMeta(student);
+    accountStatus.className = `teacher-account-status ${accountMeta.className}`;
+    accountStatus.textContent = accountMeta.label;
+    identity.append(studentName, accountStatus);
+
+    if (student.level === "طالب جامعي") {
+      const reuploadButton = createButton(
+        student.cardReuploadRequested ? "تم طلب إعادة الرفع" : "أعد رفع البطاقة",
+        "card-reupload-btn",
+        () => requestCardReupload(student.id)
+      );
+      reuploadButton.disabled = Boolean(student.cardReuploadRequested);
+      reuploadButton.title = student.cardReuploadRequested
+        ? "ينتظر رفع الطالب للصورة الجديدة"
+        : "اطلب من الطالب رفع صورة أوضح للبطاقة";
+      actionGroup.append(reuploadButton);
+    }
+
     const cardCell = document.createElement("td");
     cardCell.className = "card-photo-cell";
     if (student.cardPhotoUrl) {
@@ -266,7 +296,7 @@ function renderTable(studentsArray) {
     }
 
     row.append(
-      createCell(student.studentName),
+      createCell(identity),
       createCell(student.parentPhone, "phone-cell"),
       createCell(paymentButton, "payment-cell"),
       cardCell,
@@ -422,6 +452,27 @@ async function updateStudent(studentId, updates) {
   }
 
   return data;
+}
+
+async function requestCardReupload(studentId) {
+  try {
+    const response = await teacherFetch(
+      `/api/students/${encodeURIComponent(studentId)}/request-card-reupload`,
+      { method: "PUT", headers: { Accept: "application/json" } }
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "تعذر إرسال طلب إعادة رفع البطاقة.");
+    }
+
+    showToast(payload.message || "تم إرسال طلب إعادة رفع البطاقة.");
+    await fetchStudents(currentLevel);
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) {
+      console.error("Unable to request card reupload:", error);
+      showDashboardError(error.message || "تعذر إرسال طلب إعادة رفع البطاقة.");
+    }
+  }
 }
 
 async function toggleLiveAccess(studentId) {

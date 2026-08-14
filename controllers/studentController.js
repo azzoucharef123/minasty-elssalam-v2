@@ -286,6 +286,103 @@ async function removeUploadedCard(filename) {
   }
 }
 
+function notifyAccountStatus(req, student) {
+  const io = req.app.get("io");
+  io?.to(`${student.level}_lobby`).emit("student_account_status_updated", {
+    studentId: student.id,
+    accountActive: student.accountActive,
+    cardReuploadRequested: student.cardReuploadRequested,
+  });
+}
+
+/** PUT /api/students/:id/request-card-reupload — teacher-only. */
+async function requestStudentCardReupload(req, res) {
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, level: true },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: "التلميذ غير موجود." });
+    }
+
+    if (student.level !== "طالب جامعي") {
+      return res.status(400).json({ error: "إعادة رفع البطاقة متاحة للطالب الجامعي فقط." });
+    }
+
+    const updatedStudent = await prisma.student.update({
+      where: { id: student.id },
+      data: { accountActive: false, cardReuploadRequested: true },
+    });
+    notifyAccountStatus(req, updatedStudent);
+
+    return res.status(200).json({
+      status: "success",
+      message: "تم إرسال طلب إعادة رفع البطاقة للطالب.",
+      data: updatedStudent,
+    });
+  } catch (error) {
+    console.error("Card reupload request failed:", error);
+    return res.status(500).json({ error: "تعذر إرسال طلب إعادة رفع البطاقة حالياً." });
+  }
+}
+
+/** POST /api/students/:id/card-photo — owning parent uploads a replacement card. */
+async function replaceStudentCard(req, res) {
+  const uploadedCardFile = req.file;
+
+  try {
+    if (!uploadedCardFile?.filename) {
+      return res.status(400).json({ error: "اختر صورة بطاقة بصيغة JPG أو PNG أولاً." });
+    }
+
+    const student = await prisma.student.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        parentPhone: true,
+        level: true,
+        cardPhotoUrl: true,
+        cardReuploadRequested: true,
+      },
+    });
+
+    if (!student || student.parentPhone !== req.user?.phone) {
+      await removeUploadedCard(uploadedCardFile.filename);
+      return res.status(403).json({ error: "لا تملك صلاحية تحديث بطاقة هذا الطالب." });
+    }
+
+    if (student.level !== "طالب جامعي" || !student.cardReuploadRequested) {
+      await removeUploadedCard(uploadedCardFile.filename);
+      return res.status(400).json({ error: "لم يطلب الأستاذ إعادة رفع بطاقة هذا الطالب." });
+    }
+
+    const updatedStudent = await prisma.student.update({
+      where: { id: student.id },
+      data: {
+        cardPhotoUrl: uploadedCardFile.filename,
+        accountActive: true,
+        cardReuploadRequested: false,
+      },
+    });
+    await removeUploadedCard(student.cardPhotoUrl);
+    notifyAccountStatus(req, updatedStudent);
+
+    return res.status(200).json({
+      status: "success",
+      message: "تم رفع البطاقة الجديدة بنجاح.",
+      data: updatedStudent,
+    });
+  } catch (error) {
+    if (uploadedCardFile?.filename) {
+      await removeUploadedCard(uploadedCardFile.filename);
+    }
+    console.error("Student card replacement failed:", error);
+    return res.status(500).json({ error: "تعذر رفع البطاقة الجديدة حالياً." });
+  }
+}
+
 /** DELETE /api/students/:id — teacher-only user deletion. */
 async function deleteStudent(req, res) {
   try {
@@ -397,5 +494,7 @@ module.exports = {
   getStudentCard,
   getStudentsByLevel,
   updateStudentStatusAndNotes,
+  requestStudentCardReupload,
+  replaceStudentCard,
   deleteStudent,
 };

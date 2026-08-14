@@ -439,9 +439,34 @@
       }
 
       .student-card h2 {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.45rem;
         margin: 0;
         font-size: 1.03rem;
         font-weight: 800;
+      }
+
+      .account-status-chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: 1.55rem;
+        padding: 0.2rem 0.48rem;
+        border-radius: 999px;
+        font-size: 0.64rem;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .account-status-chip.is-active {
+        color: #047857;
+        background: #ecfdf5;
+      }
+
+      .account-status-chip.is-inactive {
+        color: #b91c1c;
+        background: #fef2f2;
       }
 
       .student-card p {
@@ -550,6 +575,55 @@
         font-weight: 500;
         line-height: 1.9;
         white-space: pre-wrap;
+      }
+
+      .card-reupload-panel[hidden] {
+        display: none;
+      }
+
+      .card-reupload-panel {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.9rem;
+        margin: 0 0 1rem;
+        padding: 1rem 1.1rem;
+        color: #7f1d1d;
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        border-radius: 1rem;
+      }
+
+      .card-reupload-panel strong,
+      .card-reupload-panel p {
+        display: block;
+        margin: 0;
+      }
+
+      .card-reupload-panel strong {
+        font-size: 0.9rem;
+      }
+
+      .card-reupload-panel p {
+        margin-top: 0.25rem;
+        color: #9a3412;
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1.75;
+      }
+
+      .card-reupload-action {
+        min-height: 2.65rem;
+        padding: 0.55rem 0.8rem;
+        color: #ffffff;
+        background: #b91c1c;
+        border: 0;
+        border-radius: 0.68rem;
+        font: inherit;
+        font-size: 0.76rem;
+        font-weight: 800;
+        cursor: pointer;
+        white-space: nowrap;
       }
 
       .payment-access-modal[hidden] {
@@ -712,9 +786,16 @@
           width: 100%;
         }
 
-        .student-overview,
-        .notes-grid {
+        .student-overview {
           grid-template-columns: 1fr;
+        }
+
+        .card-reupload-panel {
+          grid-template-columns: 1fr;
+        }
+
+        .card-reupload-action {
+          width: 100%;
         }
       }
 
@@ -787,7 +868,7 @@
           <article class="overview-card student-card">
             <span id="student-avatar" class="student-avatar" aria-hidden="true">ت</span>
             <div>
-              <h2 id="student-name">—</h2>
+              <h2><span id="student-name">—</span><span id="account-status" class="account-status-chip">—</span></h2>
               <p>المستوى الدراسي: <span id="student-level">—</span></p>
               <a id="university-dashboard-link" class="university-dashboard-link" href="./university-dashboard.html" hidden>فتح لوحة الطالب الجامعي</a>
             </div>
@@ -798,6 +879,15 @@
             <strong id="payment-status">—</strong>
           </article>
         </div>
+
+        <section id="card-reupload-panel" class="card-reupload-panel" hidden aria-live="polite">
+          <div>
+            <strong>يجب إعادة رفع بطاقة الطالب</strong>
+            <p>طلب الأستاذ صورة أوضح للبطاقة. التقط صورة واضحة ثم ارفعها من هنا.</p>
+          </div>
+          <input id="replacement-card-input" type="file" accept="image/jpeg,image/png" capture="environment" hidden />
+          <button id="replacement-card-button" class="card-reupload-action" type="button">رفع بطاقة جديدة</button>
+        </section>
       </section>
     </main>
 

@@ -120,6 +120,8 @@ async function parentLogin(req, res) {
         physicsEnrollment: true,
         liveAccessEnabled: true,
         cardPhotoUrl: true,
+        accountActive: true,
+        cardReuploadRequested: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -168,6 +170,8 @@ async function parentLogin(req, res) {
         physicsEnrollment: s.physicsEnrollment,
         liveAccessEnabled: s.liveAccessEnabled,
         cardPhotoUrl: s.cardPhotoUrl,
+        accountActive: s.accountActive,
+        cardReuploadRequested: s.cardReuploadRequested,
       })),
     });
   } catch (error) {
