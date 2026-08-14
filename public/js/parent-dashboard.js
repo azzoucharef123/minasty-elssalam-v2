@@ -284,6 +284,12 @@ function selectStudent(studentId) {
   void loadParentSchedule(student.level);
 }
 
+function secondarySubscriptionLabel(student) {
+  if (student.mathEnrollment && student.physicsEnrollment) return "فيزياء ورياضيات";
+  if (student.physicsEnrollment) return "فيزياء فقط";
+  return "رياضيات فقط";
+}
+
 function renderUniversityPaymentUpgrade(student, isPaidSubscription) {
   const isUniversityStudent = student.level === "طالب جامعي";
   const receiptPending = Boolean(student.paymentReceiptPending);
@@ -351,9 +357,12 @@ function renderStudent(student) {
 
   const paymentStage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
   const isPaid = paymentStage === "PAID";
-  elements.paymentStatus.textContent = isPaid ? "اشتراك مدفوع" : "اشتراك مجاني";
-  elements.paymentStatus.classList.toggle("is-paid", isPaid);
-  elements.paymentStatus.classList.toggle("is-free", !isPaid);
+  elements.paymentStatus.textContent = isUniversityStudent
+    ? isPaid ? "اشتراك مدفوع" : "اشتراك مجاني"
+    : secondarySubscriptionLabel(student);
+  elements.paymentStatus.classList.toggle("is-paid", isUniversityStudent && isPaid);
+  elements.paymentStatus.classList.toggle("is-free", isUniversityStudent && !isPaid);
+  elements.paymentStatus.classList.toggle("is-subject", !isUniversityStudent);
   renderUniversityPaymentUpgrade(student, isPaid);
 }
 

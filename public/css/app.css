@@ -1032,14 +1032,22 @@ body.parent-login-modal-open {
 }
 
 .teacher-absence-notice {
-  margin: 0.8rem 0 0;
-  padding: 0.72rem 0.8rem;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
-  border-radius: 0.7rem;
-  background: #fff1f2;
-  font-size: 0.78rem;
-  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 7.5rem;
+  margin: 0.9rem 0 0;
+  padding: 1rem;
+  color: #fef08a;
+  border: 2px solid #fecaca;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, #991b1b, #dc2626);
+  box-shadow: 0 14px 30px rgba(185, 28, 28, 0.22);
+  text-align: center;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+  font-size: clamp(1rem, 4vw, 1.35rem);
+  font-weight: 900;
+  line-height: 1.8;
 }
 
 .parent-schedule-list {

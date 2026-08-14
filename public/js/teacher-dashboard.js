@@ -26,6 +26,7 @@ const elements = {
   subscriptionForm: document.getElementById("subscription-form"),
   subscriptionStudentName: document.getElementById("subscription-student-name"),
   subscriptionPaymentStage: document.getElementById("subscription-payment-stage"),
+  subscriptionTypeLabel: document.getElementById("subscription-type-label"),
   subscriptionLiveAccess: document.getElementById("subscription-live-access"),
   closeSubscriptionButton: document.getElementById("close-subscription-modal"),
   dashboardDate: document.getElementById("dashboard-date"),
@@ -96,7 +97,22 @@ function showDashboardError(message = "") {
   elements.dashboardError.classList.toggle("is-visible", Boolean(message));
 }
 
+function secondarySubscriptionMode(student) {
+  if (student.mathEnrollment && student.physicsEnrollment) return "BOTH";
+  if (student.physicsEnrollment) return "PHYSICS";
+  return "MATH";
+}
+
 function paymentStageMeta(student) {
+  if (student.level !== "طالب جامعي") {
+    const mode = secondarySubscriptionMode(student);
+    return mode === "BOTH"
+      ? { label: "فيزياء ورياضيات", className: "is-paid" }
+      : mode === "PHYSICS"
+        ? { label: "فيزياء فقط", className: "is-unpaid" }
+        : { label: "رياضيات فقط", className: "is-unpaid" };
+  }
+
   const stage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
   return stage === "PAID"
     ? { label: "اشتراك مدفوع", className: "is-paid" }
@@ -689,10 +705,10 @@ async function updateStudent(studentId, updates) {
         ? updates.paymentStage
         : student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID"),
     amountDue: null,
-    // مواد الحصص تبقى مفعلة في الخلفية لتوافق البث المباشر، لكنها لا تظهر
-    // كخيار اشتراك في لوحة الأستاذ أو الطالب.
-    mathEnrollment: true,
-    physicsEnrollment: true,
+    mathEnrollment:
+      typeof updates.mathEnrollment === "boolean" ? updates.mathEnrollment : Boolean(student.mathEnrollment),
+    physicsEnrollment:
+      typeof updates.physicsEnrollment === "boolean" ? updates.physicsEnrollment : Boolean(student.physicsEnrollment),
     liveAccessEnabled:
       typeof updates.liveAccessEnabled === "boolean"
         ? updates.liveAccessEnabled
@@ -779,6 +795,35 @@ async function toggleLiveAccess(studentId) {
   }
 }
 
+function configureSubscriptionTypeOptions(student) {
+  if (!elements.subscriptionPaymentStage) return;
+  const isUniversityStudent = student.level === "طالب جامعي";
+  const options = isUniversityStudent
+    ? [
+        { value: "PAID", label: "اشتراك مدفوع" },
+        { value: "UNPAID", label: "اشتراك مجاني" },
+      ]
+    : [
+        { value: "BOTH", label: "فيزياء ورياضيات" },
+        { value: "PHYSICS", label: "فيزياء فقط" },
+        { value: "MATH", label: "رياضيات فقط" },
+      ];
+
+  elements.subscriptionPaymentStage.replaceChildren();
+  options.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = item.value;
+    option.textContent = item.label;
+    elements.subscriptionPaymentStage.append(option);
+  });
+  if (elements.subscriptionTypeLabel) {
+    elements.subscriptionTypeLabel.firstChild.textContent = isUniversityStudent ? "نوع اشتراك الجامعة" : "اشتراك الحصص";
+  }
+  elements.subscriptionPaymentStage.value = isUniversityStudent
+    ? student.paymentStage === "PAID" || student.paymentStatus ? "PAID" : "UNPAID"
+    : secondarySubscriptionMode(student);
+}
+
 function openSubscriptionModal(studentId) {
   const student = currentStudents.find((item) => item.id === studentId);
   if (!student || !elements.subscriptionModal) {
@@ -787,8 +832,7 @@ function openSubscriptionModal(studentId) {
 
   subscriptionStudentId = studentId;
   elements.subscriptionStudentName.textContent = student.studentName;
-  elements.subscriptionPaymentStage.value =
-    student.paymentStage === "PAID" || student.paymentStatus ? "PAID" : "UNPAID";
+  configureSubscriptionTypeOptions(student);
   elements.subscriptionLiveAccess.checked = Boolean(student.liveAccessEnabled);
   elements.subscriptionModal.hidden = false;
   elements.subscriptionModal.classList.add("is-open");
@@ -808,7 +852,20 @@ async function saveSubscription(event) {
     return;
   }
 
-  const paymentStage = elements.subscriptionPaymentStage.value;
+  const student = currentStudents.find((item) => item.id === subscriptionStudentId);
+  if (!student) return;
+  const selectedMode = elements.subscriptionPaymentStage.value;
+  const isUniversityStudent = student.level === "طالب جامعي";
+  const enrollment = isUniversityStudent
+    ? { mathEnrollment: true, physicsEnrollment: true }
+    : selectedMode === "BOTH"
+      ? { mathEnrollment: true, physicsEnrollment: true }
+      : selectedMode === "PHYSICS"
+        ? { mathEnrollment: false, physicsEnrollment: true }
+        : { mathEnrollment: true, physicsEnrollment: false };
+  const paymentStage = isUniversityStudent
+    ? selectedMode
+    : student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
 
   const submitButton = elements.subscriptionForm?.querySelector("button[type='submit']");
   if (submitButton) submitButton.disabled = true;
@@ -816,6 +873,7 @@ async function saveSubscription(event) {
   try {
     await updateStudent(subscriptionStudentId, {
       paymentStage,
+      ...enrollment,
       liveAccessEnabled: Boolean(elements.subscriptionLiveAccess?.checked),
     });
     closeSubscriptionModal();
