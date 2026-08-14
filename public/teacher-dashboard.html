@@ -130,7 +130,7 @@
 
       <section class="table-card teacher-table-card">
         <div class="table-title"><div><span class="table-kicker">المستوى المختار</span><h2 id="current-level-title">السنة الأولى</h2></div><span class="table-status"><i></i>تحديث مباشر</span></div>
-        <div class="table-wrap"><table><thead><tr><th>التلميذ</th><th>رقم الولي</th><th>نوع الاشتراك</th><th>بطاقة الطالب</th><th>الإجراءات</th></tr></thead><tbody id="students-table-body"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>التلميذ</th><th>رقم الولي</th><th>نوع الاشتراك</th><th id="student-payment-heading">بطاقة الطالب</th><th>الإجراءات</th></tr></thead><tbody id="students-table-body"></tbody></table></div>
         <p id="table-empty-state" hidden>لا يوجد تلاميذ مسجلون في هذا المستوى حالياً.</p>
       </section>
     </section>
@@ -138,6 +138,7 @@
 
   <div id="attendance-modal" class="modal" hidden><div class="modal-card"><button id="close-attendance-modal" class="modal-close" type="button">×</button><h2>سجل حضور <span id="attendance-student-name"></span></h2><p id="attendance-empty" hidden>لا توجد سجلات حضور بعد.</p><ul id="attendance-list" class="attendance-list"></ul></div></div>
   <div id="subscription-modal" class="modal" hidden><div class="modal-card"><button id="close-subscription-modal" class="modal-close" type="button">×</button><p class="eyebrow">إعدادات الاشتراك</p><h2 id="subscription-student-name">التلميذ</h2><form id="subscription-form" class="stack-form"><label id="subscription-type-label">نوع الاشتراك<select id="subscription-payment-stage" required><option value="PAID">اشتراك مدفوع</option><option value="UNPAID">اشتراك مجاني</option></select></label><label><input id="subscription-live-access" type="checkbox" /> السماح بدخول الحصة المباشرة</label><button class="cta-button cta-primary" type="submit">حفظ الاشتراك</button></form></div></div>
+  <div id="payment-status-modal" class="modal" hidden><div class="modal-card"><button id="close-payment-status-modal" class="modal-close" type="button">×</button><p class="eyebrow">قرار حالة الدفع</p><h2 id="payment-status-student-name">التلميذ</h2><form id="payment-status-form" class="stack-form"><label>حالة الدفع<select id="payment-status-stage" required><option value="PAID">تم تأكيد الدفع</option><option value="PROMISED">الوعد بالدفع</option><option value="UNPAID">لم يتم الدفع</option></select></label><label id="payment-amount-field">القيمة بالدينار الجزائري<input id="payment-status-amount" type="number" min="0" step="1" inputmode="numeric" placeholder="مثال: 2000" /></label><button class="cta-button cta-primary" type="submit">حفظ حالة الدفع</button></form></div></div>
   <div id="toast" class="toast" hidden></div>
   <script src="./js/teacher-dashboard.js"></script>
 </body>

@@ -43,6 +43,14 @@ const elements = {
   focusStudentSearchButton: document.getElementById("focus-student-search"),
   jumpToRosterButton: document.getElementById("jump-to-roster"),
   studentsPanel: document.getElementById("students-panel"),
+  studentPaymentHeading: document.getElementById("student-payment-heading"),
+  paymentStatusModal: document.getElementById("payment-status-modal"),
+  paymentStatusForm: document.getElementById("payment-status-form"),
+  paymentStatusStudentName: document.getElementById("payment-status-student-name"),
+  paymentStatusStage: document.getElementById("payment-status-stage"),
+  paymentStatusAmount: document.getElementById("payment-status-amount"),
+  paymentAmountField: document.getElementById("payment-amount-field"),
+  closePaymentStatusButton: document.getElementById("close-payment-status-modal"),
   scheduleForm: document.getElementById("schedule-form"),
   scheduleSubject: document.getElementById("schedule-subject"),
   scheduleDateTime: document.getElementById("schedule-datetime"),
@@ -64,6 +72,7 @@ let toastTimer = null;
 let scheduledClasses = [];
 let teacherAbsent = false;
 let editingScheduledClassId = null;
+let paymentStatusStudentId = null;
 
 function clearTeacherSession() {
   sessionStorage.removeItem(TEACHER_TOKEN_KEY);
@@ -117,6 +126,18 @@ function paymentStageMeta(student) {
   return stage === "PAID"
     ? { label: "اشتراك مدفوع", className: "is-paid" }
     : { label: "اشتراك مجاني", className: "is-unpaid" };
+}
+
+function secondaryPaymentStatusMeta(student) {
+  const stage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
+  const amount = Number.isSafeInteger(student.amountDue) && student.amountDue > 0
+    ? ` — ${student.amountDue.toLocaleString("ar-DZ")} دج`
+    : "";
+  return stage === "PAID"
+    ? { label: `تم تأكيد الدفع${amount}`, className: "is-paid" }
+    : stage === "PROMISED"
+      ? { label: `الوعد بالدفع${amount}`, className: "is-promised" }
+      : { label: "لم يتم الدفع", className: "is-unpaid" };
 }
 
 function accountStatusMeta(student) {
@@ -189,6 +210,9 @@ function setCurrentLevelHeading(level) {
   }
   if (elements.bentoCurrentLevel) {
     elements.bentoCurrentLevel.textContent = level;
+  }
+  if (elements.studentPaymentHeading) {
+    elements.studentPaymentHeading.textContent = level === "طالب جامعي" ? "بطاقة الطالب" : "حالة الدفع";
   }
 }
 
@@ -479,7 +503,16 @@ function renderTable(studentsArray) {
 
     const cardCell = document.createElement("td");
     cardCell.className = "card-photo-cell";
-    if (student.cardPhotoUrl) {
+    if (student.level !== "طالب جامعي") {
+      const paymentStatusMeta = secondaryPaymentStatusMeta(student);
+      const paymentStatusButton = createButton(
+        paymentStatusMeta.label,
+        `secondary-payment-status ${paymentStatusMeta.className}`,
+        () => openPaymentStatusModal(student.id)
+      );
+      paymentStatusButton.title = "اضغط لتحديد حالة الدفع والقيمة";
+      cardCell.append(paymentStatusButton);
+    } else if (student.cardPhotoUrl) {
       const cardButton = createButton(
         "عرض البطاقة",
         "card-view-btn",
@@ -704,7 +737,10 @@ async function updateStudent(studentId, updates) {
       typeof updates.paymentStage === "string"
         ? updates.paymentStage
         : student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID"),
-    amountDue: null,
+    amountDue:
+      Object.prototype.hasOwnProperty.call(updates, "amountDue")
+        ? updates.amountDue
+        : student.amountDue ?? null,
     mathEnrollment:
       typeof updates.mathEnrollment === "boolean" ? updates.mathEnrollment : Boolean(student.mathEnrollment),
     physicsEnrollment:
@@ -822,6 +858,67 @@ function configureSubscriptionTypeOptions(student) {
   elements.subscriptionPaymentStage.value = isUniversityStudent
     ? student.paymentStage === "PAID" || student.paymentStatus ? "PAID" : "UNPAID"
     : secondarySubscriptionMode(student);
+}
+
+function syncPaymentAmountField() {
+  const needsAmount = elements.paymentStatusStage?.value !== "UNPAID";
+  if (elements.paymentAmountField) elements.paymentAmountField.hidden = !needsAmount;
+  if (elements.paymentStatusAmount) {
+    elements.paymentStatusAmount.required = needsAmount;
+    if (!needsAmount) elements.paymentStatusAmount.value = "";
+  }
+}
+
+function openPaymentStatusModal(studentId) {
+  const student = currentStudents.find((item) => item.id === studentId);
+  if (!student || student.level === "طالب جامعي" || !elements.paymentStatusModal) return;
+
+  paymentStatusStudentId = studentId;
+  elements.paymentStatusStudentName.textContent = student.studentName;
+  elements.paymentStatusStage.value = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
+  elements.paymentStatusAmount.value = Number.isSafeInteger(student.amountDue) ? String(student.amountDue) : "";
+  syncPaymentAmountField();
+  elements.paymentStatusModal.hidden = false;
+  elements.paymentStatusModal.classList.add("is-open");
+}
+
+function closePaymentStatusModal() {
+  paymentStatusStudentId = null;
+  elements.paymentStatusModal?.classList.remove("is-open");
+  if (elements.paymentStatusModal) elements.paymentStatusModal.hidden = true;
+}
+
+async function savePaymentStatus(event) {
+  event.preventDefault();
+  if (!paymentStatusStudentId) return;
+  const student = currentStudents.find((item) => item.id === paymentStatusStudentId);
+  if (!student) return;
+
+  const paymentStage = elements.paymentStatusStage.value;
+  const amountValue = elements.paymentStatusAmount.value.trim();
+  const amountDue = paymentStage === "UNPAID" ? null : Number(amountValue);
+  if (paymentStage !== "UNPAID" && (!Number.isSafeInteger(amountDue) || amountDue <= 0)) {
+    showDashboardError("حدد قيمة صحيحة للدفع أو الوعد بالدفع.");
+    return;
+  }
+
+  const submitButton = elements.paymentStatusForm?.querySelector("button[type='submit']");
+  if (submitButton) submitButton.disabled = true;
+  try {
+    await updateStudent(paymentStatusStudentId, {
+      paymentStage,
+      amountDue,
+      liveAccessEnabled: paymentStage === "UNPAID" ? false : Boolean(student.liveAccessEnabled),
+    });
+    closePaymentStatusModal();
+    showToast(paymentStage === "UNPAID" ? "تم منع الطالب غير المدفوع من دخول الحصة." : "تم حفظ حالة الدفع والقيمة.");
+    await fetchStudents(currentLevel);
+  } catch (error) {
+    console.error("Unable to save payment status:", error);
+    showDashboardError(error.message || "تعذر حفظ حالة الدفع.");
+  } finally {
+    if (submitButton) submitButton.disabled = false;
+  }
 }
 
 function openSubscriptionModal(studentId) {
@@ -1130,6 +1227,12 @@ if (!getTeacherToken()) {
     button.addEventListener("click", () => fetchStudents(button.dataset.level));
   });
 
+  elements.paymentStatusForm?.addEventListener("submit", savePaymentStatus);
+  elements.paymentStatusStage?.addEventListener("change", syncPaymentAmountField);
+  elements.closePaymentStatusButton?.addEventListener("click", closePaymentStatusModal);
+  elements.paymentStatusModal?.addEventListener("click", (event) => {
+    if (event.target === elements.paymentStatusModal) closePaymentStatusModal();
+  });
   elements.scheduleForm?.addEventListener("submit", saveScheduledClass);
   elements.scheduleCancelButton?.addEventListener("click", resetScheduleForm);
   elements.teacherAbsenceButton?.addEventListener("click", () => void toggleTeacherAbsence());

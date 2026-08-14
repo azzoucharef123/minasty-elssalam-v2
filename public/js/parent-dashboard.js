@@ -16,6 +16,7 @@ const elements = {
   replacementCardInput: document.getElementById("replacement-card-input"),
   replacementCardButton: document.getElementById("replacement-card-button"),
   paymentStatus: document.getElementById("payment-status"),
+  secondaryPaymentState: document.getElementById("secondary-payment-state"),
   universityPaymentUpgrade: document.getElementById("university-payment-upgrade"),
   universityUpgradeButton: document.getElementById("university-upgrade-button"),
   universityPaymentTransfer: document.getElementById("university-payment-transfer"),
@@ -284,6 +285,18 @@ function selectStudent(studentId) {
   void loadParentSchedule(student.level);
 }
 
+function secondaryPaymentStateLabel(student) {
+  const stage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
+  const amount = Number.isSafeInteger(student.amountDue) && student.amountDue > 0
+    ? ` — ${student.amountDue.toLocaleString("ar-DZ")} دج`
+    : "";
+  return stage === "PAID"
+    ? `تم تأكيد الدفع${amount}`
+    : stage === "PROMISED"
+      ? `الوعد بالدفع${amount}`
+      : "لم يتم الدفع";
+}
+
 function secondarySubscriptionLabel(student) {
   if (student.mathEnrollment && student.physicsEnrollment) return "فيزياء ورياضيات";
   if (student.physicsEnrollment) return "فيزياء فقط";
@@ -363,6 +376,12 @@ function renderStudent(student) {
   elements.paymentStatus.classList.toggle("is-paid", isUniversityStudent && isPaid);
   elements.paymentStatus.classList.toggle("is-free", isUniversityStudent && !isPaid);
   elements.paymentStatus.classList.toggle("is-subject", !isUniversityStudent);
+  if (elements.secondaryPaymentState) {
+    elements.secondaryPaymentState.hidden = isUniversityStudent;
+    elements.secondaryPaymentState.textContent = isUniversityStudent
+      ? ""
+      : `حالة الدفع: ${secondaryPaymentStateLabel(student)}`;
+  }
   renderUniversityPaymentUpgrade(student, isPaid);
 }
 

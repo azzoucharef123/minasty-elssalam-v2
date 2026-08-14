@@ -1097,3 +1097,33 @@ body.parent-login-modal-open {
   border-radius: 50%;
   background: #3b82f6;
 }
+
+.secondary-payment-status {
+  width: 100%;
+  min-height: 2.45rem;
+  padding: 0.45rem 0.58rem;
+  border-radius: 0.62rem;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.secondary-payment-status.is-paid {
+  color: #166534;
+  border: 1px solid #86efac;
+  background: #f0fdf4;
+}
+
+.secondary-payment-status.is-promised {
+  color: #a16207;
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+}
+
+.secondary-payment-status.is-unpaid {
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+}
