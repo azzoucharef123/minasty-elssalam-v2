@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>دعوة حصة مباشرة | أكاديمية التفوق</title>
   <style>
-    :root { color-scheme: dark; --ink: #e5eefc; --muted: #9fb0c9; --panel: #12213a; --edge: rgba(148,163,184,.22); --blue: #2563eb; --red: #dc2626; }
+    :root { color-scheme: dark; --ink: #e5eefc; --muted: #9fb0c9; --panel: #12213a; --edge: rgba(148,163,184,.22); --blue: #2563eb; --green: #15803d; --amber: #d97706; --red: #dc2626; }
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100dvh; font-family: Tahoma, Arial, sans-serif; color: var(--ink); background: radial-gradient(circle at top right,#193e7d 0,transparent 35%), #071222; }
     button, input { font: inherit; }
@@ -15,7 +15,9 @@
     .brand i { display:grid; place-items:center; width:2.45rem; height:2.45rem; border-radius:.75rem; font-style:normal; color:#fff; background:linear-gradient(135deg,#3b82f6,#1d4ed8); }
     .role { margin:0; color:#bfdbfe; font-size:.84rem; font-weight:700; }
     .layout { min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 19rem; gap:1rem; }
-    .stage, .chat { min-height:0; border:1px solid var(--edge); border-radius:1.1rem; background:rgba(15,31,56,.88); box-shadow:0 16px 38px rgba(0,0,0,.18); }
+    .stage, .chat, .attendance { min-height:0; border:1px solid var(--edge); border-radius:1.1rem; background:rgba(15,31,56,.88); box-shadow:0 16px 38px rgba(0,0,0,.18); }
+    .sidebars { min-height:0; display:grid; grid-template-rows:minmax(10rem,.72fr) minmax(15rem,1.28fr); gap:1rem; }
+    .sidebars .chat:only-child { grid-row:1/-1; }
     .stage { display:grid; grid-template-rows:minmax(18rem,1fr) auto; overflow:hidden; }
     .screen-wrap { position:relative; display:grid; min-height:0; place-items:center; background:#020617; }
     video { width:100%; height:100%; max-height:68dvh; object-fit:contain; background:#020617; }
@@ -26,14 +28,40 @@
     .button.primary { background:linear-gradient(135deg,#2563eb,#1d4ed8); }
     .button.danger { background:#b91c1c; }
     .button.ghost { background:#263b5b; }
-    .button[hidden], .host-only[hidden] { display:none; }
+    .button.success { background:linear-gradient(135deg,#16a34a,#15803d); }
+    .button.warn { background:#a16207; }
+    .button[hidden], .host-only[hidden], .guest-only[hidden] { display:none; }
+    .button:disabled { cursor:not-allowed; opacity:.56; }
     .invite { display:grid; grid-template-columns:1fr auto; gap:.5rem; width:100%; padding:.7rem; border:1px solid rgba(96,165,250,.3); border-radius:.8rem; background:#102a51; }
     .invite label { grid-column:1/-1; color:#bfdbfe; font-size:.78rem; font-weight:800; }
     .invite input { min-width:0; padding:.65rem; color:#e0ecff; border:1px solid var(--edge); border-radius:.5rem; background:#071a32; direction:ltr; }
-    .chat { display:grid; grid-template-rows:auto 1fr auto; overflow:hidden; }
-    .chat header { padding:1rem; border-bottom:1px solid var(--edge); }
-    .chat h2 { margin:0; font-size:1rem; }
-    .chat small { color:var(--muted); }
+    .chat, .attendance { display:grid; grid-template-rows:auto 1fr auto; overflow:hidden; }
+    .chat header, .attendance header { padding:1rem; border-bottom:1px solid var(--edge); }
+    .chat h2, .attendance h2 { margin:0; font-size:1rem; }
+    .chat small, .attendance small { color:var(--muted); }
+    .attendance h2 span { display:inline-grid; place-items:center; min-width:1.35rem; height:1.35rem; margin-right:.35rem; border-radius:99px; color:#dbeafe; background:#1d4ed8; font-size:.74rem; }
+    .attendance-list { padding:.55rem; overflow:auto; }
+    .attendance-empty { margin:0; padding:1.1rem .5rem; color:var(--muted); text-align:center; font-size:.84rem; }
+    .attendee { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.45rem; align-items:center; padding:.6rem; border-bottom:1px solid rgba(148,163,184,.12); }
+    .attendee:last-child { border-bottom:0; }
+    .attendee-name { overflow:hidden; color:#e0ecff; font-size:.87rem; font-weight:800; text-overflow:ellipsis; white-space:nowrap; }
+    .attendee-meta { display:flex; gap:.35rem; margin-top:.18rem; color:var(--muted); font-size:.7rem; }
+    .state-pill { padding:.12rem .35rem; border-radius:99px; background:#263b5b; }
+    .state-pill.hand { color:#fde68a; background:rgba(180,83,9,.28); }
+    .state-pill.mic-open { color:#bbf7d0; background:rgba(21,128,61,.28); }
+    .attendee-control { min-width:4.8rem; min-height:2.15rem; padding:.35rem .45rem; border:0; border-radius:.55rem; color:#fff; font-family:inherit; font-size:.72rem; font-weight:800; cursor:pointer; background:#15803d; }
+    .attendee-control.close { background:#b91c1c; }
+    .guest-actions { display:flex; align-items:center; gap:.65rem; }
+    .guest-mic-status { color:#bbf7d0; font-size:.8rem; font-weight:800; }
+    .guest-mic-status.closed { color:#fecaca; }
+    .join-overlay { position:fixed; z-index:20; inset:0; display:grid; place-items:center; padding:1rem; background:rgba(2,6,23,.76); backdrop-filter:blur(5px); }
+    .join-overlay[hidden] { display:none; }
+    .join-card { width:min(27rem,100%); padding:1.5rem; border:1px solid rgba(96,165,250,.4); border-radius:1.15rem; background:linear-gradient(145deg,#142d55,#0c1c33); box-shadow:0 26px 70px rgba(0,0,0,.4); }
+    .join-card h1 { margin:0 0:.5rem; font-size:1.3rem; }
+    .join-card p { margin:.25rem 0 1rem; color:#cbd5e1; line-height:1.7; font-size:.87rem; }
+    .join-card label { display:block; margin-bottom:.4rem; color:#bfdbfe; font-size:.83rem; font-weight:800; }
+    .join-card input { width:100%; margin-bottom:.8rem; padding:.75rem; color:#f8fafc; border:1px solid var(--edge); border-radius:.65rem; background:#071a32; }
+    .join-card .button { width:100%; }
     .messages { min-height:10rem; padding:.8rem; overflow:auto; display:flex; flex-direction:column; gap:.55rem; }
     .message { max-width:92%; padding:.55rem .65rem; border-radius:.7rem; background:#1e365b; line-height:1.55; word-break:break-word; }
     .message strong { display:block; margin-bottom:.12rem; color:#bfdbfe; font-size:.73rem; }
@@ -42,7 +70,8 @@
     .chat button { min-width:3.25rem; }
     .status { margin:0; padding:.55rem 1rem; color:#cbd5e1; font-size:.84rem; font-weight:700; }
     .status.error { color:#fecaca; }
-    @media (max-width: 800px) { .layout { grid-template-columns:1fr; grid-template-rows:minmax(27rem,1fr) 19rem; } .stage { min-height:0; } .screen-wrap { min-height:18rem; } }
+    @media (max-width: 800px) { .layout { grid-template-columns:1fr; grid-template-rows:minmax(27rem,1fr) minmax(20rem,auto); } .stage { min-height:0; } .screen-wrap { min-height:18rem; } .sidebars { grid-template-rows:minmax(10rem,auto) 19rem; } }
+    @media (max-width: 480px) { .shell { padding:.6rem; } .top { padding:.7rem; } .controls { padding:.75rem; } .guest-actions { width:100%; justify-content:space-between; } }
   </style>
 </head>
 <body>
@@ -65,16 +94,36 @@
           </div>
           <button id="start-public-share" class="button primary host-only" type="button" hidden>بدء الحصة ومشاركة الشاشة</button>
           <button id="end-public-class" class="button danger host-only" type="button" hidden>إنهاء الحصة العامة</button>
+          <div class="guest-actions guest-only" id="guest-actions" hidden>
+            <button id="raise-public-hand" class="button warn" type="button">رفع اليد</button>
+            <span id="guest-mic-status" class="guest-mic-status closed">المايك مغلق</span>
+          </div>
           <p id="public-status" class="status">جارٍ الاتصال…</p>
         </div>
       </section>
-      <aside class="chat" aria-label="دردشة الحصة">
-        <header><h2>الدردشة</h2><small>الدردشة متاحة لجميع الحاضرين</small></header>
-        <div id="public-chat-messages" class="messages" aria-live="polite"></div>
-        <form id="public-chat-form"><input id="public-chat-input" maxlength="800" autocomplete="off" placeholder="اكتب رسالة…" /><button class="button primary" type="submit">إرسال</button></form>
-      </aside>
+      <section class="sidebars">
+        <aside id="public-attendance" class="attendance host-only" aria-label="قائمة الحضور" hidden>
+          <header><h2>قائمة الحضور <span id="attendance-count">0</span></h2><small>افتح أو أغلق المايك لكل حاضر</small></header>
+          <div id="public-attendance-list" class="attendance-list" aria-live="polite"></div>
+        </aside>
+        <aside class="chat" aria-label="دردشة الحصة">
+          <header><h2>الدردشة</h2><small>الدردشة متاحة لجميع الحاضرين</small></header>
+          <div id="public-chat-messages" class="messages" aria-live="polite"></div>
+          <form id="public-chat-form"><input id="public-chat-input" maxlength="800" autocomplete="off" placeholder="اكتب رسالة…" /><button class="button primary" type="submit">إرسال</button></form>
+        </aside>
+      </section>
     </section>
   </main>
+  <div id="public-nickname-overlay" class="join-overlay" hidden>
+    <form id="public-nickname-form" class="join-card">
+      <h1>أدخل اسمك المستعار</h1>
+      <p>سيظهر هذا الاسم للمضيف في قائمة الحضور والدردشة فقط. لن تستطيع تشغيل أو إغلاق المايك بنفسك.</p>
+      <label for="public-nickname">الاسم المستعار</label>
+      <input id="public-nickname" maxlength="120" autocomplete="name" required placeholder="مثال: محمد" />
+      <button class="button primary" type="submit">دخول الحصة</button>
+    </form>
+  </div>
+  <audio id="public-guest-audio" autoplay></audio>
   <script src="/socket.io/socket.io.js"></script>
   <script src="./js/public-class.js"></script>
 </body>

@@ -450,6 +450,9 @@ io.on("connection", (socket) => {
   socket.data.lobbyLevel = null;
   socket.data.publicRoomId = null;
   socket.data.publicRole = null;
+  socket.data.publicNickname = null;
+  socket.data.publicHandRaised = false;
+  socket.data.publicMicOpen = false;
 
   /**
    * Public invite room: independent from all academic level, payment, subject,
@@ -480,17 +483,26 @@ io.on("connection", (socket) => {
 
     const guests = (await io.in(roomName).fetchSockets())
       .filter((peer) => peer.id !== socket.id && peer.data.publicRole === "guest")
-      .map((peer) => peer.id);
-    guests.forEach((guestSocketId) => {
-      socket.emit("public_guest_joined", { socketId: guestSocketId });
+      .map((peer) => ({
+        socketId: peer.id,
+        nickname: peer.data.publicNickname || "ضيف",
+        handRaised: Boolean(peer.data.publicHandRaised),
+        micOpen: Boolean(peer.data.publicMicOpen),
+      }));
+    guests.forEach((guest) => {
+      socket.emit("public_guest_joined", guest);
     });
     acknowledge(acknowledgement, { ok: true, roomId, guests });
   });
 
   socket.on("public_join_room", async (data = {}, acknowledgement) => {
     const roomId = normalizeText(data.roomId);
+    const nickname = normalizeText(data.nickname);
     if (!isValidPublicRoomId(roomId)) {
       return emitClassroomError(socket, "public_join_room", "رابط الدعوة غير صالح.", acknowledgement);
+    }
+    if (!isValidStudentName(nickname)) {
+      return emitClassroomError(socket, "public_join_room", "أدخل اسمًا مستعارًا صالحًا للانضمام.", acknowledgement);
     }
 
     const roomName = publicRoomName(roomId);
@@ -500,11 +512,19 @@ io.on("connection", (socket) => {
     await socket.join(roomName);
     socket.data.publicRoomId = roomId;
     socket.data.publicRole = "guest";
+    socket.data.publicNickname = nickname;
+    socket.data.publicHandRaised = false;
+    socket.data.publicMicOpen = false;
 
     const hostSocketId = publicInviteRooms.get(roomId)?.hostSocketId || null;
     const hostSocket = hostSocketId ? io.sockets.sockets.get(hostSocketId) : null;
     if (hostSocket && hostSocket.id !== socket.id) {
-      hostSocket.emit("public_guest_joined", { socketId: socket.id });
+      hostSocket.emit("public_guest_joined", {
+        socketId: socket.id,
+        nickname,
+        handRaised: false,
+        micOpen: false,
+      });
     }
     acknowledge(acknowledgement, { ok: true, roomId, isLive: Boolean(hostSocket) });
   });
@@ -513,7 +533,7 @@ io.on("connection", (socket) => {
     const targetSocketId = normalizeText(data.targetSocketId);
     const targetSocket = io.sockets.sockets.get(targetSocketId);
     if (
-      socket.data.publicRole !== "host" ||
+      !["host", "guest"].includes(socket.data.publicRole) ||
       !targetSocket ||
       !isInSamePublicRoom(socket, targetSocket) ||
       !isValidSessionDescription(data.sdp)
@@ -528,7 +548,7 @@ io.on("connection", (socket) => {
     const targetSocketId = normalizeText(data.targetSocketId);
     const targetSocket = io.sockets.sockets.get(targetSocketId);
     if (
-      socket.data.publicRole !== "guest" ||
+      !["host", "guest"].includes(socket.data.publicRole) ||
       !targetSocket ||
       !isInSamePublicRoom(socket, targetSocket) ||
       !isValidSessionDescription(data.sdp)
@@ -549,6 +569,47 @@ io.on("connection", (socket) => {
     acknowledge(acknowledgement, { ok: true });
   });
 
+  socket.on("public_raise_hand", (data = {}, acknowledgement) => {
+    const roomId = socket.data.publicRoomId;
+    if (!roomId || socket.data.publicRole !== "guest") {
+      return emitClassroomError(socket, "public_raise_hand", "تعذر رفع اليد.", acknowledgement);
+    }
+    socket.data.publicHandRaised = data.raised !== false;
+    const room = publicInviteRooms.get(roomId);
+    if (room?.hostSocketId) {
+      io.to(room.hostSocketId).emit("public_guest_hand_state", {
+        socketId: socket.id,
+        nickname: socket.data.publicNickname || "ضيف",
+        handRaised: socket.data.publicHandRaised,
+      });
+    }
+    acknowledge(acknowledgement, { ok: true, handRaised: socket.data.publicHandRaised });
+  });
+
+  socket.on("public_set_guest_mic", (data = {}, acknowledgement) => {
+    const roomId = socket.data.publicRoomId;
+    const targetSocketId = normalizeText(data.targetSocketId);
+    const targetSocket = io.sockets.sockets.get(targetSocketId);
+    const room = roomId ? publicInviteRooms.get(roomId) : null;
+    if (
+      !roomId || socket.data.publicRole !== "host" || room?.hostSocketId !== socket.id ||
+      !targetSocket || targetSocket.data.publicRole !== "guest" || !isInSamePublicRoom(socket, targetSocket)
+    ) {
+      return emitClassroomError(socket, "public_set_guest_mic", "تعذر تحديث مايك الحاضر.", acknowledgement);
+    }
+    const open = data.open === true;
+    targetSocket.data.publicMicOpen = open;
+    if (open) targetSocket.data.publicHandRaised = false;
+    targetSocket.emit("public_mic_permission", { open });
+    io.to(socket.id).emit("public_guest_mic_state", {
+      socketId: targetSocket.id,
+      nickname: targetSocket.data.publicNickname || "ضيف",
+      handRaised: Boolean(targetSocket.data.publicHandRaised),
+      micOpen: open,
+    });
+    acknowledge(acknowledgement, { ok: true, open });
+  });
+
   socket.on("public_chat_message", (data = {}, acknowledgement) => {
     const message = normalizeChatMessage(data.message);
     const roomId = socket.data.publicRoomId;
@@ -556,7 +617,7 @@ io.on("connection", (socket) => {
       return emitClassroomError(socket, "public_chat_message", "تعذر إرسال الرسالة.", acknowledgement);
     }
     io.to(publicRoomName(roomId)).emit("public_chat_message", {
-      sender: socket.data.publicRole === "host" ? "الأستاذ" : "ضيف",
+      sender: socket.data.publicRole === "host" ? "الأستاذ" : (socket.data.publicNickname || "ضيف"),
       message,
       sentAt: new Date().toISOString(),
     });
