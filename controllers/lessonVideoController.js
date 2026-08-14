@@ -166,6 +166,10 @@ async function getLessonVideosByLevel(req, res) {
       if (!student) {
         return res.status(403).json({ error: "لا تملك صلاحية الاطلاع على مستودع هذا المستوى." });
       }
+      const studentPaymentStage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
+      if (level !== "طالب جامعي" && studentPaymentStage === "UNPAID") {
+        return res.status(403).json({ error: "مستودع الدروس متاح بعد تأكيد الدفع أو تسجيل الوعد بالدفع." });
+      }
       const accessibleTypes = getStudentRepositoryTypes(student);
       where = { level, repositoryType: { in: accessibleTypes } };
     } else if (req.user?.role !== "teacher") {

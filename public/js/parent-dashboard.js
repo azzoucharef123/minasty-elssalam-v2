@@ -8,6 +8,7 @@ const elements = {
   dashboardError: document.getElementById("dashboard-error"),
   loadingState: document.getElementById("loading-state"),
   dashboardContent: document.getElementById("dashboard-content"),
+  lessonRepositoryCard: document.getElementById("lesson-repository-card"),
   studentAvatar: document.getElementById("student-avatar"),
   studentName: document.getElementById("student-name"),
   studentLevel: document.getElementById("student-level"),
@@ -316,7 +317,27 @@ function selectStudent(studentId) {
   emitLobbyJoin(student.level);
   void loadAttendanceCount(student.id);
   void loadParentSchedule(student.level);
-  void loadLessonVideos(student.level);
+  if (canAccessLessonRepository(student)) {
+    void loadLessonVideos(student.level);
+  } else {
+    elements.lessonVideoList?.replaceChildren();
+  }
+}
+
+function canAccessLessonRepository(student) {
+  if (!student || student.level === "طالب جامعي") return true;
+  const stage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
+  return stage !== "UNPAID";
+}
+
+function syncLessonRepositoryVisibility(student) {
+  const shouldShow = canAccessLessonRepository(student);
+  if (elements.lessonRepositoryCard) {
+    elements.lessonRepositoryCard.hidden = !shouldShow;
+  }
+  if (!shouldShow) {
+    elements.lessonVideoList?.replaceChildren();
+  }
 }
 
 function secondaryPaymentStateLabel(student) {
@@ -404,6 +425,7 @@ function renderStudent(student) {
 
   const paymentStage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
   const isPaid = paymentStage === "PAID";
+  syncLessonRepositoryVisibility(student);
   elements.paymentStatus.textContent = isUniversityStudent
     ? isPaid ? "اشتراك مدفوع" : "اشتراك مجاني"
     : secondarySubscriptionLabel(student);
@@ -537,7 +559,7 @@ function renderLessonVideos(videos) {
 }
 
 async function loadLessonVideos(level) {
-  if (!elements.lessonVideoList || !level) return;
+  if (!elements.lessonVideoList || !level || !canAccessLessonRepository(currentStudent)) return;
   if (elements.lessonRepositoryLevelCaption) {
     elements.lessonRepositoryLevelCaption.textContent = `فيديوهات حصص ${level} المتاحة حسب مادة أو نوع اشتراك التلميذ.`;
   }
