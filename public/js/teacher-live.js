@@ -66,6 +66,16 @@ let questionImageModalPreviousFocus = null;
 const TEACHER_LIVE_RECOVERY_KEY = "teacherLiveClassRecovery";
 let pendingPageRecovery = null;
 let isPageNavigatingAway = false;
+let localMediaRecorder = null;
+let localRecordingStream = null;
+let localRecordingAudioContext = null;
+let localRecordingMixedAudioTrack = null;
+let localRecordingChunks = [];
+let localRecordingMimeType = "video/webm";
+let localRecordingStartedAt = 0;
+let localRecordingStopResolver = null;
+let localRecordingDownloadRequested = true;
+let localRecordingFinalized = false;
 
 const elements = {
   localVideo: document.getElementById("local-video"),
@@ -78,6 +88,8 @@ const elements = {
   subjectSelect: document.getElementById("subject-select"),
   startButton: document.getElementById("start-class-btn"),
   toggleMicButton: document.getElementById("toggle-mic-btn"),
+  recordLocalButton: document.getElementById("record-local-btn"),
+  localRecordingState: document.getElementById("local-recording-state"),
   leaveStudioButton: document.getElementById("leave-studio-btn"),
   endClassButton: document.getElementById("end-class-btn"),
   liveStatus: document.getElementById("live-status"),
@@ -608,6 +620,224 @@ function getAllAudioTracks() {
     .flatMap((stream) => stream.getAudioTracks());
 }
 
+function isLocalRecording() {
+  return Boolean(localMediaRecorder && localMediaRecorder.state === "recording");
+}
+
+function canRecordLocalClass() {
+  return Boolean(
+    classActive &&
+    screenStream?.getVideoTracks?.().some((track) => track.readyState === "live") &&
+    typeof window.MediaRecorder === "function"
+  );
+}
+
+function getLocalRecordingMimeType() {
+  if (typeof window.MediaRecorder !== "function" || typeof MediaRecorder.isTypeSupported !== "function") {
+    return "";
+  }
+
+  return [
+    "video/webm;codecs=vp9,opus",
+    "video/webm;codecs=vp8,opus",
+    "video/webm",
+  ].find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) || "";
+}
+
+function getLocalRecordingFileName() {
+  const safeLabel = (value, fallback) => String(value || fallback)
+    .trim()
+    .replace(/[\\/:*?\"<>|]+/g, "-")
+    .replace(/\s+/g, "-")
+    .slice(0, 48) || fallback;
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  return `حصة-${safeLabel(activeLevel, "مباشرة")}-${safeLabel(getClassTypeName(activeLevel, activeSubject), "مسجلة")}-${stamp}.webm`;
+}
+
+function disposeLocalRecordingResources() {
+  if (localRecordingMixedAudioTrack) {
+    localRecordingMixedAudioTrack.stop();
+  }
+  localRecordingMixedAudioTrack = null;
+  localRecordingStream = null;
+  const context = localRecordingAudioContext;
+  localRecordingAudioContext = null;
+  if (context && context.state !== "closed") {
+    context.close().catch(() => {});
+  }
+}
+
+function buildLocalRecordingStream() {
+  const videoTrack = screenStream?.getVideoTracks?.().find((track) => track.readyState === "live");
+  if (!videoTrack) {
+    throw new Error("لا توجد شاشة نشطة لتسجيل الحصة.");
+  }
+
+  const recordingStream = new MediaStream([videoTrack]);
+  const liveAudioTracks = [screenStream, cameraStream]
+    .filter(Boolean)
+    .flatMap((stream) => stream.getAudioTracks())
+    .filter((track) => track.readyState === "live");
+
+  if (liveAudioTracks.length === 1) {
+    recordingStream.addTrack(liveAudioTracks[0]);
+  } else if (liveAudioTracks.length > 1) {
+    const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextConstructor) {
+      // Chrome provides Web Audio; this fallback preserves the teacher microphone
+      // if a browser does not expose an audio mixer.
+      recordingStream.addTrack(liveAudioTracks[liveAudioTracks.length - 1]);
+    } else {
+      const audioContext = new AudioContextConstructor();
+      const destination = audioContext.createMediaStreamDestination();
+      liveAudioTracks.forEach((track) => {
+        const source = audioContext.createMediaStreamSource(new MediaStream([track]));
+        source.connect(destination);
+      });
+      if (audioContext.state === "suspended") {
+        audioContext.resume().catch(() => {});
+      }
+      localRecordingAudioContext = audioContext;
+      localRecordingMixedAudioTrack = destination.stream.getAudioTracks()[0] || null;
+      if (localRecordingMixedAudioTrack) {
+        recordingStream.addTrack(localRecordingMixedAudioTrack);
+      }
+    }
+  }
+
+  return recordingStream;
+}
+
+function downloadLocalRecording(chunks, mimeType) {
+  if (!chunks.length) {
+    return false;
+  }
+
+  const blob = new Blob(chunks, { type: mimeType || "video/webm" });
+  if (blob.size === 0) {
+    return false;
+  }
+
+  const fileUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = fileUrl;
+  link.download = getLocalRecordingFileName();
+  link.style.display = "none";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(fileUrl), 60_000);
+  return true;
+}
+
+function finalizeLocalRecording() {
+  if (localRecordingFinalized) {
+    return;
+  }
+  localRecordingFinalized = true;
+
+  const chunks = localRecordingChunks;
+  const mimeType = localRecordingMimeType;
+  const shouldDownload = localRecordingDownloadRequested;
+  const resolver = localRecordingStopResolver;
+  localMediaRecorder = null;
+  localRecordingChunks = [];
+  localRecordingStopResolver = null;
+  localRecordingStartedAt = 0;
+  elements.localRecordingState.hidden = true;
+  elements.recordLocalButton.classList.remove("is-recording");
+  setButtonLabel(elements.recordLocalButton, "بدء تسجيل الحصة");
+  disposeLocalRecordingResources();
+
+  const saved = shouldDownload && downloadLocalRecording(chunks, mimeType);
+  if (saved && classActive && !isEnding && !isPageNavigatingAway) {
+    setStudioStatus("تم حفظ تسجيل الحصة محليًا على جهازك.", "live");
+  } else if (shouldDownload && !saved && classActive && !isEnding) {
+    setStudioStatus("تعذر إنشاء ملف التسجيل المحلي.", "error");
+  }
+  updateControls();
+  resolver?.(saved);
+}
+
+function startLocalRecording() {
+  if (!canRecordLocalClass() || isLocalRecording()) {
+    return;
+  }
+
+  try {
+    localRecordingStream = buildLocalRecordingStream();
+    const mimeType = getLocalRecordingMimeType();
+    const options = mimeType
+      ? { mimeType, videoBitsPerSecond: 2_500_000, audioBitsPerSecond: 128_000 }
+      : { videoBitsPerSecond: 2_500_000, audioBitsPerSecond: 128_000 };
+    const recorder = new MediaRecorder(localRecordingStream, options);
+    localMediaRecorder = recorder;
+    localRecordingMimeType = recorder.mimeType || mimeType || "video/webm";
+    localRecordingChunks = [];
+    localRecordingStartedAt = Date.now();
+    localRecordingDownloadRequested = true;
+    localRecordingFinalized = false;
+    recorder.ondataavailable = (event) => {
+      if (event.data?.size) {
+        localRecordingChunks.push(event.data);
+      }
+    };
+    recorder.onerror = (event) => {
+      console.error("Local class recording failed:", event.error);
+      setStudioStatus("تعذر متابعة التسجيل المحلي للحصة.", "error");
+    };
+    recorder.onstop = finalizeLocalRecording;
+    recorder.start(1_000);
+    elements.localRecordingState.hidden = false;
+    elements.recordLocalButton.classList.add("is-recording");
+    setButtonLabel(elements.recordLocalButton, "إيقاف التسجيل وحفظه");
+    updateControls();
+    setStudioStatus("جارٍ تسجيل الحصة محليًا على جهازك.", "live");
+  } catch (error) {
+    console.error("Unable to start local class recording:", error);
+    disposeLocalRecordingResources();
+    localMediaRecorder = null;
+    setStudioStatus("تعذر بدء التسجيل المحلي. استخدم Google Chrome واسمح بمشاركة الشاشة.", "error");
+    updateControls();
+  }
+}
+
+function stopLocalRecording({ download = true } = {}) {
+  const recorder = localMediaRecorder;
+  if (!recorder) {
+    return Promise.resolve(false);
+  }
+
+  localRecordingDownloadRequested = download;
+  elements.recordLocalButton.disabled = true;
+  return new Promise((resolve) => {
+    localRecordingStopResolver = resolve;
+    if (recorder.state === "inactive") {
+      finalizeLocalRecording();
+      return;
+    }
+    try {
+      recorder.requestData();
+    } catch (_) {
+      // requestData is optional; stop() still flushes the final chunk in Chrome.
+    }
+    try {
+      recorder.stop();
+    } catch (error) {
+      console.warn("Unable to stop local class recorder:", error);
+      finalizeLocalRecording();
+    }
+  });
+}
+
+function toggleLocalRecording() {
+  if (isLocalRecording()) {
+    void stopLocalRecording({ download: true });
+  } else {
+    startLocalRecording();
+  }
+}
+
 function updateControls() {
   const hasAudio = getAllAudioTracks().length > 0;
 
@@ -615,6 +845,7 @@ function updateControls() {
   elements.levelSelect.disabled = isStarting || isEnding || classActive;
   elements.subjectSelect.disabled = isStarting || isEnding || classActive;
   elements.toggleMicButton.disabled = !classActive || !hasAudio || isEnding;
+  elements.recordLocalButton.disabled = (!canRecordLocalClass() && !isLocalRecording()) || isEnding;
   elements.leaveStudioButton.disabled = !classActive || isEnding;
   elements.endClassButton.disabled = !classActive || isEnding;
   elements.chatInput.disabled = !classActive || isEnding;
@@ -1573,6 +1804,7 @@ async function leaveLiveStudio() {
     // through the disconnect handler, so preserving the local recovery token is enough.
     console.warn("Unable to confirm studio departure; preserving class for recovery:", error);
   } finally {
+    await stopLocalRecording({ download: true });
     classActive = false;
     closeAllPeerConnections();
     clearAttendees();
@@ -1609,6 +1841,7 @@ async function endLiveClass({ notifyServer = true, statusMessage } = {}) {
       }
     }
   } finally {
+    await stopLocalRecording({ download: true });
     closeAllPeerConnections();
     clearAttendees();
     clearTeacherChat();
@@ -2109,6 +2342,7 @@ elements.levelSelect.addEventListener("change", () => {
 });
 elements.startButton.addEventListener("click", startLiveClass);
 elements.toggleMicButton.addEventListener("click", toggleMicrophone);
+elements.recordLocalButton.addEventListener("click", toggleLocalRecording);
 elements.leaveStudioButton.addEventListener("click", () => {
   void leaveLiveStudio();
 });
