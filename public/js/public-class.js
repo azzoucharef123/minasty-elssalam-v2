@@ -20,6 +20,7 @@
     copyInviteLink: document.getElementById("copy-public-link"),
     startShare: document.getElementById("start-public-share"),
     endClass: document.getElementById("end-public-class"),
+    toggleHostMic: document.getElementById("toggle-host-mic"),
     chatMessages: document.getElementById("public-chat-messages"),
     chatForm: document.getElementById("public-chat-form"),
     chatInput: document.getElementById("public-chat-input"),
@@ -43,6 +44,7 @@
   const guestAudioSources = new Map();
   const offerInProgress = new Set();
   let localStream = null;
+  let hostMicrophoneTracks = [];
   let guestMicStream = null;
   let remoteStream = null;
   let guestNickname = "";
@@ -76,6 +78,16 @@
       setStatus("اضغط على شاشة البث لتشغيل الصوت.");
     });
     elements.placeholder.hidden = true;
+  }
+
+  function setHostMicUi() {
+    const availableTracks = hostMicrophoneTracks.filter((track) => track.readyState === "live");
+    const hasMicrophone = availableTracks.length > 0;
+    const microphoneOpen = hasMicrophone && availableTracks.some((track) => track.enabled);
+    elements.toggleHostMic.disabled = !hasMicrophone;
+    elements.toggleHostMic.textContent = microphoneOpen ? "غلق مايك المضيف" : "تشغيل مايك المضيف";
+    elements.toggleHostMic.classList.toggle("danger", microphoneOpen);
+    elements.toggleHostMic.classList.toggle("ghost", !microphoneOpen);
   }
 
   function setGuestMicUi(open) {
@@ -347,12 +359,14 @@
       }
       localStream?.getTracks().forEach((track) => track.stop());
       localStream = combined;
+      hostMicrophoneTracks = combined.getAudioTracks().filter((track) => !display.getAudioTracks().includes(track));
       elements.video.srcObject = localStream;
       elements.video.muted = true;
       elements.video.play().catch(() => {});
       elements.placeholder.hidden = true;
       elements.startShare.textContent = "المشاركة جارية";
       elements.startShare.disabled = true;
+      setHostMicUi();
       setStatus("الحصة العامة بدأت. يمكن لأي شخص لديه الرابط الانضمام الآن.");
       display.getVideoTracks()[0]?.addEventListener("ended", () => {
         if (!ended) setStatus("توقفت مشاركة الشاشة. يمكنك إنهاء الحصة أو إنشاء دعوة جديدة.", "error");
@@ -375,6 +389,7 @@
     elements.inviteBox.hidden = false;
     elements.attendance.hidden = false;
     elements.startShare.hidden = false;
+    elements.toggleHostMic.hidden = false;
     elements.endClass.hidden = false;
     const url = new URL(window.location.href);
     url.search = `?room=${encodeURIComponent(roomId)}`;
@@ -521,6 +536,8 @@
   socket.on("public_room_ended", () => {
     ended = true;
     localStream?.getTracks().forEach((track) => track.stop());
+    hostMicrophoneTracks = [];
+    setHostMicUi();
     guestMicStream?.getTracks().forEach((track) => track.stop());
     peers.forEach((_, peerId) => closePeer(peerId));
     elements.startShare.disabled = true;
@@ -542,6 +559,14 @@
     }
   });
   elements.startShare?.addEventListener("click", () => { void startShare(); });
+  elements.toggleHostMic?.addEventListener("click", () => {
+    const availableTracks = hostMicrophoneTracks.filter((track) => track.readyState === "live");
+    if (!availableTracks.length || ended) return;
+    const shouldOpen = !availableTracks.some((track) => track.enabled);
+    availableTracks.forEach((track) => { track.enabled = shouldOpen; });
+    setHostMicUi();
+    setStatus(shouldOpen ? "تم تشغيل مايك المضيف." : "تم غلق مايك المضيف.");
+  });
   elements.endClass?.addEventListener("click", endClass);
   elements.video?.addEventListener("click", () => {
     elements.video.play().catch(() => {});
