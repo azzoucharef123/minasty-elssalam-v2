@@ -891,25 +891,15 @@ function clearStudentAudioRelayForRecipient(recipientSocketId) {
   pendingStudentAudioRelayOffers.delete(recipientSocketId);
 }
 
-function syncApprovedStudentAudioSource(studentSocketId) {
-  const existingStudentStream = studentAudioElements.get(studentSocketId)?.srcObject;
-  const hasLiveAudio = existingStudentStream instanceof MediaStream && existingStudentStream
-    .getAudioTracks()
-    .some((track) => track.readyState === "live");
-
-  for (const recipientSocketId of Object.keys(peerConnections)) {
-    if (approvedStudentMicrophones.has(studentSocketId) && hasLiveAudio) {
-      connectStudentAudioToRecipient(studentSocketId, recipientSocketId);
-    } else {
-      disconnectStudentAudioFromRecipient(studentSocketId, recipientSocketId);
-    }
-  }
+function syncApprovedStudentAudioSource(_studentSocketId) {
+  // Student-to-student audio now travels through its own direct WebRTC mesh.
+  // Keeping it out of the teacher broadcaster connection prevents duplicate
+  // audio and avoids mobile browsers dropping a relayed remote track.
 }
 
-function syncApprovedAudioForNewRecipient(recipientSocketId) {
-  for (const speakerSocketId of approvedStudentMicrophones) {
-    connectStudentAudioToRecipient(speakerSocketId, recipientSocketId);
-  }
+function syncApprovedAudioForNewRecipient(_recipientSocketId) {
+  // Existing open speakers receive the newly joined listener from the server
+  // and create their direct audio channels without involving this broadcaster.
 }
 
 function applyStudentMicrophoneState(studentSocketId, enabled) {
