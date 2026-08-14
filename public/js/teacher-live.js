@@ -84,6 +84,7 @@ let lastLocalRecording = null;
 let googleDriveAccessToken = null;
 let googleDriveTokenExpiresAt = 0;
 let googleDriveUploadInProgress = false;
+let googleIdentityLoadPromise = null;
 
 const elements = {
   localVideo: document.getElementById("local-video"),
@@ -775,14 +776,63 @@ function isGoogleDriveTokenUsable() {
   return Boolean(googleDriveAccessToken && Date.now() < googleDriveTokenExpiresAt - 60_000);
 }
 
-function requestGoogleDriveAccessToken() {
-  if (isGoogleDriveTokenUsable()) {
-    return Promise.resolve(googleDriveAccessToken);
+function ensureGoogleIdentityServices() {
+  if (window.google?.accounts?.oauth2) {
+    return Promise.resolve();
   }
 
-  if (!window.google?.accounts?.oauth2) {
-    return Promise.reject(new Error("لم يكتمل تحميل خدمة تسجيل الدخول إلى Google. أعد المحاولة بعد ثوانٍ."));
+  if (googleIdentityLoadPromise) {
+    return googleIdentityLoadPromise;
   }
+
+  googleIdentityLoadPromise = new Promise((resolve, reject) => {
+    const scriptId = "google-identity-services";
+    let script = document.getElementById(scriptId);
+    if (!script) {
+      script = document.createElement("script");
+      script.id = scriptId;
+      script.src = "https://accounts.google.com/gsi/client";
+      script.defer = true;
+      document.head.append(script);
+    }
+
+    let settled = false;
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      window.clearInterval(checkTimer);
+      window.clearTimeout(timeoutTimer);
+      callback(value);
+    };
+    const ready = () => {
+      if (window.google?.accounts?.oauth2) {
+        finish(resolve);
+      }
+    };
+    const checkTimer = window.setInterval(ready, 100);
+    const timeoutTimer = window.setTimeout(() => {
+      finish(reject, new Error("تعذر تحميل خدمة Google. تحقق من اتصال الإنترنت أو من أن Chrome لا يمنع accounts.google.com."));
+    }, 10_000);
+    script.addEventListener("load", ready, { once: true });
+    script.addEventListener("error", () => {
+      finish(reject, new Error("تعذر تحميل خدمة Google. تحقق من اتصال الإنترنت أو من أن Chrome لا يمنع accounts.google.com."));
+    }, { once: true });
+    ready();
+  }).finally(() => {
+    if (!window.google?.accounts?.oauth2) {
+      googleIdentityLoadPromise = null;
+    }
+  });
+
+  return googleIdentityLoadPromise;
+}
+
+async function requestGoogleDriveAccessToken() {
+  if (isGoogleDriveTokenUsable()) {
+    return googleDriveAccessToken;
+  }
+
+  await ensureGoogleIdentityServices();
 
   return new Promise((resolve, reject) => {
     const tokenClient = google.accounts.oauth2.initTokenClient({
