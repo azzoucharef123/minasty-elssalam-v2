@@ -76,6 +76,14 @@ let localRecordingStartedAt = 0;
 let localRecordingStopResolver = null;
 let localRecordingDownloadRequested = true;
 let localRecordingFinalized = false;
+const GOOGLE_DRIVE_CLIENT_ID = "938017291163-6uinh4868l66eo8887hsqkt7h3h1ss6e.apps.googleusercontent.com";
+const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+const GOOGLE_DRIVE_ROOT_FOLDER = "تسجيلات أكاديمية التفوق";
+const GOOGLE_DRIVE_UPLOAD_CHUNK_SIZE = 8 * 1024 * 1024;
+let lastLocalRecording = null;
+let googleDriveAccessToken = null;
+let googleDriveTokenExpiresAt = 0;
+let googleDriveUploadInProgress = false;
 
 const elements = {
   localVideo: document.getElementById("local-video"),
@@ -90,6 +98,10 @@ const elements = {
   toggleMicButton: document.getElementById("toggle-mic-btn"),
   recordLocalButton: document.getElementById("record-local-btn"),
   localRecordingState: document.getElementById("local-recording-state"),
+  saveDriveButton: document.getElementById("save-drive-btn"),
+  driveUploadState: document.getElementById("drive-upload-state"),
+  driveUploadText: document.getElementById("drive-upload-text"),
+  driveUploadProgress: document.getElementById("drive-upload-progress"),
   leaveStudioButton: document.getElementById("leave-studio-btn"),
   endClassButton: document.getElementById("end-class-btn"),
   liveStatus: document.getElementById("live-status"),
@@ -708,26 +720,277 @@ function buildLocalRecordingStream() {
   return recordingStream;
 }
 
-function downloadLocalRecording(chunks, mimeType) {
+function createLocalRecordingArtifact(chunks, mimeType) {
   if (!chunks.length) {
-    return false;
+    return null;
   }
 
   const blob = new Blob(chunks, { type: mimeType || "video/webm" });
   if (blob.size === 0) {
+    return null;
+  }
+
+  return { ...getLocalRecordingMetadata(), blob };
+}
+
+function downloadLocalRecording(recording) {
+  if (!recording?.blob || !recording.fileName) {
     return false;
   }
 
-  const fileUrl = URL.createObjectURL(blob);
+  const fileUrl = URL.createObjectURL(recording.blob);
   const link = document.createElement("a");
   link.href = fileUrl;
-  link.download = getLocalRecordingFileName();
+  link.download = recording.fileName;
   link.style.display = "none";
   document.body.append(link);
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(fileUrl), 60_000);
   return true;
+}
+
+function getLocalRecordingMetadata() {
+  const safeLabel = (value, fallback) => String(value || fallback)
+    .trim()
+    .replace(/[\\/:*?\"<>|]+/g, "-")
+    .replace(/\s+/g, "-")
+    .slice(0, 48) || fallback;
+  const fileName = getLocalRecordingFileName();
+  return {
+    fileName,
+    mimeType: localRecordingMimeType || "video/webm",
+    level: safeLabel(activeLevel, "حصص مباشرة"),
+    classType: safeLabel(getClassTypeName(activeLevel, activeSubject), "تسجيل"),
+  };
+}
+
+function updateDriveUploadUi({ visible = false, text = "", progress = 0 } = {}) {
+  elements.driveUploadState.hidden = !visible;
+  elements.driveUploadText.textContent = text;
+  elements.driveUploadProgress.value = Math.max(0, Math.min(100, Number(progress) || 0));
+}
+
+function isGoogleDriveTokenUsable() {
+  return Boolean(googleDriveAccessToken && Date.now() < googleDriveTokenExpiresAt - 60_000);
+}
+
+function requestGoogleDriveAccessToken() {
+  if (isGoogleDriveTokenUsable()) {
+    return Promise.resolve(googleDriveAccessToken);
+  }
+
+  if (!window.google?.accounts?.oauth2) {
+    return Promise.reject(new Error("لم يكتمل تحميل خدمة تسجيل الدخول إلى Google. أعد المحاولة بعد ثوانٍ."));
+  }
+
+  return new Promise((resolve, reject) => {
+    const tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_DRIVE_CLIENT_ID,
+      scope: GOOGLE_DRIVE_SCOPE,
+      callback: (response) => {
+        if (response?.error || !response?.access_token) {
+          reject(new Error(response?.error_description || "لم يتم منح إذن الحفظ في Google Drive."));
+          return;
+        }
+        googleDriveAccessToken = response.access_token;
+        googleDriveTokenExpiresAt = Date.now() + (Number(response.expires_in) || 3_600) * 1_000;
+        resolve(googleDriveAccessToken);
+      },
+      error_callback: (error) => {
+        reject(new Error(error?.message || "تم إغلاق نافذة تسجيل الدخول إلى Google."));
+      },
+    });
+    tokenClient.requestAccessToken({ prompt: "consent" });
+  });
+}
+
+async function googleDriveRequest(url, options, accessToken) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...(options.headers || {}),
+    },
+  });
+
+  if (!response.ok) {
+    const details = await response.json().catch(() => null);
+    throw new Error(details?.error?.message || `تعذر الاتصال بـ Google Drive (${response.status}).`);
+  }
+
+  return response;
+}
+
+function escapeDriveQueryValue(value) {
+  return String(value || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+async function ensureGoogleDriveFolder(name, parentId, accessToken) {
+  const conditions = [
+    `name = '${escapeDriveQueryValue(name)}'`,
+    "mimeType = 'application/vnd.google-apps.folder'",
+    "trashed = false",
+  ];
+  if (parentId) {
+    conditions.push(`'${escapeDriveQueryValue(parentId)}' in parents`);
+  }
+  const query = encodeURIComponent(conditions.join(" and "));
+  const fields = encodeURIComponent("files(id,name)");
+  const listResponse = await googleDriveRequest(
+    `https://www.googleapis.com/drive/v3/files?q=${query}&spaces=drive&fields=${fields}&pageSize=1`,
+    { method: "GET" },
+    accessToken
+  );
+  const existing = await listResponse.json();
+  if (existing.files?.[0]?.id) {
+    return existing.files[0].id;
+  }
+
+  const metadata = {
+    name,
+    mimeType: "application/vnd.google-apps.folder",
+    ...(parentId ? { parents: [parentId] } : {}),
+  };
+  const createResponse = await googleDriveRequest(
+    "https://www.googleapis.com/drive/v3/files?fields=id,name",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(metadata),
+    },
+    accessToken
+  );
+  const created = await createResponse.json();
+  if (!created.id) {
+    throw new Error("تعذر إنشاء مجلد التسجيلات في Google Drive.");
+  }
+  return created.id;
+}
+
+async function createGoogleDriveUploadSession(recording, accessToken) {
+  const metadata = {
+    name: recording.fileName,
+    mimeType: recording.mimeType,
+    parents: [recording.folderId],
+  };
+  const response = await googleDriveRequest(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,webViewLink",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json; charset=UTF-8",
+        "X-Upload-Content-Type": recording.mimeType,
+        "X-Upload-Content-Length": String(recording.blob.size),
+      },
+      body: JSON.stringify(metadata),
+    },
+    accessToken
+  );
+  const sessionUrl = response.headers.get("Location");
+  if (!sessionUrl) {
+    throw new Error("تعذر تجهيز عملية رفع التسجيل إلى Google Drive.");
+  }
+  return sessionUrl;
+}
+
+async function uploadRecordingToGoogleDrive(recording, accessToken) {
+  const rootFolderId = await ensureGoogleDriveFolder(GOOGLE_DRIVE_ROOT_FOLDER, null, accessToken);
+  const levelFolderId = await ensureGoogleDriveFolder(recording.level, rootFolderId, accessToken);
+  recording.folderId = await ensureGoogleDriveFolder(recording.classType, levelFolderId, accessToken);
+  const sessionUrl = await createGoogleDriveUploadSession(recording, accessToken);
+  let offset = 0;
+
+  while (offset < recording.blob.size) {
+    const end = Math.min(offset + GOOGLE_DRIVE_UPLOAD_CHUNK_SIZE, recording.blob.size);
+    const chunk = recording.blob.slice(offset, end);
+    const response = await fetch(sessionUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": recording.mimeType,
+        "Content-Range": `bytes ${offset}-${end - 1}/${recording.blob.size}`,
+      },
+      body: chunk,
+    });
+
+    if (response.status === 308) {
+      offset = end;
+      updateDriveUploadUi({
+        visible: true,
+        text: `جارٍ رفع التسجيل إلى Google Drive: ${Math.round((offset / recording.blob.size) * 100)}%`,
+        progress: (offset / recording.blob.size) * 100,
+      });
+      continue;
+    }
+
+    if (!response.ok) {
+      const details = await response.json().catch(() => null);
+      throw new Error(details?.error?.message || `تعذر رفع جزء من التسجيل (${response.status}).`);
+    }
+
+    return response.json();
+  }
+
+  throw new Error("لم يكتمل رفع التسجيل إلى Google Drive.");
+}
+
+async function saveLastRecordingToGoogleDrive() {
+  if (!lastLocalRecording || googleDriveUploadInProgress) {
+    return;
+  }
+
+  googleDriveUploadInProgress = true;
+  elements.saveDriveButton.disabled = true;
+  updateDriveUploadUi({ visible: true, text: "جارٍ فتح موافقة Google Drive…", progress: 0 });
+
+  try {
+    const accessToken = await requestGoogleDriveAccessToken();
+    updateDriveUploadUi({ visible: true, text: "جارٍ تجهيز مجلد الحصة في Google Drive…", progress: 0 });
+    const uploadedFile = await uploadRecordingToGoogleDrive(lastLocalRecording, accessToken);
+    updateDriveUploadUi({ visible: true, text: "تم حفظ التسجيل في Google Drive بنجاح.", progress: 100 });
+    setStudioStatus("تم حفظ التسجيل في Google Drive.", classActive ? "live" : "neutral");
+    if (uploadedFile?.webViewLink) {
+      elements.saveDriveButton.dataset.driveFileUrl = uploadedFile.webViewLink;
+      setButtonLabel(elements.saveDriveButton, "فتح التسجيل في Google Drive");
+    }
+  } catch (error) {
+    console.error("Unable to upload the class recording to Google Drive:", error);
+    updateDriveUploadUi({ visible: true, text: error.message || "تعذر حفظ التسجيل في Google Drive.", progress: 0 });
+    setStudioStatus(error.message || "تعذر حفظ التسجيل في Google Drive.", "error");
+  } finally {
+    googleDriveUploadInProgress = false;
+    updateControls();
+  }
+}
+
+async function stopRecordingAndSaveToGoogleDrive() {
+  const permissionPromise = requestGoogleDriveAccessToken();
+  const saved = await stopLocalRecording({ download: false });
+  if (!saved || !lastLocalRecording) {
+    await permissionPromise.catch(() => {});
+    return;
+  }
+
+  try {
+    const accessToken = await permissionPromise;
+    googleDriveUploadInProgress = true;
+    elements.saveDriveButton.disabled = true;
+    updateDriveUploadUi({ visible: true, text: "جارٍ تجهيز مجلد الحصة في Google Drive…", progress: 0 });
+    const uploadedFile = await uploadRecordingToGoogleDrive(lastLocalRecording, accessToken);
+    updateDriveUploadUi({ visible: true, text: "تم حفظ التسجيل في Google Drive بنجاح.", progress: 100 });
+    setStudioStatus("تم حفظ التسجيل في Google Drive.", "live");
+    if (uploadedFile?.webViewLink) {
+      elements.saveDriveButton.dataset.driveFileUrl = uploadedFile.webViewLink;
+      setButtonLabel(elements.saveDriveButton, "فتح التسجيل في Google Drive");
+    }
+  } catch (error) {
+    console.error("Unable to save the class recording to Google Drive:", error);
+    updateDriveUploadUi({ visible: true, text: error.message || "تعذر حفظ التسجيل في Google Drive.", progress: 0 });
+    setStudioStatus("تعذر الحفظ في Google Drive؛ يمكنك المحاولة من الزر الأخضر.", "error");
+  } finally {
+    googleDriveUploadInProgress = false;
+    updateControls();
+  }
 }
 
 function finalizeLocalRecording() {
@@ -740,6 +1003,10 @@ function finalizeLocalRecording() {
   const mimeType = localRecordingMimeType;
   const shouldDownload = localRecordingDownloadRequested;
   const resolver = localRecordingStopResolver;
+  const recording = createLocalRecordingArtifact(chunks, mimeType);
+  lastLocalRecording = recording;
+  elements.saveDriveButton.dataset.driveFileUrl = "";
+  setButtonLabel(elements.saveDriveButton, "حفظ آخر تسجيل في Google Drive");
   localMediaRecorder = null;
   localRecordingChunks = [];
   localRecordingStopResolver = null;
@@ -749,14 +1016,14 @@ function finalizeLocalRecording() {
   setButtonLabel(elements.recordLocalButton, "بدء تسجيل الحصة");
   disposeLocalRecordingResources();
 
-  const saved = shouldDownload && downloadLocalRecording(chunks, mimeType);
-  if (saved && classActive && !isEnding && !isPageNavigatingAway) {
+  const downloaded = shouldDownload && downloadLocalRecording(recording);
+  if (downloaded && classActive && !isEnding && !isPageNavigatingAway) {
     setStudioStatus("تم حفظ تسجيل الحصة محليًا على جهازك.", "live");
-  } else if (shouldDownload && !saved && classActive && !isEnding) {
+  } else if (shouldDownload && !downloaded && classActive && !isEnding) {
     setStudioStatus("تعذر إنشاء ملف التسجيل المحلي.", "error");
   }
   updateControls();
-  resolver?.(saved);
+  resolver?.(Boolean(recording));
 }
 
 function startLocalRecording() {
@@ -832,10 +1099,19 @@ function stopLocalRecording({ download = true } = {}) {
 
 function toggleLocalRecording() {
   if (isLocalRecording()) {
-    void stopLocalRecording({ download: true });
+    void stopRecordingAndSaveToGoogleDrive();
   } else {
     startLocalRecording();
   }
+}
+
+function handleGoogleDriveButton() {
+  const existingFileUrl = elements.saveDriveButton.dataset.driveFileUrl;
+  if (existingFileUrl) {
+    window.open(existingFileUrl, "_blank", "noopener,noreferrer");
+    return;
+  }
+  void saveLastRecordingToGoogleDrive();
 }
 
 function updateControls() {
@@ -846,6 +1122,7 @@ function updateControls() {
   elements.subjectSelect.disabled = isStarting || isEnding || classActive;
   elements.toggleMicButton.disabled = !classActive || !hasAudio || isEnding;
   elements.recordLocalButton.disabled = (!canRecordLocalClass() && !isLocalRecording()) || isEnding;
+  elements.saveDriveButton.disabled = !lastLocalRecording || googleDriveUploadInProgress;
   elements.leaveStudioButton.disabled = !classActive || isEnding;
   elements.endClassButton.disabled = !classActive || isEnding;
   elements.chatInput.disabled = !classActive || isEnding;
@@ -2343,6 +2620,7 @@ elements.levelSelect.addEventListener("change", () => {
 elements.startButton.addEventListener("click", startLiveClass);
 elements.toggleMicButton.addEventListener("click", toggleMicrophone);
 elements.recordLocalButton.addEventListener("click", toggleLocalRecording);
+elements.saveDriveButton.addEventListener("click", handleGoogleDriveButton);
 elements.leaveStudioButton.addEventListener("click", () => {
   void leaveLiveStudio();
 });

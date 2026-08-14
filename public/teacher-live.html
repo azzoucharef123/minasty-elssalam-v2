@@ -581,6 +581,39 @@
         box-shadow: 0 0 0 0.2rem rgba(248, 113, 113, 0.13);
       }
 
+      .studio-button.drive {
+        color: #dcfce7;
+        background: rgba(20, 83, 45, 0.58);
+        border-color: rgba(74, 222, 128, 0.38);
+      }
+
+      .studio-button.drive:hover:not(:disabled) {
+        background: rgba(21, 128, 61, 0.75);
+      }
+
+      .drive-upload-state {
+        grid-column: 1 / -1;
+        display: grid;
+        gap: 0.4rem;
+        padding: 0.65rem 0.78rem;
+        color: #dbeafe;
+        background: rgba(30, 58, 95, 0.44);
+        border: 1px solid rgba(96, 165, 250, 0.27);
+        border-radius: 0.72rem;
+        font-size: 0.71rem;
+        font-weight: 700;
+      }
+
+      .drive-upload-state[hidden] {
+        display: none;
+      }
+
+      .drive-upload-state progress {
+        width: 100%;
+        height: 0.45rem;
+        accent-color: #22c55e;
+      }
+
       .studio-sidebar {
         grid-area: sidebar;
         display: flex;
@@ -1197,6 +1230,11 @@
               <span>بدء تسجيل الحصة</span>
             </button>
 
+            <button id="save-drive-btn" class="studio-button drive" type="button" disabled>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.25 3.75h5.5L20 16.25l-2.75 4H11.75L7.25 12.5 10 7.75m2.75-4-2.75 4M7.25 12.5H14m3.25 7.75L14 16.25" /></svg>
+              <span>حفظ آخر تسجيل في Google Drive</span>
+            </button>
+
             <button id="toggle-mic-btn" class="studio-button" type="button" disabled>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5A3.5 3.5 0 0 0 15.5 12V6.5a3.5 3.5 0 0 0-7 0V12a3.5 3.5 0 0 0 3.5 3.5ZM5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M8.5 21h7" /></svg>
               <span>إيقاف المايك</span>
@@ -1211,6 +1249,11 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17.25v.01M4.76 18.5h14.48c1.34 0 2.17-1.45 1.5-2.61L13.5 3.36a1.73 1.73 0 0 0-3 0L3.26 15.89a1.74 1.74 0 0 0 1.5 2.61Z" /></svg>
               <span>إنهاء الحصة</span>
             </button>
+
+            <div id="drive-upload-state" class="drive-upload-state" role="status" aria-live="polite" hidden>
+              <span id="drive-upload-text">سيظهر تقدّم حفظ التسجيل في Google Drive هنا.</span>
+              <progress id="drive-upload-progress" max="100" value="0"></progress>
+            </div>
           </div>
         </section>
 
@@ -1255,6 +1298,7 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="./js/teacher-live.js"></script>
   </body>
 </html>
