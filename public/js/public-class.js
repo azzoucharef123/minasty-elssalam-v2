@@ -114,6 +114,12 @@
       }
       localStream?.getTracks().forEach((track) => track.stop());
       localStream = combined;
+      // The host needs a local preview too. Mute it locally to prevent an
+      // audio feedback loop; remote guests still receive all broadcast tracks.
+      elements.video.srcObject = localStream;
+      elements.video.muted = true;
+      elements.video.play().catch(() => {});
+      elements.placeholder.hidden = true;
       elements.startShare.textContent = "المشاركة جارية";
       elements.startShare.disabled = true;
       setStatus("الحصة العامة بدأت. يمكن لأي شخص لديه الرابط الانضمام الآن.");
