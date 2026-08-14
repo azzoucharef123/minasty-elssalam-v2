@@ -40,12 +40,12 @@ const studentAudioElements = new Map();
 // approvals. A received student track is never mixed for the class unless its
 // socket ID is present here.
 const approvedStudentMicrophones = new Set();
-// All approved microphone and screen-audio sources are mixed once in the
-// teacher browser and broadcast as one master audio track to every student.
+// The teacher browser creates one mix-minus destination per connected student.
+// Each destination receives the teacher mic and screen audio plus every approved
+// student's audio except the student who owns that destination.
 const classroomAudioSources = new Map();
+const classroomAudioDestinations = new Map();
 let classroomAudioContext;
-let classroomMasterAudioDestination;
-let classroomMasterAudioTrack;
 const iceDisconnectTimers = Object.create(null);
 const ICE_DISCONNECT_GRACE_MS = 8_000;
 let activeLevel = null;
@@ -623,7 +623,7 @@ function initializeTeacherCanvas() {
 
 function getAllAudioTracks() {
   // The teacher mic button controls only the teacher microphone. Screen/system
-  // audio remains an independent source in the central master mixer.
+  // audio remains an independent source in the central Mix-Minus graph.
   return cameraStream?.getAudioTracks?.() || [];
 }
 
@@ -1286,6 +1286,40 @@ function getClassroomAudioContextConstructor() {
   return window.AudioContext || window.webkitAudioContext || null;
 }
 
+function rebuildClassroomAudioGraph() {
+  // Disconnect every source first. Rebuilding from the authoritative maps keeps
+  // the graph idempotent and prevents duplicate connections after renegotiation.
+  classroomAudioSources.forEach(({ node }) => {
+    try {
+      node.disconnect();
+    } catch {
+      // The node may already be disconnected during cleanup.
+    }
+  });
+
+  classroomAudioDestinations.forEach((destination, destinationSocketId) => {
+    const teacherSource = classroomAudioSources.get("__teacher_microphone__");
+    const screenSource = classroomAudioSources.get("__screen_audio__");
+
+    [teacherSource, screenSource].forEach((source) => {
+      if (source?.enabled) {
+        source.node.connect(destination);
+      }
+    });
+
+    classroomAudioSources.forEach((source, sourceKey) => {
+      if (
+        sourceKey !== "__teacher_microphone__" &&
+        sourceKey !== "__screen_audio__" &&
+        sourceKey !== destinationSocketId &&
+        source.enabled
+      ) {
+        source.node.connect(destination);
+      }
+    });
+  });
+}
+
 function removeClassroomAudioSource(sourceKey) {
   const source = classroomAudioSources.get(sourceKey);
   if (!source) {
@@ -1298,68 +1332,99 @@ function removeClassroomAudioSource(sourceKey) {
     // The source may already be disconnected during class cleanup.
   }
   classroomAudioSources.delete(sourceKey);
+  rebuildClassroomAudioGraph();
 }
 
-function getMasterAudioTrack() {
-  return classroomMasterAudioTrack?.readyState === "live" ? classroomMasterAudioTrack : null;
-}
-
-function getMasterAudioStream() {
-  return classroomMasterAudioDestination?.stream || null;
-}
-
-function getMasterAudioSender(peerConnection) {
-  return peerConnection?.getSenders?.().find((sender) => sender.__classroomMasterAudio === true) || null;
-}
-
-function ensureMasterAudioSender(peerConnection, { renegotiate = true } = {}) {
-  const masterTrack = getMasterAudioTrack();
-  const masterStream = getMasterAudioStream();
-  if (!peerConnection || !masterTrack || !masterStream || peerConnection.signalingState === "closed") {
+function ensureStudentAudioDestination(studentSocketId) {
+  if (!classroomAudioContext || !studentSocketId) {
     return null;
   }
 
-  const existingSender = getMasterAudioSender(peerConnection);
+  const existing = classroomAudioDestinations.get(studentSocketId);
+  if (existing?.stream?.getAudioTracks?.().some((track) => track.readyState === "live")) {
+    return existing;
+  }
+
+  if (existing) {
+    existing.stream.getTracks().forEach((track) => track.stop());
+    classroomAudioDestinations.delete(studentSocketId);
+  }
+
+  try {
+    const destination = classroomAudioContext.createMediaStreamDestination();
+    const track = destination.stream.getAudioTracks()[0];
+    if (!track) {
+      return null;
+    }
+    track.contentHint = "speech";
+    classroomAudioDestinations.set(studentSocketId, destination);
+    rebuildClassroomAudioGraph();
+    return destination;
+  } catch (error) {
+    console.warn("Unable to create the student's mix-minus destination:", error);
+    return null;
+  }
+}
+
+function removeStudentAudioDestination(studentSocketId) {
+  const destination = classroomAudioDestinations.get(studentSocketId);
+  if (!destination) {
+    return;
+  }
+
+  try {
+    destination.disconnect();
+  } catch {
+    // MediaStreamAudioDestinationNode may already be detached during cleanup.
+  }
+  destination.stream.getTracks().forEach((track) => track.stop());
+  classroomAudioDestinations.delete(studentSocketId);
+  rebuildClassroomAudioGraph();
+}
+
+function getStudentAudioTrack(studentSocketId) {
+  return classroomAudioDestinations
+    .get(studentSocketId)
+    ?.stream
+    ?.getAudioTracks?.()
+    .find((track) => track.readyState === "live") || null;
+}
+
+function getStudentAudioSender(peerConnection) {
+  return peerConnection?.getSenders?.().find((sender) => sender.__classroomMixMinusAudio === true) || null;
+}
+
+function ensureStudentAudioSender(peerConnection, studentSocketId, { renegotiate = true } = {}) {
+  const destination = ensureStudentAudioDestination(studentSocketId);
+  const audioTrack = getStudentAudioTrack(studentSocketId);
+  if (!peerConnection || !destination || !audioTrack || peerConnection.signalingState === "closed") {
+    return null;
+  }
+
+  const existingSender = getStudentAudioSender(peerConnection);
   if (existingSender) {
-    if (existingSender.track !== masterTrack) {
-      existingSender.replaceTrack(masterTrack).catch((error) => {
-        console.warn("Unable to replace the central mixed audio track:", error);
+    if (existingSender.track !== audioTrack) {
+      existingSender.replaceTrack(audioTrack).catch((error) => {
+        console.warn("Unable to replace the student's mix-minus audio track:", error);
       });
     }
     return existingSender;
   }
 
-  const sender = peerConnection.addTrack(masterTrack, masterStream);
-  sender.__classroomMasterAudio = true;
+  const sender = peerConnection.addTrack(audioTrack, destination.stream);
+  sender.__classroomMixMinusAudio = true;
+  sender.__classroomAudioDestinationSocketId = studentSocketId;
   void tuneOutboundSender(sender, "audio");
   if (renegotiate && peerConnection.remoteDescription && peerConnection.signalingState === "stable") {
-    const studentSocketId = Object.keys(peerConnections).find((id) => peerConnections[id] === peerConnection);
-    if (studentSocketId) void createAndSendOffer(studentSocketId);
+    void createAndSendOffer(studentSocketId);
   }
   return sender;
 }
 
-function syncMasterAudioToAllPeers() {
-  Object.values(peerConnections).forEach((peerConnection) => {
-    ensureMasterAudioSender(peerConnection);
+function syncMixMinusAudioToAllPeers() {
+  Object.entries(peerConnections).forEach(([studentSocketId, peerConnection]) => {
+    ensureStudentAudioSender(peerConnection, studentSocketId);
   });
-}
-
-function syncApprovedStudentAudioSource(studentSocketId) {
-  const source = classroomAudioSources.get(studentSocketId);
-  if (!source || !classroomMasterAudioDestination) {
-    return;
-  }
-
-  try {
-    source.node.disconnect();
-  } catch {
-    // The source may already be disconnected during a state transition.
-  }
-
-  if (approvedStudentMicrophones.has(studentSocketId)) {
-    source.node.connect(classroomMasterAudioDestination);
-  }
 }
 
 function applyStudentMicrophoneState(studentSocketId, enabled) {
@@ -1380,9 +1445,13 @@ function applyStudentMicrophoneState(studentSocketId, enabled) {
     syncStudentMicButton(attendee, studentSocketId, Boolean(enabled));
   }
 
-  // The source is connected or disconnected from the teacher's central mixer.
-  // No student-to-student RTCPeerConnection is created here.
-  syncApprovedStudentAudioSource(studentSocketId);
+  const source = classroomAudioSources.get(studentSocketId);
+  if (source) {
+    source.enabled = Boolean(enabled);
+  }
+  // Rebuild all destinations so this student's audio reaches every other
+  // student immediately, but never reaches the destination owned by this one.
+  rebuildClassroomAudioGraph();
 }
 
 function getLiveScreenAudioTrack() {
@@ -1398,26 +1467,39 @@ function addClassroomAudioSource(sourceKey, stream, { enabled = true } = {}) {
 
   try {
     const node = classroomAudioContext.createMediaStreamSource(stream);
-    classroomAudioSources.set(sourceKey, { node, stream });
-    if (enabled && classroomMasterAudioDestination) {
-      node.connect(classroomMasterAudioDestination);
-    }
+    classroomAudioSources.set(sourceKey, { node, stream, enabled: Boolean(enabled) });
+    rebuildClassroomAudioGraph();
     return true;
   } catch (error) {
-    console.warn('Unable to add an audio source to the classroom mix:', error);
+    console.warn("Unable to add an audio source to the classroom mix-minus graph:", error);
     return false;
   }
 }
 
 function clearClassroomAudioGraph() {
-  Array.from(classroomAudioSources.keys()).forEach(removeClassroomAudioSource);
-  classroomMasterAudioDestination = undefined;
-  classroomMasterAudioTrack = undefined;
+  classroomAudioSources.forEach(({ node }) => {
+    try {
+      node.disconnect();
+    } catch {
+      // The source may already be disconnected during class cleanup.
+    }
+  });
+  classroomAudioSources.clear();
+
+  classroomAudioDestinations.forEach((destination) => {
+    try {
+      destination.disconnect();
+    } catch {
+      // The destination may already be detached during cleanup.
+    }
+    destination.stream.getTracks().forEach((track) => track.stop());
+  });
+  classroomAudioDestinations.clear();
 }
 
 function primeClassroomAudioContext() {
   const AudioContextConstructor = getClassroomAudioContextConstructor();
-  if (!AudioContextConstructor || (classroomAudioContext && classroomAudioContext.state !== 'closed')) {
+  if (!AudioContextConstructor || (classroomAudioContext && classroomAudioContext.state !== "closed")) {
     return;
   }
 
@@ -1425,11 +1507,11 @@ function primeClassroomAudioContext() {
     classroomAudioContext = new AudioContextConstructor();
     // Called synchronously from the teacher's Start Class click, preserving the
     // browser gesture needed by iOS/Android to permit a running audio context.
-    if (classroomAudioContext.state === 'suspended') {
+    if (classroomAudioContext.state === "suspended") {
       classroomAudioContext.resume().catch(() => {});
     }
   } catch (error) {
-    console.warn('Unable to prime classroom audio:', error);
+    console.warn("Unable to prime classroom audio:", error);
     classroomAudioContext = undefined;
   }
 }
@@ -1439,7 +1521,7 @@ async function initializeClassroomAudioMix() {
   primeClassroomAudioContext();
 
   if (!classroomAudioContext) {
-    console.warn("Web Audio API is unavailable; central classroom mixing cannot start.");
+    console.warn("Web Audio API is unavailable; classroom mix-minus cannot start.");
     return false;
   }
 
@@ -1448,22 +1530,11 @@ async function initializeClassroomAudioMix() {
       await classroomAudioContext.resume();
     }
 
-    classroomMasterAudioDestination = classroomAudioContext.createMediaStreamDestination();
-    classroomMasterAudioTrack = classroomMasterAudioDestination.stream.getAudioTracks()[0] || undefined;
-    if (!classroomMasterAudioTrack) {
-      throw new Error("لم يتم إنشاء مسار الصوت الممزوج.");
-    }
-    classroomMasterAudioTrack.contentHint = "speech";
-
-    // Teacher microphone and shared screen/system audio are both sources of the
-    // same master destination. Screen audio is optional when the browser does
-    // not provide it from the selected display surface.
     addClassroomAudioSource("__teacher_microphone__", cameraStream, { enabled: true });
     addClassroomAudioSource("__screen_audio__", screenStream, { enabled: true });
-
     return classroomAudioContext.state === "running";
   } catch (error) {
-    console.warn("Unable to initialize the central classroom audio mix:", error);
+    console.warn("Unable to initialize the classroom mix-minus graph:", error);
     stopClassroomAudioMix();
     return false;
   }
@@ -1471,9 +1542,6 @@ async function initializeClassroomAudioMix() {
 
 function stopClassroomAudioMix() {
   clearClassroomAudioGraph();
-  classroomMasterAudioDestination?.stream?.getTracks?.().forEach((track) => track.stop());
-  classroomMasterAudioDestination = undefined;
-  classroomMasterAudioTrack = undefined;
 
   const context = classroomAudioContext;
   classroomAudioContext = undefined;
@@ -1503,12 +1571,13 @@ function attachStudentAudio(peerConnection, studentSocketId) {
 
     const incomingStream = event.streams?.[0] || new MediaStream([event.track]);
     audio.srcObject = incomingStream;
-    // Every approved student stream is mixed once in the teacher browser, then
-    // the single master track is sent to all students.
+    // Every approved student stream is routed into every other student's
+    // destination, while the speaking student is excluded from its own mix.
     addClassroomAudioSource(studentSocketId, incomingStream, {
       enabled: approvedStudentMicrophones.has(studentSocketId),
     });
-    syncApprovedStudentAudioSource(studentSocketId);
+    // The hidden local audio element is the teacher's monitoring path. The Web
+    // Audio graph below sends this source only to other students' destinations.
     audio.play().catch((error) => {
       console.warn('Unable to play approved student microphone:', error);
     });
@@ -1536,7 +1605,6 @@ function clearIceDisconnectTimer(socketId) {
 function removeStudentConnection(socketId, { statusMessage } = {}) {
   clearIceDisconnectTimer(socketId);
   approvedStudentMicrophones.delete(socketId);
-  removeClassroomAudioSource(socketId);
   closePeerConnection(socketId);
   removeAttendee(socketId);
 
@@ -1568,6 +1636,8 @@ function closePeerConnection(socketId) {
 
   delete pendingIceCandidates[socketId];
   removeStudentAudio(socketId);
+  removeClassroomAudioSource(socketId);
+  removeStudentAudioDestination(socketId);
 }
 
 function closeAllPeerConnections() {
@@ -1620,10 +1690,9 @@ function addTeacherTracks(peerConnection, studentSocketId) {
     void tuneOutboundSender(sender, "video");
   });
 
-  // Every student receives exactly one audio sender: the teacher browser's
-  // master MediaStreamAudioDestinationNode track. It already contains the
-  // teacher microphone, screen audio, and all approved student sources.
-  ensureMasterAudioSender(peerConnection, { renegotiate: false });
+  // Every student receives one unique mix-minus track. It contains the teacher
+  // microphone, screen audio, and all approved student sources except this one.
+  ensureStudentAudioSender(peerConnection, studentSocketId, { renegotiate: false });
 }
 
 /**
@@ -1638,8 +1707,8 @@ function createPeerConnection(studentSocketId) {
   pendingIceCandidates[studentSocketId] = [];
 
   addTeacherTracks(peerConnection, studentSocketId);
-  // The first offer contains the same central master audio track as every
-  // other learner; no peer-to-peer student audio route is created.
+  // The first offer contains this learner's unique mix-minus audio track;
+  // no peer-to-peer student audio route is created.
   attachStudentAudio(peerConnection, studentSocketId);
 
   peerConnection.onicecandidate = (event) => {
