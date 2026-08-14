@@ -616,7 +616,6 @@ function selectQuestionImage(file) {
   selectedQuestionImagePreviewUrl = URL.createObjectURL(file);
   elements.questionImagePreviewImage.src = selectedQuestionImagePreviewUrl;
   elements.questionImagePreview.hidden = false;
-  setViewerStatus("الصورة جاهزة. اكتب توضيحًا اختياريًا ثم أرسل السؤال.", "live");
   updateChatControls();
 }
 
@@ -657,7 +656,6 @@ async function sendStudentChatMessage(event) {
     let imageId = null;
     let localImageUrl = null;
     if (imageFile) {
-      setViewerStatus("جارٍ رفع صورة السؤال…", "warning");
       imageId = await uploadQuestionImage(imageFile);
       localImageUrl = URL.createObjectURL(imageFile);
       renderedQuestionImageUrls.add(localImageUrl);
@@ -673,7 +671,8 @@ async function sendStudentChatMessage(event) {
     appendStudentChatMessage({ sender: "أنا", message, kind: "student", imageUrl: localImageUrl });
     elements.chatInput.value = "";
     clearSelectedQuestionImage();
-    setViewerStatus(imageId ? "تم إرسال صورة السؤال إلى الأستاذ." : "تم إرسال السؤال إلى الأستاذ.", "live");
+    // Keep the question controls unobstructed after sending. The chat itself
+    // confirms delivery by displaying the submitted question or image.
   } catch (error) {
     console.error("Unable to send student chat message:", error);
     setViewerStatus(error.message || "تعذر إرسال السؤال.", "error");
