@@ -101,6 +101,27 @@
         <button class="level-btn" data-level="طالب جامعي">طالب جامعي</button>
       </section>
 
+      <section class="schedule-manager" aria-labelledby="schedule-manager-title">
+        <header class="schedule-manager-head">
+          <div>
+            <span class="schedule-kicker">برنامج المستوى</span>
+            <h3 id="schedule-manager-title">برمجة الحصص</h3>
+            <p id="schedule-level-caption">أضف وعدّل واحذف حصص المستوى المختار.</p>
+          </div>
+          <button id="teacher-absence-btn" class="teacher-absence-btn" type="button">الأستاذ غائب اليوم</button>
+        </header>
+        <p id="teacher-absence-status" class="teacher-absence-status" hidden></p>
+        <form id="schedule-form" class="schedule-form" novalidate>
+          <label>نوع الحصة<select id="schedule-subject" required></select></label>
+          <label>التاريخ والتوقيت<input id="schedule-datetime" type="datetime-local" required /></label>
+          <div class="schedule-form-actions">
+            <button id="schedule-submit-btn" class="schedule-submit-btn" type="submit">إضافة حصة</button>
+            <button id="schedule-cancel-edit-btn" class="schedule-cancel-btn" type="button" hidden>إلغاء التعديل</button>
+          </div>
+        </form>
+        <div id="scheduled-class-list" class="scheduled-class-list" aria-live="polite"></div>
+      </section>
+
       <section class="roster-toolbar" aria-label="بحث وتصفية التلاميذ">
         <label class="teacher-search-field" for="student-search"><span>البحث</span><input id="student-search" placeholder="البحث باسم التلميذ..." /></label>
         <label class="teacher-filter-field" for="payment-filter"><span>نوع الاشتراك</span><select id="payment-filter"><option value="all">كل الاشتراكات</option><option value="paid">اشتراك مدفوع</option><option value="unpaid">اشتراك مجاني</option></select></label>

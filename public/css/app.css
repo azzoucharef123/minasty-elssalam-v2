@@ -803,3 +803,289 @@ body.parent-login-modal-open {
   color: #ffffff;
   background: #16a34a;
 }
+
+/* Teacher schedule manager */
+.schedule-manager {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid #dbeafe;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, #ffffff, #f8fbff);
+}
+
+.schedule-manager-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.schedule-kicker {
+  color: #2563eb;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.schedule-manager h3,
+.schedule-manager p {
+  margin: 0;
+}
+
+.schedule-manager h3 {
+  margin-top: 0.18rem;
+  color: #102345;
+  font-size: 1rem;
+}
+
+.schedule-manager-head p {
+  margin-top: 0.22rem;
+  color: #64748b;
+  font-size: 0.73rem;
+  font-weight: 600;
+}
+
+.teacher-absence-btn {
+  min-height: 2.55rem;
+  padding: 0.55rem 0.8rem;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 0.68rem;
+  background: #fff5f5;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.teacher-absence-btn.is-active {
+  color: #ffffff;
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.teacher-absence-status {
+  margin: 0.75rem 0 0;
+  padding: 0.58rem 0.68rem;
+  color: #b91c1c;
+  border-radius: 0.62rem;
+  background: #fef2f2;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.schedule-form {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.6fr) minmax(12rem, 1fr) auto;
+  gap: 0.72rem;
+  align-items: end;
+  margin-top: 0.9rem;
+}
+
+.schedule-form label {
+  display: grid;
+  gap: 0.32rem;
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.schedule-form select,
+.schedule-form input {
+  min-height: 2.55rem;
+  padding: 0.5rem 0.65rem;
+  color: #102345;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.62rem;
+  background: #ffffff;
+  font: inherit;
+  font-size: 0.77rem;
+}
+
+.schedule-form-actions {
+  display: flex;
+  gap: 0.48rem;
+}
+
+.schedule-submit-btn,
+.schedule-cancel-btn,
+.scheduled-class-actions button {
+  min-height: 2.55rem;
+  padding: 0.5rem 0.72rem;
+  border-radius: 0.62rem;
+  font: inherit;
+  font-size: 0.73rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.schedule-submit-btn {
+  color: #ffffff;
+  border: 1px solid #2563eb;
+  background: #2563eb;
+}
+
+.schedule-cancel-btn {
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+}
+
+.scheduled-class-list {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.9rem;
+}
+
+.scheduled-class-empty {
+  margin: 0;
+  padding: 0.72rem;
+  color: #64748b;
+  border-radius: 0.68rem;
+  background: #f8fafc;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.scheduled-class-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.7rem;
+  background: #ffffff;
+}
+
+.scheduled-class-info {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.scheduled-class-info strong {
+  color: #102345;
+  font-size: 0.78rem;
+}
+
+.scheduled-class-info span {
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.scheduled-class-actions {
+  display: flex;
+  gap: 0.42rem;
+}
+
+.scheduled-class-actions .edit {
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+}
+
+.scheduled-class-actions .delete {
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  background: #fff5f5;
+}
+
+@media (max-width: 720px) {
+  .schedule-manager-head,
+  .scheduled-class-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .schedule-form {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-form-actions,
+  .scheduled-class-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Parent schedule and teacher-absence notice */
+.parent-schedule-card {
+  margin: 0 0 1rem;
+  padding: 1rem;
+  border: 1px solid #dbeafe;
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+}
+
+.parent-schedule-head span {
+  color: #2563eb;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.parent-schedule-head h2 {
+  margin: 0.18rem 0 0;
+  color: #102345;
+  font-size: 1rem;
+}
+
+.teacher-absence-notice {
+  margin: 0.8rem 0 0;
+  padding: 0.72rem 0.8rem;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 0.7rem;
+  background: #fff1f2;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.parent-schedule-list {
+  display: grid;
+  gap: 0.56rem;
+  margin-top: 0.82rem;
+}
+
+.parent-schedule-empty {
+  margin: 0;
+  padding: 0.72rem;
+  color: #64748b;
+  border-radius: 0.68rem;
+  background: #f8fafc;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.parent-schedule-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  padding: 0.7rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.72rem;
+  background: #f8fbff;
+}
+
+.parent-schedule-item strong {
+  display: block;
+  color: #102345;
+  font-size: 0.78rem;
+}
+
+.parent-schedule-item span {
+  display: block;
+  margin-top: 0.18rem;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.parent-schedule-item i {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: #3b82f6;
+}

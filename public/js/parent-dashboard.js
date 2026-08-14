@@ -23,6 +23,8 @@ const elements = {
   parentPaymentSubmit: document.getElementById("parent-payment-submit"),
   parentPaymentPending: document.getElementById("parent-payment-pending"),
   parentPaymentConfirmed: document.getElementById("parent-payment-confirmed"),
+  parentScheduleList: document.getElementById("parent-schedule-list"),
+  teacherAbsenceNotice: document.getElementById("teacher-absence-notice"),
   logoutButton: document.getElementById("logout-btn"),
   materialsList: document.getElementById("materials-list"),
   attendanceCount: document.getElementById("attendance-count"),
@@ -43,6 +45,8 @@ let currentLobbyLevel = null;
 let paymentReturnRefreshTimer = null;
 let activeLiveClassType = null;
 let universityPaymentTransferRequested = false;
+let parentScheduledClasses = [];
+let parentTeacherAbsent = false;
 
 function clearParentSession() {
   [
@@ -193,6 +197,74 @@ function renderStudentSwitcher(students) {
   }
 }
 
+function scheduleTypeLabel(level, subject) {
+  const labels = level === "طالب جامعي"
+    ? { PAID: "اشتراك مدفوع", FREE: "اشتراك مجاني" }
+    : { MATH: "الرياضيات", PHYSICS: "الفيزياء" };
+  return labels[subject] || "حصة مبرمجة";
+}
+
+function formatParentScheduleDate(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "توقيت غير صالح";
+  return new Intl.DateTimeFormat("ar-DZ", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function renderParentSchedule() {
+  if (elements.teacherAbsenceNotice) {
+    elements.teacherAbsenceNotice.hidden = !parentTeacherAbsent;
+  }
+  if (!elements.parentScheduleList) return;
+  elements.parentScheduleList.replaceChildren();
+
+  if (!parentScheduledClasses.length) {
+    const empty = document.createElement("p");
+    empty.className = "parent-schedule-empty";
+    empty.textContent = "لا توجد حصص مبرمجة لهذا المستوى حالياً.";
+    elements.parentScheduleList.append(empty);
+    return;
+  }
+
+  parentScheduledClasses.forEach((scheduledClass) => {
+    const item = document.createElement("article");
+    item.className = "parent-schedule-item";
+    const content = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = scheduleTypeLabel(currentStudent?.level, scheduledClass.subject);
+    const date = document.createElement("span");
+    date.textContent = formatParentScheduleDate(scheduledClass.scheduledAt);
+    content.append(title, date);
+    const dot = document.createElement("i");
+    dot.setAttribute("aria-hidden", "true");
+    item.append(content, dot);
+    elements.parentScheduleList.append(item);
+  });
+}
+
+async function loadParentSchedule(level) {
+  try {
+    const response = await parentFetch(`/api/schedules/${encodeURIComponent(level)}`, {
+      headers: { Accept: "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر تحميل برنامج الحصص.");
+    if (!currentStudent || currentStudent.level !== level) return;
+
+    parentScheduledClasses = Array.isArray(payload.scheduledClasses) ? payload.scheduledClasses : [];
+    parentTeacherAbsent = payload.teacherAbsent === true;
+    renderParentSchedule();
+  } catch (error) {
+    console.error("Unable to load parent schedule:", error);
+  }
+}
+
 function selectStudent(studentId) {
   const student = currentStudents.find((item) => item.id === studentId);
   if (!student) {
@@ -209,6 +281,7 @@ function selectStudent(studentId) {
   clearError();
   emitLobbyJoin(student.level);
   void loadAttendanceCount(student.id);
+  void loadParentSchedule(student.level);
 }
 
 function renderUniversityPaymentUpgrade(student, isPaidSubscription) {
@@ -771,6 +844,23 @@ function initializeLobbySocket() {
     }
 
     void loadDashboard({ backgroundRefresh: true });
+  });
+
+  socket.on("class_schedule_updated", (data = {}) => {
+    if (!currentStudent || data.level !== currentStudent.level) {
+      return;
+    }
+
+    void loadParentSchedule(currentStudent.level);
+  });
+
+  socket.on("teacher_absence_updated", (data = {}) => {
+    if (!currentStudent || data.level !== currentStudent.level) {
+      return;
+    }
+
+    parentTeacherAbsent = data.isAbsent === true;
+    renderParentSchedule();
   });
 
   socket.on("disconnect", () => {

@@ -42,6 +42,15 @@ const elements = {
   focusStudentSearchButton: document.getElementById("focus-student-search"),
   jumpToRosterButton: document.getElementById("jump-to-roster"),
   studentsPanel: document.getElementById("students-panel"),
+  scheduleForm: document.getElementById("schedule-form"),
+  scheduleSubject: document.getElementById("schedule-subject"),
+  scheduleDateTime: document.getElementById("schedule-datetime"),
+  scheduleSubmitButton: document.getElementById("schedule-submit-btn"),
+  scheduleCancelButton: document.getElementById("schedule-cancel-edit-btn"),
+  scheduledClassList: document.getElementById("scheduled-class-list"),
+  scheduleLevelCaption: document.getElementById("schedule-level-caption"),
+  teacherAbsenceButton: document.getElementById("teacher-absence-btn"),
+  teacherAbsenceStatus: document.getElementById("teacher-absence-status"),
 };
 
 let currentLevel =
@@ -51,6 +60,9 @@ let currentLevel =
 let currentStudents = [];
 let subscriptionStudentId = null;
 let toastTimer = null;
+let scheduledClasses = [];
+let teacherAbsent = false;
+let editingScheduledClassId = null;
 
 function clearTeacherSession() {
   sessionStorage.removeItem(TEACHER_TOKEN_KEY);
@@ -171,6 +183,134 @@ function truncateText(value, maxLength = 55) {
   }
 
   return text.length > maxLength ? `${text.slice(0, maxLength)}…` : text;
+}
+
+function scheduleTypeOptions(level) {
+  return level === "طالب جامعي"
+    ? [
+        { value: "PAID", label: "اشتراك مدفوع" },
+        { value: "FREE", label: "اشتراك مجاني" },
+      ]
+    : [
+        { value: "MATH", label: "الرياضيات" },
+        { value: "PHYSICS", label: "الفيزياء" },
+      ];
+}
+
+function scheduleTypeLabel(level, subject) {
+  return scheduleTypeOptions(level).find((item) => item.value === subject)?.label || "نوع غير معروف";
+}
+
+function toDateTimeLocalValue(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  const pad = (part) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function formatScheduledDate(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "توقيت غير صالح";
+  return new Intl.DateTimeFormat("ar-DZ", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function syncScheduleSubjectOptions(selectedValue) {
+  if (!elements.scheduleSubject) return;
+  const previousValue = selectedValue || elements.scheduleSubject.value;
+  elements.scheduleSubject.replaceChildren();
+  scheduleTypeOptions(currentLevel).forEach((item) => {
+    const option = document.createElement("option");
+    option.value = item.value;
+    option.textContent = item.label;
+    elements.scheduleSubject.append(option);
+  });
+  const values = scheduleTypeOptions(currentLevel).map((item) => item.value);
+  elements.scheduleSubject.value = values.includes(previousValue) ? previousValue : values[0];
+}
+
+function resetScheduleForm() {
+  editingScheduledClassId = null;
+  if (elements.scheduleForm) elements.scheduleForm.reset();
+  syncScheduleSubjectOptions();
+  if (elements.scheduleSubmitButton) elements.scheduleSubmitButton.textContent = "إضافة حصة";
+  if (elements.scheduleCancelButton) elements.scheduleCancelButton.hidden = true;
+}
+
+function renderScheduledClasses() {
+  if (!elements.scheduledClassList) return;
+  elements.scheduledClassList.replaceChildren();
+
+  if (!scheduledClasses.length) {
+    const empty = document.createElement("p");
+    empty.className = "scheduled-class-empty";
+    empty.textContent = "لا توجد حصص مبرمجة لهذا المستوى بعد.";
+    elements.scheduledClassList.append(empty);
+    return;
+  }
+
+  scheduledClasses.forEach((scheduledClass) => {
+    const item = document.createElement("article");
+    item.className = "scheduled-class-item";
+    const info = document.createElement("div");
+    info.className = "scheduled-class-info";
+    const title = document.createElement("strong");
+    title.textContent = scheduleTypeLabel(currentLevel, scheduledClass.subject);
+    const date = document.createElement("span");
+    date.textContent = formatScheduledDate(scheduledClass.scheduledAt);
+    info.append(title, date);
+
+    const actions = document.createElement("div");
+    actions.className = "scheduled-class-actions";
+    actions.append(
+      createButton("تعديل", "edit", () => beginScheduleEdit(scheduledClass.id)),
+      createButton("حذف", "delete", () => void deleteScheduledClass(scheduledClass.id))
+    );
+    item.append(info, actions);
+    elements.scheduledClassList.append(item);
+  });
+}
+
+function renderTeacherAbsence() {
+  if (elements.scheduleLevelCaption) {
+    elements.scheduleLevelCaption.textContent = `أضف وعدّل واحذف حصص ${currentLevel}.`;
+  }
+  if (elements.teacherAbsenceButton) {
+    elements.teacherAbsenceButton.classList.toggle("is-active", teacherAbsent);
+    elements.teacherAbsenceButton.textContent = teacherAbsent
+      ? "إلغاء حالة غياب الأستاذ"
+      : "الأستاذ غائب اليوم";
+  }
+  if (elements.teacherAbsenceStatus) {
+    elements.teacherAbsenceStatus.hidden = !teacherAbsent;
+    elements.teacherAbsenceStatus.textContent = teacherAbsent
+      ? "الأستاذ غائب اليوم. ستظهر هذه الرسالة لتلاميذ هذا المستوى."
+      : "";
+  }
+}
+
+async function loadLevelSchedule() {
+  try {
+    const response = await teacherFetch(`/api/schedules/${encodeURIComponent(currentLevel)}`, {
+      headers: { Accept: "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر تحميل برنامج الحصص.");
+
+    scheduledClasses = Array.isArray(payload.scheduledClasses) ? payload.scheduledClasses : [];
+    teacherAbsent = payload.teacherAbsent === true;
+    renderTeacherAbsence();
+    renderScheduledClasses();
+  } catch (error) {
+    console.error("Unable to load level schedule:", error);
+    showDashboardError(error.message || "تعذر تحميل برنامج الحصص.");
+  }
 }
 
 function createButton(label, className, onClick) {
@@ -445,12 +585,95 @@ async function fetchStudents(level = currentLevel) {
     // Phase 15 returns { status, data, meta }; retain the legacy array fallback
     // so this dashboard remains compatible during a staged deployment.
     currentStudents = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+    resetScheduleForm();
+    await loadLevelSchedule();
     applyFilters();
   } catch (error) {
     if (!/انتهت الجلسة/.test(error.message)) {
       console.error("Unable to fetch teacher roster:", error);
       showDashboardError(error.message || "تعذر تحميل قائمة التلاميذ.");
     }
+  }
+}
+
+function beginScheduleEdit(scheduledClassId) {
+  const scheduledClass = scheduledClasses.find((item) => item.id === scheduledClassId);
+  if (!scheduledClass) return;
+  editingScheduledClassId = scheduledClass.id;
+  syncScheduleSubjectOptions(scheduledClass.subject);
+  elements.scheduleDateTime.value = toDateTimeLocalValue(scheduledClass.scheduledAt);
+  elements.scheduleSubmitButton.textContent = "حفظ التعديل";
+  elements.scheduleCancelButton.hidden = false;
+  elements.scheduleForm?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+async function saveScheduledClass(event) {
+  event.preventDefault();
+  const subject = elements.scheduleSubject?.value;
+  const localDateTime = elements.scheduleDateTime?.value;
+  const scheduledAt = localDateTime ? new Date(localDateTime).toISOString() : "";
+  if (!subject || !scheduledAt) {
+    showDashboardError("حدد نوع الحصة والتاريخ والتوقيت أولاً.");
+    return;
+  }
+
+  const isEditing = Boolean(editingScheduledClassId);
+  try {
+    const response = await teacherFetch(
+      isEditing ? `/api/schedules/${encodeURIComponent(editingScheduledClassId)}` : "/api/schedules",
+      {
+        method: isEditing ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ level: currentLevel, subject, scheduledAt }),
+      }
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر حفظ الحصة المبرمجة.");
+
+    showToast(payload.message || "تم حفظ الحصة المبرمجة.");
+    resetScheduleForm();
+    await loadLevelSchedule();
+  } catch (error) {
+    console.error("Unable to save scheduled class:", error);
+    showDashboardError(error.message || "تعذر حفظ الحصة المبرمجة.");
+  }
+}
+
+async function deleteScheduledClass(scheduledClassId) {
+  if (!window.confirm("هل تريد حذف هذه الحصة المبرمجة؟")) return;
+  try {
+    const response = await teacherFetch(`/api/schedules/${encodeURIComponent(scheduledClassId)}`, {
+      method: "DELETE",
+      headers: { Accept: "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر حذف الحصة المبرمجة.");
+
+    showToast(payload.message || "تم حذف الحصة المبرمجة.");
+    if (editingScheduledClassId === scheduledClassId) resetScheduleForm();
+    await loadLevelSchedule();
+  } catch (error) {
+    console.error("Unable to delete scheduled class:", error);
+    showDashboardError(error.message || "تعذر حذف الحصة المبرمجة.");
+  }
+}
+
+async function toggleTeacherAbsence() {
+  try {
+    const response = await teacherFetch(`/api/schedules/absence/${encodeURIComponent(currentLevel)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ isAbsent: !teacherAbsent }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر تحديث حالة الغياب.");
+
+    teacherAbsent = payload.data?.isAbsent === true;
+    renderTeacherAbsence();
+    showToast(payload.message || "تم تحديث حالة غياب الأستاذ.");
+  } catch (error) {
+    console.error("Unable to update teacher absence:", error);
+    showDashboardError(error.message || "تعذر تحديث حالة الغياب.");
   }
 }
 
@@ -849,6 +1072,9 @@ if (!getTeacherToken()) {
     button.addEventListener("click", () => fetchStudents(button.dataset.level));
   });
 
+  elements.scheduleForm?.addEventListener("submit", saveScheduledClass);
+  elements.scheduleCancelButton?.addEventListener("click", resetScheduleForm);
+  elements.teacherAbsenceButton?.addEventListener("click", () => void toggleTeacherAbsence());
   elements.subscriptionForm?.addEventListener("submit", saveSubscription);
   elements.closeSubscriptionButton?.addEventListener("click", closeSubscriptionModal);
   elements.logoutButton?.addEventListener("click", logoutTeacher);
