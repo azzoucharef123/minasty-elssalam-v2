@@ -1076,6 +1076,30 @@ io.on("connection", (socket) => {
     acknowledge(acknowledgement, { ok: true });
   });
 
+  /** A student cancels a pending hand-raise request before teacher approval. */
+  socket.on("student_lower_hand", (data = {}, acknowledgement) => {
+    const level = socket.data.roomLevel;
+    const teacherSocketId = activeTeachersByLevel.get(level);
+    const teacherSocket = teacherSocketId ? io.sockets.sockets.get(teacherSocketId) : null;
+
+    if (
+      socket.data.role !== "student" ||
+      !isValidLevel(level || "") ||
+      !teacherSocket ||
+      !shareSameClassroom(socket, teacherSocket, level)
+    ) {
+      return emitClassroomError(
+        socket,
+        "student_lower_hand",
+        "تعذر تنزيل اليد خارج حصة نشطة.",
+        acknowledgement
+      );
+    }
+
+    io.to(teacherSocketId).emit("hand_lowered", { socketId: socket.id });
+    acknowledge(acknowledgement, { ok: true });
+  });
+
   /**
    * Teacher directly opens or closes a same-level student's microphone.
    * This command is independent of hand-raising, while preserving the same

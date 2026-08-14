@@ -1930,6 +1930,19 @@ socket.on("hand_raised", (data = {}) => {
   setStudioStatus("هناك طلب جديد للتحدث.", "live");
 });
 
+socket.on("hand_lowered", (data = {}) => {
+  const attendee = attendeeElements.get(data.socketId);
+  if (!attendee) {
+    return;
+  }
+
+  attendee.classList.remove("is-hand-raised");
+  attendee.querySelector(".attendee-hand")?.remove();
+  if (classActive) {
+    setStudioStatus("ألغى التلميذ طلب التحدث.", "live");
+  }
+});
+
 socket.on("student_message_received", async (data = {}) => {
   if (!classActive || (!data?.message && !data?.imageId)) {
     return;

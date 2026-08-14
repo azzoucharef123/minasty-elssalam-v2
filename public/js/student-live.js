@@ -80,6 +80,8 @@ const elements = {
   classLevelLabel: document.getElementById("class-level-label"),
   joinButton: document.getElementById("join-class-btn"),
   raiseHandButton: document.getElementById("raise-hand-btn"),
+  handWaitingActions: document.getElementById("hand-waiting-actions"),
+  lowerHandButton: document.getElementById("lower-hand-btn"),
   toggleMicButton: document.getElementById("toggle-mic-btn"),
   status: document.getElementById("viewer-status"),
   statusText: document.getElementById("viewer-status-text"),
@@ -688,24 +690,17 @@ function setButtonLabel(button, label) {
 }
 
 function setRaisedHandState({ waiting = false } = {}) {
-  elements.raiseHandButton.disabled = waiting;
-  elements.raiseHandButton.classList.toggle("hand-raised", waiting);
-  setButtonLabel(
-    elements.raiseHandButton,
-    waiting ? "في انتظار موافقة الأستاذ..." : "رفع اليد"
-  );
+  const canRequest = joinedClass && !microphonePermissionGranted;
+  elements.raiseHandButton.hidden = !canRequest || waiting;
+  elements.raiseHandButton.disabled = !canRequest;
+  elements.handWaitingActions.hidden = !waiting;
 }
 
 function updateMicControl() {
-  const audioTrack = localAudioStream?.getAudioTracks()[0];
-  const isEnabled = Boolean(audioTrack?.enabled);
-
-  elements.toggleMicButton.style.display = microphonePermissionGranted
-    ? "inline-flex"
-    : "none";
-  elements.toggleMicButton.disabled = !audioTrack;
-  elements.toggleMicButton.classList.toggle("mic-active", isEnabled);
-  setButtonLabel(elements.toggleMicButton, isEnabled ? "إيقاف المايك" : "تشغيل المايك");
+  // Microphone state is intentionally controlled by the teacher only. The
+  // student never receives a visible control that can mute an approved track.
+  elements.toggleMicButton.style.display = "none";
+  elements.toggleMicButton.disabled = true;
 }
 
 function clearHandResetTimer() {
@@ -1464,25 +1459,19 @@ function raiseHand() {
       return;
     }
 
-    // The button is temporary by design: the student can ask again later if
-    // the teacher does not respond, but cannot spam repeated requests.
-    handResetTimer = window.setTimeout(() => {
-      if (!microphonePermissionGranted) {
-        setRaisedHandState({ waiting: false });
-      }
-    }, 20_000);
+    // يبقى الطلب ظاهراً حتى يوافق الأستاذ أو يختار التلميذ «تنزيل اليد».
   });
 }
 
-function toggleMicrophone() {
-  const audioTrack = localAudioStream?.getAudioTracks()[0];
-  if (!audioTrack) {
+function lowerHand() {
+  if (!joinedClass || !socket.connected) {
     return;
   }
 
-  audioTrack.enabled = !audioTrack.enabled;
-  updateMicControl();
-  setViewerStatus(audioTrack.enabled ? "تم تشغيل المايك." : "تم إيقاف المايك.", "live");
+  clearHandResetTimer();
+  setRaisedHandState({ waiting: false });
+  socket.emit("student_lower_hand", { level }, () => {});
+  setViewerStatus("تم تنزيل اليد. يمكنك رفعها من جديد عند الحاجة.", "neutral");
 }
 
 // --- Socket.io classroom and direct signaling events. ---
@@ -1790,10 +1779,11 @@ socket.on("permission_granted", async () => {
 
   microphonePermissionGranted = true;
   clearHandResetTimer();
-  // Resolve the student's request immediately. The waiting label must never
-  // remain visible after the teacher has made a microphone decision.
+  // Resolve the student's request immediately. The waiting controls disappear
+  // and the teacher-owned microphone track is opened without a self-mute UI.
   setRaisedHandState({ waiting: false });
   elements.raiseHandButton.hidden = true;
+  elements.handWaitingActions.hidden = true;
   updateMicControl();
   await enableApprovedMicrophone();
 });
@@ -1809,7 +1799,7 @@ socket.on("microphone_revoked", () => {
   disableStudentAudioMeshSenders();
 
   setRaisedHandState({ waiting: false });
-  elements.raiseHandButton.hidden = !joinedClass;
+  elements.handWaitingActions.hidden = true;
   updateMicControl();
   setViewerStatus("أغلق الأستاذ المايك. يمكنك رفع اليد عند الحاجة.", "neutral");
 });
@@ -1876,7 +1866,7 @@ socket.on("disconnect", () => {
 elements.enableAudioButton?.addEventListener("click", enableTeacherAudio);
 elements.remoteVideo?.addEventListener("volumechange", updateRemoteAudioControl);
 elements.raiseHandButton.addEventListener("click", raiseHand);
-elements.toggleMicButton.addEventListener("click", toggleMicrophone);
+elements.lowerHandButton?.addEventListener("click", lowerHand);
 elements.chatForm.addEventListener("submit", sendStudentChatMessage);
 elements.chatInput.addEventListener("input", updateChatControls);
 elements.captureQuestionButton?.addEventListener("click", () => {

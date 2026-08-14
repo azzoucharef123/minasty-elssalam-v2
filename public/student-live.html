@@ -208,6 +208,85 @@
         display: none;
       }
 
+      .hand-request-controls {
+        position: absolute;
+        z-index: 16;
+        top: 0.75rem;
+        left: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+
+      .hand-request-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.38rem;
+        min-height: 2.7rem;
+        padding: 0.58rem 0.82rem;
+        color: #ffffff;
+        background: linear-gradient(135deg, #16a34a, #059669);
+        border: 1px solid rgba(187, 247, 208, 0.4);
+        border-radius: 0.68rem;
+        box-shadow: 0 8px 18px rgba(5, 150, 105, 0.28);
+        font: inherit;
+        font-size: 0.73rem;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .hand-request-button:hover:not(:disabled) {
+        filter: brightness(1.1);
+        transform: translateY(-0.08rem);
+      }
+
+      .hand-request-button:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+      }
+
+      .hand-waiting-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+
+      .hand-waiting-actions[hidden] {
+        display: none;
+      }
+
+      .hand-waiting-label,
+      .lower-hand-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.7rem;
+        padding: 0.55rem 0.72rem;
+        border-radius: 0.66rem;
+        font: inherit;
+        font-size: 0.72rem;
+        font-weight: 800;
+      }
+
+      .hand-waiting-label {
+        color: #111827;
+        background: #facc15;
+        border: 1px solid #fde68a;
+        box-shadow: 0 8px 16px rgba(245, 158, 11, 0.23);
+      }
+
+      .lower-hand-button {
+        color: #ffffff;
+        background: #dc2626;
+        border: 1px solid rgba(254, 202, 202, 0.5);
+        cursor: pointer;
+      }
+
+      .lower-hand-button:hover {
+        background: #b91c1c;
+      }
+
       #student-canvas {
         position: absolute;
         inset: 0;
@@ -889,6 +968,16 @@
             <strong id="placeholder-title">انضم إلى الحصة عند جاهزيتك</strong>
             <p id="placeholder-description">ستظهر مشاركة الأستاذ هنا بعد بدء البث.</p>
           </div>
+
+          <div class="hand-request-controls" aria-label="طلب التحدث">
+            <button id="raise-hand-btn" class="hand-request-button" type="button" hidden>
+              <span aria-hidden="true">✋</span><span>رفع اليد</span>
+            </button>
+            <div id="hand-waiting-actions" class="hand-waiting-actions" hidden>
+              <span class="hand-waiting-label">انتظار</span>
+              <button id="lower-hand-btn" class="lower-hand-button" type="button">تنزيل اليد</button>
+            </div>
+          </div>
         </div>
 
         <aside class="student-chat-panel" aria-labelledby="student-chat-title">
@@ -923,16 +1012,8 @@
         <div class="viewer-controls" aria-label="أدوات الحصة">
           <button id="join-class-btn" type="button" hidden aria-hidden="true" tabindex="-1"></button>
 
-          <button id="raise-hand-btn" class="viewer-button" type="button" hidden>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 11V5.75a1.25 1.25 0 0 1 2.5 0V10M11 10V4.75a1.25 1.25 0 0 1 2.5 0V10.5M13.5 10.5V6.75a1.25 1.25 0 0 1 2.5 0V12M8.5 9.5 7 8.25a1.25 1.25 0 0 0-1.7 1.84l3.2 3.11V16a4.5 4.5 0 0 0 9 0v-4.5" /></svg>
-            <span>رفع اليد</span>
-          </button>
-
-          <!-- Must remain fully hidden until the teacher sends permission_granted. -->
-          <button id="toggle-mic-btn" class="viewer-button" type="button" style="display: none">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5A3.5 3.5 0 0 0 15.5 12V6.5a3.5 3.5 0 0 0-7 0V12a3.5 3.5 0 0 0 3.5 3.5ZM5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M8.5 21h7" /></svg>
-            <span>إيقاف المايك</span>
-          </button>
+          <!-- يبقى المرجع مخفياً للتوافق البرمجي؛ التحكم في مايك التلميذ للأستاذ فقط. -->
+          <button id="toggle-mic-btn" type="button" style="display: none" aria-hidden="true" tabindex="-1"></button>
         </div>
 
         <div id="viewer-status" class="viewer-status" role="status" aria-live="polite">
