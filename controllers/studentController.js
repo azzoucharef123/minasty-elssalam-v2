@@ -153,6 +153,9 @@ async function registerStudent(req, res) {
           mathNote: "",
           physicsNote: "",
           cardPhotoUrl: uploadedCardFile?.filename || null,
+          // الجامعة تتطلب مراجعة الأستاذ للبطاقة قبل تفعيل الحساب لأول مرة.
+          accountActive: !isUniversityStudent,
+          cardReuploadRequested: false,
         },
       });
     });
@@ -295,6 +298,15 @@ function notifyAccountStatus(req, student) {
   });
 }
 
+function isUniversityIdentityPending(student) {
+  return (
+    student.level === "طالب جامعي" &&
+    student.accountActive === false &&
+    student.cardReuploadRequested === false &&
+    Boolean(student.cardPhotoUrl)
+  );
+}
+
 /** PUT /api/students/:id/request-card-reupload — teacher-only. */
 async function requestStudentCardReupload(req, res) {
   try {
@@ -325,6 +337,57 @@ async function requestStudentCardReupload(req, res) {
   } catch (error) {
     console.error("Card reupload request failed:", error);
     return res.status(500).json({ error: "تعذر إرسال طلب إعادة رفع البطاقة حالياً." });
+  }
+}
+
+/** PUT /api/students/:id/confirm-card-identity — teacher-only confirmation after review. */
+async function confirmStudentCardIdentity(req, res) {
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        level: true,
+        cardPhotoUrl: true,
+        accountActive: true,
+        cardReuploadRequested: true,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: "التلميذ غير موجود." });
+    }
+
+    if (student.level !== "طالب جامعي") {
+      return res.status(400).json({ error: "تأكيد البطاقة متاح للطالب الجامعي فقط." });
+    }
+
+    if (!student.cardPhotoUrl) {
+      return res.status(400).json({ error: "لا توجد بطاقة مرفوعة لتأكيد الهوية." });
+    }
+
+    if (student.cardReuploadRequested) {
+      return res.status(400).json({ error: "ينتظر النظام رفع بطاقة جديدة من الطالب أولاً." });
+    }
+
+    if (!isUniversityIdentityPending(student)) {
+      return res.status(400).json({ error: "هوية هذا الطالب مؤكدة بالفعل." });
+    }
+
+    const updatedStudent = await prisma.student.update({
+      where: { id: student.id },
+      data: { accountActive: true, cardReuploadRequested: false },
+    });
+    notifyAccountStatus(req, updatedStudent);
+
+    return res.status(200).json({
+      status: "success",
+      message: "تم تأكيد هوية البطاقة وتفعيل حساب الطالب.",
+      data: updatedStudent,
+    });
+  } catch (error) {
+    console.error("Student card identity confirmation failed:", error);
+    return res.status(500).json({ error: "تعذر تأكيد هوية البطاقة حالياً." });
   }
 }
 
@@ -362,7 +425,8 @@ async function replaceStudentCard(req, res) {
       where: { id: student.id },
       data: {
         cardPhotoUrl: uploadedCardFile.filename,
-        accountActive: true,
+        // الصورة البديلة تحتاج مراجعة الأستاذ مثل البطاقة الأولى.
+        accountActive: false,
         cardReuploadRequested: false,
       },
     });
@@ -495,6 +559,7 @@ module.exports = {
   getStudentsByLevel,
   updateStudentStatusAndNotes,
   requestStudentCardReupload,
+  confirmStudentCardIdentity,
   replaceStudentCard,
   deleteStudent,
 };

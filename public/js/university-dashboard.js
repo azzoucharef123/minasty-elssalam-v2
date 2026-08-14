@@ -90,19 +90,42 @@ function renderStudent(student) {
   elements.name.textContent = student.studentName;
 
   const cardIsReady = Boolean(student.cardPhotoUrl);
-  elements.cardStatus.textContent = cardIsReady ? "تم رفع البطاقة" : "البطاقة غير مرفقة";
-  elements.cardStatus.className = cardIsReady ? "success" : "danger";
+  const identityPending =
+    student.accountActive === false &&
+    !student.cardReuploadRequested &&
+    cardIsReady;
+  elements.cardStatus.textContent = student.cardReuploadRequested
+    ? "يجب إعادة رفع البطاقة"
+    : identityPending
+      ? "في انتظار تأكيد هوية البطاقة"
+      : cardIsReady
+        ? "تم تأكيد البطاقة"
+        : "البطاقة غير مرفقة";
+  elements.cardStatus.className = identityPending
+    ? "pending"
+    : student.cardReuploadRequested || !cardIsReady
+      ? "danger"
+      : "success";
 
   const payment = paymentLabel(student);
   elements.paymentStatus.textContent = payment.text;
   elements.paymentStatus.className = payment.className;
 
-  elements.liveStatus.textContent = student.liveAccessEnabled ? "الدخول مفعّل" : "بانتظار تفعيل الأستاذ";
-  elements.liveStatus.className = student.liveAccessEnabled ? "success" : "pending";
-  elements.liveButton.disabled = !student.liveAccessEnabled;
-  elements.liveButton.title = student.liveAccessEnabled
-    ? "فتح الحصة المباشرة"
-    : "يجب أن يفعّل الأستاذ دخولك أولاً";
+  const accountReady = student.accountActive !== false && !student.cardReuploadRequested;
+  elements.liveStatus.textContent = !accountReady
+    ? student.cardReuploadRequested
+      ? "يجب رفع بطاقة جديدة"
+      : "في انتظار تأكيد الهوية"
+    : student.liveAccessEnabled
+      ? "الدخول مفعّل"
+      : "بانتظار تفعيل الأستاذ";
+  elements.liveStatus.className = accountReady && student.liveAccessEnabled ? "success" : "pending";
+  elements.liveButton.disabled = !student.liveAccessEnabled || !accountReady;
+  elements.liveButton.title = !accountReady
+    ? "يجب أن يؤكد الأستاذ هوية البطاقة أولاً"
+    : student.liveAccessEnabled
+      ? "فتح الحصة المباشرة"
+      : "يجب أن يفعّل الأستاذ دخولك أولاً";
 }
 
 async function loadDashboard() {
@@ -144,6 +167,15 @@ async function loadDashboard() {
 }
 
 function enterLiveClass() {
+  if (currentStudent?.accountActive === false || currentStudent?.cardReuploadRequested) {
+    showError(
+      currentStudent?.cardReuploadRequested
+        ? "يجب رفع بطاقة جديدة أولاً."
+        : "حسابك في انتظار تأكيد هوية البطاقة من الأستاذ."
+    );
+    return;
+  }
+
   if (!currentStudent?.liveAccessEnabled) {
     showError("لم يفعّل الأستاذ دخولك إلى الحصة بعد.");
     return;

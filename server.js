@@ -636,6 +636,8 @@ io.on("connection", (socket) => {
           liveAccessEnabled: true,
           paymentStatus: true,
           paymentStage: true,
+          accountActive: true,
+          cardReuploadRequested: true,
           mathEnrollment: true,
           physicsEnrollment: true,
         },
@@ -657,6 +659,13 @@ io.on("connection", (socket) => {
           "لم تقم بالدفع ولم تخبر الأستاذ أنك ستدفع. يجب الاتصال به على الرقم 0556960950 فورًا.",
           acknowledgement
         );
+      }
+
+      if (student.level === UNIVERSITY_LEVEL && !student.accountActive) {
+        const message = student.cardReuploadRequested
+          ? "يجب رفع بطاقة جديدة قبل دخول الحصة."
+          : "حسابك في انتظار تأكيد هوية البطاقة من الأستاذ.";
+        return emitClassroomError(socket, "student_join_room", message, acknowledgement);
       }
 
       const studentName = student.studentName;
@@ -714,7 +723,7 @@ io.on("connection", (socket) => {
       const isUniversityClass = level === UNIVERSITY_LEVEL;
       const isEligibleForActiveSubject = isUniversityClass
         ? (activeSubject === "PAID" && isPaidSubscription(student)) ||
-          (activeSubject === "FREE" && !isPaidSubscription(student))
+          activeSubject === "FREE"
         : (activeSubject === "MATH" && student.mathEnrollment) ||
           (activeSubject === "PHYSICS" && student.physicsEnrollment);
 

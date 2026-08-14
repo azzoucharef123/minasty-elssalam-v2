@@ -93,7 +93,27 @@ const elements = {
   questionImagePreview: document.getElementById("question-image-preview"),
   questionImagePreviewImage: document.getElementById("question-image-preview-img"),
   removeQuestionImageButton: document.getElementById("remove-question-image-btn"),
+  subscriptionUpgradeModal: document.getElementById("subscription-upgrade-modal"),
+  subscriptionDeclineButton: document.getElementById("subscription-decline-btn"),
 };
+
+function openSubscriptionUpgradeModal() {
+  if (!elements.subscriptionUpgradeModal) {
+    return;
+  }
+
+  elements.subscriptionUpgradeModal.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+
+function closeSubscriptionUpgradeModal() {
+  if (!elements.subscriptionUpgradeModal) {
+    return;
+  }
+
+  elements.subscriptionUpgradeModal.hidden = true;
+  document.body.style.overflow = "";
+}
 
 /**
  * Read the current student's identity from the session keys used by the portal.
@@ -1324,9 +1344,19 @@ async function joinClass({ rejoin = false, prepareMicrophone = false } = {}) {
     isJoining = false;
     const joinErrorMessage = error.message || "تعذر الانضمام إلى الحصة.";
     const isLiveAccessBlocked = joinErrorMessage.includes("لم تقم بالدفع");
+    const isSubscriptionUpgradeBlocked = joinErrorMessage.includes("مخصصة لأصحاب الاشتراك المدفوع");
+    const isIdentityBlocked =
+      joinErrorMessage.includes("انتظار تأكيد هوية البطاقة") ||
+      joinErrorMessage.includes("رفع بطاقة جديدة");
     const isTemporaryRecovery = rejoin || isRecoveringStream || joinErrorMessage.includes("يعيد الاتصال");
 
-    if (isTemporaryRecovery && !isLiveAccessBlocked && recoveryAttempts < MAX_RECOVERY_ATTEMPTS) {
+    if (
+      isTemporaryRecovery &&
+      !isLiveAccessBlocked &&
+      !isSubscriptionUpgradeBlocked &&
+      !isIdentityBlocked &&
+      recoveryAttempts < MAX_RECOVERY_ATTEMPTS
+    ) {
       recoveryAttempts += 1;
       joinedClass = true;
       isRecoveringStream = true;
@@ -1349,13 +1379,22 @@ async function joinClass({ rejoin = false, prepareMicrophone = false } = {}) {
     updateChatControls();
     setViewerStatus(joinErrorMessage, "error");
     setPlaceholder(
-      isLiveAccessBlocked ? "دخول الحصة غير متاح" : "الحصة غير متاحة",
-      isLiveAccessBlocked
+      isSubscriptionUpgradeBlocked
+        ? "ترقية الاشتراك مطلوبة"
+        : isLiveAccessBlocked || isIdentityBlocked
+          ? "دخول الحصة غير متاح"
+          : "الحصة غير متاحة",
+      isLiveAccessBlocked || isSubscriptionUpgradeBlocked || isIdentityBlocked
         ? joinErrorMessage
         : "بانتظار بدء الأستاذ للحصة تلقائياً."
     );
 
-    if (!isLiveAccessBlocked) {
+    if (isSubscriptionUpgradeBlocked) {
+      openSubscriptionUpgradeModal();
+      return;
+    }
+
+    if (!isLiveAccessBlocked && !isIdentityBlocked) {
       waitForNextLiveClass("الحصة غير نشطة الآن. ستنضم تلقائياً عند بدء الأستاذ للحصة.");
     }
   }
@@ -1799,12 +1838,17 @@ elements.questionImageInput?.addEventListener("change", () => {
   selectQuestionImage(elements.questionImageInput.files?.[0]);
 });
 elements.removeQuestionImageButton?.addEventListener("click", clearSelectedQuestionImage);
+elements.subscriptionDeclineButton?.addEventListener("click", () => {
+  closeSubscriptionUpgradeModal();
+  window.location.assign("./index.html");
+});
 initializeStudentCanvas();
 
 window.addEventListener("pagehide", () => {
   clearHandResetTimer();
   clearRecoveryTimer();
   clearSelectedQuestionImage();
+  closeSubscriptionUpgradeModal();
   closePeerConnection();
   stopLocalAudio();
   clearStudentBoard();

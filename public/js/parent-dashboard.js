@@ -23,6 +23,9 @@ const elements = {
   studentSwitcher: document.getElementById("student-switcher"),
   studentSwitcherList: document.getElementById("student-switcher-list"),
   paymentAccessModal: document.getElementById("payment-access-modal"),
+  paymentAccessTitle: document.getElementById("payment-access-title"),
+  paymentAccessHeadMessage: document.getElementById("payment-access-head-message"),
+  paymentAccessMessage: document.getElementById("payment-access-message"),
   callTeacherNowButton: document.getElementById("call-teacher-now-btn"),
   declineRegistrationButton: document.getElementById("decline-registration-btn"),
 };
@@ -32,6 +35,7 @@ let currentStudent = null;
 let currentStudents = [];
 let currentLobbyLevel = null;
 let paymentReturnRefreshTimer = null;
+let activeLiveClassType = null;
 
 function clearParentSession() {
   [
@@ -80,9 +84,26 @@ function clearError() {
   showError();
 }
 
-function openPaymentAccessModal() {
+function openPaymentAccessModal(reason = "access") {
   if (!elements.paymentAccessModal) {
     return;
+  }
+
+  const subscriptionUpgrade = reason === "subscription-upgrade";
+  if (elements.paymentAccessTitle) {
+    elements.paymentAccessTitle.textContent = subscriptionUpgrade
+      ? "هذه الحصة مخصصة للاشتراك المدفوع"
+      : "الدخول للحصة يحتاج إلى تفعيل";
+  }
+  if (elements.paymentAccessHeadMessage) {
+    elements.paymentAccessHeadMessage.textContent = subscriptionUpgrade
+      ? "أنت مشترك في المجاني فقط وهذه الحصة المدفوعة الآن للطلبة ذوي الاشتراك المدفوع."
+      : "لم يتم تأكيد الدفع أو إبلاغ الأستاذ بموعد الدفع.";
+  }
+  if (elements.paymentAccessMessage) {
+    elements.paymentAccessMessage.textContent = subscriptionUpgrade
+      ? "للترقية إلى الاشتراك المدفوع، اضغط على الزر الأخضر واتصل بالأستاذ مباشرة على الرقم 0556960950."
+      : "إذا كنت تريد الدفع، اضغط على الزر الأخضر واتصل بالأستاذ مباشرة على الرقم 0556960950.";
   }
 
   elements.paymentAccessModal.hidden = false;
@@ -190,11 +211,24 @@ function renderStudent(student) {
   if (elements.universityDashboardLink) {
     elements.universityDashboardLink.hidden = student.level !== "طالب جامعي";
   }
+  const isUniversityStudent = student.level === "طالب جامعي";
   const accountActive = student.accountActive !== false && !student.cardReuploadRequested;
+  const identityPending =
+    isUniversityStudent &&
+    student.accountActive === false &&
+    !student.cardReuploadRequested &&
+    Boolean(student.cardPhotoUrl);
   if (elements.accountStatus) {
-    elements.accountStatus.textContent = accountActive ? "حساب مفعل" : "حساب غير مفعل";
+    elements.accountStatus.textContent = student.cardReuploadRequested
+      ? "إعادة رفع البطاقة مطلوبة"
+      : identityPending
+        ? "في انتظار تأكيد هوية البطاقة"
+        : accountActive
+          ? "حساب مفعل"
+          : "حساب غير مفعل";
     elements.accountStatus.classList.toggle("is-active", accountActive);
-    elements.accountStatus.classList.toggle("is-inactive", !accountActive);
+    elements.accountStatus.classList.toggle("is-inactive", !accountActive && !identityPending);
+    elements.accountStatus.classList.toggle("is-pending", identityPending);
   }
   if (elements.cardReuploadPanel) {
     elements.cardReuploadPanel.hidden = !(
@@ -398,6 +432,7 @@ function emitLobbyJoin(level) {
 
     // The acknowledgement restores the existing state; subsequent events keep
     // it current while the parent remains on this dashboard.
+    activeLiveClassType = response.isClassLive ? response.subject || null : null;
     setLiveClassVisible(Boolean(response.isClassLive));
   });
 }
@@ -486,9 +521,33 @@ async function enterLiveClass() {
     return;
   }
 
+  const isUniversityStudent = currentStudent.level === "طالب جامعي";
+  const isPaidSubscription =
+    currentStudent.paymentStage === "PAID" || currentStudent.paymentStatus === true;
+  const identityPending =
+    isUniversityStudent &&
+    currentStudent.accountActive === false &&
+    !currentStudent.cardReuploadRequested &&
+    Boolean(currentStudent.cardPhotoUrl);
+
+  if (currentStudent.cardReuploadRequested || identityPending) {
+    showError(
+      currentStudent.cardReuploadRequested
+        ? "يجب رفع بطاقة جديدة أولاً قبل دخول الحصة."
+        : "حساب الطالب في انتظار تأكيد هوية البطاقة من الأستاذ."
+    );
+    return;
+  }
+
   if (!currentStudent.liveAccessEnabled) {
     clearError();
     openPaymentAccessModal();
+    return;
+  }
+
+  if (isUniversityStudent && !isPaidSubscription && activeLiveClassType === "PAID") {
+    clearError();
+    openPaymentAccessModal("subscription-upgrade");
     return;
   }
 
@@ -586,6 +645,7 @@ function initializeLobbySocket() {
       return;
     }
 
+    activeLiveClassType = data.subject || null;
     setLiveClassVisible(true);
   });
 
@@ -594,6 +654,7 @@ function initializeLobbySocket() {
       return;
     }
 
+    activeLiveClassType = null;
     setLiveClassVisible(false);
   });
 
@@ -618,6 +679,7 @@ function initializeLobbySocket() {
   socket.on("disconnect", () => {
     // Never leave an unverified positive state visible while the status socket
     // is unavailable. The ACK restores it once Socket.io reconnects.
+    activeLiveClassType = null;
     setLiveClassVisible(false);
   });
 

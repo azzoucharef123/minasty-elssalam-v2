@@ -12,6 +12,7 @@ const {
   getStudentsByLevel,
   updateStudentStatusAndNotes,
   requestStudentCardReupload,
+  confirmStudentCardIdentity,
   replaceStudentCard,
   deleteStudent,
 } = require("../controllers/studentController");
@@ -72,6 +73,9 @@ router.get("/level/:level", verifyToken, isTeacher, getStudentsByLevel);
 
 // Teacher-only: a blurred university card can be returned to the student for replacement.
 router.put("/:id/request-card-reupload", verifyToken, isTeacher, requestStudentCardReupload);
+
+// Teacher-only: the teacher activates a university account only after reviewing its card.
+router.put("/:id/confirm-card-identity", verifyToken, isTeacher, confirmStudentCardIdentity);
 
 // Parent-only: replacement is allowed only after the teacher requests it.
 router.post("/:id/card-photo", verifyToken, cardUpload.single("cardPhoto"), replaceStudentCard);

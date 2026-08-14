@@ -92,8 +92,17 @@ function paymentStageMeta(student) {
 }
 
 function accountStatusMeta(student) {
-  const active = student.accountActive !== false && !student.cardReuploadRequested;
-  return active
+  if (student.level === "طالب جامعي") {
+    if (student.cardReuploadRequested) {
+      return { label: "إعادة رفع البطاقة مطلوبة", className: "is-inactive" };
+    }
+
+    if (student.accountActive === false && student.cardPhotoUrl) {
+      return { label: "في انتظار تأكيد هوية البطاقة", className: "is-pending" };
+    }
+  }
+
+  return student.accountActive !== false
     ? { label: "حساب مفعل", className: "is-active" }
     : { label: "حساب غير مفعل", className: "is-inactive" };
 }
@@ -278,6 +287,20 @@ function renderTable(studentsArray) {
         ? "ينتظر رفع الطالب للصورة الجديدة"
         : "اطلب من الطالب رفع صورة أوضح للبطاقة";
       actionGroup.append(reuploadButton);
+
+      const identityPending =
+        student.accountActive === false &&
+        !student.cardReuploadRequested &&
+        Boolean(student.cardPhotoUrl);
+      if (identityPending) {
+        const confirmIdentityButton = createButton(
+          "تأكيد هوية البطاقة",
+          "card-confirm-btn",
+          () => confirmCardIdentity(student.id)
+        );
+        confirmIdentityButton.title = "بعد مراجعة البطاقة، اضغط لتفعيل حساب الطالب";
+        actionGroup.append(confirmIdentityButton);
+      }
     }
 
     const cardCell = document.createElement("td");
@@ -471,6 +494,27 @@ async function requestCardReupload(studentId) {
     if (!/انتهت الجلسة/.test(error.message)) {
       console.error("Unable to request card reupload:", error);
       showDashboardError(error.message || "تعذر إرسال طلب إعادة رفع البطاقة.");
+    }
+  }
+}
+
+async function confirmCardIdentity(studentId) {
+  try {
+    const response = await teacherFetch(
+      `/api/students/${encodeURIComponent(studentId)}/confirm-card-identity`,
+      { method: "PUT", headers: { Accept: "application/json" } }
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "تعذر تأكيد هوية البطاقة.");
+    }
+
+    showToast(payload.message || "تم تأكيد هوية البطاقة وتفعيل الحساب.");
+    await fetchStudents(currentLevel);
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) {
+      console.error("Unable to confirm student card identity:", error);
+      showDashboardError(error.message || "تعذر تأكيد هوية البطاقة.");
     }
   }
 }
