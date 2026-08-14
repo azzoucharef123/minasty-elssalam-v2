@@ -94,12 +94,39 @@ const elements = {
   questionImagePreviewImage: document.getElementById("question-image-preview-img"),
   removeQuestionImageButton: document.getElementById("remove-question-image-btn"),
   subscriptionUpgradeModal: document.getElementById("subscription-upgrade-modal"),
+  subscriptionUpgradeTitle: document.getElementById("subscription-upgrade-title"),
+  subscriptionUpgradeHeadMessage: document.getElementById("subscription-upgrade-head-message"),
+  subscriptionUpgradeMessage: document.getElementById("subscription-upgrade-message"),
   subscriptionDeclineButton: document.getElementById("subscription-decline-btn"),
 };
 
-function openSubscriptionUpgradeModal() {
+function openSubscriptionUpgradeModal(reason = "university") {
   if (!elements.subscriptionUpgradeModal) {
     return;
+  }
+
+  const isSubjectUpgrade = reason === "PHYSICS" || reason === "MATH";
+  const requiredSubject = reason === "PHYSICS" ? "الفيزياء" : "الرياضيات";
+  const currentSubject = reason === "PHYSICS" ? "الرياضيات" : "الفيزياء";
+  if (elements.subscriptionUpgradeTitle) {
+    elements.subscriptionUpgradeTitle.textContent = isSubjectUpgrade
+      ? `حصة اليوم ${requiredSubject}`
+      : "هذه الحصة مخصصة للاشتراك المدفوع";
+  }
+  if (elements.subscriptionUpgradeHeadMessage) {
+    elements.subscriptionUpgradeHeadMessage.textContent = isSubjectUpgrade
+      ? `حصة اليوم ${requiredSubject} وأنت مشترك في ${currentSubject} فقط.`
+      : "أنت مشترك في المجاني فقط وهذه الحصة المدفوعة الآن للطلبة ذوي الاشتراك المدفوع.";
+  }
+  if (elements.subscriptionUpgradeMessage) {
+    elements.subscriptionUpgradeMessage.textContent = isSubjectUpgrade
+      ? `إذا كنت تريد الاشتراك في ${requiredSubject}، اتصل بالأستاذ مباشرة على الرقم 0556960950.`
+      : "للترقية إلى الاشتراك المدفوع، اضغط على الزر الأخضر واتصل بالأستاذ مباشرة على الرقم 0556960950.";
+  }
+  if (elements.subscriptionDeclineButton) {
+    elements.subscriptionDeclineButton.textContent = isSubjectUpgrade
+      ? `لا أريد الاشتراك في ${requiredSubject}`
+      : "لا أريد الاشتراك";
   }
 
   elements.subscriptionUpgradeModal.hidden = false;
@@ -1344,7 +1371,13 @@ async function joinClass({ rejoin = false, prepareMicrophone = false } = {}) {
     isJoining = false;
     const joinErrorMessage = error.message || "تعذر الانضمام إلى الحصة.";
     const isLiveAccessBlocked = joinErrorMessage.includes("لم تقم بالدفع");
-    const isSubscriptionUpgradeBlocked = joinErrorMessage.includes("مخصصة لأصحاب الاشتراك المدفوع");
+    const deniedSubject = joinErrorMessage.includes("فيزياء")
+      ? "PHYSICS"
+      : joinErrorMessage.includes("رياضيات")
+        ? "MATH"
+        : null;
+    const isSubscriptionUpgradeBlocked =
+      joinErrorMessage.includes("مخصصة لأصحاب الاشتراك المدفوع") || Boolean(deniedSubject);
     const isIdentityBlocked =
       joinErrorMessage.includes("انتظار تأكيد هوية البطاقة") ||
       joinErrorMessage.includes("رفع بطاقة جديدة");
@@ -1390,7 +1423,7 @@ async function joinClass({ rejoin = false, prepareMicrophone = false } = {}) {
     );
 
     if (isSubscriptionUpgradeBlocked) {
-      openSubscriptionUpgradeModal();
+      openSubscriptionUpgradeModal(deniedSubject || "university");
       return;
     }
 

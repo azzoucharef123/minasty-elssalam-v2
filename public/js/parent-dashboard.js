@@ -103,20 +103,34 @@ function openPaymentAccessModal(reason = "access") {
   }
 
   const subscriptionUpgrade = reason === "subscription-upgrade";
+  const subjectUpgrade = reason === "subject-upgrade";
+  const requiredSubject = activeLiveClassType === "PHYSICS" ? "الفيزياء" : "الرياضيات";
+  const currentSubject = activeLiveClassType === "PHYSICS" ? "الرياضيات" : "الفيزياء";
   if (elements.paymentAccessTitle) {
     elements.paymentAccessTitle.textContent = subscriptionUpgrade
       ? "هذه الحصة مخصصة للاشتراك المدفوع"
-      : "الدخول للحصة يحتاج إلى تفعيل";
+      : subjectUpgrade
+        ? `حصة اليوم ${requiredSubject}`
+        : "الدخول للحصة يحتاج إلى تفعيل";
   }
   if (elements.paymentAccessHeadMessage) {
     elements.paymentAccessHeadMessage.textContent = subscriptionUpgrade
       ? "أنت مشترك في المجاني فقط وهذه الحصة المدفوعة الآن للطلبة ذوي الاشتراك المدفوع."
-      : "لم يتم تأكيد الدفع أو إبلاغ الأستاذ بموعد الدفع.";
+      : subjectUpgrade
+        ? `حصة اليوم ${requiredSubject} وأنت مشترك في ${currentSubject} فقط.`
+        : "لم يتم تأكيد الدفع أو إبلاغ الأستاذ بموعد الدفع.";
   }
   if (elements.paymentAccessMessage) {
     elements.paymentAccessMessage.textContent = subscriptionUpgrade
       ? "للترقية إلى الاشتراك المدفوع، اضغط على الزر الأخضر واتصل بالأستاذ مباشرة على الرقم 0556960950."
-      : "إذا كنت تريد الدفع، اضغط على الزر الأخضر واتصل بالأستاذ مباشرة على الرقم 0556960950.";
+      : subjectUpgrade
+        ? `إذا كنت تريد الاشتراك في ${requiredSubject}، اتصل بالأستاذ مباشرة على الرقم 0556960950.`
+        : "إذا كنت تريد الدفع، اضغط على الزر الأخضر واتصل بالأستاذ مباشرة على الرقم 0556960950.";
+  }
+  if (elements.declineRegistrationButton) {
+    elements.declineRegistrationButton.textContent = subjectUpgrade
+      ? `لا أريد الاشتراك في ${requiredSubject}`
+      : "لا أريد التسجيل";
   }
 
   elements.paymentAccessModal.hidden = false;
@@ -702,6 +716,16 @@ async function enterLiveClass() {
   if (isUniversityStudent && !isPaidSubscription && activeLiveClassType === "PAID") {
     clearError();
     openPaymentAccessModal("subscription-upgrade");
+    return;
+  }
+
+  const isMissingSecondarySubject =
+    !isUniversityStudent &&
+    ((activeLiveClassType === "MATH" && !currentStudent.mathEnrollment) ||
+      (activeLiveClassType === "PHYSICS" && !currentStudent.physicsEnrollment));
+  if (isMissingSecondarySubject) {
+    clearError();
+    openPaymentAccessModal("subject-upgrade");
     return;
   }
 
