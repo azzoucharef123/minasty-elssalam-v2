@@ -8,7 +8,6 @@
     :root { color-scheme: dark; --ink: #e5eefc; --muted: #9fb0c9; --panel: #12213a; --edge: rgba(148,163,184,.22); --blue: #2563eb; --green: #15803d; --amber: #d97706; --red: #dc2626; }
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100dvh; font-family: Tahoma, Arial, sans-serif; color: var(--ink); background: radial-gradient(circle at top right,#193e7d 0,transparent 35%), #071222; }
-    body.chrome-required .shell { pointer-events:none; user-select:none; filter:blur(2px); }
     button, input { font: inherit; }
     .shell { width: min(1200px, 100%); min-height: 100dvh; margin: auto; padding: 1rem; display: grid; grid-template-rows: auto 1fr; gap: 1rem; }
     .top { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.85rem 1rem; border:1px solid var(--edge); border-radius:1rem; background:rgba(15,31,56,.84); }
@@ -52,8 +51,12 @@
     .attendee-meta { display:flex; gap:.35rem; margin-top:.18rem; color:var(--muted); font-size:.7rem; }
     .state-pill { padding:.12rem .35rem; border-radius:99px; background:#263b5b; }
     .state-pill.hand { color:#fde68a; background:rgba(180,83,9,.28); }
+    .state-pill.pending { color:#fde68a; background:rgba(180,83,9,.28); }
+    .state-pill.approved { color:#bbf7d0; background:rgba(21,128,61,.28); }
     .state-pill.mic-open { color:#bbf7d0; background:rgba(21,128,61,.28); }
+    .attendee-controls { display:flex; flex-wrap:wrap; gap:.35rem; justify-content:flex-end; }
     .attendee-control { min-width:4.8rem; min-height:2.15rem; padding:.35rem .45rem; border:0; border-radius:.55rem; color:#fff; font-family:inherit; font-size:.72rem; font-weight:800; cursor:pointer; background:#15803d; }
+    .attendee-control.approve { background:#ca8a04; color:#fff7ed; }
     .attendee-control.close { background:#b91c1c; }
     .guest-actions { display:flex; align-items:center; gap:.65rem; }
     .guest-mic-status { color:#bbf7d0; font-size:.8rem; font-weight:800; }
@@ -95,11 +98,6 @@
           <div id="public-placeholder" class="placeholder"><div><strong>بانتظار بدء الحصة</strong><br>سيظهر البث هنا فور أن يبدأ الأستاذ مشاركة الشاشة والصوت.</div></div>
         </div>
         <div class="controls">
-          <div id="invite-box" class="invite host-only" hidden>
-            <label for="public-invite-link">رابط الدعوة العام</label>
-            <input id="public-invite-link" readonly />
-            <button id="copy-public-link" class="button ghost" type="button">نسخ الرابط</button>
-          </div>
           <button id="start-public-share" class="button primary host-only" type="button" hidden>بدء الحصة ومشاركة الشاشة</button>
           <button id="toggle-host-mic" class="button ghost host-only" type="button" hidden disabled>تشغيل مايك المضيف</button>
           <button id="end-public-class" class="button danger host-only" type="button" hidden>إنهاء الحصة العامة</button>
@@ -113,7 +111,7 @@
       </section>
       <section class="sidebars">
         <aside id="public-attendance" class="attendance host-only" aria-label="قائمة الحضور" hidden>
-          <header><h2>قائمة الحضور <span id="attendance-count">0</span></h2><small>افتح أو أغلق المايك لكل حاضر</small></header>
+          <header><h2>طلبات الحضور <span id="attendance-count">0</span></h2><small>راجع الاسم الحقيقي ثم اقبل أو ارفض الدخول</small></header>
           <div id="public-attendance-list" class="attendance-list" aria-live="polite"></div>
         </aside>
         <aside class="chat" aria-label="دردشة الحصة">
@@ -124,22 +122,13 @@
       </section>
     </section>
   </main>
-  <div id="chrome-only-overlay" class="join-overlay" hidden>
-    <section class="join-card chrome-card" aria-labelledby="chrome-only-title">
-      <div class="chrome-icon">C</div>
-      <h1 id="chrome-only-title">افتح رابط الدعوة في Google Chrome</h1>
-      <p>هذه الحصة العامة مهيأة للعمل داخل متصفح Google Chrome فقط لضمان جودة مشاركة الشاشة والصوت.</p>
-      <a class="button primary" href="https://www.google.com/chrome/" target="_blank" rel="noopener noreferrer">تنزيل أو فتح Google Chrome</a>
-      <p>بعد فتح Chrome، الصق رابط الدعوة نفسه في شريط العنوان ثم ادخل إلى الحصة.</p>
-    </section>
-  </div>
   <div id="public-nickname-overlay" class="join-overlay" hidden>
     <form id="public-nickname-form" class="join-card">
-      <h1>أدخل اسمك المستعار</h1>
-      <p>سيظهر هذا الاسم للمضيف في قائمة الحضور والدردشة فقط. لن تستطيع تشغيل أو إغلاق المايك بنفسك.</p>
-      <label for="public-nickname">الاسم المستعار</label>
-      <input id="public-nickname" maxlength="120" autocomplete="name" required placeholder="مثال: محمد" />
-      <button class="button primary" type="submit">دخول الحصة</button>
+      <h1>أدخل اسمك الحقيقي</h1>
+      <p>اكتب الاسم واللقب الحقيقيين. سيرى الأستاذ الاسم في قائمة الحضور ويقرر قبولك أو رفضك. الأسماء المستعارة والرموز ممنوعة.</p>
+      <label for="public-nickname">الاسم واللقب الحقيقي</label>
+      <input id="public-nickname" maxlength="120" autocomplete="name" required placeholder="مثال: محمد بن علي" />
+      <button class="button primary" type="submit">إرسال طلب الدخول</button>
       <a class="paid-registration-link" href="./register.html">التسجيل في الحصص المدفوعة</a>
     </form>
   </div>

@@ -207,6 +207,18 @@ const users = new Map();
 // payment, or subject information and exist only while the host is connected.
 const publicInviteRooms = new Map();
 
+// The homepage only needs a public room ID. Host control tokens never leave the
+// teacher-generated host URL or the authenticated Socket.io handshake.
+app.get("/api/public-class/status", (_req, res) => {
+  let activeRoomId = null;
+  for (const [roomId, room] of publicInviteRooms.entries()) {
+    if (room?.hostSocketId && io.sockets.sockets.has(room.hostSocketId)) {
+      activeRoomId = roomId;
+    }
+  }
+  return res.status(200).json({ active: Boolean(activeRoomId), roomId: activeRoomId });
+});
+
 const MAX_LEVEL_LENGTH = 100;
 const MAX_NAME_LENGTH = 120;
 const MAX_CHAT_MESSAGE_LENGTH = 800;
@@ -215,6 +227,8 @@ const SCHOOL_SUBJECTS = new Set(["MATH", "PHYSICS"]);
 const UNIVERSITY_SUBSCRIPTION_TYPES = new Set(["PAID", "FREE"]);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PUBLIC_ROOM_ID_PATTERN = /^[a-zA-Z0-9_-]{16,128}$/;
+const PUBLIC_REAL_NAME_PATTERN = /^[\p{L}\p{M}]+(?:[\s'’-]+[\p{L}\p{M}]+)+$/u;
+const DISALLOWED_PUBLIC_NAMES = new Set(["guest", "student", "anonymous", "ضيف", "زائر", "مجهول"]);
 
 /** Return a trimmed string, or an empty string for a non-string input. */
 function normalizeText(value) {
@@ -237,6 +251,19 @@ function isPaidSubscription(student) {
 
 function isValidStudentName(studentName) {
   return studentName.length > 0 && studentName.length <= MAX_NAME_LENGTH;
+}
+
+function isValidPublicRealName(value) {
+  const name = normalizeText(value).replace(/\s+/g, " ");
+  const words = name.split(" ").filter(Boolean);
+  const lowered = name.toLocaleLowerCase("en");
+  return (
+    name.length >= 5 &&
+    name.length <= MAX_NAME_LENGTH &&
+    words.length >= 2 &&
+    !DISALLOWED_PUBLIC_NAMES.has(lowered) &&
+    PUBLIC_REAL_NAME_PATTERN.test(name)
+  );
 }
 
 function normalizeChatMessage(value) {
@@ -490,6 +517,8 @@ io.on("connection", (socket) => {
   socket.data.publicRoomId = null;
   socket.data.publicRole = null;
   socket.data.publicNickname = null;
+  socket.data.publicApprovalStatus = null;
+  socket.data.publicApproved = false;
   socket.data.publicHandRaised = false;
   socket.data.publicMicOpen = false;
 
@@ -524,48 +553,106 @@ io.on("connection", (socket) => {
       .filter((peer) => peer.id !== socket.id && peer.data.publicRole === "guest")
       .map((peer) => ({
         socketId: peer.id,
-        nickname: peer.data.publicNickname || "ضيف",
+        nickname: peer.data.publicNickname || "",
+        approvalStatus: peer.data.publicApprovalStatus || "pending",
         handRaised: Boolean(peer.data.publicHandRaised),
         micOpen: Boolean(peer.data.publicMicOpen),
       }));
     guests.forEach((guest) => {
-      socket.emit("public_guest_joined", guest);
+      socket.emit("public_guest_join_request", guest);
     });
     acknowledge(acknowledgement, { ok: true, roomId, guests });
   });
 
   socket.on("public_join_room", async (data = {}, acknowledgement) => {
     const roomId = normalizeText(data.roomId);
-    const nickname = normalizeText(data.nickname);
+    const realName = normalizeText(data.realName || data.nickname).replace(/\s+/g, " ");
     if (!isValidPublicRoomId(roomId)) {
-      return emitClassroomError(socket, "public_join_room", "رابط الدعوة غير صالح.", acknowledgement);
+      return emitClassroomError(socket, "public_join_room", "رابط الحصة العامة غير صالح.", acknowledgement);
     }
-    if (!isValidStudentName(nickname)) {
-      return emitClassroomError(socket, "public_join_room", "أدخل اسمًا مستعارًا صالحًا للانضمام.", acknowledgement);
+    if (!isValidPublicRealName(realName)) {
+      return emitClassroomError(socket, "public_join_room", "أدخل اسمك الحقيقي الكامل، مثل الاسم واللقب.", acknowledgement);
+    }
+
+    const room = publicInviteRooms.get(roomId);
+    const hostSocketId = room?.hostSocketId || null;
+    const hostSocket = hostSocketId ? io.sockets.sockets.get(hostSocketId) : null;
+    if (!room || !hostSocket) {
+      return emitClassroomError(socket, "public_join_room", "لا توجد حصة مجانية مفتوحة الآن.", acknowledgement);
     }
 
     const roomName = publicRoomName(roomId);
-    if (!publicInviteRooms.has(roomId)) {
-      publicInviteRooms.set(roomId, { hostSocketId: null, hostToken: null });
-    }
     await socket.join(roomName);
     socket.data.publicRoomId = roomId;
     socket.data.publicRole = "guest";
-    socket.data.publicNickname = nickname;
+    socket.data.publicNickname = realName;
+    socket.data.publicApprovalStatus = "pending";
+    socket.data.publicApproved = false;
     socket.data.publicHandRaised = false;
     socket.data.publicMicOpen = false;
 
-    const hostSocketId = publicInviteRooms.get(roomId)?.hostSocketId || null;
-    const hostSocket = hostSocketId ? io.sockets.sockets.get(hostSocketId) : null;
-    if (hostSocket && hostSocket.id !== socket.id) {
-      hostSocket.emit("public_guest_joined", {
-        socketId: socket.id,
-        nickname,
-        handRaised: false,
-        micOpen: false,
-      });
+    hostSocket.emit("public_guest_join_request", {
+      socketId: socket.id,
+      nickname: realName,
+      approvalStatus: "pending",
+      handRaised: false,
+      micOpen: false,
+    });
+    acknowledge(acknowledgement, { ok: true, roomId, isLive: true, pendingApproval: true });
+  });
+
+  socket.on("public_approve_guest", (data = {}, acknowledgement) => {
+    const roomId = socket.data.publicRoomId;
+    const targetSocketId = normalizeText(data.targetSocketId);
+    const room = roomId ? publicInviteRooms.get(roomId) : null;
+    const targetSocket = io.sockets.sockets.get(targetSocketId);
+    if (
+      !roomId || socket.data.publicRole !== "host" || room?.hostSocketId !== socket.id ||
+      !targetSocket || targetSocket.data.publicRole !== "guest" ||
+      targetSocket.data.publicRoomId !== roomId
+    ) {
+      return emitClassroomError(socket, "public_approve_guest", "تعذر قبول طلب الدخول.", acknowledgement);
     }
-    acknowledge(acknowledgement, { ok: true, roomId, isLive: Boolean(hostSocket) });
+
+    targetSocket.data.publicApproved = true;
+    targetSocket.data.publicApprovalStatus = "approved";
+    targetSocket.emit("public_guest_approval", { approved: true, message: "تم قبول دخولك من الأستاذ." });
+    io.to(socket.id).emit("public_guest_approved", {
+      socketId: targetSocket.id,
+      nickname: targetSocket.data.publicNickname,
+      approvalStatus: "approved",
+      handRaised: false,
+      micOpen: false,
+    });
+    acknowledge(acknowledgement, { ok: true });
+  });
+
+  socket.on("public_reject_guest", async (data = {}, acknowledgement) => {
+    const roomId = socket.data.publicRoomId;
+    const targetSocketId = normalizeText(data.targetSocketId);
+    const room = roomId ? publicInviteRooms.get(roomId) : null;
+    const targetSocket = io.sockets.sockets.get(targetSocketId);
+    if (
+      !roomId || socket.data.publicRole !== "host" || room?.hostSocketId !== socket.id ||
+      !targetSocket || targetSocket.data.publicRole !== "guest" ||
+      targetSocket.data.publicRoomId !== roomId
+    ) {
+      return emitClassroomError(socket, "public_reject_guest", "تعذر رفض طلب الدخول.", acknowledgement);
+    }
+
+    const roomName = publicRoomName(roomId);
+    targetSocket.emit("public_guest_approval", {
+      approved: false,
+      message: "يجب إدخال اسمك الحقيقي الكامل حتى يسمح لك الأستاذ بالدخول.",
+    });
+    await targetSocket.leave(roomName);
+    targetSocket.data.publicRoomId = null;
+    targetSocket.data.publicRole = null;
+    targetSocket.data.publicNickname = null;
+    targetSocket.data.publicApprovalStatus = null;
+    targetSocket.data.publicApproved = false;
+    io.to(socket.id).emit("public_guest_rejected", { socketId: targetSocket.id });
+    acknowledge(acknowledgement, { ok: true });
   });
 
   socket.on("public_webrtc_offer", (data = {}, acknowledgement) => {
@@ -573,6 +660,7 @@ io.on("connection", (socket) => {
     const targetSocket = io.sockets.sockets.get(targetSocketId);
     if (
       !["host", "guest"].includes(socket.data.publicRole) ||
+      (socket.data.publicRole === "guest" && socket.data.publicApproved !== true) ||
       !targetSocket ||
       !isInSamePublicRoom(socket, targetSocket) ||
       !isValidSessionDescription(data.sdp)
@@ -588,6 +676,7 @@ io.on("connection", (socket) => {
     const targetSocket = io.sockets.sockets.get(targetSocketId);
     if (
       !["host", "guest"].includes(socket.data.publicRole) ||
+      (socket.data.publicRole === "guest" && socket.data.publicApproved !== true) ||
       !targetSocket ||
       !isInSamePublicRoom(socket, targetSocket) ||
       !isValidSessionDescription(data.sdp)
@@ -601,7 +690,12 @@ io.on("connection", (socket) => {
   socket.on("public_webrtc_ice", (data = {}, acknowledgement) => {
     const targetSocketId = normalizeText(data.targetSocketId);
     const targetSocket = io.sockets.sockets.get(targetSocketId);
-    if (!targetSocket || !isInSamePublicRoom(socket, targetSocket) || !isValidIceCandidate(data.candidate)) {
+    if (
+      !targetSocket ||
+      (socket.data.publicRole === "guest" && socket.data.publicApproved !== true) ||
+      !isInSamePublicRoom(socket, targetSocket) ||
+      !isValidIceCandidate(data.candidate)
+    ) {
       return emitClassroomError(socket, "public_webrtc_ice", "تعذر ربط بث الدعوة العامة.", acknowledgement);
     }
     targetSocket.emit("public_webrtc_ice", { fromSocketId: socket.id, candidate: data.candidate });
@@ -610,8 +704,8 @@ io.on("connection", (socket) => {
 
   socket.on("public_raise_hand", (data = {}, acknowledgement) => {
     const roomId = socket.data.publicRoomId;
-    if (!roomId || socket.data.publicRole !== "guest") {
-      return emitClassroomError(socket, "public_raise_hand", "تعذر رفع اليد.", acknowledgement);
+    if (!roomId || socket.data.publicRole !== "guest" || socket.data.publicApproved !== true) {
+      return emitClassroomError(socket, "public_raise_hand", "انتظر موافقة الأستاذ أولًا.", acknowledgement);
     }
     socket.data.publicHandRaised = data.raised !== false;
     const room = publicInviteRooms.get(roomId);
@@ -632,7 +726,8 @@ io.on("connection", (socket) => {
     const room = roomId ? publicInviteRooms.get(roomId) : null;
     if (
       !roomId || socket.data.publicRole !== "host" || room?.hostSocketId !== socket.id ||
-      !targetSocket || targetSocket.data.publicRole !== "guest" || !isInSamePublicRoom(socket, targetSocket)
+      !targetSocket || targetSocket.data.publicRole !== "guest" || targetSocket.data.publicApproved !== true ||
+      !isInSamePublicRoom(socket, targetSocket)
     ) {
       return emitClassroomError(socket, "public_set_guest_mic", "تعذر تحديث مايك الحاضر.", acknowledgement);
     }
@@ -652,8 +747,8 @@ io.on("connection", (socket) => {
   socket.on("public_chat_message", (data = {}, acknowledgement) => {
     const message = normalizeChatMessage(data.message);
     const roomId = socket.data.publicRoomId;
-    if (!roomId || !message) {
-      return emitClassroomError(socket, "public_chat_message", "تعذر إرسال الرسالة.", acknowledgement);
+    if (!roomId || !message || (socket.data.publicRole === "guest" && socket.data.publicApproved !== true)) {
+      return emitClassroomError(socket, "public_chat_message", "انتظر موافقة الأستاذ قبل استخدام الدردشة.", acknowledgement);
     }
     io.to(publicRoomName(roomId)).emit("public_chat_message", {
       sender: socket.data.publicRole === "host" ? "الأستاذ" : (socket.data.publicNickname || "ضيف"),

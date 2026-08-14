@@ -9,9 +9,6 @@
   const roomId = hostRoomId || guestRoomId;
   const roomPattern = /^[a-zA-Z0-9_-]{16,128}$/;
   const rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-  const browserUserAgent = navigator.userAgent || "";
-  const isGoogleChrome = /(?:Chrome|CriOS)\/\d+/i.test(browserUserAgent) &&
-    !/(?:Edg|OPR|Opera|SamsungBrowser|YaBrowser|FxiOS|Firefox|;\s*wv\))/i.test(browserUserAgent);
   const socket = io({ transports: ["websocket", "polling"], autoConnect: false });
   const elements = {
     role: document.getElementById("public-role"),
@@ -56,6 +53,7 @@
   let guestHandRaised = false;
   let guestMicOpen = false;
   let guestJoined = false;
+  let guestApproved = false;
   let ended = false;
 
   function setStatus(text, kind = "") {
@@ -63,13 +61,6 @@
     elements.status.className = `status ${kind}`.trim();
   }
 
-  function showChromeOnlyNotice() {
-    document.body.classList.add("chrome-required");
-    elements.nicknameOverlay.hidden = true;
-    elements.chromeOnlyOverlay.hidden = false;
-    elements.role.textContent = "يتطلب Google Chrome";
-    setStatus("افتح رابط الدعوة من خلال Google Chrome للانضمام إلى الحصة.", "error");
-  }
 
   function addMessage(sender, message) {
     const item = document.createElement("article");
@@ -142,31 +133,63 @@
         hand.textContent = "رفع اليد";
         meta.append(hand);
       }
-      const mic = document.createElement("span");
-      mic.className = `state-pill ${attendee.micOpen ? "mic-open" : ""}`.trim();
-      mic.textContent = attendee.micOpen ? "مايك مفتوح" : "مايك مغلق";
-      meta.append(mic);
+      const status = document.createElement("span");
+      status.className = `state-pill ${attendee.approvalStatus === "approved" ? "approved" : "pending"}`.trim();
+      status.textContent = attendee.approvalStatus === "approved" ? "تم القبول" : "في انتظار الموافقة";
+      meta.append(status);
+      if (attendee.approvalStatus === "approved") {
+        const mic = document.createElement("span");
+        mic.className = `state-pill ${attendee.micOpen ? "mic-open" : ""}`.trim();
+        mic.textContent = attendee.micOpen ? "مايك مفتوح" : "مايك مغلق";
+        meta.append(mic);
+      }
       identity.append(name, meta);
 
-      const control = document.createElement("button");
-      control.type = "button";
-      control.className = `attendee-control ${attendee.micOpen ? "close" : ""}`.trim();
-      control.textContent = attendee.micOpen ? "غلق المايك" : "فتح المايك";
-      control.addEventListener("click", () => {
-        socket.emit("public_set_guest_mic", { targetSocketId: socketId, open: !attendee.micOpen }, (result) => {
-          if (!result?.ok) setStatus(result?.error || "تعذر تغيير حالة المايك.", "error");
+      const controls = document.createElement("div");
+      controls.className = "attendee-controls";
+      if (attendee.approvalStatus !== "approved") {
+        const approve = document.createElement("button");
+        approve.type = "button";
+        approve.className = "attendee-control approve";
+        approve.textContent = "قبول الدخول";
+        approve.addEventListener("click", () => {
+          socket.emit("public_approve_guest", { targetSocketId: socketId }, (result) => {
+            if (!result?.ok) setStatus(result?.error || "تعذر قبول طلب الدخول.", "error");
+          });
         });
-      });
-      row.append(identity, control);
+        const reject = document.createElement("button");
+        reject.type = "button";
+        reject.className = "attendee-control close";
+        reject.textContent = "رفض";
+        reject.addEventListener("click", () => {
+          socket.emit("public_reject_guest", { targetSocketId: socketId }, (result) => {
+            if (!result?.ok) setStatus(result?.error || "تعذر رفض طلب الدخول.", "error");
+          });
+        });
+        controls.append(approve, reject);
+      } else {
+        const control = document.createElement("button");
+        control.type = "button";
+        control.className = `attendee-control ${attendee.micOpen ? "close" : ""}`.trim();
+        control.textContent = attendee.micOpen ? "غلق المايك" : "فتح المايك";
+        control.addEventListener("click", () => {
+          socket.emit("public_set_guest_mic", { targetSocketId: socketId, open: !attendee.micOpen }, (result) => {
+            if (!result?.ok) setStatus(result?.error || "تعذر تغيير حالة المايك.", "error");
+          });
+        });
+        controls.append(control);
+      }
+      row.append(identity, controls);
       elements.attendanceList.append(row);
     });
   }
 
   function upsertAttendee(data = {}) {
     if (!data.socketId) return;
-    const current = attendees.get(data.socketId) || { nickname: "ضيف", handRaised: false, micOpen: false };
+    const current = attendees.get(data.socketId) || { nickname: "", approvalStatus: "pending", handRaised: false, micOpen: false };
     attendees.set(data.socketId, {
       nickname: typeof data.nickname === "string" && data.nickname.trim() ? data.nickname.trim() : current.nickname,
+      approvalStatus: typeof data.approvalStatus === "string" ? data.approvalStatus : current.approvalStatus,
       handRaised: typeof data.handRaised === "boolean" ? data.handRaised : current.handRaised,
       micOpen: typeof data.micOpen === "boolean" ? data.micOpen : current.micOpen,
     });
@@ -380,7 +403,7 @@
       elements.startShare.textContent = "المشاركة جارية";
       elements.startShare.disabled = true;
       setHostMicUi();
-      setStatus("الحصة العامة بدأت. يمكن لأي شخص لديه الرابط الانضمام الآن.");
+      setStatus("الحصة العامة بدأت. سيظهر زر الدخول في الصفحة الرئيسية للزوار.");
       display.getVideoTracks()[0]?.addEventListener("ended", () => {
         if (!ended) setStatus("توقفت مشاركة الشاشة. يمكنك إنهاء الحصة أو إنشاء دعوة جديدة.", "error");
       });
@@ -399,16 +422,13 @@
 
   async function initialiseHost() {
     elements.role.textContent = "أنت المضيف";
-    elements.inviteBox.hidden = false;
+    if (elements.inviteBox) elements.inviteBox.hidden = true;
     elements.attendance.hidden = false;
     elements.startShare.hidden = false;
     elements.toggleHostMic.hidden = false;
     elements.endClass.hidden = false;
-    const url = new URL(window.location.href);
-    url.search = `?room=${encodeURIComponent(roomId)}`;
-    elements.inviteLink.value = url.toString();
     socket.emit("public_host_start", { roomId, hostToken }, async (result) => {
-      if (!result?.ok) return setStatus(result?.error || "تعذر إنشاء رابط الدعوة.", "error");
+      if (!result?.ok) return setStatus(result?.error || "تعذر فتح الحصة العامة.", "error");
       (result.guests || []).forEach((guest) => {
         if (guest?.socketId) {
           guestIds.add(guest.socketId);
@@ -416,32 +436,39 @@
         }
       });
       renderAttendanceList();
-      setStatus("رابط الدعوة جاهز. ابدأ مشاركة الشاشة لبدء الحصة.");
+      setStatus("تم فتح الحصة العامة. سيظهر زر الدخول في الصفحة الرئيسية بعد بدء الاستضافة.");
     });
   }
 
-  function showGuestNicknamePrompt() {
-    elements.role.textContent = "حاضر بدعوة عامة";
-    elements.nicknameOverlay.hidden = false;
-    elements.nickname.focus();
-    setStatus("أدخل اسمك المستعار للانضمام إلى الحصة.");
+  function isValidRealName(value) {
+    const name = String(value || "").trim().replace(/\s+/g, " ");
+    return name.length >= 5 && name.length <= 120 && name.split(" ").length >= 2 &&
+      /^[\p{L}\p{M}]+(?:[\s'’-]+[\p{L}\p{M}]+)+$/u.test(name);
   }
 
-  function joinGuest(nickname, silent = false) {
-    const name = String(nickname || "").trim();
-    if (!name || name.length > 120 || ended) {
-      if (!silent) setStatus("أدخل اسمًا مستعارًا صالحًا للانضمام.", "error");
+  function showGuestNicknamePrompt(message = "") {
+    elements.role.textContent = "طلب دخول الحصة العامة";
+    elements.nicknameOverlay.hidden = false;
+    elements.nickname.focus();
+    if (message) setStatus(message, "error");
+    else setStatus("أدخل اسمك الحقيقي الكامل، ثم انتظر موافقة الأستاذ.");
+  }
+
+  function joinGuest(realName, silent = false) {
+    const name = String(realName || "").trim().replace(/\s+/g, " ");
+    if (!isValidRealName(name) || ended) {
+      if (!silent) setStatus("أدخل اسمك الحقيقي الكامل، مثل الاسم واللقب.", "error");
       return;
     }
-    socket.emit("public_join_room", { roomId, nickname: name }, (result) => {
-      if (!result?.ok) return setStatus(result?.error || "تعذر فتح رابط الدعوة.", "error");
+    socket.emit("public_join_room", { roomId, realName: name }, (result) => {
+      if (!result?.ok) return setStatus(result?.error || "تعذر طلب الدخول.", "error");
       guestNickname = name;
       guestJoined = true;
+      guestApproved = false;
       elements.nicknameOverlay.hidden = true;
-      elements.guestActions.hidden = false;
-      elements.paidRegistrationLink.hidden = false;
-      setGuestMicUi(guestMicOpen);
-      setStatus(result.isLive ? "بانتظار استقبال البث…" : "بانتظار أن يبدأ الأستاذ الحصة…");
+      elements.guestActions.hidden = true;
+      elements.paidRegistrationLink.hidden = true;
+      setStatus("تم إرسال طلب الدخول. انتظر موافقة الأستاذ…");
     });
   }
 
@@ -459,11 +486,25 @@
     }
   });
 
-  socket.on("public_guest_joined", (guest) => {
+  socket.on("public_guest_join_request", (guest) => {
     if (!isHost || !guest?.socketId) return;
     guestIds.add(guest.socketId);
-    upsertAttendee(guest);
+    upsertAttendee({ ...guest, approvalStatus: "pending" });
+    setStatus(`طلب دخول جديد من ${guest.nickname || "حاضر"}. راجع قائمة الحضور.`);
+  });
+
+  socket.on("public_guest_approved", (guest) => {
+    if (!isHost || !guest?.socketId) return;
+    guestIds.add(guest.socketId);
+    upsertAttendee({ ...guest, approvalStatus: "approved" });
     offerGuest(guest.socketId).catch(() => setStatus("تعذر ربط أحد الحاضرين.", "error"));
+  });
+
+  socket.on("public_guest_rejected", ({ socketId }) => {
+    if (!isHost || !socketId) return;
+    guestIds.delete(socketId);
+    attendees.delete(socketId);
+    renderAttendanceList();
   });
 
   socket.on("public_guest_left", ({ socketId }) => {
@@ -485,8 +526,26 @@
   });
 
   socket.on("public_mic_permission", ({ open }) => {
-    if (isHost || !guestJoined) return;
+    if (isHost || !guestJoined || !guestApproved) return;
     void applyGuestMicPermission(open === true);
+  });
+
+  socket.on("public_guest_approval", ({ approved, message }) => {
+    if (isHost) return;
+    if (approved === true) {
+      guestApproved = true;
+      elements.guestActions.hidden = false;
+      elements.paidRegistrationLink.hidden = false;
+      setGuestMicUi(guestMicOpen);
+      setStatus(message || "تم قبول دخولك. أنت الآن داخل الحصة.");
+      return;
+    }
+    guestApproved = false;
+    guestJoined = false;
+    elements.guestActions.hidden = true;
+    elements.paidRegistrationLink.hidden = true;
+    peers.forEach((_, peerId) => closePeer(peerId));
+    showGuestNicknamePrompt(message || "يجب إدخال اسمك الحقيقي الكامل حتى يسمح لك الأستاذ بالدخول.");
   });
 
   socket.on("public_webrtc_offer", async ({ fromSocketId, sdp }) => {
@@ -591,7 +650,7 @@
     joinGuest(elements.nickname.value);
   });
   elements.raiseHand?.addEventListener("click", async () => {
-    if (isHost || guestMicOpen || !guestJoined || ended) return;
+    if (isHost || guestMicOpen || !guestJoined || !guestApproved || ended) return;
     const raised = !guestHandRaised;
     if (raised) {
       try {
@@ -613,15 +672,17 @@
   elements.chatForm?.addEventListener("submit", (event) => {
     event.preventDefault();
     const message = elements.chatInput.value.trim();
-    if (!message || ended || (!isHost && !guestJoined)) return;
+    if (!message || ended || (!isHost && (!guestJoined || !guestApproved))) return;
     socket.emit("public_chat_message", { message }, (result) => {
       if (!result?.ok) setStatus(result?.error || "تعذر إرسال الرسالة.", "error");
     });
     elements.chatInput.value = "";
   });
 
-  if (!isHost && !isGoogleChrome) {
-    showChromeOnlyNotice();
+  if (!roomPattern.test(roomId) || (isHost && !roomPattern.test(hostToken))) {
+    setStatus("رابط الحصة العامة غير صالح.", "error");
+  } else if (!window.RTCPeerConnection) {
+    setStatus("هذا المتصفح لا يدعم البث المباشر. افتح الرابط في متصفح حديث مثل Chrome أو Firefox أو Safari.", "error");
   } else {
     socket.connect();
   }

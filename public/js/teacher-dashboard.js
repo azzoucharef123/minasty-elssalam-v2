@@ -1619,15 +1619,7 @@ async function createPublicInvite() {
   const hostUrl = new URL("./public-class.html", window.location.href);
   hostUrl.searchParams.set("host", roomId);
   hostUrl.searchParams.set("token", hostToken);
-  const inviteUrl = new URL("./public-class.html", window.location.href);
-  inviteUrl.searchParams.set("room", roomId);
-
-  try {
-    await navigator.clipboard.writeText(inviteUrl.toString());
-    showToast("تم إنشاء رابط دعوة عام ونسخه. افتح الحصة ثم أرسله لمن تريد.");
-  } catch (_) {
-    showToast("تم إنشاء الحصة العامة. انسخ الرابط من صفحة الحصة بعد فتحها.");
-  }
+  showToast("تم فتح الحصة العامة. سيظهر زر الدخول في الصفحة الرئيسية للزوار.");
 
   const publicWindow = window.open(hostUrl.toString(), "_blank");
   if (publicWindow) publicWindow.opener = null;
