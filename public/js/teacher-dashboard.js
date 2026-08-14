@@ -52,6 +52,11 @@ const elements = {
   paymentStatusAmount: document.getElementById("payment-status-amount"),
   paymentAmountField: document.getElementById("payment-amount-field"),
   closePaymentStatusButton: document.getElementById("close-payment-status-modal"),
+  cardPreviewModal: document.getElementById("student-card-preview-modal"),
+  cardPreviewTitle: document.getElementById("student-card-preview-title"),
+  cardPreviewStatus: document.getElementById("student-card-preview-status"),
+  cardPreviewImage: document.getElementById("student-card-preview-image"),
+  closeCardPreviewButton: document.getElementById("close-student-card-preview"),
   scheduleForm: document.getElementById("schedule-form"),
   scheduleSubject: document.getElementById("schedule-subject"),
   scheduleDateTime: document.getElementById("schedule-datetime"),
@@ -107,6 +112,9 @@ let googlePickerLoadPromise = null;
 let googleDriveListPromise = null;
 let googlePickerAccessToken = null;
 let googlePickerTokenExpiresAt = 0;
+let cardPreviewObjectUrl = null;
+let cardPreviewRequestId = 0;
+let cardPreviewPreviousFocus = null;
 
 function clearTeacherSession() {
   sessionStorage.removeItem(TEACHER_TOKEN_KEY);
@@ -1391,6 +1399,35 @@ async function saveSubscription(event) {
   }
 }
 
+function revokeCardPreviewObjectUrl() {
+  if (cardPreviewObjectUrl) {
+    URL.revokeObjectURL(cardPreviewObjectUrl);
+    cardPreviewObjectUrl = null;
+  }
+}
+
+function closeStudentCardPreview() {
+  cardPreviewRequestId += 1;
+  revokeCardPreviewObjectUrl();
+  if (elements.cardPreviewImage) {
+    elements.cardPreviewImage.onload = null;
+    elements.cardPreviewImage.onerror = null;
+    elements.cardPreviewImage.removeAttribute("src");
+    elements.cardPreviewImage.hidden = true;
+  }
+  if (elements.cardPreviewModal) {
+    elements.cardPreviewModal.hidden = true;
+    elements.cardPreviewModal.classList.remove("is-open");
+  }
+  if (elements.cardPreviewStatus) {
+    elements.cardPreviewStatus.textContent = "";
+    elements.cardPreviewStatus.classList.remove("is-error");
+  }
+  cardPreviewPreviousFocus?.focus?.();
+  cardPreviewPreviousFocus = null;
+  document.body.style.overflow = "";
+}
+
 async function viewStudentCard(studentId) {
   const student = currentStudents.find((item) => item.id === studentId);
   if (!student?.cardPhotoUrl) {
@@ -1398,11 +1435,23 @@ async function viewStudentCard(studentId) {
     return;
   }
 
-  const previewWindow = window.open("about:blank", "_blank");
-  if (!previewWindow) {
-    showDashboardError("اسمح بالنوافذ المنبثقة لعرض صورة البطاقة.");
+  if (!elements.cardPreviewModal || !elements.cardPreviewImage) {
+    showDashboardError("عارض بطاقة الطالب غير متاح حالياً.");
     return;
   }
+
+  const requestId = ++cardPreviewRequestId;
+  cardPreviewPreviousFocus = document.activeElement;
+  revokeCardPreviewObjectUrl();
+  elements.cardPreviewTitle.textContent = `بطاقة الطالب: ${student.studentName || "طالب جامعي"}`;
+  elements.cardPreviewStatus.textContent = "جارٍ تحميل صورة البطاقة…";
+  elements.cardPreviewStatus.classList.remove("is-error");
+  elements.cardPreviewImage.hidden = true;
+  elements.cardPreviewImage.removeAttribute("src");
+  elements.cardPreviewModal.hidden = false;
+  elements.cardPreviewModal.classList.add("is-open");
+  document.body.style.overflow = "hidden";
+  elements.closeCardPreviewButton?.focus();
 
   try {
     const response = await teacherFetch(
@@ -1415,13 +1464,34 @@ async function viewStudentCard(studentId) {
       throw new Error(payload.error || "تعذر عرض صورة البطاقة.");
     }
 
-    const imageUrl = URL.createObjectURL(await response.blob());
-    previewWindow.location.href = imageUrl;
+    const blob = await response.blob();
+    if (!blob.type.startsWith("image/")) {
+      throw new Error("الملف المحفوظ ليس صورة بطاقة صالحة.");
+    }
+    if (requestId !== cardPreviewRequestId || elements.cardPreviewModal.hidden) return;
+
+    const imageUrl = URL.createObjectURL(blob);
+    cardPreviewObjectUrl = imageUrl;
+    elements.cardPreviewImage.onload = () => {
+      if (requestId === cardPreviewRequestId) {
+        elements.cardPreviewStatus.textContent = "تم تحميل البطاقة. يمكنك مراجعتها ثم إغلاق النافذة.";
+        elements.cardPreviewImage.hidden = false;
+      }
+    };
+    elements.cardPreviewImage.onerror = () => {
+      if (requestId === cardPreviewRequestId) {
+        elements.cardPreviewStatus.textContent = "تعذر فك صورة البطاقة.";
+        elements.cardPreviewStatus.classList.add("is-error");
+        elements.cardPreviewImage.hidden = true;
+      }
+    };
+    elements.cardPreviewImage.src = imageUrl;
   } catch (error) {
-    previewWindow.close();
+    if (requestId !== cardPreviewRequestId) return;
+    elements.cardPreviewStatus.textContent = error.message || "تعذر عرض صورة البطاقة.";
+    elements.cardPreviewStatus.classList.add("is-error");
     if (!/انتهت الجلسة/.test(error.message)) {
       console.error("Unable to view student card:", error);
-      showDashboardError(error.message || "تعذر عرض صورة البطاقة.");
     }
   }
 }
@@ -1679,12 +1749,23 @@ elements.driveVideoModal?.addEventListener("click", (e) => {
     }
   });
   elements.closeAttendanceButton?.addEventListener("click", closeAttendanceModal);
+  elements.closeCardPreviewButton?.addEventListener("click", closeStudentCardPreview);
+  elements.cardPreviewModal?.addEventListener("click", (event) => {
+    if (event.target === elements.cardPreviewModal) {
+      closeStudentCardPreview();
+    }
+  });
   elements.attendanceModal?.addEventListener("click", (event) => {
     if (event.target === elements.attendanceModal) {
       closeAttendanceModal();
     }
   });
 
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && elements.cardPreviewModal && !elements.cardPreviewModal.hidden) {
+      closeStudentCardPreview();
+    }
+  });
   elements.searchInput?.addEventListener("input", applyFilters);
   elements.paymentFilter?.addEventListener("change", applyFilters);
   elements.focusStudentSearchButton?.addEventListener("click", focusStudentSearch);
