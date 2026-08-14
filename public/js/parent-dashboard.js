@@ -22,6 +22,8 @@ const elements = {
   universityDashboardLink: document.getElementById("university-dashboard-link"),
   studentSwitcher: document.getElementById("student-switcher"),
   studentSwitcherList: document.getElementById("student-switcher-list"),
+  paymentAccessModal: document.getElementById("payment-access-modal"),
+  declineRegistrationButton: document.getElementById("decline-registration-btn"),
 };
 
 let socket = null;
@@ -74,6 +76,24 @@ function showError(message = "") {
 
 function clearError() {
   showError();
+}
+
+function openPaymentAccessModal() {
+  if (!elements.paymentAccessModal) {
+    return;
+  }
+
+  elements.paymentAccessModal.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+
+function closePaymentAccessModal() {
+  if (!elements.paymentAccessModal) {
+    return;
+  }
+
+  elements.paymentAccessModal.hidden = true;
+  document.body.style.overflow = "";
 }
 
 function setLiveClassVisible(isVisible) {
@@ -469,9 +489,8 @@ async function enterLiveClass() {
   }
 
   if (!currentStudent.liveAccessEnabled) {
-    showError(
-      "لم تقم بالدفع ولم تخبر الأستاذ أنك ستدفع. يجب الاتصال به على الرقم 0556960950 فورًا."
-    );
+    clearError();
+    openPaymentAccessModal();
     return;
   }
 
@@ -551,6 +570,20 @@ if (!getParentToken()) {
     void enterLiveClass();
   });
   elements.logoutButton?.addEventListener("click", logout);
+  elements.declineRegistrationButton?.addEventListener("click", () => {
+    closePaymentAccessModal();
+    window.location.assign("./index.html");
+  });
+  elements.paymentAccessModal?.addEventListener("click", (event) => {
+    if (event.target === elements.paymentAccessModal) {
+      closePaymentAccessModal();
+    }
+  });
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closePaymentAccessModal();
+    }
+  });
   initializeLobbySocket();
   loadDashboard();
 }

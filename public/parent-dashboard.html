@@ -552,6 +552,130 @@
         white-space: pre-wrap;
       }
 
+      .payment-access-modal[hidden] {
+        display: none;
+      }
+
+      .payment-access-modal {
+        position: fixed;
+        z-index: 100;
+        inset: 0;
+        display: grid;
+        padding: 1rem;
+        place-items: center;
+        background: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(6px);
+      }
+
+      .payment-access-dialog {
+        width: min(100%, 25rem);
+        overflow: hidden;
+        background: #ffffff;
+        border: 1px solid rgba(254, 202, 202, 0.86);
+        border-radius: 1.2rem;
+        box-shadow: 0 24px 55px rgba(15, 23, 42, 0.28);
+        animation: payment-dialog-enter 0.25s ease both;
+      }
+
+      .payment-access-dialog-head {
+        padding: 1.25rem 1.25rem 1rem;
+        color: #ffffff;
+        background: linear-gradient(135deg, #b91c1c, #dc2626);
+      }
+
+      .payment-access-dialog-icon {
+        display: grid;
+        width: 2.8rem;
+        height: 2.8rem;
+        margin-bottom: 0.75rem;
+        place-items: center;
+        color: #fef2f2;
+        background: rgba(255, 255, 255, 0.16);
+        border: 1px solid rgba(255, 255, 255, 0.26);
+        border-radius: 0.82rem;
+        font-size: 1.35rem;
+        font-weight: 900;
+      }
+
+      .payment-access-dialog h2,
+      .payment-access-dialog p {
+        margin: 0;
+      }
+
+      .payment-access-dialog h2 {
+        font-size: 1.03rem;
+        font-weight: 800;
+      }
+
+      .payment-access-dialog-head p {
+        margin-top: 0.35rem;
+        color: #fee2e2;
+        font-size: 0.76rem;
+        font-weight: 600;
+        line-height: 1.8;
+      }
+
+      .payment-access-dialog-body {
+        padding: 1.2rem 1.25rem 1.3rem;
+      }
+
+      .payment-access-dialog-body > p {
+        color: #475569;
+        font-size: 0.82rem;
+        font-weight: 600;
+        line-height: 1.95;
+      }
+
+      .payment-access-actions {
+        display: grid;
+        gap: 0.58rem;
+        margin-top: 1.1rem;
+      }
+
+      .payment-access-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 3rem;
+        padding: 0.65rem 0.9rem;
+        border-radius: 0.72rem;
+        font: inherit;
+        font-size: 0.82rem;
+        font-weight: 800;
+        text-decoration: none;
+        cursor: pointer;
+        transition: transform 0.2s ease, filter 0.2s ease;
+      }
+
+      .payment-access-action:hover {
+        filter: brightness(1.06);
+        transform: translateY(-0.1rem);
+      }
+
+      .payment-access-action.call {
+        color: #ffffff;
+        background: linear-gradient(135deg, #059669, #16a34a);
+        border: 1px solid transparent;
+        box-shadow: 0 8px 16px rgba(5, 150, 105, 0.2);
+      }
+
+      .payment-access-action.cancel {
+        color: #b91c1c;
+        background: #fff5f5;
+        border: 1px solid #fecaca;
+      }
+
+      @keyframes payment-dialog-enter {
+        from {
+          opacity: 0;
+          transform: translateY(0.7rem) scale(0.97);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
       @keyframes banner-enter {
         from {
           opacity: 0;
@@ -700,6 +824,23 @@
         </div>
       </section>
     </main>
+
+    <div id="payment-access-modal" class="payment-access-modal" role="dialog" aria-modal="true" aria-labelledby="payment-access-title" hidden>
+      <section class="payment-access-dialog">
+        <div class="payment-access-dialog-head">
+          <span class="payment-access-dialog-icon" aria-hidden="true">!</span>
+          <h2 id="payment-access-title">الدخول للحصة يحتاج إلى تفعيل</h2>
+          <p>لم يتم تأكيد الدفع أو إبلاغ الأستاذ بموعد الدفع.</p>
+        </div>
+        <div class="payment-access-dialog-body">
+          <p>إذا كنت تريد الدفع، اضغط على الزر الأخضر واتصل بالأستاذ مباشرة على الرقم <strong>0556960950</strong>.</p>
+          <div class="payment-access-actions">
+            <a id="call-teacher-now-btn" class="payment-access-action call" href="tel:0556960950">اتصل بالأستاذ الآن</a>
+            <button id="decline-registration-btn" class="payment-access-action cancel" type="button">لا أريد التسجيل</button>
+          </div>
+        </div>
+      </section>
+    </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/parent-dashboard.js"></script>
