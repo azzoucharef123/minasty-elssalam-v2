@@ -8,6 +8,7 @@
     :root { color-scheme: dark; --ink: #e5eefc; --muted: #9fb0c9; --panel: #12213a; --edge: rgba(148,163,184,.22); --blue: #2563eb; --green: #15803d; --amber: #d97706; --red: #dc2626; }
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100dvh; font-family: Tahoma, Arial, sans-serif; color: var(--ink); background: radial-gradient(circle at top right,#193e7d 0,transparent 35%), #071222; }
+    body.chrome-required .shell { pointer-events:none; user-select:none; filter:blur(2px); }
     button, input { font: inherit; }
     .shell { width: min(1200px, 100%); min-height: 100dvh; margin: auto; padding: 1rem; display: grid; grid-template-rows: auto 1fr; gap: 1rem; }
     .top { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.85rem 1rem; border:1px solid var(--edge); border-radius:1rem; background:rgba(15,31,56,.84); }
@@ -66,6 +67,9 @@
     .join-card input { width:100%; margin-bottom:.8rem; padding:.75rem; color:#f8fafc; border:1px solid var(--edge); border-radius:.65rem; background:#071a32; }
     .join-card .button, .join-card .paid-registration-link { width:100%; }
     .join-card .paid-registration-link { margin-top:.55rem; }
+    .chrome-card { text-align:center; }
+    .chrome-card h1 { color:#fef08a; }
+    .chrome-card .chrome-icon { display:grid; place-items:center; width:3.25rem; height:3.25rem; margin:0 auto .85rem; border-radius:50%; color:#fff; background:conic-gradient(#ea4335 0 25%,#fbbc05 0 50%,#34a853 0 75%,#4285f4 0); font-size:1.25rem; font-weight:900; }
     .messages { min-height:10rem; padding:.8rem; overflow:auto; display:flex; flex-direction:column; gap:.55rem; }
     .message { max-width:92%; padding:.55rem .65rem; border-radius:.7rem; background:#1e365b; line-height:1.55; word-break:break-word; }
     .message strong { display:block; margin-bottom:.12rem; color:#bfdbfe; font-size:.73rem; }
@@ -120,6 +124,15 @@
       </section>
     </section>
   </main>
+  <div id="chrome-only-overlay" class="join-overlay" hidden>
+    <section class="join-card chrome-card" aria-labelledby="chrome-only-title">
+      <div class="chrome-icon">C</div>
+      <h1 id="chrome-only-title">افتح رابط الدعوة في Google Chrome</h1>
+      <p>هذه الحصة العامة مهيأة للعمل داخل متصفح Google Chrome فقط لضمان جودة مشاركة الشاشة والصوت.</p>
+      <a class="button primary" href="https://www.google.com/chrome/" target="_blank" rel="noopener noreferrer">تنزيل أو فتح Google Chrome</a>
+      <p>بعد فتح Chrome، الصق رابط الدعوة نفسه في شريط العنوان ثم ادخل إلى الحصة.</p>
+    </section>
+  </div>
   <div id="public-nickname-overlay" class="join-overlay" hidden>
     <form id="public-nickname-form" class="join-card">
       <h1>أدخل اسمك المستعار</h1>

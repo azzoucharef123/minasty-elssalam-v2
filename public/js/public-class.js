@@ -9,7 +9,10 @@
   const roomId = hostRoomId || guestRoomId;
   const roomPattern = /^[a-zA-Z0-9_-]{16,128}$/;
   const rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-  const socket = io({ transports: ["websocket", "polling"] });
+  const browserUserAgent = navigator.userAgent || "";
+  const isGoogleChrome = /(?:Chrome|CriOS)\/\d+/i.test(browserUserAgent) &&
+    !/(?:Edg|OPR|Opera|SamsungBrowser|YaBrowser|FxiOS|Firefox|;\s*wv\))/i.test(browserUserAgent);
+  const socket = io({ transports: ["websocket", "polling"], autoConnect: false });
   const elements = {
     role: document.getElementById("public-role"),
     video: document.getElementById("public-video"),
@@ -35,6 +38,7 @@
     nicknameForm: document.getElementById("public-nickname-form"),
     nickname: document.getElementById("public-nickname"),
     guestAudio: document.getElementById("public-guest-audio"),
+    chromeOnlyOverlay: document.getElementById("chrome-only-overlay"),
   };
 
   const peers = new Map();
@@ -57,6 +61,14 @@
   function setStatus(text, kind = "") {
     elements.status.textContent = text;
     elements.status.className = `status ${kind}`.trim();
+  }
+
+  function showChromeOnlyNotice() {
+    document.body.classList.add("chrome-required");
+    elements.nicknameOverlay.hidden = true;
+    elements.chromeOnlyOverlay.hidden = false;
+    elements.role.textContent = "يتطلب Google Chrome";
+    setStatus("افتح رابط الدعوة من خلال Google Chrome للانضمام إلى الحصة.", "error");
   }
 
   function addMessage(sender, message) {
@@ -607,4 +619,10 @@
     });
     elements.chatInput.value = "";
   });
+
+  if (!isHost && !isGoogleChrome) {
+    showChromeOnlyNotice();
+  } else {
+    socket.connect();
+  }
 })();
