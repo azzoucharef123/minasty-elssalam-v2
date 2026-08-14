@@ -79,6 +79,19 @@ const elements = {
 let currentLevel =
   document.querySelector(".level-btn.is-active, .level-btn.active, .level-button.is-active")?.dataset
     .level || "السنة الأولى";
+
+const LEVEL_DISPLAY_LABELS = Object.freeze({
+  "السنة الأولى": "السنة الأولى متوسط",
+  "السنة الثانية": "السنة الثانية متوسط",
+  "السنة الثالثة": "السنة الثالثة متوسط",
+  "السنة الرابعة": "السنة الرابعة متوسط",
+  "طالب جامعي": "طالب جامعي",
+});
+
+function displayLevelLabel(level) {
+  return LEVEL_DISPLAY_LABELS[level] || level || "—";
+}
+
 // Prompt 14 source of truth: complete API data for the selected level.
 let currentStudents = [];
 let subscriptionStudentId = null;
@@ -433,10 +446,10 @@ function setActiveLevelButton(level) {
 
 function setCurrentLevelHeading(level) {
   if (elements.currentLevelTitle) {
-    elements.currentLevelTitle.textContent = level;
+    elements.currentLevelTitle.textContent = displayLevelLabel(level);
   }
   if (elements.bentoCurrentLevel) {
-    elements.bentoCurrentLevel.textContent = level;
+    elements.bentoCurrentLevel.textContent = displayLevelLabel(level);
   }
   if (elements.studentPaymentHeading) {
     elements.studentPaymentHeading.textContent = level === "طالب جامعي" ? "بطاقة الطالب" : "حالة الدفع";
@@ -590,7 +603,7 @@ function renderScheduledClasses() {
 
 function renderTeacherAbsence() {
   if (elements.scheduleLevelCaption) {
-    elements.scheduleLevelCaption.textContent = `أضف وعدّل واحذف حصص ${currentLevel}.`;
+    elements.scheduleLevelCaption.textContent = `أضف وعدّل واحذف حصص ${displayLevelLabel(currentLevel)}.`;
   }
   if (elements.teacherAbsenceButton) {
     elements.teacherAbsenceButton.classList.toggle("is-active", teacherAbsent);
@@ -626,7 +639,7 @@ async function loadLevelSchedule() {
 
 function renderLessonVideos() {
   if (elements.lessonRepositoryCaption) {
-    elements.lessonRepositoryCaption.textContent = `أضف رابط فيديو Google Drive لحصص ${currentLevel} ليشاهده التلاميذ داخل حساباتهم.`;
+    elements.lessonRepositoryCaption.textContent = `أضف رابط فيديو Google Drive لحصص ${displayLevelLabel(currentLevel)} ليشاهده التلاميذ داخل حساباتهم.`;
   }
   if (!elements.lessonVideoList) return;
 
@@ -971,7 +984,7 @@ function updateBentoInsights(studentsArray, summary) {
   }
   if (elements.bentoLatestCaption) {
     elements.bentoLatestCaption.textContent = latestStudent
-      ? `آخر تلميذ ظاهر: ${latestStudent.level || currentLevel}`
+      ? `آخر تلميذ ظاهر: ${displayLevelLabel(latestStudent.level || currentLevel)}`
       : "غيّر المستوى أو أضف تلميذًا جديدًا للبدء.";
   }
   if (elements.bentoActivityStatus) {

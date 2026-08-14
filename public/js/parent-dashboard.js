@@ -60,6 +60,18 @@ let parentScheduledClasses = [];
 let parentTeacherAbsent = false;
 let teacherAbsenceLevel = null;
 
+const LEVEL_DISPLAY_LABELS = Object.freeze({
+  "السنة الأولى": "السنة الأولى متوسط",
+  "السنة الثانية": "السنة الثانية متوسط",
+  "السنة الثالثة": "السنة الثالثة متوسط",
+  "السنة الرابعة": "السنة الرابعة متوسط",
+  "طالب جامعي": "طالب جامعي",
+});
+
+function displayLevelLabel(level) {
+  return LEVEL_DISPLAY_LABELS[level] || level || "—";
+}
+
 function clearParentSession() {
   [
     PARENT_TOKEN_KEY,
@@ -195,7 +207,7 @@ function renderStudentSwitcher(students) {
     button.classList.toggle("is-active", currentStudent?.id === student.id);
     button.setAttribute(
       "aria-label",
-      `عرض ملف التلميذ ${student.studentName}، ${student.level}`
+      `عرض ملف التلميذ ${student.studentName}، ${displayLevelLabel(student.level)}`
     );
 
     const avatar = document.createElement("span");
@@ -209,7 +221,7 @@ function renderStudentSwitcher(students) {
     const name = document.createElement("strong");
     name.textContent = student.studentName;
     const level = document.createElement("small");
-    level.textContent = student.level;
+    level.textContent = displayLevelLabel(student.level);
     copy.append(name, level);
 
     const check = document.createElement("span");
@@ -397,7 +409,7 @@ function renderUniversityPaymentUpgrade(student, isPaidSubscription) {
 function renderStudent(student) {
   elements.studentAvatar.textContent = getInitials(student.studentName);
   elements.studentName.textContent = student.studentName;
-  elements.studentLevel.textContent = student.level;
+  elements.studentLevel.textContent = displayLevelLabel(student.level);
   const isUniversityStudent = student.level === "طالب جامعي";
   const accountActive = student.accountActive !== false && !student.cardReuploadRequested;
   const identityPending =
@@ -561,7 +573,7 @@ function renderLessonVideos(videos) {
 async function loadLessonVideos(level) {
   if (!elements.lessonVideoList || !level || !canAccessLessonRepository(currentStudent)) return;
   if (elements.lessonRepositoryLevelCaption) {
-    elements.lessonRepositoryLevelCaption.textContent = `فيديوهات حصص ${level} المتاحة حسب مادة أو نوع اشتراك التلميذ.`;
+    elements.lessonRepositoryLevelCaption.textContent = `فيديوهات حصص ${displayLevelLabel(level)} المتاحة حسب مادة أو نوع اشتراك التلميذ.`;
   }
   elements.lessonVideoList.replaceChildren();
   const loading = document.createElement("p");

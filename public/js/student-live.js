@@ -1892,7 +1892,14 @@ if (!studentId || !studentName || !level) {
   // manually opening the URL without the student identity/session context.
   window.location.replace("./parent-login.html");
 } else {
-  elements.classLevelLabel.textContent = level;
+  const levelDisplayLabels = {
+    "السنة الأولى": "السنة الأولى متوسط",
+    "السنة الثانية": "السنة الثانية متوسط",
+    "السنة الثالثة": "السنة الثالثة متوسط",
+    "السنة الرابعة": "السنة الرابعة متوسط",
+    "طالب جامعي": "طالب جامعي",
+  };
+  elements.classLevelLabel.textContent = levelDisplayLabels[level] || level;
   setPlaceholder("جاري الدخول إلى الحصة", "سيظهر بث الأستاذ تلقائيًا عند توفر الحصة.");
   updateMicControl();
   updateChatControls();
