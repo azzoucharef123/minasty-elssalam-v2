@@ -634,143 +634,6 @@
         cursor: zoom-in;
       }
 
-      .viewer-controls-wrap {
-        position: relative;
-        z-index: 3;
-        display: grid;
-        gap: 0.55rem;
-        padding: 0.8rem 1rem 1rem;
-        background: linear-gradient(to top, rgba(2, 6, 23, 0.97), rgba(2, 6, 23, 0.74));
-        border-top: 1px solid var(--viewer-border);
-      }
-
-      .viewer-controls {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(9rem, 1fr));
-        width: min(100%, 47rem);
-        margin: 0 auto;
-        padding: 0.5rem;
-        gap: 0.55rem;
-        background: rgba(15, 23, 42, 0.88);
-        border: 1px solid var(--viewer-border);
-        border-radius: 1rem;
-        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.28);
-        backdrop-filter: blur(14px);
-      }
-
-      .viewer-button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 0;
-        gap: 0.44rem;
-        min-height: 3.1rem;
-        padding: 0.7rem 0.8rem;
-        color: #dbeafe;
-        background: rgba(51, 65, 85, 0.75);
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        border-radius: 0.7rem;
-        font-size: 0.78rem;
-        font-weight: 800;
-        white-space: nowrap;
-        cursor: pointer;
-        transition: all 0.25s ease;
-      }
-
-      .viewer-button svg {
-        width: 1.1rem;
-        height: 1.1rem;
-        fill: none;
-        stroke: currentColor;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-        stroke-width: 1.9;
-      }
-
-      .viewer-button:hover:not(:disabled) {
-        transform: translateY(-0.14rem);
-        filter: brightness(1.1);
-      }
-
-      .viewer-button:focus-visible {
-        outline: 3px solid rgba(96, 165, 250, 0.62);
-        outline-offset: 3px;
-      }
-
-      .viewer-button:disabled {
-        opacity: 0.62;
-        cursor: not-allowed;
-      }
-
-      .viewer-button.primary {
-        color: #ffffff;
-        background: linear-gradient(135deg, var(--viewer-blue), var(--viewer-blue-dark));
-        border-color: transparent;
-        box-shadow: 0 7px 16px rgba(37, 99, 235, 0.24);
-      }
-
-      .viewer-button.hand-raised {
-        color: #fef3c7;
-        background: rgba(180, 83, 9, 0.65);
-        border-color: rgba(251, 191, 36, 0.33);
-      }
-
-      .viewer-button.mic-active {
-        color: #bbf7d0;
-        background: rgba(20, 83, 45, 0.8);
-        border-color: rgba(74, 222, 128, 0.28);
-      }
-
-      .viewer-status {
-        display: none !important;
-        position: static;
-        justify-self: center;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        max-width: min(100%, 38rem);
-        padding: 0.4rem 0.7rem;
-        color: var(--viewer-muted);
-        background: rgba(15, 23, 42, 0.62);
-        border-radius: 0.5rem;
-        font-size: 0.68rem;
-        font-weight: 600;
-        pointer-events: none;
-      }
-
-      .viewer-status-dot {
-        width: 0.42rem;
-        height: 0.42rem;
-        flex: 0 0 auto;
-        background: #64748b;
-        border-radius: 50%;
-      }
-
-      .viewer-status.is-live {
-        color: #bbf7d0;
-      }
-
-      .viewer-status.is-live .viewer-status-dot {
-        background: var(--viewer-green);
-        box-shadow: 0 0 0 0.2rem rgba(34, 197, 94, 0.12);
-      }
-
-      .viewer-status.is-warning {
-        color: #fde68a;
-      }
-
-      .viewer-status.is-warning .viewer-status-dot {
-        background: var(--viewer-amber);
-      }
-
-      .viewer-status.is-error {
-        color: #fecaca;
-      }
-
-      .viewer-status.is-error .viewer-status-dot {
-        background: var(--viewer-red);
-      }
-
       @media (max-width: 68rem) {
         .viewer-shell {
           grid-template-rows: auto auto auto;
@@ -838,30 +701,6 @@
           max-height: 8.5rem;
         }
 
-        .viewer-controls-wrap {
-          position: sticky;
-          bottom: 0;
-          padding: 0.65rem 0.7rem calc(0.7rem + env(safe-area-inset-bottom));
-        }
-
-        .viewer-controls {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          width: 100%;
-          gap: 0.45rem;
-          padding: 0.4rem;
-        }
-
-        .viewer-button {
-          min-height: 3.25rem;
-          padding: 0.6rem 0.45rem;
-          font-size: 0.72rem;
-        }
-
-        .viewer-status {
-          max-width: 100%;
-          font-size: 0.65rem;
-          text-align: center;
-        }
       }
 
       @media (max-width: 29rem) {
@@ -879,9 +718,6 @@
           min-height: 14rem;
         }
 
-        .viewer-controls {
-          grid-template-columns: minmax(0, 1fr);
-        }
 
         .remote-audio-toggle {
           max-width: calc(100% - 1.2rem);
@@ -966,18 +802,10 @@
       </main>
 
 
-      <div class="viewer-controls-wrap" hidden aria-hidden="true">
-        <div class="viewer-controls" aria-label="أدوات الحصة">
-          <button id="join-class-btn" type="button" hidden aria-hidden="true" tabindex="-1"></button>
-
-          <!-- يبقى المرجع مخفياً للتوافق البرمجي؛ التحكم في مايك التلميذ للأستاذ فقط. -->
-          <button id="toggle-mic-btn" type="button" style="display: none" aria-hidden="true" tabindex="-1"></button>
-        </div>
-
-        <div id="viewer-status" class="viewer-status" role="status" aria-live="polite">
-          <span class="viewer-status-dot" aria-hidden="true"></span>
-          <span id="viewer-status-text">جاهز للانضمام</span>
-        </div>
+      <!-- عناصر توافق برمجية لا تظهر ولا تحجز أي مساحة في الصفحة. -->
+      <div hidden aria-hidden="true">
+        <button id="join-class-btn" type="button" tabindex="-1"></button>
+        <button id="toggle-mic-btn" type="button" tabindex="-1"></button>
       </div>
     </div>
 

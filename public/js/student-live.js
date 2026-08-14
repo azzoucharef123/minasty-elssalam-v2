@@ -82,8 +82,6 @@ const elements = {
   handWaitingActions: document.getElementById("hand-waiting-actions"),
   lowerHandButton: document.getElementById("lower-hand-btn"),
   toggleMicButton: document.getElementById("toggle-mic-btn"),
-  status: document.getElementById("viewer-status"),
-  statusText: document.getElementById("viewer-status-text"),
   studentCanvas: document.getElementById("student-canvas"),
   chatBox: document.getElementById("chat-box"),
   chatEmpty: document.getElementById("chat-empty"),
@@ -193,11 +191,9 @@ function joinClassAutomaticallyFromLobby() {
   void joinClass({ prepareMicrophone: true });
 }
 
-function setViewerStatus(message, mode = "neutral") {
-  elements.statusText.textContent = message;
-  elements.status.classList.toggle("is-live", mode === "live");
-  elements.status.classList.toggle("is-warning", mode === "warning");
-  elements.status.classList.toggle("is-error", mode === "error");
+function setViewerStatus() {
+  // The visual status tray was removed to keep the learner interface compact.
+  // Connection and classroom operations continue without rendering a bottom notice.
 }
 
 function setPlaceholder(title, description) {
