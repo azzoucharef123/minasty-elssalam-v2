@@ -894,23 +894,24 @@ function renderTable(studentsArray) {
         actionGroup.append(confirmIdentityButton);
       }
 
-      const paymentReceiptPending =
-        Boolean(student.paymentReceiptPending) && Boolean(student.paymentReceiptUrl);
-      if (paymentReceiptPending) {
-        const viewReceiptButton = createButton(
-          "عرض وصل الدفع",
-          "payment-receipt-view-btn",
-          () => viewStudentPaymentReceipt(student.id)
-        );
-        viewReceiptButton.title = "عرض وصل الدفع المرفوع من الطالب";
-        const confirmPaymentButton = createButton(
-          "تأكيد وصل الدفع",
-          "payment-receipt-confirm-btn",
-          () => confirmPaymentReceipt(student.id)
-        );
-        confirmPaymentButton.title = "تأكيد الدفع وتحويل الحساب إلى اشتراك مدفوع";
-        actionGroup.append(viewReceiptButton, confirmPaymentButton);
-      }
+    }
+
+    const paymentReceiptPending =
+      Boolean(student.paymentReceiptPending) && Boolean(student.paymentReceiptUrl);
+    if (paymentReceiptPending) {
+      const viewReceiptButton = createButton(
+        "عرض وصل الدفع",
+        "payment-receipt-view-btn",
+        () => viewStudentPaymentReceipt(student.id)
+      );
+      viewReceiptButton.title = "عرض وصل الدفع المرفوع من الولي";
+      const confirmPaymentButton = createButton(
+        "تأكيد وصل الدفع",
+        "payment-receipt-confirm-btn",
+        () => confirmPaymentReceipt(student.id)
+      );
+      confirmPaymentButton.title = "تأكيد الدفع وتفعيل اشتراك التلميذ";
+      actionGroup.append(viewReceiptButton, confirmPaymentButton);
     }
 
     const cardCell = document.createElement("td");
