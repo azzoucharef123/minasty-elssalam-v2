@@ -20,9 +20,12 @@ model Student {
   liveAccessEnabled Boolean  @default(false)
   mathNote          String   @default("")
   physicsNote   String   @default("")
-  cardPhotoUrl             String?
-  accountActive            Boolean  @default(true)
-  cardReuploadRequested    Boolean  @default(false)
+  cardPhotoUrl                String?
+  accountActive               Boolean  @default(true)
+  cardReuploadRequested       Boolean  @default(false)
+  paymentReceiptUrl           String?
+  paymentReceiptPending       Boolean  @default(false)
+  paymentReceiptSubmittedAt   DateTime?
   createdAt                DateTime @default(now())
   updatedAt     DateTime @updatedAt
   attendances   Attendance[]

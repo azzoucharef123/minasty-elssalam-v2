@@ -301,6 +301,24 @@ function renderTable(studentsArray) {
         confirmIdentityButton.title = "بعد مراجعة البطاقة، اضغط لتفعيل حساب الطالب";
         actionGroup.append(confirmIdentityButton);
       }
+
+      const paymentReceiptPending =
+        Boolean(student.paymentReceiptPending) && Boolean(student.paymentReceiptUrl);
+      if (paymentReceiptPending) {
+        const viewReceiptButton = createButton(
+          "عرض وصل الدفع",
+          "payment-receipt-view-btn",
+          () => viewStudentPaymentReceipt(student.id)
+        );
+        viewReceiptButton.title = "عرض وصل الدفع المرفوع من الطالب";
+        const confirmPaymentButton = createButton(
+          "تأكيد وصل الدفع",
+          "payment-receipt-confirm-btn",
+          () => confirmPaymentReceipt(student.id)
+        );
+        confirmPaymentButton.title = "تأكيد الدفع وتحويل الحساب إلى اشتراك مدفوع";
+        actionGroup.append(viewReceiptButton, confirmPaymentButton);
+      }
     }
 
     const cardCell = document.createElement("td");
@@ -621,6 +639,55 @@ async function viewStudentCard(studentId) {
     if (!/انتهت الجلسة/.test(error.message)) {
       console.error("Unable to view student card:", error);
       showDashboardError(error.message || "تعذر عرض صورة البطاقة.");
+    }
+  }
+}
+
+async function viewStudentPaymentReceipt(studentId) {
+  const previewWindow = window.open("about:blank", "_blank");
+  if (!previewWindow) {
+    showDashboardError("اسمح بالنوافذ المنبثقة لعرض وصل الدفع.");
+    return;
+  }
+
+  try {
+    const response = await teacherFetch(
+      `/api/students/${encodeURIComponent(studentId)}/payment-receipt`,
+      { headers: { Accept: "image/*" } }
+    );
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || "تعذر عرض وصل الدفع.");
+    }
+
+    previewWindow.location.href = URL.createObjectURL(await response.blob());
+  } catch (error) {
+    previewWindow.close();
+    if (!/انتهت الجلسة/.test(error.message)) {
+      console.error("Unable to view payment receipt:", error);
+      showDashboardError(error.message || "تعذر عرض وصل الدفع.");
+    }
+  }
+}
+
+async function confirmPaymentReceipt(studentId) {
+  try {
+    const response = await teacherFetch(
+      `/api/students/${encodeURIComponent(studentId)}/confirm-payment-receipt`,
+      { method: "PUT", headers: { Accept: "application/json" } }
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "تعذر تأكيد وصل الدفع.");
+    }
+
+    showToast(payload.message || "تم تأكيد الدفع وتفعيل الاشتراك المدفوع.");
+    await fetchStudents(currentLevel);
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) {
+      console.error("Unable to confirm payment receipt:", error);
+      showDashboardError(error.message || "تعذر تأكيد وصل الدفع.");
     }
   }
 }

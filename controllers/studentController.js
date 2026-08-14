@@ -298,6 +298,15 @@ function notifyAccountStatus(req, student) {
   });
 }
 
+function notifyPaymentReceiptStatus(req, student) {
+  const io = req.app.get("io");
+  io?.to(`${student.level}_lobby`).emit("student_payment_receipt_updated", {
+    studentId: student.id,
+    paymentStage: student.paymentStage,
+    paymentReceiptPending: student.paymentReceiptPending,
+  });
+}
+
 function isUniversityIdentityPending(student) {
   return (
     student.level === "طالب جامعي" &&
@@ -447,6 +456,146 @@ async function replaceStudentCard(req, res) {
   }
 }
 
+/** POST /api/students/:id/payment-receipt — owning parent submits university upgrade proof. */
+async function submitPaymentReceipt(req, res) {
+  const uploadedReceiptFile = req.file;
+
+  try {
+    if (!uploadedReceiptFile?.filename) {
+      return res.status(400).json({ error: "اختر صورة وصل الدفع بصيغة JPG أو PNG أولاً." });
+    }
+
+    const student = await prisma.student.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        parentPhone: true,
+        level: true,
+        paymentStage: true,
+        paymentStatus: true,
+        paymentReceiptUrl: true,
+      },
+    });
+
+    if (!student || student.parentPhone !== req.user?.phone) {
+      await removeUploadedCard(uploadedReceiptFile.filename);
+      return res.status(403).json({ error: "لا تملك صلاحية إرسال وصل دفع لهذا الطالب." });
+    }
+
+    if (student.level !== "طالب جامعي") {
+      await removeUploadedCard(uploadedReceiptFile.filename);
+      return res.status(400).json({ error: "طلب الترقية بالدفع متاح للطالب الجامعي فقط." });
+    }
+
+    if (student.paymentStage === "PAID" || student.paymentStatus) {
+      await removeUploadedCard(uploadedReceiptFile.filename);
+      return res.status(400).json({ error: "هذا الحساب لديه اشتراك مدفوع بالفعل." });
+    }
+
+    const updatedStudent = await prisma.student.update({
+      where: { id: student.id },
+      data: {
+        paymentReceiptUrl: uploadedReceiptFile.filename,
+        paymentReceiptPending: true,
+        paymentReceiptSubmittedAt: new Date(),
+      },
+    });
+    await removeUploadedCard(student.paymentReceiptUrl);
+    notifyPaymentReceiptStatus(req, updatedStudent);
+
+    return res.status(200).json({
+      status: "success",
+      message: "تم إرسال وصل الدفع. سيؤكد الأستاذ الترقية بعد مراجعة الوصل.",
+      data: updatedStudent,
+    });
+  } catch (error) {
+    if (uploadedReceiptFile?.filename) {
+      await removeUploadedCard(uploadedReceiptFile.filename);
+    }
+    console.error("Payment receipt submission failed:", error);
+    return res.status(500).json({ error: "تعذر إرسال وصل الدفع حالياً." });
+  }
+}
+
+/** GET /api/students/:id/payment-receipt — teacher-only protected receipt preview. */
+async function getStudentPaymentReceipt(req, res) {
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: req.params.id },
+      select: { paymentReceiptUrl: true },
+    });
+
+    if (!student?.paymentReceiptUrl) {
+      return res.status(404).json({ error: "لا يوجد وصل دفع مرفوع لهذا الطالب." });
+    }
+
+    const filename = path.basename(student.paymentReceiptUrl);
+    const filePath = path.join(uploadDirectory, filename);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "وصل الدفع غير متاح حالياً." });
+    }
+
+    return res.sendFile(filePath);
+  } catch (error) {
+    console.error("Payment receipt lookup failed:", error);
+    return res.status(500).json({ error: "تعذر عرض وصل الدفع حالياً." });
+  }
+}
+
+/** PUT /api/students/:id/confirm-payment-receipt — teacher manually approves university upgrade. */
+async function confirmStudentPaymentReceipt(req, res) {
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        level: true,
+        paymentReceiptUrl: true,
+        paymentReceiptPending: true,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: "التلميذ غير موجود." });
+    }
+
+    if (student.level !== "طالب جامعي") {
+      return res.status(400).json({ error: "تأكيد وصل الدفع متاح للطالب الجامعي فقط." });
+    }
+
+    if (!student.paymentReceiptUrl || !student.paymentReceiptPending) {
+      return res.status(400).json({ error: "لا يوجد وصل دفع جديد بانتظار التأكيد." });
+    }
+
+    const updatedStudent = await prisma.student.update({
+      where: { id: student.id },
+      data: {
+        paymentStatus: true,
+        paymentStage: "PAID",
+        amountDue: 0,
+        paymentReceiptPending: false,
+        liveAccessEnabled: true,
+      },
+    });
+    notifyPaymentReceiptStatus(req, updatedStudent);
+
+    const io = req.app.get("io");
+    io?.to(`${updatedStudent.level}_lobby`).emit("student_live_access_updated", {
+      studentId: updatedStudent.id,
+      liveAccessEnabled: true,
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: "تم تأكيد الدفع. أصبح الحساب مدفوعًا ويمكنه دخول جميع الحصص.",
+      data: updatedStudent,
+    });
+  } catch (error) {
+    console.error("Payment receipt confirmation failed:", error);
+    return res.status(500).json({ error: "تعذر تأكيد وصل الدفع حالياً." });
+  }
+}
+
 /** DELETE /api/students/:id — teacher-only user deletion. */
 async function deleteStudent(req, res) {
   try {
@@ -455,6 +604,7 @@ async function deleteStudent(req, res) {
       select: {
         id: true,
         cardPhotoUrl: true,
+        paymentReceiptUrl: true,
         studentName: true,
         questionImages: { select: { fileName: true } },
       },
@@ -466,6 +616,7 @@ async function deleteStudent(req, res) {
 
     await prisma.student.delete({ where: { id: student.id } });
     await removeUploadedCard(student.cardPhotoUrl);
+    await removeUploadedCard(student.paymentReceiptUrl);
     await Promise.all(student.questionImages.map((image) => removeImageFile(image.fileName)));
 
     return res.status(200).json({
@@ -521,6 +672,7 @@ async function updateStudentStatusAndNotes(req, res) {
         paymentStatus: paymentStage === "PAID",
         paymentStage,
         amountDue: normalizedAmount,
+        paymentReceiptPending: paymentStage === "PAID" ? false : undefined,
         mathEnrollment,
         physicsEnrollment,
         liveAccessEnabled,
@@ -561,5 +713,8 @@ module.exports = {
   requestStudentCardReupload,
   confirmStudentCardIdentity,
   replaceStudentCard,
+  submitPaymentReceipt,
+  getStudentPaymentReceipt,
+  confirmStudentPaymentReceipt,
   deleteStudent,
 };

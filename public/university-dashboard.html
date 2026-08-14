@@ -35,6 +35,25 @@
     .university-status .danger { color: #b91c1c; }
     .university-actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1rem; }
     .university-actions button, .university-actions a { flex: 1; min-width: 12rem; text-align: center; }
+    .university-upgrade-card { border-color: #bfdbfe; background: linear-gradient(135deg, #ffffff, #eff6ff); }
+    .university-upgrade-card[hidden], .payment-transfer-panel[hidden] { display: none; }
+    .university-upgrade-card h2 { color: #1d4ed8; }
+    .university-upgrade-card > p { margin: 0; color: #475569; font-size: .84rem; line-height: 1.85; }
+    .upgrade-account-button { width: 100%; min-height: 3rem; margin-top: 1rem; color: #ffffff; background: linear-gradient(135deg, #2563eb, #1d4ed8); border: 0; border-radius: .75rem; font: inherit; font-size: .84rem; font-weight: 800; cursor: pointer; }
+    .payment-transfer-panel { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #bfdbfe; }
+    .payment-transfer-panel h3 { margin: 0; color: #0f172a; font-size: .92rem; }
+    .payment-transfer-panel > p { margin: .35rem 0 .8rem; color: #64748b; font-size: .76rem; line-height: 1.8; }
+    .payment-transfer-details { display: grid; gap: .45rem; margin: 0; }
+    .payment-transfer-details div { display: grid; grid-template-columns: 7rem 1fr; gap: .5rem; padding: .55rem .65rem; background: rgba(255,255,255,.78); border: 1px solid #dbeafe; border-radius: .62rem; }
+    .payment-transfer-details dt { color: #64748b; font-size: .72rem; font-weight: 700; }
+    .payment-transfer-details dd { margin: 0; color: #0f172a; font-family: Arial, sans-serif; font-size: .76rem; font-weight: 800; overflow-wrap: anywhere; }
+    .payment-receipt-upload { display: grid; gap: .55rem; margin-top: 1rem; }
+    .payment-receipt-upload label { color: #334155; font-size: .78rem; font-weight: 800; }
+    .payment-receipt-upload input { width: 100%; padding: .55rem; border: 1px dashed #60a5fa; border-radius: .65rem; background: #fff; font: inherit; }
+    .payment-receipt-upload button { min-height: 2.8rem; color: #fff; background: #059669; border: 0; border-radius: .68rem; font: inherit; font-weight: 800; cursor: pointer; }
+    .payment-receipt-status { margin: .8rem 0 0; padding: .65rem .75rem; color: #92400e; background: #fef3c7; border-radius: .62rem; font-size: .76rem; font-weight: 800; line-height: 1.7; }
+    .payment-confirmed-notice { margin: .85rem 0 0; padding: .7rem .8rem; color: #166534; background: #ecfdf5; border: 1px solid #bbf7d0; border-radius: .65rem; font-size: .78rem; font-weight: 800; line-height: 1.7; }
+    .payment-confirmed-notice[hidden] { display: none; }
     #university-error { margin-bottom: 1rem; }
     @media (max-width: 650px) { .university-header-inner, .university-profile { align-items: flex-start; flex-direction: column; } .university-grid { grid-template-columns: 1fr; } .university-actions { flex-direction: column; } }
   </style>
@@ -76,8 +95,34 @@
           <h2>حالة الملف</h2>
           <div class="university-status"><span>صورة البطاقة</span><strong id="university-card-status">—</strong></div>
           <div class="university-status"><span>نوع الاشتراك</span><strong id="university-payment-status">—</strong></div>
+          <p id="payment-confirmed-notice" class="payment-confirmed-notice" hidden>لقد تم تأكيد الدفع. أصبح حسابك مدفوعًا ويمكنك الدخول إلى جميع الحصص.</p>
         </article>
 
+
+        <article id="university-upgrade-card" class="university-card university-upgrade-card" hidden>
+          <h2>ترقية الاشتراك</h2>
+          <p>ارتقِ إلى الحساب المدفوع للاستفادة من جميع الحصص المدفوعة والمجانية خلال السداسي.</p>
+          <button id="upgrade-account-button" class="upgrade-account-button" type="button">ترقية حسابي إلى حساب مدفوع والتمتع بالحصص المدفوعة</button>
+
+          <section id="payment-transfer-panel" class="payment-transfer-panel" hidden aria-labelledby="payment-transfer-title">
+            <h3 id="payment-transfer-title">معلومات التحويل البريدي</h3>
+            <p>قيمة الاشتراك للسداسي الواحد هي <strong>2000 دج</strong>. بعد الدفع، ارفع صورة واضحة لوصل الدفع ليؤكده الأستاذ.</p>
+            <dl class="payment-transfer-details">
+              <div><dt>صاحب الحساب</dt><dd>Charef Azzeddine</dd></div>
+              <div><dt>الولاية</dt><dd>Biskra</dd></div>
+              <div><dt>CCP</dt><dd>17570324</dd></div>
+              <div><dt>المفتاح</dt><dd>04</dd></div>
+              <div><dt>BaridiMob</dt><dd>00799999001757032404</dd></div>
+              <div><dt>قيمة السداسي</dt><dd>2000 دج</dd></div>
+            </dl>
+            <div class="payment-receipt-upload">
+              <label for="payment-receipt-input">ارفع وصل الدفع المستخرج من البريد أو BaridiMob</label>
+              <input id="payment-receipt-input" type="file" accept="image/jpeg,image/png" capture="environment" />
+              <button id="payment-receipt-submit" type="button">إرسال وصل الدفع للأستاذ</button>
+            </div>
+            <p id="payment-receipt-status" class="payment-receipt-status" hidden></p>
+          </section>
+        </article>
 
         <article class="university-card">
           <h2>الوصول إلى الحصة</h2>

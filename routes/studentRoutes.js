@@ -14,6 +14,9 @@ const {
   requestStudentCardReupload,
   confirmStudentCardIdentity,
   replaceStudentCard,
+  submitPaymentReceipt,
+  getStudentPaymentReceipt,
+  confirmStudentPaymentReceipt,
   deleteStudent,
 } = require("../controllers/studentController");
 const {
@@ -77,8 +80,15 @@ router.put("/:id/request-card-reupload", verifyToken, isTeacher, requestStudentC
 // Teacher-only: the teacher activates a university account only after reviewing its card.
 router.put("/:id/confirm-card-identity", verifyToken, isTeacher, confirmStudentCardIdentity);
 
+// Teacher-only: payment receipts are private and can only be viewed or approved by the teacher.
+router.get("/:id/payment-receipt", verifyToken, isTeacher, getStudentPaymentReceipt);
+router.put("/:id/confirm-payment-receipt", verifyToken, isTeacher, confirmStudentPaymentReceipt);
+
 // Parent-only: replacement is allowed only after the teacher requests it.
 router.post("/:id/card-photo", verifyToken, cardUpload.single("cardPhoto"), replaceStudentCard);
+
+// Parent-only: a university student can submit an image of the postal payment receipt.
+router.post("/:id/payment-receipt", verifyToken, cardUpload.single("paymentReceipt"), submitPaymentReceipt);
 
 // Teacher-only: payment and teacher-note updates are administrative actions.
 router.put("/:id", verifyToken, isTeacher, updateStudentStatusAndNotes);

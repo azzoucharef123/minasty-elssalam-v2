@@ -507,6 +507,155 @@
         background: #e0f2fe;
       }
 
+      .university-payment-upgrade[hidden],
+      .university-payment-transfer[hidden] {
+        display: none;
+      }
+
+      .university-payment-upgrade {
+        margin: 0 0 1rem;
+        padding: 1.05rem 1.1rem;
+        border: 1px solid #bfdbfe;
+        border-radius: 1rem;
+        background: linear-gradient(135deg, #ffffff, #eff6ff);
+        box-shadow: 0 8px 22px rgba(37, 99, 235, 0.07);
+      }
+
+      .university-payment-upgrade h2,
+      .university-payment-upgrade p {
+        margin: 0;
+      }
+
+      .university-payment-upgrade h2 {
+        color: #1d4ed8;
+        font-size: 0.98rem;
+      }
+
+      .university-payment-upgrade > p {
+        margin-top: 0.28rem;
+        color: #475569;
+        font-size: 0.77rem;
+        font-weight: 600;
+        line-height: 1.8;
+      }
+
+      .university-upgrade-button {
+        width: 100%;
+        min-height: 3rem;
+        margin-top: 0.85rem;
+        color: #ffffff;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        border: 0;
+        border-radius: 0.72rem;
+        font: inherit;
+        font-size: 0.8rem;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .university-payment-transfer {
+        display: grid;
+        gap: 0.68rem;
+        margin-top: 0.9rem;
+        padding-top: 0.9rem;
+        border-top: 1px solid #bfdbfe;
+      }
+
+      .university-payment-transfer h3,
+      .university-payment-transfer p {
+        margin: 0;
+      }
+
+      .university-payment-transfer h3 {
+        color: #0f172a;
+        font-size: 0.85rem;
+      }
+
+      .university-payment-transfer > p {
+        color: #64748b;
+        font-size: 0.73rem;
+        font-weight: 600;
+        line-height: 1.75;
+      }
+
+      .parent-payment-details {
+        display: grid;
+        gap: 0.42rem;
+        margin: 0;
+      }
+
+      .parent-payment-details div {
+        display: grid;
+        grid-template-columns: 6.5rem minmax(0, 1fr);
+        gap: 0.45rem;
+        padding: 0.5rem 0.6rem;
+        border: 1px solid #dbeafe;
+        border-radius: 0.6rem;
+        background: #ffffff;
+      }
+
+      .parent-payment-details dt {
+        color: #64748b;
+        font-size: 0.68rem;
+        font-weight: 800;
+      }
+
+      .parent-payment-details dd {
+        margin: 0;
+        color: #0f172a;
+        font-family: Arial, sans-serif;
+        font-size: 0.72rem;
+        font-weight: 800;
+        overflow-wrap: anywhere;
+      }
+
+      .parent-payment-receipt-input {
+        width: 100%;
+        padding: 0.52rem;
+        border: 1px dashed #60a5fa;
+        border-radius: 0.62rem;
+        background: #ffffff;
+        font: inherit;
+      }
+
+      .parent-payment-submit {
+        min-height: 2.75rem;
+        color: #ffffff;
+        background: #059669;
+        border: 0;
+        border-radius: 0.66rem;
+        font: inherit;
+        font-size: 0.78rem;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .parent-payment-pending {
+        padding: 0.64rem 0.72rem;
+        color: #92400e;
+        border-radius: 0.62rem;
+        background: #fef3c7;
+        font-size: 0.75rem;
+        font-weight: 800;
+        line-height: 1.75;
+      }
+
+      .parent-payment-confirmed[hidden] {
+        display: none;
+      }
+
+      .parent-payment-confirmed {
+        margin: 0 0 1rem;
+        padding: 0.82rem 0.95rem;
+        color: #166534;
+        background: #ecfdf5;
+        border: 1px solid #bbf7d0;
+        border-radius: 0.85rem;
+        font-size: 0.79rem;
+        font-weight: 800;
+        line-height: 1.75;
+      }
+
       .payment-card small,
       .enrollment-card strong {
         display: block;
@@ -879,6 +1028,31 @@
             <strong id="payment-status">—</strong>
           </article>
         </div>
+
+        <section id="parent-payment-confirmed" class="parent-payment-confirmed" hidden aria-live="polite">لقد تم تأكيد الدفع. أصبح حساب الطالب مدفوعًا ويمكنه الدخول إلى جميع الحصص.</section>
+
+        <section id="university-payment-upgrade" class="university-payment-upgrade" hidden aria-live="polite">
+          <h2>ترقية الاشتراك</h2>
+          <p>ارتقِ إلى الحساب المدفوع للتمتع بجميع الحصص المدفوعة والمجانية خلال السداسي.</p>
+          <button id="university-upgrade-button" class="university-upgrade-button" type="button">ترقية حسابي إلى حساب مدفوع والتمتع بالحصص المدفوعة</button>
+
+          <div id="university-payment-transfer" class="university-payment-transfer" hidden>
+            <h3>معلومات التحويل البريدي</h3>
+            <p>قيمة الاشتراك للسداسي الواحد: <strong>2000 دج</strong>. بعد الدفع، ارفع صورة واضحة لوصل الدفع ليؤكده الأستاذ.</p>
+            <dl class="parent-payment-details">
+              <div><dt>صاحب الحساب</dt><dd>Charef Azzeddine</dd></div>
+              <div><dt>الولاية</dt><dd>Biskra</dd></div>
+              <div><dt>CCP</dt><dd>17570324</dd></div>
+              <div><dt>المفتاح</dt><dd>04</dd></div>
+              <div><dt>BaridiMob</dt><dd>00799999001757032404</dd></div>
+              <div><dt>قيمة السداسي</dt><dd>2000 دج</dd></div>
+            </dl>
+            <label for="parent-payment-receipt-input">ارفع وصل الدفع من البريد أو BaridiMob</label>
+            <input id="parent-payment-receipt-input" class="parent-payment-receipt-input" type="file" accept="image/jpeg,image/png" capture="environment" />
+            <button id="parent-payment-submit" class="parent-payment-submit" type="button">إرسال وصل الدفع للأستاذ</button>
+            <p id="parent-payment-pending" class="parent-payment-pending" hidden></p>
+          </div>
+        </section>
 
         <section id="card-reupload-panel" class="card-reupload-panel" hidden aria-live="polite">
           <div>

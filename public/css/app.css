@@ -781,3 +781,25 @@ body.parent-login-modal-open {
   color: #a16207;
   background: #fef9c3;
 }
+
+.payment-receipt-view-btn {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+}
+
+.payment-receipt-view-btn:hover:not(:disabled) {
+  color: #ffffff;
+  background: #2563eb;
+}
+
+.payment-receipt-confirm-btn {
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+}
+
+.payment-receipt-confirm-btn:hover:not(:disabled) {
+  color: #ffffff;
+  background: #16a34a;
+}

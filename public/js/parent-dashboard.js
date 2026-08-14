@@ -16,6 +16,13 @@ const elements = {
   replacementCardInput: document.getElementById("replacement-card-input"),
   replacementCardButton: document.getElementById("replacement-card-button"),
   paymentStatus: document.getElementById("payment-status"),
+  universityPaymentUpgrade: document.getElementById("university-payment-upgrade"),
+  universityUpgradeButton: document.getElementById("university-upgrade-button"),
+  universityPaymentTransfer: document.getElementById("university-payment-transfer"),
+  parentPaymentReceiptInput: document.getElementById("parent-payment-receipt-input"),
+  parentPaymentSubmit: document.getElementById("parent-payment-submit"),
+  parentPaymentPending: document.getElementById("parent-payment-pending"),
+  parentPaymentConfirmed: document.getElementById("parent-payment-confirmed"),
   logoutButton: document.getElementById("logout-btn"),
   materialsList: document.getElementById("materials-list"),
   attendanceCount: document.getElementById("attendance-count"),
@@ -36,6 +43,7 @@ let currentStudents = [];
 let currentLobbyLevel = null;
 let paymentReturnRefreshTimer = null;
 let activeLiveClassType = null;
+let universityPaymentTransferRequested = false;
 
 function clearParentSession() {
   [
@@ -204,6 +212,42 @@ function selectStudent(studentId) {
   void loadAttendanceCount(student.id);
 }
 
+function renderUniversityPaymentUpgrade(student, isPaidSubscription) {
+  const isUniversityStudent = student.level === "طالب جامعي";
+  const receiptPending = Boolean(student.paymentReceiptPending);
+  const showUpgrade = isUniversityStudent && !isPaidSubscription;
+
+  if (elements.universityPaymentUpgrade) {
+    elements.universityPaymentUpgrade.hidden = !showUpgrade;
+  }
+  if (elements.parentPaymentConfirmed) {
+    elements.parentPaymentConfirmed.hidden = !(isUniversityStudent && isPaidSubscription && Boolean(student.paymentReceiptUrl));
+  }
+  if (!showUpgrade) {
+    universityPaymentTransferRequested = false;
+    return;
+  }
+
+  if (elements.universityUpgradeButton) {
+    elements.universityUpgradeButton.hidden = receiptPending;
+  }
+  if (elements.universityPaymentTransfer) {
+    elements.universityPaymentTransfer.hidden = !receiptPending && !universityPaymentTransferRequested;
+  }
+  if (elements.parentPaymentReceiptInput) {
+    elements.parentPaymentReceiptInput.disabled = receiptPending;
+  }
+  if (elements.parentPaymentSubmit) {
+    elements.parentPaymentSubmit.disabled = receiptPending;
+  }
+  if (elements.parentPaymentPending) {
+    elements.parentPaymentPending.hidden = !receiptPending;
+    elements.parentPaymentPending.textContent = receiptPending
+      ? "تم إرسال وصل الدفع بنجاح. الوصل في انتظار تأكيد الأستاذ."
+      : "";
+  }
+}
+
 function renderStudent(student) {
   elements.studentAvatar.textContent = getInitials(student.studentName);
   elements.studentName.textContent = student.studentName;
@@ -241,6 +285,7 @@ function renderStudent(student) {
   elements.paymentStatus.textContent = isPaid ? "اشتراك مدفوع" : "اشتراك مجاني";
   elements.paymentStatus.classList.toggle("is-paid", isPaid);
   elements.paymentStatus.classList.toggle("is-free", !isPaid);
+  renderUniversityPaymentUpgrade(student, isPaid);
 }
 
 /**
@@ -582,6 +627,54 @@ function refreshAccessAfterReturningFromCall() {
   }, 450);
 }
 
+function openUniversityPaymentTransfer() {
+  universityPaymentTransferRequested = true;
+  if (elements.universityPaymentTransfer) {
+    elements.universityPaymentTransfer.hidden = false;
+    elements.universityPaymentTransfer.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+async function submitUniversityPaymentReceipt() {
+  const receipt = elements.parentPaymentReceiptInput?.files?.[0];
+  if (!receipt || !currentStudent) {
+    showError("اختر صورة وصل الدفع أولاً.");
+    return;
+  }
+
+  const originalLabel = elements.parentPaymentSubmit?.textContent;
+  if (elements.parentPaymentSubmit) {
+    elements.parentPaymentSubmit.disabled = true;
+    elements.parentPaymentSubmit.textContent = "جارٍ إرسال الوصل…";
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append("paymentReceipt", receipt);
+    const response = await parentFetch(
+      `/api/students/${encodeURIComponent(currentStudent.id)}/payment-receipt`,
+      { method: "POST", body: formData }
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "تعذر إرسال وصل الدفع.");
+    }
+
+    elements.parentPaymentReceiptInput.value = "";
+    universityPaymentTransferRequested = true;
+    await loadDashboard({ backgroundRefresh: true });
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) {
+      showError(error.message || "تعذر إرسال وصل الدفع.");
+    }
+  } finally {
+    if (elements.parentPaymentSubmit && !currentStudent?.paymentReceiptPending) {
+      elements.parentPaymentSubmit.disabled = false;
+      elements.parentPaymentSubmit.textContent = originalLabel || "إرسال وصل الدفع للأستاذ";
+    }
+  }
+}
+
 async function uploadReplacementCard() {
   const file = elements.replacementCardInput?.files?.[0];
   if (!file || !currentStudent) {
@@ -676,6 +769,14 @@ function initializeLobbySocket() {
     void loadDashboard({ backgroundRefresh: true });
   });
 
+  socket.on("student_payment_receipt_updated", (data = {}) => {
+    if (!currentStudent || data.studentId !== currentStudent.id) {
+      return;
+    }
+
+    void loadDashboard({ backgroundRefresh: true });
+  });
+
   socket.on("disconnect", () => {
     // Never leave an unverified positive state visible while the status socket
     // is unavailable. The ACK restores it once Socket.io reconnects.
@@ -695,6 +796,10 @@ if (!getParentToken()) {
 } else {
   elements.joinLiveClassButton?.addEventListener("click", () => {
     void enterLiveClass();
+  });
+  elements.universityUpgradeButton?.addEventListener("click", openUniversityPaymentTransfer);
+  elements.parentPaymentSubmit?.addEventListener("click", () => {
+    void submitUniversityPaymentReceipt();
   });
   elements.replacementCardButton?.addEventListener("click", () => {
     elements.replacementCardInput?.click();

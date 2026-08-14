@@ -11,10 +11,18 @@ const elements = {
   paymentStatus: document.getElementById("university-payment-status"),
   liveStatus: document.getElementById("university-live-status"),
   liveButton: document.getElementById("university-live-button"),
+  upgradeCard: document.getElementById("university-upgrade-card"),
+  upgradeButton: document.getElementById("upgrade-account-button"),
+  paymentTransferPanel: document.getElementById("payment-transfer-panel"),
+  paymentReceiptInput: document.getElementById("payment-receipt-input"),
+  paymentReceiptSubmit: document.getElementById("payment-receipt-submit"),
+  paymentReceiptStatus: document.getElementById("payment-receipt-status"),
+  paymentConfirmedNotice: document.getElementById("payment-confirmed-notice"),
   logout: document.getElementById("university-logout"),
 };
 
 let currentStudent = null;
+let paymentTransferPanelRequested = false;
 
 function showError(message) {
   if (!elements.error) return;
@@ -82,6 +90,42 @@ function paymentLabel(student) {
     : { text: "اشتراك مجاني", className: "pending" };
 }
 
+function renderPaymentUpgrade(student, isPaidSubscription) {
+  const pendingReceipt = Boolean(student.paymentReceiptPending);
+  const paymentConfirmed = isPaidSubscription && Boolean(student.paymentReceiptUrl);
+
+  if (elements.upgradeCard) {
+    elements.upgradeCard.hidden = isPaidSubscription;
+  }
+  if (elements.paymentConfirmedNotice) {
+    elements.paymentConfirmedNotice.hidden = !paymentConfirmed;
+  }
+
+  if (isPaidSubscription) {
+    paymentTransferPanelRequested = false;
+    return;
+  }
+
+  if (elements.upgradeButton) {
+    elements.upgradeButton.hidden = pendingReceipt;
+  }
+  if (elements.paymentTransferPanel) {
+    elements.paymentTransferPanel.hidden = !pendingReceipt && !paymentTransferPanelRequested;
+  }
+  if (elements.paymentReceiptInput) {
+    elements.paymentReceiptInput.disabled = pendingReceipt;
+  }
+  if (elements.paymentReceiptSubmit) {
+    elements.paymentReceiptSubmit.disabled = pendingReceipt;
+  }
+  if (elements.paymentReceiptStatus) {
+    elements.paymentReceiptStatus.hidden = !pendingReceipt;
+    elements.paymentReceiptStatus.textContent = pendingReceipt
+      ? "تم إرسال وصل الدفع بنجاح. الوصل الآن في انتظار تأكيد الأستاذ."
+      : "";
+  }
+}
+
 function renderStudent(student) {
   currentStudent = student;
   persistStudent(student);
@@ -108,8 +152,10 @@ function renderStudent(student) {
       : "success";
 
   const payment = paymentLabel(student);
+  const isPaidSubscription = payment.className === "success";
   elements.paymentStatus.textContent = payment.text;
   elements.paymentStatus.className = payment.className;
+  renderPaymentUpgrade(student, isPaidSubscription);
 
   const accountReady = student.accountActive !== false && !student.cardReuploadRequested;
   elements.liveStatus.textContent = !accountReady
@@ -166,6 +212,52 @@ async function loadDashboard() {
   }
 }
 
+function openPaymentTransferPanel() {
+  paymentTransferPanelRequested = true;
+  elements.paymentTransferPanel.hidden = false;
+  elements.paymentTransferPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function submitPaymentReceipt() {
+  const receipt = elements.paymentReceiptInput?.files?.[0];
+  if (!receipt || !currentStudent) {
+    showError("اختر صورة وصل الدفع أولاً.");
+    return;
+  }
+
+  const originalLabel = elements.paymentReceiptSubmit?.textContent;
+  if (elements.paymentReceiptSubmit) {
+    elements.paymentReceiptSubmit.disabled = true;
+    elements.paymentReceiptSubmit.textContent = "جارٍ إرسال الوصل…";
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append("paymentReceipt", receipt);
+    const response = await parentFetch(
+      `/api/students/${encodeURIComponent(currentStudent.id)}/payment-receipt`,
+      { method: "POST", body: formData }
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "تعذر إرسال وصل الدفع.");
+    }
+
+    elements.paymentReceiptInput.value = "";
+    paymentTransferPanelRequested = true;
+    await loadDashboard();
+  } catch (error) {
+    if (!/انتهت جلسة/.test(error.message)) {
+      showError(error.message || "تعذر إرسال وصل الدفع.");
+    }
+  } finally {
+    if (elements.paymentReceiptSubmit && !currentStudent?.paymentReceiptPending) {
+      elements.paymentReceiptSubmit.disabled = false;
+      elements.paymentReceiptSubmit.textContent = originalLabel || "إرسال وصل الدفع للأستاذ";
+    }
+  }
+}
+
 function enterLiveClass() {
   if (currentStudent?.accountActive === false || currentStudent?.cardReuploadRequested) {
     showError(
@@ -185,6 +277,10 @@ function enterLiveClass() {
 }
 
 elements.liveButton?.addEventListener("click", enterLiveClass);
+elements.upgradeButton?.addEventListener("click", openPaymentTransferPanel);
+elements.paymentReceiptSubmit?.addEventListener("click", () => {
+  void submitPaymentReceipt();
+});
 elements.logout?.addEventListener("click", () => {
   clearSession();
   window.location.replace("./parent-login.html");
