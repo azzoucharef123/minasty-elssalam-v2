@@ -141,6 +141,15 @@
         </form>
         <p class="lesson-repository-note">تأكد من ضبط الفيديو في Google Drive على «أي شخص لديه الرابط — مشاهد» حتى يستطيع تلاميذ المستوى مشاهدته.</p>
         <div id="teacher-lesson-video-list" class="teacher-lesson-video-list" aria-live="polite"></div>
+        <div id="drive-video-modal" class="modal" hidden>
+          <div class="modal-card drive-video-modal-card" role="dialog" aria-modal="true" aria-labelledby="drive-video-modal-title">
+            <button id="close-drive-video-modal" class="modal-close" type="button" aria-label="إغلاق">×</button>
+            <p class="eyebrow">Google Drive</p>
+            <h2 id="drive-video-modal-title">اختر فيديو الحصة</h2>
+            <p class="drive-video-modal-note">اختر فيديو من ملفات Drive، وسيُضاف تلقائيًا إلى مستودع المستوى المحدد.</p>
+            <div id="drive-video-list" class="drive-video-list" aria-live="polite"></div>
+          </div>
+        </div>
       </section>
 
       <section class="roster-toolbar" aria-label="بحث وتصفية التلاميذ">

@@ -1298,3 +1298,15 @@ body.parent-login-modal-open {
   background: rgba(37, 99, 235, 0.42);
   transform: translateY(-1px);
 }
+
+.drive-video-modal-card { width: min(42rem, calc(100vw - 2rem)); max-height: min(80vh, 42rem); overflow: hidden; }
+.drive-video-modal-note { margin: 0.35rem 0 0.8rem; color: #64748b; font-size: 0.72rem; line-height: 1.7; }
+.drive-video-list { display: grid; gap: 0.55rem; max-height: 52vh; overflow-y: auto; padding: 0.15rem 0.25rem 0.25rem 0.1rem; }
+.drive-video-item { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; width: 100%; padding: 0.72rem; color: #0f172a; background: #f8fafc; border: 1px solid #dbeafe; border-radius: 0.72rem; text-align: right; font: inherit; cursor: pointer; transition: 0.2s ease; }
+.drive-video-item:hover, .drive-video-item:focus-visible { background: #eff6ff; border-color: #60a5fa; transform: translateY(-1px); outline: none; }
+.drive-video-item-copy { display: grid; gap: 0.18rem; min-width: 0; }
+.drive-video-item-title { overflow: hidden; color: #1e3a8a; font-size: 0.78rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.drive-video-item-meta { color: #64748b; font-size: 0.66rem; }
+.drive-video-item-icon { flex: 0 0 auto; color: #2563eb; font-size: 1.25rem; }
+.drive-video-empty, .drive-video-loading { margin: 0; padding: 1rem; color: #64748b; background: #f8fafc; border: 1px dashed #bfdbfe; border-radius: 0.72rem; font-size: 0.75rem; text-align: center; }
+@media (max-width: 720px) { .drive-video-modal-card { width: calc(100vw - 1rem); } .drive-video-item-title { white-space: normal; } }

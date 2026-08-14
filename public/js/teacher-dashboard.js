@@ -67,6 +67,9 @@ const elements = {
   lessonVideoSubmit: document.getElementById("lesson-video-submit"),
   lessonVideoPicker: document.getElementById("lesson-video-picker"),
   lessonVideoList: document.getElementById("teacher-lesson-video-list"),
+  driveVideoModal: document.getElementById("drive-video-modal"),
+  closeDriveVideoModal: document.getElementById("close-drive-video-modal"),
+  driveVideoList: document.getElementById("drive-video-list"),
   lessonRepositoryCaption: document.getElementById("lesson-repository-caption"),
 };
 
@@ -85,6 +88,7 @@ let lessonVideos = [];
 let googlePickerApiKey = null;
 let googlePickerAppId = null;
 let googlePickerLoadPromise = null;
+let googleDriveListPromise = null;
 let googlePickerAccessToken = null;
 let googlePickerTokenExpiresAt = 0;
 
@@ -314,48 +318,106 @@ async function requestGooglePickerToken() {
   });
 }
 
+function closeDriveVideoModal() {
+  if (elements.driveVideoModal) {
+    elements.driveVideoModal.hidden = true;
+    elements.driveVideoModal.classList.remove("is-visible");
+  }
+}
+
+async function fetchGoogleDriveVideos(accessToken) {
+  const query = "mimeType contains 'video/' and trashed = false";
+  const fields = "files(id, name, mimeType, size, modifiedTime, webViewLink)";
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}&pageSize=50&orderBy=modifiedTime desc`;
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error?.message || "تعذر تحميل قائمة الفيديوهات من Google Drive.");
+  }
+
+  const data = await response.json();
+  return data.files || [];
+}
+
+function renderDriveVideoList(files) {
+  if (!elements.driveVideoList) return;
+  elements.driveVideoList.innerHTML = "";
+
+  if (!files || files.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "drive-video-empty";
+    empty.textContent = "لا توجد ملفات فيديو في حسابك على Google Drive.";
+    elements.driveVideoList.append(empty);
+    return;
+  }
+
+  files.forEach((file) => {
+    const button = document.createElement("button");
+    button.className = "drive-video-item";
+    button.type = "button";
+
+    const copy = document.createElement("div");
+    copy.className = "drive-video-item-copy";
+
+    const title = document.createElement("span");
+    title.className = "drive-video-item-title";
+    title.textContent = file.name;
+
+    const meta = document.createElement("span");
+    meta.className = "drive-video-item-meta";
+    const date = new Date(file.modifiedTime).toLocaleDateString("ar-DZ");
+    const size = file.size ? `${(Number(file.size) / (1024 * 1024)).toFixed(1)} MB` : "حجم غير معروف";
+    meta.textContent = `${date} — ${size}`;
+
+    copy.append(title, meta);
+
+    const icon = document.createElement("span");
+    icon.className = "drive-video-item-icon";
+    icon.textContent = "🎬";
+
+    button.append(copy, icon);
+
+    button.addEventListener("click", () => {
+      const driveUrl = `https://drive.google.com/file/d/${file.id}/view`;
+      if (elements.lessonVideoTitle) elements.lessonVideoTitle.value = file.name;
+      if (elements.lessonVideoUrl) elements.lessonVideoUrl.value = driveUrl;
+      closeDriveVideoModal();
+      void saveLessonVideo(null, { title: file.name, driveUrl });
+    });
+
+    elements.driveVideoList.append(button);
+  });
+}
+
 async function openGoogleDriveVideoPicker() {
-  if (!elements.lessonVideoPicker) return;
+  if (!elements.lessonVideoPicker || !elements.driveVideoModal) return;
   elements.lessonVideoPicker.disabled = true;
   const originalLabel = elements.lessonVideoPicker.textContent;
-  elements.lessonVideoPicker.textContent = "جارٍ فتح Google Drive…";
+  elements.lessonVideoPicker.textContent = "جارٍ الاتصال بـ Google…";
 
   try {
-    await Promise.all([ensureGooglePickerReady(), loadGooglePickerConfiguration()]);
+    await ensureGooglePickerReady();
     const accessToken = await requestGooglePickerToken();
-    const view = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
-      .setIncludeFolders(false)
-      .setSelectFolderEnabled(false)
-      .setMimeTypes(VIDEO_MIME_TYPES);
 
-    const picker = new window.google.picker.PickerBuilder()
-      .setAppId(googlePickerAppId)
-      .setDeveloperKey(googlePickerApiKey)
-      .setOAuthToken(accessToken)
-      .setOrigin(window.location.origin)
-      .addView(view)
-      .setTitle("اختر فيديو الحصة من Google Drive")
-      .setCallback((data) => {
-        if (data.action !== window.google.picker.Action.PICKED) return;
-        const selected = data.docs?.[0];
-        const fileId = selected?.[window.google.picker.Document.ID];
-        const fileName = String(selected?.[window.google.picker.Document.NAME] || "حصة مسجلة").trim();
-        const mimeType = String(selected?.[window.google.picker.Document.MIME_TYPE] || "");
-        if (!fileId || (mimeType && !mimeType.startsWith("video/"))) {
-          showDashboardError("اختر ملف فيديو صالحًا من Google Drive.");
-          return;
-        }
+    elements.driveVideoModal.hidden = false;
+    elements.driveVideoModal.classList.add("is-visible");
+    if (elements.driveVideoList) {
+      elements.driveVideoList.innerHTML = '<p class="drive-video-loading">جارٍ تحميل قائمة الفيديوهات…</p>';
+    }
 
-        const driveUrl = `https://drive.google.com/file/d/${fileId}/view`;
-        elements.lessonVideoTitle.value = fileName;
-        elements.lessonVideoUrl.value = driveUrl;
-        void saveLessonVideo(null, { title: fileName, driveUrl });
-      })
-      .build();
-    picker.setVisible(true);
+    const files = await fetchGoogleDriveVideos(accessToken);
+    renderDriveVideoList(files);
   } catch (error) {
-    console.error("Unable to open Google Drive Picker:", error);
-    showDashboardError(error.message || "تعذر فتح اختيار فيديو Google Drive.");
+    console.error("Unable to list Google Drive videos:", error);
+    showDashboardError(error.message || "تعذر فتح فيديوهات Google Drive.");
+    closeDriveVideoModal();
   } finally {
     elements.lessonVideoPicker.disabled = false;
     elements.lessonVideoPicker.textContent = originalLabel || "اختيار فيديو من Google Drive";
@@ -1537,6 +1599,10 @@ if (!getTeacherToken()) {
 elements.lessonVideoForm?.addEventListener("submit", saveLessonVideo);
 elements.lessonVideoPicker?.addEventListener("click", () => {
   void openGoogleDriveVideoPicker();
+});
+elements.closeDriveVideoModal?.addEventListener("click", closeDriveVideoModal);
+elements.driveVideoModal?.addEventListener("click", (e) => {
+  if (e.target === elements.driveVideoModal) closeDriveVideoModal();
 });
   elements.scheduleCancelButton?.addEventListener("click", resetScheduleForm);
   elements.teacherAbsenceButton?.addEventListener("click", () => void toggleTeacherAbsence());
