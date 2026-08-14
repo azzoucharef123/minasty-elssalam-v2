@@ -31,6 +31,8 @@ const elements = {
   lessonRepositoryLevelCaption: document.getElementById("lesson-repository-level-caption"),
   lessonVideoModal: document.getElementById("lesson-video-modal"),
   lessonVideoModalTitle: document.getElementById("lesson-video-modal-title"),
+  lessonVideoSidebarTitle: document.getElementById("lesson-video-sidebar-title"),
+  lessonVideoSidebarMeta: document.getElementById("lesson-video-sidebar-meta"),
   lessonVideoFrame: document.getElementById("lesson-video-frame"),
   lessonVideoClose: document.getElementById("lesson-video-close"),
   materialsList: document.getElementById("materials-list"),
@@ -52,6 +54,7 @@ let currentLobbyLevel = null;
 let paymentReturnRefreshTimer = null;
 let activeLiveClassType = null;
 let universityPaymentTransferRequested = false;
+let lessonVideoPreviousFocus = null;
 let parentScheduledClasses = [];
 let parentTeacherAbsent = false;
 let teacherAbsenceLevel = null;
@@ -461,15 +464,30 @@ function isSafeLessonPreviewUrl(value) {
 function closeLessonVideo() {
   if (elements.lessonVideoModal) elements.lessonVideoModal.hidden = true;
   if (elements.lessonVideoFrame) elements.lessonVideoFrame.removeAttribute("src");
+  document.body.classList.remove("lesson-video-open");
+  const previousFocus = lessonVideoPreviousFocus;
+  lessonVideoPreviousFocus = null;
+  if (previousFocus && typeof previousFocus.focus === "function") {
+    window.setTimeout(() => previousFocus.focus(), 0);
+  }
 }
 
 function openLessonVideo(video) {
   if (!isSafeLessonPreviewUrl(video?.previewUrl) || !elements.lessonVideoModal || !elements.lessonVideoFrame) {
     return;
   }
-  if (elements.lessonVideoModalTitle) elements.lessonVideoModalTitle.textContent = video.title || "مشاهدة الحصة";
+
+  lessonVideoPreviousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const title = video.title || "مشاهدة الحصة";
+  const date = `أضيفت في ${formatLessonVideoDate(video.createdAt)}`;
+  if (elements.lessonVideoModalTitle) elements.lessonVideoModalTitle.textContent = title;
+  if (elements.lessonVideoSidebarTitle) elements.lessonVideoSidebarTitle.textContent = title;
+  if (elements.lessonVideoSidebarMeta) elements.lessonVideoSidebarMeta.textContent = `${date} · مشاهدة داخل المنصة`;
+  elements.lessonVideoFrame.title = title;
   elements.lessonVideoFrame.src = video.previewUrl;
   elements.lessonVideoModal.hidden = false;
+  document.body.classList.add("lesson-video-open");
+  window.setTimeout(() => elements.lessonVideoClose?.focus(), 0);
 }
 
 function renderLessonVideos(videos) {
@@ -484,23 +502,31 @@ function renderLessonVideos(videos) {
     return;
   }
 
-  videos.forEach((video) => {
+  videos.forEach((video, index) => {
     if (!isSafeLessonPreviewUrl(video?.previewUrl)) return;
     const item = document.createElement("article");
     item.className = "lesson-video-item";
+    item.setAttribute("aria-label", `الدرس ${index + 1}: ${video.title || "حصة مسجلة"}`);
+
+    const art = document.createElement("div");
+    art.className = "lesson-video-art";
+    art.setAttribute("aria-hidden", "true");
+    art.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4.75 5.75A1.75 1.75 0 0 1 6.5 4h11a1.75 1.75 0 0 1 1.75 1.75v9.5A1.75 1.75 0 0 1 17.5 17h-11a1.75 1.75 0 0 1-1.75-1.75v-9.5Z"/><path d="m10 8 5 3.5-5 3.5V8Z"/><path d="M9 20h6M12 17v3"/></svg>';
+
     const copy = document.createElement("div");
     copy.className = "lesson-video-copy";
     const title = document.createElement("strong");
     title.textContent = video.title || "حصة مسجلة";
     const date = document.createElement("small");
     date.textContent = `أضيفت في ${formatLessonVideoDate(video.createdAt)}`;
-    copy.append(title, date);
     const watch = document.createElement("button");
     watch.type = "button";
     watch.className = "watch-lesson-video-btn";
-    watch.textContent = "مشاهدة الحصة";
+    watch.textContent = "مشاهدة الدرس";
+    watch.setAttribute("aria-label", `مشاهدة ${video.title || "الحصة المسجلة"}`);
     watch.addEventListener("click", () => openLessonVideo(video));
-    item.append(copy, watch);
+    copy.append(title, date, watch);
+    item.append(art, copy);
     elements.lessonVideoList.append(item);
   });
 
