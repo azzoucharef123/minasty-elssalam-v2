@@ -747,9 +747,12 @@ io.on("connection", (socket) => {
         });
       }
 
-      // A learner who joins after other microphones are already open receives
-      // direct peer offers from every approved speaker without page refresh.
-      await notifyOpenStudentMicrophonesOfNewListener(level, socket.id);
+      // The teacher owns the classroom peer connections. Its next offer to this
+      // learner includes every currently approved student-audio track.
+      io.to(level).emit("classroom_track_state", {
+        type: "student_joined",
+        studentSocketId: socket.id,
+      });
 
       acknowledge(acknowledgement, {
         ok: true,
@@ -1106,11 +1109,14 @@ io.on("connection", (socket) => {
       { level }
     );
 
-    if (enabled) {
-      await notifyStudentMeshRecipients(level, targetSocketId);
-    } else {
-      io.to(level).emit("student_audio_mesh_closed", { speakerSocketId: targetSocketId });
-    }
+    // Tell every page that the room's expected audio tracks changed. The teacher
+    // then adds/removes the matching sender on every existing RTCPeerConnection
+    // and sends a fresh SDP offer to each student without reloading any page.
+    io.to(level).emit("classroom_track_state", {
+      type: "student_audio",
+      speakerSocketId: targetSocketId,
+      enabled,
+    });
 
     // The teacher uses this authoritative event to update the existing stable
     // Web Audio mix. No viewer page reload or peer-per-student route is needed.
@@ -1145,7 +1151,11 @@ io.on("connection", (socket) => {
 
     setStudentMicrophoneOpen(level, targetSocketId, true);
     io.to(targetSocketId).emit("permission_granted", { level });
-    await notifyStudentMeshRecipients(level, targetSocketId);
+    io.to(level).emit("classroom_track_state", {
+      type: "student_audio",
+      speakerSocketId: targetSocketId,
+      enabled: true,
+    });
     io.to(socket.id).emit("student_mic_state_changed", {
       socketId: targetSocketId,
       enabled: true,

@@ -43,7 +43,9 @@ const approvedStudentMicrophones = new Set();
 // Each approved student microphone is relayed from the teacher's browser to
 // every other student connection. The teacher remains the explicit audio hub.
 const CLASSROOM_TEACHER_SOURCE = "__teacher__";
+const CLASSROOM_SCREEN_AUDIO_SOURCE = "__screen_audio__";
 const classroomAudioMixers = new Map();
+const screenAudioSenders = new Map();
 const classroomAudioSources = new Map();
 // Maps each listening student to the outbound audio senders carrying approved
 // classmates. These are intentionally separate from the teacher audio mix.
@@ -819,28 +821,23 @@ function connectStudentAudioToRecipient(speakerSocketId, recipientSocketId) {
     return;
   }
 
-  // A cloned track is crucial here: some mobile WebRTC implementations do not
-  // reliably fan one received MediaStreamTrack out to multiple peer connections.
-  // Every listener receives its own independent copy of the speaker's audio.
-  const relayTrack = sourceTrack.clone();
-  const relayStream = new MediaStream([relayTrack]);
-
+  // Use the received source track itself in every teacher-managed recipient
+  // connection. This creates one outgoing RTCRtpSender per listener while
+  // preserving the source's live timing and avoids a browser-specific cloned
+  // remote-track failure observed on mobile devices.
   if (existingRelay) {
-    existingRelay.relayTrack?.stop();
-    existingRelay.sender.replaceTrack(relayTrack).catch((error) => {
-      relayTrack.stop();
+    existingRelay.sender.replaceTrack(sourceTrack).catch((error) => {
       console.warn("Unable to replace a classmate audio track:", error);
     });
     relaySenders.set(speakerSocketId, {
       sender: existingRelay.sender,
       sourceTrackId: sourceTrack.id,
-      relayTrack,
     });
     return;
   }
 
-  const sender = peerConnection.addTrack(relayTrack, relayStream);
-  relaySenders.set(speakerSocketId, { sender, sourceTrackId: sourceTrack.id, relayTrack });
+  const sender = peerConnection.addTrack(sourceTrack, sourceStream);
+  relaySenders.set(speakerSocketId, { sender, sourceTrackId: sourceTrack.id });
   void tuneOutboundSender(sender, "audio");
   queueStudentAudioRelayOffer(recipientSocketId);
 }
@@ -854,9 +851,7 @@ function disconnectStudentAudioFromRecipient(speakerSocketId, recipientSocketId)
 
   // Keep the negotiated sender ready for the next teacher approval. Reopening
   // the mic then replaces the track immediately instead of adding m-lines.
-  relay.relayTrack?.stop();
   relay.sourceTrackId = null;
-  relay.relayTrack = null;
   relay.sender.replaceTrack(null).catch((error) => {
     console.warn("Unable to stop a classmate audio track:", error);
   });
@@ -869,7 +864,6 @@ function removeStudentAudioRelaySourceFromRecipient(speakerSocketId, recipientSo
     return;
   }
 
-  relay.relayTrack?.stop();
   relay.sender.replaceTrack(null).catch(() => {});
   relaySenders.delete(speakerSocketId);
   if (relaySenders.size === 0) {
@@ -891,15 +885,26 @@ function clearStudentAudioRelayForRecipient(recipientSocketId) {
   pendingStudentAudioRelayOffers.delete(recipientSocketId);
 }
 
-function syncApprovedStudentAudioSource(_studentSocketId) {
-  // Student-to-student audio now travels through its own direct WebRTC mesh.
-  // Keeping it out of the teacher broadcaster connection prevents duplicate
-  // audio and avoids mobile browsers dropping a relayed remote track.
+function syncApprovedStudentAudioSource(studentSocketId) {
+  const sourceStream = studentAudioElements.get(studentSocketId)?.srcObject;
+  const hasLiveAudio = sourceStream instanceof MediaStream && sourceStream
+    .getAudioTracks()
+    .some((track) => track.readyState === "live");
+
+  for (const recipientSocketId of Object.keys(peerConnections)) {
+    if (approvedStudentMicrophones.has(studentSocketId) && hasLiveAudio) {
+      connectStudentAudioToRecipient(studentSocketId, recipientSocketId);
+    } else {
+      disconnectStudentAudioFromRecipient(studentSocketId, recipientSocketId);
+      queueStudentAudioRelayOffer(recipientSocketId);
+    }
+  }
 }
 
-function syncApprovedAudioForNewRecipient(_recipientSocketId) {
-  // Existing open speakers receive the newly joined listener from the server
-  // and create their direct audio channels without involving this broadcaster.
+function syncApprovedAudioForNewRecipient(recipientSocketId) {
+  for (const speakerSocketId of approvedStudentMicrophones) {
+    connectStudentAudioToRecipient(speakerSocketId, recipientSocketId);
+  }
 }
 
 function applyStudentMicrophoneState(studentSocketId, enabled) {
@@ -937,11 +942,74 @@ function createRecipientAudioMix(studentSocketId) {
   const destination = classroomAudioContext.createMediaStreamDestination();
   classroomAudioMixers.set(studentSocketId, { destination, gains: new Map() });
 
-  // Only the teacher source belongs in this stable teacher-audio channel.
-  // Classmate audio is delivered by separate direct relay senders below.
+  // Only the teacher microphone belongs in this stable speech channel. Shared
+  // system audio is sent as its own WebRTC track so it remains audible even when
+  // the teacher mic is present.
   connectAudioSourceToRecipient(CLASSROOM_TEACHER_SOURCE, studentSocketId);
 
   return destination.stream;
+}
+
+function getLiveScreenAudioTrack() {
+  return screenStream?.getAudioTracks?.().find((track) => track.readyState === "live") || null;
+}
+
+function queueRecipientRenegotiation(recipientSocketId) {
+  queueStudentAudioRelayOffer(recipientSocketId);
+}
+
+function addScreenAudioTrackToRecipient(recipientSocketId, { renegotiate = true } = {}) {
+  const peerConnection = peerConnections[recipientSocketId];
+  const screenAudioTrack = getLiveScreenAudioTrack();
+  if (!peerConnection || !screenAudioTrack || peerConnection.signalingState === "closed") {
+    return false;
+  }
+
+  const existingSender = screenAudioSenders.get(recipientSocketId);
+  if (existingSender?.track?.id === screenAudioTrack.id) {
+    return false;
+  }
+
+  if (existingSender) {
+    existingSender.replaceTrack(screenAudioTrack).catch((error) => {
+      console.warn("Unable to replace shared-screen audio track:", error);
+    });
+  } else {
+    const sender = peerConnection.addTrack(screenAudioTrack, screenStream);
+    screenAudioSenders.set(recipientSocketId, sender);
+    void tuneOutboundSender(sender, "audio");
+  }
+
+  if (renegotiate) {
+    queueRecipientRenegotiation(recipientSocketId);
+  }
+  return true;
+}
+
+function removeScreenAudioTrackFromRecipient(recipientSocketId, { renegotiate = true, forget = false } = {}) {
+  const sender = screenAudioSenders.get(recipientSocketId);
+  if (!sender) {
+    return;
+  }
+
+  sender.replaceTrack(null).catch(() => {});
+  if (forget) {
+    screenAudioSenders.delete(recipientSocketId);
+  }
+  if (renegotiate) {
+    queueRecipientRenegotiation(recipientSocketId);
+  }
+}
+
+function syncScreenAudioToRecipients() {
+  const hasScreenAudio = Boolean(getLiveScreenAudioTrack());
+  for (const recipientSocketId of Object.keys(peerConnections)) {
+    if (hasScreenAudio) {
+      addScreenAudioTrackToRecipient(recipientSocketId);
+    } else {
+      removeScreenAudioTrackFromRecipient(recipientSocketId);
+    }
+  }
 }
 
 function addClassroomAudioSource(sourceKey, stream) {
@@ -1111,6 +1179,7 @@ function closePeerConnection(socketId) {
   }
 
   delete pendingIceCandidates[socketId];
+  removeScreenAudioTrackFromRecipient(socketId, { renegotiate: false, forget: true });
   clearStudentAudioRelayForRecipient(socketId);
   removeRecipientAudioMix(socketId);
   removeStudentAudio(socketId);
@@ -1118,6 +1187,7 @@ function closePeerConnection(socketId) {
 
 function closeAllPeerConnections() {
   approvedStudentMicrophones.clear();
+  screenAudioSenders.clear();
   Array.from(studentAudioRelaySenders.keys()).forEach(clearStudentAudioRelayForRecipient);
   Object.keys(peerConnections).forEach(closePeerConnection);
   Object.keys(pendingIceCandidates).forEach((socketId) => {
@@ -1174,22 +1244,22 @@ function addTeacherTracks(peerConnection, studentSocketId) {
     mixedAudioTrack.contentHint = "speech";
     const sender = peerConnection.addTrack(mixedAudioTrack, mixedAudioStream);
     void tuneOutboundSender(sender, "audio");
-    return;
+  } else {
+    // Fallback for browsers without Web Audio support: keep the teacher's voice
+    // available even though student audio cannot be mixed there.
+    const teacherAudioStream = cameraStream?.getAudioTracks().length ? cameraStream : null;
+    const teacherAudioTrack = teacherAudioStream?.getAudioTracks?.()[0];
+    if (teacherAudioTrack) {
+      teacherAudioTrack.contentHint = "speech";
+      const sender = peerConnection.addTrack(teacherAudioTrack, teacherAudioStream);
+      void tuneOutboundSender(sender, "audio");
+    }
   }
 
-  // Fallback for browsers without Web Audio support: keep the teacher's voice
-  // available even though student audio cannot be mixed there.
-  const teacherAudioStream = cameraStream?.getAudioTracks().length
-    ? cameraStream
-    : screenStream.getAudioTracks().length
-      ? screenStream
-      : null;
-  const teacherAudioTrack = teacherAudioStream?.getAudioTracks?.()[0];
-  if (teacherAudioTrack) {
-    teacherAudioTrack.contentHint = "speech";
-    const sender = peerConnection.addTrack(teacherAudioTrack, teacherAudioStream);
-    void tuneOutboundSender(sender, "audio");
-  }
+  // Display/system audio is an explicit second audio sender. It must not be
+  // hidden behind the teacher-microphone mix, otherwise Chrome's shared audio
+  // is lost whenever a microphone is available.
+  addScreenAudioTrackToRecipient(studentSocketId, { renegotiate: false });
 }
 
 /**
@@ -1542,6 +1612,16 @@ async function startLiveClass() {
     // If the user clicks the browser's native “Stop sharing” action, close the
     // classroom immediately instead of streaming a frozen or black screen.
     const displayTrack = screenStream.getVideoTracks()[0];
+    const displayAudioTrack = getLiveScreenAudioTrack();
+    if (displayAudioTrack) {
+      displayAudioTrack.contentHint = "music";
+      displayAudioTrack.onunmute = () => syncScreenAudioToRecipients();
+      displayAudioTrack.onmute = () => syncScreenAudioToRecipients();
+      displayAudioTrack.onended = () => syncScreenAudioToRecipients();
+    } else {
+      microphoneUnavailableMessage = "لم يرسل المتصفح صوت النظام من الشاشة المختارة";
+    }
+
     displayTrack.onended = () => {
       if (classActive && !isEnding && !isPageNavigatingAway) {
         endLiveClass({

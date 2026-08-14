@@ -1589,6 +1589,19 @@ socket.on("room_unavailable", (data = {}) => {
  * offer as remote SDP, set an answer as local SDP, then relay the answer to the
  * only authorized remote peer: `fromSocketId`.
  */
+socket.on("classroom_track_state", (data = {}) => {
+  if (!joinedClass || data.type !== "student_audio") {
+    return;
+  }
+
+  // The actual audio sender arrives through the teacher's immediately following
+  // renegotiation offer. This room-wide signal is only a lightweight state hint;
+  // it never requires the learner to refresh or press Join again.
+  if (data.enabled) {
+    setViewerStatus("جارٍ توصيل صوت تلميذ بالحصة…", "live");
+  }
+});
+
 socket.on("webrtc_offer", async (data = {}) => {
   const { fromSocketId, sdp } = data;
 
