@@ -517,6 +517,9 @@ function renderLessonVideos(videos) {
     copy.className = "lesson-video-copy";
     const title = document.createElement("strong");
     title.textContent = video.title || "حصة مسجلة";
+    const type = document.createElement("span");
+    type.className = "lesson-video-type";
+    type.textContent = video.repositoryTypeLabel || "درس مسجل";
     const date = document.createElement("small");
     date.textContent = `أضيفت في ${formatLessonVideoDate(video.createdAt)}`;
     const watch = document.createElement("button");
@@ -525,7 +528,7 @@ function renderLessonVideos(videos) {
     watch.textContent = "مشاهدة الدرس";
     watch.setAttribute("aria-label", `مشاهدة ${video.title || "الحصة المسجلة"}`);
     watch.addEventListener("click", () => openLessonVideo(video));
-    copy.append(title, date, watch);
+    copy.append(title, type, date, watch);
     item.append(art, copy);
     elements.lessonVideoList.append(item);
   });
@@ -536,7 +539,7 @@ function renderLessonVideos(videos) {
 async function loadLessonVideos(level) {
   if (!elements.lessonVideoList || !level) return;
   if (elements.lessonRepositoryLevelCaption) {
-    elements.lessonRepositoryLevelCaption.textContent = `فيديوهات حصص ${level} متاحة للمشاهدة داخل المنصة.`;
+    elements.lessonRepositoryLevelCaption.textContent = `فيديوهات حصص ${level} المتاحة حسب مادة أو نوع اشتراك التلميذ.`;
   }
   elements.lessonVideoList.replaceChildren();
   const loading = document.createElement("p");
@@ -545,7 +548,8 @@ async function loadLessonVideos(level) {
   elements.lessonVideoList.append(loading);
 
   try {
-    const response = await parentFetch(`/api/lesson-videos/${encodeURIComponent(level)}`, {
+    const studentId = currentStudent?.id ? `?studentId=${encodeURIComponent(currentStudent.id)}` : "";
+    const response = await parentFetch(`/api/lesson-videos/${encodeURIComponent(level)}${studentId}`, {
       headers: { Accept: "application/json" },
     });
     const payload = await response.json().catch(() => ({}));

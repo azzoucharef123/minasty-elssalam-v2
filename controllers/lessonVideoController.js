@@ -11,6 +11,9 @@ const VALID_LEVELS = new Set([
   "طالب جامعي",
 ]);
 const DRIVE_FILE_ID_PATTERN = /^[A-Za-z0-9_-]{20,200}$/;
+const SECONDARY_REPOSITORY_TYPES = new Set(["MATH", "PHYSICS"]);
+const UNIVERSITY_REPOSITORY_TYPES = new Set(["FREE", "PAID"]);
+const LEGACY_REPOSITORY_TYPE = "UNCLASSIFIED";
 
 function normalizeText(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -19,6 +22,23 @@ function normalizeText(value) {
 function normalizeLevel(value) {
   const level = normalizeText(value);
   return VALID_LEVELS.has(level) ? level : "";
+}
+
+function normalizeRepositoryType(value) {
+  const repositoryType = normalizeText(value).toUpperCase();
+  return repositoryType;
+}
+
+function repositoryTypeLabel(level, repositoryType) {
+  if (level === "طالب جامعي") {
+    return repositoryType === "PAID" ? "اشتراك مدفوع" : "اشتراك مجاني";
+  }
+  return repositoryType === "PHYSICS" ? "الفيزياء" : "الرياضيات";
+}
+
+function isValidRepositoryType(level, repositoryType) {
+  const allowedTypes = level === "طالب جامعي" ? UNIVERSITY_REPOSITORY_TYPES : SECONDARY_REPOSITORY_TYPES;
+  return allowedTypes.has(repositoryType);
 }
 
 function extractGoogleDriveFileId(value) {
@@ -44,10 +64,15 @@ function extractGoogleDriveFileId(value) {
 }
 
 function serializeLessonVideo(video) {
+  const repositoryType = video.repositoryType || LEGACY_REPOSITORY_TYPE;
   return {
     id: video.id,
     title: video.title,
     level: video.level,
+    repositoryType,
+    repositoryTypeLabel: repositoryType === LEGACY_REPOSITORY_TYPE
+      ? "قديم — غير مصنف"
+      : repositoryTypeLabel(video.level, repositoryType),
     driveUrl: video.driveUrl,
     previewUrl: `https://drive.google.com/file/d/${video.driveFileId}/preview`,
     createdAt: video.createdAt,
@@ -55,27 +80,54 @@ function serializeLessonVideo(video) {
   };
 }
 
-async function parentCanAccessLevel(parentPhone, level) {
+async function getParentStudentForLevel(parentPhone, level, studentId) {
   if (!parentPhone || !level) {
-    return false;
+    return null;
   }
 
-  const student = await prisma.student.findFirst({
-    where: { parentPhone, level },
-    select: { id: true },
+  return prisma.student.findFirst({
+    where: {
+      parentPhone,
+      level,
+      ...(studentId ? { id: studentId } : {}),
+    },
+    select: {
+      id: true,
+      level: true,
+      paymentStage: true,
+      paymentStatus: true,
+      mathEnrollment: true,
+      physicsEnrollment: true,
+    },
   });
-  return Boolean(student);
+}
+
+function getStudentRepositoryTypes(student) {
+  if (!student) return [];
+  if (student.level === "طالب جامعي") {
+    return student.paymentStage === "PAID" || student.paymentStatus === true
+      ? ["FREE", "PAID"]
+      : ["FREE"];
+  }
+
+  return [
+    student.mathEnrollment ? "MATH" : null,
+    student.physicsEnrollment ? "PHYSICS" : null,
+  ].filter(Boolean);
 }
 
 /** Teacher-only: add a Google Drive video link to a study level. */
 async function createLessonVideo(req, res) {
   const level = normalizeLevel(req.body?.level);
   const title = normalizeText(req.body?.title);
+  const repositoryType = normalizeRepositoryType(req.body?.repositoryType);
   const driveFileId = extractGoogleDriveFileId(req.body?.driveUrl);
 
-  if (!level || !title || title.length > MAX_TITLE_LENGTH || !driveFileId) {
+  if (!level || !title || title.length > MAX_TITLE_LENGTH || !driveFileId || !isValidRepositoryType(level, repositoryType)) {
     return res.status(400).json({
-      error: "أدخل عنوان الحصة ورابط فيديو Google Drive صحيحًا للمستوى المحدد.",
+      error: level === "طالب جامعي"
+        ? "اختر نوع المستودع: اشتراك مجاني أو اشتراك مدفوع، ثم أدخل عنوان الحصة والرابط الصحيح."
+        : "اختر مادة الحصة: الرياضيات أو الفيزياء، ثم أدخل العنوان والرابط الصحيح.",
     });
   }
 
@@ -86,13 +138,14 @@ async function createLessonVideo(req, res) {
         level,
         driveFileId,
         driveUrl: `https://drive.google.com/file/d/${driveFileId}/view`,
+        repositoryType,
       },
     });
 
     return res.status(201).json({ status: "success", data: serializeLessonVideo(lessonVideo) });
   } catch (error) {
     if (error?.code === "P2002") {
-      return res.status(409).json({ error: "رابط هذه الحصة مضاف بالفعل إلى هذا المستوى." });
+      return res.status(409).json({ error: "رابط هذه الحصة مضاف بالفعل إلى هذا التصنيف." });
     }
     console.error("Unable to create lesson video:", error);
     return res.status(500).json({ error: "تعذر حفظ رابط الحصة الآن." });
@@ -107,17 +160,20 @@ async function getLessonVideosByLevel(req, res) {
   }
 
   try {
+    let where = { level };
     if (req.user?.role === "parent") {
-      const allowed = await parentCanAccessLevel(req.user.phone, level);
-      if (!allowed) {
+      const student = await getParentStudentForLevel(req.user.phone, level, normalizeText(req.query?.studentId));
+      if (!student) {
         return res.status(403).json({ error: "لا تملك صلاحية الاطلاع على مستودع هذا المستوى." });
       }
+      const accessibleTypes = getStudentRepositoryTypes(student);
+      where = { level, repositoryType: { in: accessibleTypes } };
     } else if (req.user?.role !== "teacher") {
       return res.status(403).json({ error: "لا تملك صلاحية الاطلاع على مستودع الدروس." });
     }
 
     const videos = await prisma.lessonVideo.findMany({
-      where: { level },
+      where,
       orderBy: { createdAt: "desc" },
     });
 

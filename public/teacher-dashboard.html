@@ -132,6 +132,10 @@
           </div>
         </header>
         <form id="lesson-video-form" class="lesson-video-form" novalidate>
+          <label>تصنيف المستودع
+            <select id="lesson-video-type" required aria-describedby="lesson-video-type-help"></select>
+            <small id="lesson-video-type-help" class="lesson-video-type-help">سيظهر الفيديو فقط للطلاب المؤهلين لهذا التصنيف.</small>
+          </label>
           <label>عنوان الحصة<input id="lesson-video-title" type="text" maxlength="160" placeholder="مثال: مراجعة الدوال — الحصة الأولى" required /></label>
           <label>رابط فيديو Google Drive<input id="lesson-video-url" type="url" inputmode="url" placeholder="https://drive.google.com/file/d/.../view" required /></label>
           <div class="lesson-video-form-actions">
@@ -139,14 +143,14 @@
             <button id="lesson-video-submit" class="lesson-video-submit" type="submit">إضافة إلى مستودع المستوى</button>
           </div>
         </form>
-        <p class="lesson-repository-note">تأكد من ضبط الفيديو في Google Drive على «أي شخص لديه الرابط — مشاهد» حتى يستطيع تلاميذ المستوى مشاهدته.</p>
+        <p class="lesson-repository-note">تأكد من ضبط الفيديو في Google Drive على «أي شخص لديه الرابط — مشاهد». كل فيديو مرتبط بمادة أو نوع اشتراك، ولن يظهر إلا للطلاب المؤهلين.</p>
         <div id="teacher-lesson-video-list" class="teacher-lesson-video-list" aria-live="polite"></div>
         <div id="drive-video-modal" class="modal" hidden>
           <div class="modal-card drive-video-modal-card" role="dialog" aria-modal="true" aria-labelledby="drive-video-modal-title">
             <button id="close-drive-video-modal" class="modal-close" type="button" aria-label="إغلاق">×</button>
             <p class="eyebrow">Google Drive</p>
             <h2 id="drive-video-modal-title">اختر فيديو الحصة</h2>
-            <p class="drive-video-modal-note">اختر فيديو من ملفات Drive، وسيُضاف تلقائيًا إلى مستودع المستوى المحدد.</p>
+            <p class="drive-video-modal-note">اختر فيديو من ملفات Drive، وسيُضاف تلقائيًا إلى تصنيف <strong id="drive-video-type-label">المستودع المحدد</strong> في المستوى الحالي.</p>
             <div id="drive-video-list" class="drive-video-list" aria-live="polite"></div>
           </div>
         </div>

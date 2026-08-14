@@ -62,6 +62,9 @@ const elements = {
   teacherAbsenceButton: document.getElementById("teacher-absence-btn"),
   teacherAbsenceStatus: document.getElementById("teacher-absence-status"),
   lessonVideoForm: document.getElementById("lesson-video-form"),
+  lessonVideoType: document.getElementById("lesson-video-type"),
+  lessonVideoTypeHelp: document.getElementById("lesson-video-type-help"),
+  driveVideoTypeLabel: document.getElementById("drive-video-type-label"),
   lessonVideoTitle: document.getElementById("lesson-video-title"),
   lessonVideoUrl: document.getElementById("lesson-video-url"),
   lessonVideoSubmit: document.getElementById("lesson-video-submit"),
@@ -392,6 +395,7 @@ function renderDriveVideoList(files) {
 
 async function openGoogleDriveVideoPicker() {
   if (!elements.lessonVideoPicker || !elements.driveVideoModal) return;
+  updateLessonVideoTypeLabel();
   elements.lessonVideoPicker.disabled = true;
   const originalLabel = elements.lessonVideoPicker.textContent;
   elements.lessonVideoPicker.textContent = "جارٍ الاتصال بـ Google…";
@@ -436,6 +440,50 @@ function setCurrentLevelHeading(level) {
   }
   if (elements.studentPaymentHeading) {
     elements.studentPaymentHeading.textContent = level === "طالب جامعي" ? "بطاقة الطالب" : "حالة الدفع";
+  }
+}
+
+function getLessonVideoTypeOptions(level) {
+  return level === "طالب جامعي"
+    ? [
+        { value: "FREE", label: "حصص مجانية" },
+        { value: "PAID", label: "حصص مدفوعة" },
+      ]
+    : [
+        { value: "MATH", label: "دروس الرياضيات" },
+        { value: "PHYSICS", label: "دروس الفيزياء" },
+      ];
+}
+
+function syncLessonVideoTypeOptions() {
+  if (!elements.lessonVideoType) return;
+  const options = getLessonVideoTypeOptions(currentLevel);
+  const previousValue = elements.lessonVideoType.value;
+  elements.lessonVideoType.replaceChildren();
+  options.forEach(({ value, label }) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    elements.lessonVideoType.append(option);
+  });
+  if (options.some((option) => option.value === previousValue)) {
+    elements.lessonVideoType.value = previousValue;
+  }
+  updateLessonVideoTypeLabel();
+}
+
+function updateLessonVideoTypeLabel() {
+  const selected = getLessonVideoTypeOptions(currentLevel).find(
+    (option) => option.value === elements.lessonVideoType?.value,
+  );
+  const label = selected?.label || "التصنيف المحدد";
+  if (elements.lessonVideoTypeHelp) {
+    elements.lessonVideoTypeHelp.textContent = currentLevel === "طالب جامعي"
+      ? `${label}: يظهر الفيديو للطالب المجاني أو المدفوع حسب نوع الاشتراك.`
+      : `${label}: يظهر الفيديو فقط للتلميذ المسجل في هذه المادة.`;
+  }
+  if (elements.driveVideoTypeLabel) {
+    elements.driveVideoTypeLabel.textContent = label;
   }
 }
 
@@ -600,7 +648,10 @@ function renderLessonVideos() {
     title.textContent = video.title || "حصة مسجلة";
     const date = document.createElement("small");
     date.textContent = `أضيفت في ${formatScheduledDate(video.createdAt)}`;
-    copy.append(title, date);
+    const type = document.createElement("span");
+    type.className = "teacher-lesson-video-type";
+    type.textContent = video.repositoryTypeLabel || "تصنيف غير معروف";
+    copy.append(title, type, date);
 
     const actions = document.createElement("div");
     actions.className = "teacher-lesson-video-actions";
@@ -639,8 +690,14 @@ async function saveLessonVideo(event, selectedVideo = null) {
   event?.preventDefault();
   const title = selectedVideo?.title || elements.lessonVideoTitle?.value.trim() || "";
   const driveUrl = selectedVideo?.driveUrl || elements.lessonVideoUrl?.value.trim() || "";
+  const repositoryType = selectedVideo?.repositoryType || elements.lessonVideoType?.value || "";
   if (!title || !driveUrl) {
     showDashboardError("أدخل عنوان الحصة ورابط Google Drive أولاً.");
+    return;
+  }
+  if (!repositoryType) {
+    showDashboardError("اختر مادة الحصة أو نوع الاشتراك أولاً.");
+    elements.lessonVideoType?.focus();
     return;
   }
 
@@ -649,13 +706,14 @@ async function saveLessonVideo(event, selectedVideo = null) {
     const response = await teacherFetch("/api/lesson-videos", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ level: currentLevel, title, driveUrl }),
+      body: JSON.stringify({ level: currentLevel, title, driveUrl, repositoryType }),
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || "تعذر حفظ رابط الحصة.");
 
     elements.lessonVideoForm.reset();
-    showToast("تمت إضافة الفيديو إلى مستودع هذا المستوى.");
+    syncLessonVideoTypeOptions();
+    showToast("تمت إضافة الفيديو إلى تصنيف المستودع المحدد.");
     await loadLessonVideos();
   } catch (error) {
     console.error("Unable to save lesson video:", error);
@@ -951,6 +1009,7 @@ async function fetchStudents(level = currentLevel) {
   currentLevel = level;
   setActiveLevelButton(level);
   setCurrentLevelHeading(level);
+  syncLessonVideoTypeOptions();
   showDashboardError();
 
   try {
