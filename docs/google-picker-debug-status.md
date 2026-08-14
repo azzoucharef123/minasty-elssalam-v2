@@ -1,9 +1,24 @@
-تشخيص Google Picker — 2026-08-14
+# حالة تكامل فيديوهات Google Drive
 
-- API key 1 من مشروع My Project 40067 يطابق مشروع OAuth، وهو مقيّد بـ Google Picker API وGoogle Drive API.
-- اختبار Drive API باستخدام Referer https://dr.africacold.fr/teacher-dashboard.html وصل إلى Google وأعاد insufficientFilePermissions، ما يؤكد أن المفتاح نفسه مقبول.
-- أضيفت قيود المواقع: https://dr.africacold.fr وhttps://dr.africacold.fr/teacher-dashboard.html وhttps://minasaty-production-22f8.up.railway.app/.
-- استُبدل Google Picker المتعطل بمنتقي داخلي في الالتزام 6f06e6e، لكنه يحتاج OAuth scope drive.metadata.readonly لعرض قائمة الملفات.
-- تم تعديل teacher-dashboard.js محليًا لطلب drive.file + drive.metadata.readonly، ولم يُنشر هذا التعديل بعد.
-- في Google Auth Platform → Data Access أُضيفت drive.metadata.readonly إلى جدول Drive scopes، لكن زر Save النهائي لم يُتحقق من ضغطه بعد.
-- الخطوة التالية: حفظ Data Access، نشر التعديل الجديد، ثم اختبار القائمة الداخلية في لوحة الأستاذ.
+## النتيجة النهائية
+
+تم استبدال Google Picker API بمنتقي داخلي داخل لوحة الأستاذ. الزر **اختيار فيديو من Google Drive** يطلب OAuth عبر Google Identity Services، ثم يقرأ ملفات الفيديو مباشرة من Drive API v3 ويعرضها في نافذة عربية RTL داخل الموقع.
+
+عند اختيار ملف، يملأ النظام عنوان الفيديو ورابطه تلقائيًا، ثم يحفظه مباشرة في مستودع الدروس للمستوى المحدد.
+
+## سبب الإصلاح
+
+نافذة Google Picker كانت تتوقف عند رسالة `Missing required parameter: developerKey` رغم وجود مفتاح API صحيح، لذلك لم يعد المسار الجديد يستدعي `google.picker.PickerBuilder` أو `setDeveloperKey` أو مكتبة Google Picker.
+
+## الصلاحيات المستخدمة
+
+- `https://www.googleapis.com/auth/drive.file` لحفظ التسجيلات في Google Drive.
+- `https://www.googleapis.com/auth/drive.metadata.readonly` لقراءة قائمة الفيديوهات الموجودة في Drive.
+
+## الاختبار الحي
+
+تم نشر الإصلاح في الالتزام `cb36645` على `main`، وتحقق نشره على `https://dr.africacold.fr/teacher-dashboard.html` بحساب الأستاذ. ظهرت داخل النافذة خمسة ملفات فيديو من Google Drive، مع الاسم والتاريخ والحجم، دون ظهور خطأ Developer Key.
+
+## ملاحظة Google Cloud
+
+قد تظهر الصلاحية `drive.metadata.readonly` في صفحة Data Access قبل تأكيد زر Save النهائي. هذا التسجيل الرسمي لا يمنع الاختبار الحالي؛ OAuth وDrive API يعملان بالفعل. إذا احتاج Google لاحقًا إلى إعادة شاشة الموافقة، يُستكمل حفظ الصلاحية من Google Auth Platform → Data Access → Add or remove scopes → Save.
