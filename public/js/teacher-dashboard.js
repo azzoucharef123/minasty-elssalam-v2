@@ -214,7 +214,10 @@ async function teacherFetch(url, options = {}) {
 }
 
 const GOOGLE_DRIVE_CLIENT_ID = "938017291163-6uinh4868l66eo8887hsqkt7h3h1ss6e.apps.googleusercontent.com";
-const GOOGLE_DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+const GOOGLE_DRIVE_FILE_SCOPE = [
+  "https://www.googleapis.com/auth/drive.file",
+  "https://www.googleapis.com/auth/drive.metadata.readonly",
+].join(" ");
 const VIDEO_MIME_TYPES = "video/mp4,video/webm,video/quicktime,video/x-matroska,video/avi,video/mpeg";
 
 function isGooglePickerTokenUsable() {
@@ -259,20 +262,11 @@ function waitForGoogleScript(scriptId, src, isReady) {
 
 async function ensureGooglePickerReady() {
   if (!googlePickerLoadPromise) {
-    googlePickerLoadPromise = (async () => {
-      await Promise.all([
-        waitForGoogleScript("google-identity-services", "https://accounts.google.com/gsi/client", () => Boolean(window.google?.accounts?.oauth2)),
-        waitForGoogleScript("google-picker-api", "https://apis.google.com/js/api.js", () => Boolean(window.gapi?.load)),
-      ]);
-      await new Promise((resolve, reject) => {
-        window.gapi.load("picker", {
-          callback: resolve,
-          onerror: () => reject(new Error("تعذر تحميل نافذة اختيار ملفات Google Drive.")),
-          timeout: 10_000,
-          ontimeout: () => reject(new Error("انتهت مهلة تحميل نافذة اختيار ملفات Google Drive.")),
-        });
-      });
-    })().catch((error) => {
+    googlePickerLoadPromise = waitForGoogleScript(
+      "google-identity-services",
+      "https://accounts.google.com/gsi/client",
+      () => Boolean(window.google?.accounts?.oauth2),
+    ).catch((error) => {
       googlePickerLoadPromise = null;
       throw error;
     });
