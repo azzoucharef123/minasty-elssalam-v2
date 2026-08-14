@@ -129,7 +129,7 @@
             <span class="cta-arrow" aria-hidden="true">←</span>
           </a>
 
-          <a id="public-free-class-cta" class="landing-cta cta-public-free" href="#" hidden aria-live="polite">
+          <a id="public-free-class-cta" class="landing-cta cta-public-free" href="#" aria-haspopup="dialog" aria-live="polite">
             <span class="cta-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M4 6.75A2.75 2.75 0 0 1 6.75 4h10.5A2.75 2.75 0 0 1 20 6.75v7.5A2.75 2.75 0 0 1 17.25 17H13l-3.5 3v-3H6.75A2.75 2.75 0 0 1 4 14.25v-7.5Z" /><path d="m10 8.5 5 2.25-5 2.25v-4.5Z" /></svg>
             </span>
@@ -149,6 +149,19 @@
       <span class="footer-rule" aria-hidden="true"></span>
       <p>الرياضيات × الفيزياء</p>
     </footer>
+
+    <div id="public-class-unavailable-modal" class="public-class-modal" hidden>
+      <div class="public-class-modal-backdrop" data-close-public-modal></div>
+      <section class="public-class-modal-card" role="dialog" aria-modal="true" aria-labelledby="public-class-unavailable-title">
+        <button id="close-public-class-modal" class="public-class-modal-close" type="button" aria-label="إغلاق">×</button>
+        <span class="public-class-modal-icon" aria-hidden="true">!</span>
+        <p class="public-class-modal-kicker">الحصة العامة</p>
+        <h2 id="public-class-unavailable-title">لا توجد حصة مجانية أو عامة الآن</h2>
+        <p>عندما يفتح الأستاذ حصة عامة سيظهر الدخول هنا تلقائيًا.</p>
+        <button id="public-class-modal-close-action" class="public-class-modal-action" type="button">إغلاق</button>
+      </section>
+    </div>
+
     <script src="./js/index.js" defer></script>
   </body>
 </html>
