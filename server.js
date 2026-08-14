@@ -14,6 +14,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { Server } = require("socket.io");
 const prisma = require("./lib/prisma");
+const { verifyToken, isTeacher } = require("./middleware/authMiddleware");
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -47,12 +48,15 @@ app.use(
           "'self'",
           "https://www.gstatic.com",
           "https://accounts.google.com",
+          "https://apis.google.com",
           "https://www.google.com",
           "https://www.recaptcha.net",
         ],
         "frame-src": [
           "'self'",
           "https://accounts.google.com",
+          "https://docs.google.com",
+          "https://drive.google.com",
           "https://www.google.com",
           "https://recaptcha.google.com",
           "https://www.recaptcha.net",
@@ -137,6 +141,20 @@ app.use(express.static(path.join(__dirname, "public")));
 // Keep the public invite page available through an explicit route as well.
 app.get("/public-class.html", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "public-class.html"));
+});
+
+app.get("/api/google-picker/config", verifyToken, isTeacher, (_req, res) => {
+  const apiKey = String(process.env.GOOGLE_PICKER_API_KEY || "").trim();
+  if (!apiKey) {
+    return res.status(503).json({
+      error: "لم يتم إعداد مفتاح Google Picker بعد. أضف GOOGLE_PICKER_API_KEY إلى متغيرات Railway.",
+    });
+  }
+
+  return res.status(200).json({
+    apiKey,
+    appId: "938017291163",
+  });
 });
 
 app.get("/api/health", (_req, res) => {

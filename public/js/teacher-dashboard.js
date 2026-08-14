@@ -65,6 +65,7 @@ const elements = {
   lessonVideoTitle: document.getElementById("lesson-video-title"),
   lessonVideoUrl: document.getElementById("lesson-video-url"),
   lessonVideoSubmit: document.getElementById("lesson-video-submit"),
+  lessonVideoPicker: document.getElementById("lesson-video-picker"),
   lessonVideoList: document.getElementById("teacher-lesson-video-list"),
   lessonRepositoryCaption: document.getElementById("lesson-repository-caption"),
 };
@@ -81,6 +82,11 @@ let teacherAbsent = false;
 let editingScheduledClassId = null;
 let paymentStatusStudentId = null;
 let lessonVideos = [];
+let googlePickerApiKey = null;
+let googlePickerAppId = null;
+let googlePickerLoadPromise = null;
+let googlePickerAccessToken = null;
+let googlePickerTokenExpiresAt = 0;
 
 function clearTeacherSession() {
   sessionStorage.removeItem(TEACHER_TOKEN_KEY);
@@ -201,6 +207,159 @@ async function teacherFetch(url, options = {}) {
   }
 
   return response;
+}
+
+const GOOGLE_DRIVE_CLIENT_ID = "938017291163-6uinh4868l66eo8887hsqkt7h3h1ss6e.apps.googleusercontent.com";
+const GOOGLE_DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+const VIDEO_MIME_TYPES = "video/mp4,video/webm,video/quicktime,video/x-matroska,video/avi,video/mpeg";
+
+function isGooglePickerTokenUsable() {
+  return Boolean(googlePickerAccessToken && Date.now() < googlePickerTokenExpiresAt - 60_000);
+}
+
+function waitForGoogleScript(scriptId, src, isReady) {
+  if (isReady()) return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    let script = document.getElementById(scriptId);
+    if (!script) {
+      script = document.createElement("script");
+      script.id = scriptId;
+      script.src = src;
+      script.defer = true;
+      document.head.append(script);
+    }
+
+    let settled = false;
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      window.clearInterval(checkTimer);
+      window.clearTimeout(timeoutTimer);
+      callback(value);
+    };
+    const check = () => {
+      if (isReady()) finish(resolve);
+    };
+    const checkTimer = window.setInterval(check, 100);
+    const timeoutTimer = window.setTimeout(() => {
+      finish(reject, new Error("تعذر تحميل خدمة Google. تحقق من اتصال الإنترنت أو من إعدادات Chrome."));
+    }, 10_000);
+    script.addEventListener("load", check, { once: true });
+    script.addEventListener("error", () => {
+      finish(reject, new Error("تعذر تحميل خدمة Google. تحقق من اتصال الإنترنت أو من إعدادات Chrome."));
+    }, { once: true });
+    check();
+  });
+}
+
+async function ensureGooglePickerReady() {
+  if (!googlePickerLoadPromise) {
+    googlePickerLoadPromise = (async () => {
+      await Promise.all([
+        waitForGoogleScript("google-identity-services", "https://accounts.google.com/gsi/client", () => Boolean(window.google?.accounts?.oauth2)),
+        waitForGoogleScript("google-picker-api", "https://apis.google.com/js/api.js", () => Boolean(window.gapi?.load)),
+      ]);
+      await new Promise((resolve, reject) => {
+        window.gapi.load("picker", {
+          callback: resolve,
+          onerror: () => reject(new Error("تعذر تحميل نافذة اختيار ملفات Google Drive.")),
+          timeout: 10_000,
+          ontimeout: () => reject(new Error("انتهت مهلة تحميل نافذة اختيار ملفات Google Drive.")),
+        });
+      });
+    })().catch((error) => {
+      googlePickerLoadPromise = null;
+      throw error;
+    });
+  }
+  return googlePickerLoadPromise;
+}
+
+async function loadGooglePickerConfiguration() {
+  if (googlePickerApiKey && googlePickerAppId) return;
+  const response = await teacherFetch("/api/google-picker/config", {
+    headers: { Accept: "application/json" },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.apiKey || !payload.appId) {
+    throw new Error(payload.error || "تعذر إعداد اختيار ملفات Google Drive.");
+  }
+  googlePickerApiKey = payload.apiKey;
+  googlePickerAppId = payload.appId;
+}
+
+async function requestGooglePickerToken() {
+  if (isGooglePickerTokenUsable()) return googlePickerAccessToken;
+  await ensureGooglePickerReady();
+
+  return new Promise((resolve, reject) => {
+    const tokenClient = window.google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_DRIVE_CLIENT_ID,
+      scope: GOOGLE_DRIVE_FILE_SCOPE,
+      callback: (response) => {
+        if (response?.error || !response?.access_token) {
+          reject(new Error(response?.error_description || "لم يتم منح إذن اختيار فيديو من Google Drive."));
+          return;
+        }
+        googlePickerAccessToken = response.access_token;
+        googlePickerTokenExpiresAt = Date.now() + (Number(response.expires_in) || 3_600) * 1_000;
+        resolve(googlePickerAccessToken);
+      },
+      error_callback: (error) => {
+        reject(new Error(error?.message || "تم إغلاق نافذة تسجيل الدخول إلى Google."));
+      },
+    });
+    tokenClient.requestAccessToken({ prompt: "" });
+  });
+}
+
+async function openGoogleDriveVideoPicker() {
+  if (!elements.lessonVideoPicker) return;
+  elements.lessonVideoPicker.disabled = true;
+  const originalLabel = elements.lessonVideoPicker.textContent;
+  elements.lessonVideoPicker.textContent = "جارٍ فتح Google Drive…";
+
+  try {
+    await Promise.all([ensureGooglePickerReady(), loadGooglePickerConfiguration()]);
+    const accessToken = await requestGooglePickerToken();
+    const view = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
+      .setIncludeFolders(false)
+      .setSelectFolderEnabled(false)
+      .setMimeTypes(VIDEO_MIME_TYPES);
+
+    const picker = new window.google.picker.PickerBuilder()
+      .setAppId(googlePickerAppId)
+      .setDeveloperKey(googlePickerApiKey)
+      .setOAuthToken(accessToken)
+      .setOrigin(window.location.origin)
+      .addView(view)
+      .setTitle("اختر فيديو الحصة من Google Drive")
+      .setCallback((data) => {
+        if (data.action !== window.google.picker.Action.PICKED) return;
+        const selected = data.docs?.[0];
+        const fileId = selected?.[window.google.picker.Document.ID];
+        const fileName = String(selected?.[window.google.picker.Document.NAME] || "حصة مسجلة").trim();
+        const mimeType = String(selected?.[window.google.picker.Document.MIME_TYPE] || "");
+        if (!fileId || (mimeType && !mimeType.startsWith("video/"))) {
+          showDashboardError("اختر ملف فيديو صالحًا من Google Drive.");
+          return;
+        }
+
+        const driveUrl = `https://drive.google.com/file/d/${fileId}/view`;
+        elements.lessonVideoTitle.value = fileName;
+        elements.lessonVideoUrl.value = driveUrl;
+        void saveLessonVideo(null, { title: fileName, driveUrl });
+      })
+      .build();
+    picker.setVisible(true);
+  } catch (error) {
+    console.error("Unable to open Google Drive Picker:", error);
+    showDashboardError(error.message || "تعذر فتح اختيار فيديو Google Drive.");
+  } finally {
+    elements.lessonVideoPicker.disabled = false;
+    elements.lessonVideoPicker.textContent = originalLabel || "اختيار فيديو من Google Drive";
+  }
 }
 
 function setActiveLevelButton(level) {
@@ -420,10 +579,10 @@ async function loadLessonVideos() {
   }
 }
 
-async function saveLessonVideo(event) {
-  event.preventDefault();
-  const title = elements.lessonVideoTitle?.value.trim() || "";
-  const driveUrl = elements.lessonVideoUrl?.value.trim() || "";
+async function saveLessonVideo(event, selectedVideo = null) {
+  event?.preventDefault();
+  const title = selectedVideo?.title || elements.lessonVideoTitle?.value.trim() || "";
+  const driveUrl = selectedVideo?.driveUrl || elements.lessonVideoUrl?.value.trim() || "";
   if (!title || !driveUrl) {
     showDashboardError("أدخل عنوان الحصة ورابط Google Drive أولاً.");
     return;
@@ -1376,6 +1535,9 @@ if (!getTeacherToken()) {
   });
   elements.scheduleForm?.addEventListener("submit", saveScheduledClass);
 elements.lessonVideoForm?.addEventListener("submit", saveLessonVideo);
+elements.lessonVideoPicker?.addEventListener("click", () => {
+  void openGoogleDriveVideoPicker();
+});
   elements.scheduleCancelButton?.addEventListener("click", resetScheduleForm);
   elements.teacherAbsenceButton?.addEventListener("click", () => void toggleTeacherAbsence());
   elements.subscriptionForm?.addEventListener("submit", saveSubscription);

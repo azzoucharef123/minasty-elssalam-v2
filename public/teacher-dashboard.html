@@ -134,7 +134,10 @@
         <form id="lesson-video-form" class="lesson-video-form" novalidate>
           <label>عنوان الحصة<input id="lesson-video-title" type="text" maxlength="160" placeholder="مثال: مراجعة الدوال — الحصة الأولى" required /></label>
           <label>رابط فيديو Google Drive<input id="lesson-video-url" type="url" inputmode="url" placeholder="https://drive.google.com/file/d/.../view" required /></label>
-          <button id="lesson-video-submit" class="lesson-video-submit" type="submit">إضافة إلى مستودع المستوى</button>
+          <div class="lesson-video-form-actions">
+            <button id="lesson-video-picker" class="lesson-video-picker" type="button">اختيار فيديو من Google Drive</button>
+            <button id="lesson-video-submit" class="lesson-video-submit" type="submit">إضافة إلى مستودع المستوى</button>
+          </div>
         </form>
         <p class="lesson-repository-note">تأكد من ضبط الفيديو في Google Drive على «أي شخص لديه الرابط — مشاهد» حتى يستطيع تلاميذ المستوى مشاهدته.</p>
         <div id="teacher-lesson-video-list" class="teacher-lesson-video-list" aria-live="polite"></div>
@@ -158,6 +161,8 @@
   <div id="subscription-modal" class="modal" hidden><div class="modal-card"><button id="close-subscription-modal" class="modal-close" type="button">×</button><p class="eyebrow">إعدادات الاشتراك</p><h2 id="subscription-student-name">التلميذ</h2><form id="subscription-form" class="stack-form"><label id="subscription-type-label">نوع الاشتراك<select id="subscription-payment-stage" required><option value="PAID">اشتراك مدفوع</option><option value="UNPAID">اشتراك مجاني</option></select></label><label><input id="subscription-live-access" type="checkbox" /> السماح بدخول الحصة المباشرة</label><button class="cta-button cta-primary" type="submit">حفظ الاشتراك</button></form></div></div>
   <div id="payment-status-modal" class="modal" hidden><div class="modal-card"><button id="close-payment-status-modal" class="modal-close" type="button">×</button><p class="eyebrow">قرار حالة الدفع</p><h2 id="payment-status-student-name">التلميذ</h2><form id="payment-status-form" class="stack-form"><label>حالة الدفع<select id="payment-status-stage" required><option value="PAID">تم تأكيد الدفع</option><option value="PROMISED">الوعد بالدفع</option><option value="UNPAID">لم يتم الدفع</option></select></label><label id="payment-amount-field">القيمة بالدينار الجزائري<input id="payment-status-amount" type="number" min="0" step="1" inputmode="numeric" placeholder="مثال: 2000" /></label><button class="cta-button cta-primary" type="submit">حفظ حالة الدفع</button></form></div></div>
   <div id="toast" class="toast" hidden></div>
-  <script src="./js/teacher-dashboard.js"></script>
+  <script id="google-identity-services" src="https://accounts.google.com/gsi/client" defer></script>
+  <script id="google-picker-api" src="https://apis.google.com/js/api.js" defer></script>
+  <script src="./js/teacher-dashboard.js" defer></script>
 </body>
 </html>

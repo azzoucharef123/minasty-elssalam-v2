@@ -1025,6 +1025,8 @@ body.parent-login-modal-open {
   font-size: 0.77rem;
 }
 .lesson-video-form input[type="url"] { direction: ltr; text-align: left; }
+.lesson-video-form-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+.lesson-video-picker,
 .lesson-video-submit {
   min-height: 2.55rem;
   padding: 0.5rem 0.85rem;
@@ -1037,6 +1039,20 @@ body.parent-login-modal-open {
   font-weight: 800;
   cursor: pointer;
 }
+.lesson-video-picker {
+  min-height: 2.55rem;
+  padding: 0.5rem 0.7rem;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 0.62rem;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.lesson-video-picker:hover:not(:disabled) { color: #ffffff; background: #2563eb; border-color: #2563eb; }
+.lesson-video-picker:disabled,
 .lesson-video-submit:disabled { opacity: 0.6; cursor: wait; }
 .lesson-repository-note { margin-top: 0.68rem !important; color: #64748b; font-size: 0.68rem; line-height: 1.7; }
 .teacher-lesson-video-list { display: grid; gap: 0.55rem; margin-top: 0.85rem; }
@@ -1053,6 +1069,8 @@ body.parent-login-modal-open {
 
 @media (max-width: 720px) {
   .lesson-video-form { grid-template-columns: 1fr; }
+  .lesson-video-form-actions { grid-template-columns: 1fr; }
+  .lesson-video-picker,
   .lesson-video-submit { width: 100%; }
   .teacher-lesson-video-item { align-items: stretch; flex-direction: column; }
   .teacher-lesson-video-actions { display: grid; grid-template-columns: 1fr 1fr; }
