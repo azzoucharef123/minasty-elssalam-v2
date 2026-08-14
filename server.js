@@ -676,7 +676,11 @@ io.on("connection", (socket) => {
         );
       }
 
-      if (!student.liveAccessEnabled) {
+      // For secondary levels, a confirmed payment or a teacher-approved promise
+      // grants access automatically. University access keeps its dedicated flow.
+      const hasSecondaryPaymentAccess =
+        student.level !== UNIVERSITY_LEVEL && ["PAID", "PROMISED"].includes(student.paymentStage);
+      if (!student.liveAccessEnabled && !hasSecondaryPaymentAccess) {
         return emitClassroomError(
           socket,
           "student_join_room",

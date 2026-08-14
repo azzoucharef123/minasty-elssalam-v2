@@ -908,7 +908,7 @@ async function savePaymentStatus(event) {
     await updateStudent(paymentStatusStudentId, {
       paymentStage,
       amountDue,
-      liveAccessEnabled: paymentStage === "UNPAID" ? false : Boolean(student.liveAccessEnabled),
+      liveAccessEnabled: paymentStage !== "UNPAID",
     });
     closePaymentStatusModal();
     showToast(paymentStage === "UNPAID" ? "تم منع الطالب غير المدفوع من دخول الحصة." : "تم حفظ حالة الدفع والقيمة.");
