@@ -26,7 +26,6 @@ const elements = {
   logoutButton: document.getElementById("logout-btn"),
   materialsList: document.getElementById("materials-list"),
   attendanceCount: document.getElementById("attendance-count"),
-  universityDashboardLink: document.getElementById("university-dashboard-link"),
   studentSwitcher: document.getElementById("student-switcher"),
   studentSwitcherList: document.getElementById("student-switcher-list"),
   paymentAccessModal: document.getElementById("payment-access-modal"),
@@ -252,9 +251,6 @@ function renderStudent(student) {
   elements.studentAvatar.textContent = getInitials(student.studentName);
   elements.studentName.textContent = student.studentName;
   elements.studentLevel.textContent = student.level;
-  if (elements.universityDashboardLink) {
-    elements.universityDashboardLink.hidden = student.level !== "طالب جامعي";
-  }
   const isUniversityStudent = student.level === "طالب جامعي";
   const accountActive = student.accountActive !== false && !student.cardReuploadRequested;
   const identityPending =
