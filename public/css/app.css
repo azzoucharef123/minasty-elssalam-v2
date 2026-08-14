@@ -1127,3 +1127,70 @@ body.parent-login-modal-open {
   border: 1px solid #fecaca;
   background: #fff1f2;
 }
+
+/* Teacher absence popup for the affected student level */
+.teacher-absence-modal[hidden] {
+  display: none;
+}
+
+.teacher-absence-modal {
+  position: fixed;
+  z-index: 1200;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.teacher-absence-modal-card {
+  position: relative;
+  width: min(100%, 31rem);
+  padding: 2.4rem 1.45rem 1.55rem;
+  color: #fef08a;
+  border: 3px solid #fecaca;
+  border-radius: 1.25rem;
+  background: linear-gradient(135deg, #7f1d1d, #dc2626);
+  box-shadow: 0 25px 55px rgba(69, 10, 10, 0.48);
+  text-align: center;
+}
+
+.teacher-absence-modal-kicker {
+  margin: 0;
+  color: #fde047;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.teacher-absence-modal-card h2 {
+  margin: 0.72rem 0;
+  color: #fef08a;
+  font-size: clamp(1.25rem, 6vw, 1.85rem);
+  font-weight: 900;
+  line-height: 1.65;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.24);
+}
+
+.teacher-absence-modal-card > p:last-child {
+  margin: 0;
+  color: #fef3c7;
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.75;
+}
+
+.teacher-absence-modal-close {
+  position: absolute;
+  top: 0.7rem;
+  left: 0.7rem;
+  width: 2rem;
+  height: 2rem;
+  color: #fef08a;
+  border: 1px solid rgba(254, 240, 138, 0.62);
+  border-radius: 50%;
+  background: rgba(127, 29, 29, 0.45);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}

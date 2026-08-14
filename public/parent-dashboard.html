@@ -1013,7 +1013,6 @@
       </section>
 
       <section id="dashboard-content" hidden>
-        <p id="teacher-absence-notice" class="teacher-absence-notice" hidden>الأستاذ غائب اليوم لظروف خاصة</p>
         <div class="student-overview">
           <article class="overview-card student-card">
             <span id="student-avatar" class="student-avatar" aria-hidden="true">ت</span>
@@ -1076,7 +1075,9 @@
       </section>
     </main>
 
-    <div id="payment-access-modal" class="payment-access-modal" role="dialog" aria-modal="true" aria-labelledby="payment-access-title" hidden>
+    <div id="teacher-absence-modal" class="teacher-absence-modal" hidden role="dialog" aria-modal="true" aria-labelledby="teacher-absence-title"><div class="teacher-absence-modal-card"><button id="close-teacher-absence-modal" class="teacher-absence-modal-close" type="button" aria-label="إغلاق إعلان الغياب">×</button><p class="teacher-absence-modal-kicker">إعلان مهم</p><h2 id="teacher-absence-title">الأستاذ غائب اليوم لظروف خاصة</h2><p>سيتم إعلامكم بموعد الحصة القادمة عبر البرنامج الدراسي.</p></div></div>
+
+  <div id="payment-access-modal" class="payment-access-modal" role="dialog" aria-modal="true" aria-labelledby="payment-access-title" hidden>
       <section class="payment-access-dialog">
         <div class="payment-access-dialog-head">
           <span class="payment-access-dialog-icon" aria-hidden="true">!</span>

@@ -25,7 +25,8 @@ const elements = {
   parentPaymentPending: document.getElementById("parent-payment-pending"),
   parentPaymentConfirmed: document.getElementById("parent-payment-confirmed"),
   parentScheduleList: document.getElementById("parent-schedule-list"),
-  teacherAbsenceNotice: document.getElementById("teacher-absence-notice"),
+  teacherAbsenceModal: document.getElementById("teacher-absence-modal"),
+  closeTeacherAbsenceButton: document.getElementById("close-teacher-absence-modal"),
   logoutButton: document.getElementById("logout-btn"),
   materialsList: document.getElementById("materials-list"),
   attendanceCount: document.getElementById("attendance-count"),
@@ -219,8 +220,8 @@ function formatParentScheduleDate(value) {
 }
 
 function renderParentSchedule() {
-  if (elements.teacherAbsenceNotice) {
-    elements.teacherAbsenceNotice.hidden = !parentTeacherAbsent;
+  if (elements.teacherAbsenceModal) {
+    elements.teacherAbsenceModal.hidden = !parentTeacherAbsent;
   }
   if (!elements.parentScheduleList) return;
   elements.parentScheduleList.replaceChildren();
@@ -940,11 +941,16 @@ if (!getParentToken()) {
     }
   });
   window.addEventListener("focus", refreshAccessAfterReturningFromCall);
-  window.addEventListener("pageshow", refreshAccessAfterReturningFromCall);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
       refreshAccessAfterReturningFromCall();
     }
+  });
+  elements.closeTeacherAbsenceButton?.addEventListener("click", () => {
+    if (elements.teacherAbsenceModal) elements.teacherAbsenceModal.hidden = true;
+  });
+  elements.teacherAbsenceModal?.addEventListener("click", (event) => {
+    if (event.target === elements.teacherAbsenceModal) elements.teacherAbsenceModal.hidden = true;
   });
   initializeLobbySocket();
   loadDashboard();
