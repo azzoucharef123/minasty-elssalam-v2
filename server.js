@@ -152,8 +152,8 @@ const activeSubjectByLevel = new Map();
 // teacher's browser reconnects with its per-class recovery token.
 const pendingTeacherRecoveryByLevel = new Map();
 // Server-owned microphone state keeps teacher approval authoritative through
-// renegotiation and short teacher recovery windows. Media itself remains direct
-// WebRTC; this map stores only the current permission state by socket ID.
+// renegotiation and short teacher recovery windows. Each entry records whether
+// the microphone is audible to the teacher only or to the whole classroom.
 const openStudentMicsByLevel = new Map();
 // A full browser refresh drops the local screen-share stream. Keep the room
 // reserved long enough for the teacher to reload, select the screen again, and
@@ -295,14 +295,18 @@ function clearPendingTeacherRecovery(level) {
   pendingTeacherRecoveryByLevel.delete(level);
 }
 
-function isStudentMicrophoneOpen(level, socketId) {
-  return openStudentMicsByLevel.get(level)?.has(socketId) || false;
+function getStudentMicrophoneAudience(level, socketId) {
+  return openStudentMicsByLevel.get(level)?.get(socketId) || null;
 }
 
-function setStudentMicrophoneOpen(level, socketId, enabled) {
+function isStudentMicrophoneOpen(level, socketId) {
+  return Boolean(getStudentMicrophoneAudience(level, socketId));
+}
+
+function setStudentMicrophoneOpen(level, socketId, enabled, audience = "ALL") {
   if (enabled) {
-    const openMics = openStudentMicsByLevel.get(level) || new Set();
-    openMics.add(socketId);
+    const openMics = openStudentMicsByLevel.get(level) || new Map();
+    openMics.set(socketId, audience === "TEACHER" ? "TEACHER" : "ALL");
     openStudentMicsByLevel.set(level, openMics);
     return;
   }
@@ -324,8 +328,8 @@ async function notifyOpenStudentMicrophonesOfNewListener(level, listenerSocketId
     return;
   }
 
-  for (const speakerSocketId of openMics) {
-    if (speakerSocketId !== listenerSocketId) {
+  for (const [speakerSocketId, audience] of openMics) {
+    if (speakerSocketId !== listenerSocketId && audience === "ALL") {
       io.to(speakerSocketId).emit("student_audio_mesh_open", {
         recipients: [listenerSocketId],
       });
@@ -334,6 +338,10 @@ async function notifyOpenStudentMicrophonesOfNewListener(level, listenerSocketId
 }
 
 async function notifyStudentMeshRecipients(level, speakerSocketId) {
+  if (getStudentMicrophoneAudience(level, speakerSocketId) !== "ALL") {
+    return;
+  }
+
   const participants = await io.in(level).fetchSockets();
   const recipients = participants
     .filter((participant) => participant.id !== speakerSocketId && participant.data.role === "student")
@@ -570,6 +578,7 @@ io.on("connection", (socket) => {
               socketId: participant.id,
               studentName: participant.data.studentName || "تلميذ",
               micEnabled: isStudentMicrophoneOpen(level, participant.id),
+              micAudience: getStudentMicrophoneAudience(level, participant.id),
             }))
         : [];
 
@@ -908,8 +917,9 @@ io.on("connection", (socket) => {
     const level = socket.data.roomLevel;
     const targetSocketId = normalizeText(data.targetSocketId);
     const targetSocket = io.sockets.sockets.get(targetSocketId);
-    const hasApprovedSpeaker =
-      isStudentMicrophoneOpen(level, socket.id) || isStudentMicrophoneOpen(level, targetSocketId);
+    const hasBroadcastSpeaker =
+      getStudentMicrophoneAudience(level, socket.id) === "ALL" ||
+      getStudentMicrophoneAudience(level, targetSocketId) === "ALL";
 
     if (
       socket.data.role !== "student" ||
@@ -917,7 +927,7 @@ io.on("connection", (socket) => {
       !isValidSocketId(targetSocketId) ||
       !isValidSessionDescription(data.sdp) ||
       !shareSameClassroom(socket, targetSocket, level) ||
-      !hasApprovedSpeaker
+      !hasBroadcastSpeaker
     ) {
       return emitClassroomError(
         socket,
@@ -938,8 +948,9 @@ io.on("connection", (socket) => {
     const level = socket.data.roomLevel;
     const targetSocketId = normalizeText(data.targetSocketId);
     const targetSocket = io.sockets.sockets.get(targetSocketId);
-    const hasApprovedSpeaker =
-      isStudentMicrophoneOpen(level, socket.id) || isStudentMicrophoneOpen(level, targetSocketId);
+    const hasBroadcastSpeaker =
+      getStudentMicrophoneAudience(level, socket.id) === "ALL" ||
+      getStudentMicrophoneAudience(level, targetSocketId) === "ALL";
 
     if (
       socket.data.role !== "student" ||
@@ -947,7 +958,7 @@ io.on("connection", (socket) => {
       !isValidSocketId(targetSocketId) ||
       !isValidSessionDescription(data.sdp) ||
       !shareSameClassroom(socket, targetSocket, level) ||
-      !hasApprovedSpeaker
+      !hasBroadcastSpeaker
     ) {
       return emitClassroomError(
         socket,
@@ -968,8 +979,9 @@ io.on("connection", (socket) => {
     const level = socket.data.roomLevel;
     const targetSocketId = normalizeText(data.targetSocketId);
     const targetSocket = io.sockets.sockets.get(targetSocketId);
-    const hasApprovedSpeaker =
-      isStudentMicrophoneOpen(level, socket.id) || isStudentMicrophoneOpen(level, targetSocketId);
+    const hasBroadcastSpeaker =
+      getStudentMicrophoneAudience(level, socket.id) === "ALL" ||
+      getStudentMicrophoneAudience(level, targetSocketId) === "ALL";
 
     if (
       socket.data.role !== "student" ||
@@ -977,7 +989,7 @@ io.on("connection", (socket) => {
       !isValidSocketId(targetSocketId) ||
       !isValidIceCandidate(data.candidate) ||
       !shareSameClassroom(socket, targetSocket, level) ||
-      !hasApprovedSpeaker
+      !hasBroadcastSpeaker
     ) {
       return emitClassroomError(
         socket,
@@ -1080,6 +1092,7 @@ io.on("connection", (socket) => {
     const targetSocketId = normalizeText(data.targetSocketId);
     const targetSocket = io.sockets.sockets.get(targetSocketId);
     const enabled = data.enabled !== false;
+    const audience = normalizeText(data.audience).toUpperCase() === "TEACHER" ? "TEACHER" : "ALL";
 
     if (
       socket.data.role !== "teacher" ||
@@ -1099,16 +1112,17 @@ io.on("connection", (socket) => {
     // Persist the teacher decision before notifying the student. This makes the
     // decision available to the teacher browser during a short reconnection and
     // prevents a late-arriving audio track from being rebroadcast after closure.
-    setStudentMicrophoneOpen(level, targetSocketId, enabled);
+    const previousAudience = getStudentMicrophoneAudience(level, targetSocketId);
+    setStudentMicrophoneOpen(level, targetSocketId, enabled, audience);
 
     io.to(targetSocketId).emit(
       enabled ? "permission_granted" : "microphone_revoked",
-      { level }
+      { level, audience: enabled ? audience : null }
     );
 
-    if (enabled) {
+    if (enabled && audience === "ALL") {
       await notifyStudentMeshRecipients(level, targetSocketId);
-    } else {
+    } else if (!enabled || previousAudience === "ALL") {
       io.to(level).emit("student_audio_mesh_closed", { speakerSocketId: targetSocketId });
     }
 
@@ -1117,6 +1131,7 @@ io.on("connection", (socket) => {
     io.to(socket.id).emit("student_mic_state_changed", {
       socketId: targetSocketId,
       enabled,
+      audience: enabled ? audience : null,
     });
     acknowledge(acknowledgement, { ok: true, enabled });
   });

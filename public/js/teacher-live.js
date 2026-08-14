@@ -40,6 +40,7 @@ const studentAudioElements = new Map();
 // approvals. A received student track is never mixed for the class unless its
 // socket ID is present here.
 const approvedStudentMicrophones = new Set();
+const studentMicrophoneAudiences = new Map();
 // Each approved student microphone is relayed from the teacher's browser to
 // every other student connection. The teacher remains the explicit audio hub.
 const CLASSROOM_TEACHER_SOURCE = "__teacher__";
@@ -902,26 +903,29 @@ function syncApprovedAudioForNewRecipient(_recipientSocketId) {
   // and create their direct audio channels without involving this broadcaster.
 }
 
-function applyStudentMicrophoneState(studentSocketId, enabled) {
+function applyStudentMicrophoneState(studentSocketId, enabled, audience = "ALL") {
   if (!studentSocketId) {
     return;
   }
 
+  const normalizedAudience = audience === "TEACHER" ? "TEACHER" : "ALL";
   if (enabled) {
     approvedStudentMicrophones.add(studentSocketId);
+    studentMicrophoneAudiences.set(studentSocketId, normalizedAudience);
   } else {
     approvedStudentMicrophones.delete(studentSocketId);
+    studentMicrophoneAudiences.delete(studentSocketId);
   }
 
   const attendee = attendeeElements.get(studentSocketId);
   if (attendee) {
     attendee.classList.remove("is-hand-raised");
     attendee.querySelector(".attendee-hand")?.remove();
-    syncStudentMicButton(attendee, studentSocketId, Boolean(enabled));
+    syncStudentMicButton(attendee, studentSocketId, enabled ? normalizedAudience : null);
   }
 
-  // Relay the opened student's track directly to every other viewer. This is
-  // independent of the teacher's audio channel and has no browser page reload.
+  // Student audio is either private to the teacher or distributed through the
+  // direct student mesh. Both transitions happen without page reload.
   syncApprovedStudentAudioSource(studentSocketId);
 }
 
@@ -1080,6 +1084,7 @@ function clearIceDisconnectTimer(socketId) {
 function removeStudentConnection(socketId, { statusMessage } = {}) {
   clearIceDisconnectTimer(socketId);
   approvedStudentMicrophones.delete(socketId);
+  studentMicrophoneAudiences.delete(socketId);
   removeClassroomAudioSource(socketId);
   closePeerConnection(socketId);
   removeAttendee(socketId);
@@ -1118,6 +1123,7 @@ function closePeerConnection(socketId) {
 
 function closeAllPeerConnections() {
   approvedStudentMicrophones.clear();
+  studentMicrophoneAudiences.clear();
   Array.from(studentAudioRelaySenders.keys()).forEach(clearStudentAudioRelayForRecipient);
   Object.keys(peerConnections).forEach(closePeerConnection);
   Object.keys(pendingIceCandidates).forEach((socketId) => {
@@ -1633,24 +1639,56 @@ function toggleMicrophone() {
   updateControls();
 }
 
-function syncStudentMicButton(attendee, socketId, enabled = false) {
-  let button = attendee.querySelector(".attendee-mic-button");
-
-  if (!button) {
-    button = document.createElement("button");
-    button.type = "button";
-    button.className = "attendee-mic-button";
-    button.addEventListener("click", () => {
-      const currentlyEnabled = button.dataset.enabled === "true";
-      void setStudentMicrophone(socketId, !currentlyEnabled, button);
-    });
-    attendee.append(button);
+function getStudentMicControls(attendee, socketId) {
+  let controls = attendee.querySelector(".attendee-mic-controls");
+  if (controls) {
+    return controls;
   }
 
-  button.dataset.enabled = String(enabled);
-  button.classList.toggle("is-open", enabled);
-  button.textContent = enabled ? "إغلاق المايك" : "فتح المايك";
-  return button;
+  controls = document.createElement("div");
+  controls.className = "attendee-mic-controls";
+
+  const teacherOnlyButton = document.createElement("button");
+  teacherOnlyButton.type = "button";
+  teacherOnlyButton.className = "attendee-mic-button teacher-only";
+  teacherOnlyButton.textContent = "لي فقط";
+  teacherOnlyButton.addEventListener("click", () => {
+    void setStudentMicrophone(socketId, "TEACHER", controls);
+  });
+
+  const everyoneButton = document.createElement("button");
+  everyoneButton.type = "button";
+  everyoneButton.className = "attendee-mic-button everyone";
+  everyoneButton.textContent = "للجميع";
+  everyoneButton.addEventListener("click", () => {
+    void setStudentMicrophone(socketId, "ALL", controls);
+  });
+
+  const closeButton = document.createElement("button");
+  closeButton.type = "button";
+  closeButton.className = "attendee-mic-button close-mic";
+  closeButton.textContent = "إغلاق";
+  closeButton.addEventListener("click", () => {
+    void setStudentMicrophone(socketId, null, controls);
+  });
+
+  controls.append(teacherOnlyButton, everyoneButton, closeButton);
+  attendee.append(controls);
+  return controls;
+}
+
+function syncStudentMicButton(attendee, socketId, audience = null) {
+  const controls = getStudentMicControls(attendee, socketId);
+  const teacherOnlyButton = controls.querySelector(".teacher-only");
+  const everyoneButton = controls.querySelector(".everyone");
+  const closeButton = controls.querySelector(".close-mic");
+  const isOpen = Boolean(audience);
+
+  teacherOnlyButton.classList.toggle("is-open", audience === "TEACHER");
+  everyoneButton.classList.toggle("is-open", audience === "ALL");
+  closeButton.hidden = !isOpen;
+  controls.dataset.audience = audience || "";
+  return controls;
 }
 
 function markHandRaised(socketId, studentName) {
@@ -1664,37 +1702,44 @@ function markHandRaised(socketId, studentName) {
     attendee.querySelector(".attendee-details").append(handLabel);
   }
 
-  syncStudentMicButton(attendee, socketId, false);
+  syncStudentMicButton(attendee, socketId, null);
 }
 
-async function setStudentMicrophone(socketId, enabled, button) {
+async function setStudentMicrophone(socketId, audience, controls) {
   if (!classActive) {
     return;
   }
 
-  button.disabled = true;
-  button.textContent = enabled ? "جارٍ فتح المايك…" : "جارٍ إغلاق المايك…";
+  const buttons = Array.from(controls.querySelectorAll("button"));
+  buttons.forEach((button) => {
+    button.disabled = true;
+  });
 
   try {
+    const enabled = Boolean(audience);
     await emitWithAcknowledgement("teacher_set_mic", {
       targetSocketId: socketId,
       enabled,
+      audience: audience || undefined,
     });
 
     // Apply locally without waiting for any page navigation. The same server
     // event also reaches this browser, keeping state correct after reconnects.
-    applyStudentMicrophoneState(socketId, enabled);
+    applyStudentMicrophoneState(socketId, enabled, audience || "ALL");
 
-    setStudioStatus(
-      enabled ? "تم فتح مايك التلميذ وأصبح صوته مسموعًا للصف." : "تم إغلاق مايك التلميذ.",
-      "live"
-    );
+    const message = !enabled
+      ? "تم إغلاق مايك التلميذ."
+      : audience === "TEACHER"
+        ? "تم فتح مايك التلميذ لك وحدك."
+        : "تم فتح مايك التلميذ للأستاذ وجميع التلاميذ.";
+    setStudioStatus(message, "live");
   } catch (error) {
     console.error("Unable to change the student microphone state:", error);
-    button.textContent = button.dataset.enabled === "true" ? "إغلاق المايك" : "فتح المايك";
     setStudioStatus(error.message || "تعذر تغيير حالة المايك.", "error");
   } finally {
-    button.disabled = false;
+    buttons.forEach((button) => {
+      button.disabled = false;
+    });
   }
 }
 
@@ -1730,13 +1775,13 @@ socket.on("student_joined", async (data = {}) => {
   }
 
   const attendee = upsertAttendee(socketId, studentName || "تلميذ");
-  syncStudentMicButton(attendee, socketId, false);
+  syncStudentMicButton(attendee, socketId, null);
   await createAndSendOffer(socketId);
 });
 
 socket.on("student_mic_state_changed", (data = {}) => {
   const { socketId, enabled } = data;
-  applyStudentMicrophoneState(socketId, Boolean(enabled));
+    applyStudentMicrophoneState(socketId, Boolean(enabled), data.audience);
 });
 
 socket.on("recovery_students", async (data = {}) => {
@@ -1750,8 +1795,8 @@ socket.on("recovery_students", async (data = {}) => {
     }
 
     const attendee = upsertAttendee(student.socketId, student.studentName || "تلميذ");
-    syncStudentMicButton(attendee, student.socketId, Boolean(student.micEnabled));
-    applyStudentMicrophoneState(student.socketId, Boolean(student.micEnabled));
+    syncStudentMicButton(attendee, student.socketId, student.micEnabled ? student.micAudience : null);
+    applyStudentMicrophoneState(student.socketId, Boolean(student.micEnabled), student.micAudience);
     await createAndSendOffer(student.socketId);
   }
 });
