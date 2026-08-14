@@ -520,6 +520,17 @@
         border-color: rgba(74, 222, 128, 0.28);
       }
 
+      .studio-button.leave {
+        color: #dbeafe;
+        background: rgba(30, 58, 95, 0.82);
+        border-color: rgba(96, 165, 250, 0.3);
+      }
+
+      .studio-button.leave:hover:not(:disabled) {
+        color: #ffffff;
+        background: #1d4ed8;
+      }
+
       .studio-button.danger {
         color: #fecaca;
         background: rgba(127, 29, 29, 0.56);
@@ -1143,6 +1154,11 @@
             <button id="toggle-mic-btn" class="studio-button" type="button" disabled>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5A3.5 3.5 0 0 0 15.5 12V6.5a3.5 3.5 0 0 0-7 0V12a3.5 3.5 0 0 0 3.5 3.5ZM5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M8.5 21h7" /></svg>
               <span>إيقاف المايك</span>
+            </button>
+
+            <button id="leave-studio-btn" class="studio-button leave" type="button" disabled>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6.5 4.5 12l5.5 5.5M4.75 12h11.5M14.5 5.25h2.25A1.75 1.75 0 0 1 18.5 7v10a1.75 1.75 0 0 1-1.75 1.75H14.5" /></svg>
+              <span>مغادرة الاستوديو</span>
             </button>
 
             <button id="end-class-btn" class="studio-button danger" type="button" disabled>

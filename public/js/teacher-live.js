@@ -78,6 +78,7 @@ const elements = {
   subjectSelect: document.getElementById("subject-select"),
   startButton: document.getElementById("start-class-btn"),
   toggleMicButton: document.getElementById("toggle-mic-btn"),
+  leaveStudioButton: document.getElementById("leave-studio-btn"),
   endClassButton: document.getElementById("end-class-btn"),
   liveStatus: document.getElementById("live-status"),
   liveStatusText: document.getElementById("live-status-text"),
@@ -614,6 +615,7 @@ function updateControls() {
   elements.levelSelect.disabled = isStarting || isEnding || classActive;
   elements.subjectSelect.disabled = isStarting || isEnding || classActive;
   elements.toggleMicButton.disabled = !classActive || !hasAudio || isEnding;
+  elements.leaveStudioButton.disabled = !classActive || isEnding;
   elements.endClassButton.disabled = !classActive || isEnding;
   elements.chatInput.disabled = !classActive || isEnding;
   elements.chatSendButton.disabled = !classActive || isEnding || !normalizeChatMessage(elements.chatInput.value);
@@ -1540,6 +1542,44 @@ async function resumeLiveClassAfterSocketReconnect() {
   }
 }
 
+async function leaveLiveStudio() {
+  if (!classActive || isEnding || !activeLevel || !classResumeToken) {
+    return;
+  }
+
+  const levelToLeave = activeLevel;
+  const resumeToken = classResumeToken;
+  persistLiveClassRecovery();
+  isPageNavigatingAway = true;
+  elements.leaveStudioButton.disabled = true;
+  setStudioStatus("تمت مغادرة الاستوديو. تبقى الحصة مفتوحة حتى تعود أو تنهيها صراحةً.", "neutral");
+
+  try {
+    if (socket.connected) {
+      await emitWithAcknowledgement(
+        "teacher_leave_studio",
+        { level: levelToLeave, resumeToken },
+        5_000
+      );
+    }
+  } catch (error) {
+    // A network or power interruption follows the same server-side recovery path
+    // through the disconnect handler, so preserving the local recovery token is enough.
+    console.warn("Unable to confirm studio departure; preserving class for recovery:", error);
+  } finally {
+    classActive = false;
+    closeAllPeerConnections();
+    clearAttendees();
+    clearTeacherChat();
+    stopLocalStreams();
+    activeLevel = null;
+    activeSubject = null;
+    reconnectingLiveClass = false;
+    updateControls();
+    window.location.assign("./teacher-dashboard.html");
+  }
+}
+
 async function endLiveClass({ notifyServer = true, statusMessage } = {}) {
   if (isEnding) {
     return;
@@ -1668,10 +1708,9 @@ async function startLiveClass() {
 
     displayTrack.onended = () => {
       if (classActive && !isEnding && !isPageNavigatingAway) {
-        endLiveClass({
-          notifyServer: true,
-          statusMessage: "تم إيقاف مشاركة الشاشة، لذلك أُغلقت الحصة.",
-        });
+        // Stopping the shared screen must not end the classroom for students.
+        // Preserve it in the same way as a voluntary studio departure.
+        void leaveLiveStudio();
       }
     };
 
@@ -2064,6 +2103,9 @@ elements.levelSelect.addEventListener("change", () => {
 });
 elements.startButton.addEventListener("click", startLiveClass);
 elements.toggleMicButton.addEventListener("click", toggleMicrophone);
+elements.leaveStudioButton.addEventListener("click", () => {
+  void leaveLiveStudio();
+});
 elements.endClassButton.addEventListener("click", () => {
   endLiveClass({ notifyServer: true });
 });

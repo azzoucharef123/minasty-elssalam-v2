@@ -1765,7 +1765,7 @@ socket.on("microphone_revoked", () => {
 });
 
 socket.on("teacher_reconnecting", () => {
-  beginStreamRecovery("انقطع اتصال الأستاذ مؤقتاً. جارٍ استعادة الحصة تلقائياً…");
+  beginStreamRecovery("غادر الأستاذ الاستوديو أو انقطع اتصاله. الحصة محفوظة وجارٍ انتظار عودته تلقائياً…");
 });
 
 socket.on("teacher_reconnected", () => {
@@ -1774,11 +1774,11 @@ socket.on("teacher_reconnected", () => {
 });
 
 socket.on("room_recovering", (data = {}) => {
-  beginStreamRecovery(data.message || "الأستاذ يعيد الاتصال الآن. جارٍ استعادة الحصة تلقائياً…");
+  beginStreamRecovery(data.message || "الحصة محفوظة. جارٍ انتظار عودة الأستاذ دون تحديث الصفحة…");
 });
 
 socket.on("teacher_disconnected", () => {
-  beginStreamRecovery("انقطع اتصال الأستاذ مؤقتاً. جارٍ الانتظار دون تحديث الصفحة…");
+  beginStreamRecovery("انقطع اتصال الأستاذ. الحصة محفوظة وجارٍ الانتظار دون تحديث الصفحة…");
 });
 
 socket.on("class_ended", (data = {}) => {

@@ -308,6 +308,28 @@ function clearPendingTeacherRecovery(level) {
   pendingTeacherRecoveryByLevel.delete(level);
 }
 
+/**
+ * Keep an active room reserved when the teacher leaves the studio or loses
+ * connectivity. The room is intentionally not auto-closed: only the teacher's
+ * explicit “end class” action terminates it for the students.
+ */
+function holdClassroomForTeacherReturn(level, resumeToken) {
+  if (!isValidRecoveryToken(resumeToken)) {
+    return false;
+  }
+
+  clearPendingTeacherRecovery(level);
+  pendingTeacherRecoveryByLevel.set(level, {
+    resumeToken,
+    subject: activeSubjectByLevel.get(level),
+    timer: null,
+  });
+  io.to(level).emit("teacher_reconnecting", { level });
+  io.to(`${level}_lobby`).emit("live_class_recovering", { level });
+  console.info(`[Socket.io] Holding room ${level} until the teacher returns or ends it.`);
+  return true;
+}
+
 function isStudentMicrophoneOpen(level, socketId) {
   return openStudentMicsByLevel.get(level)?.has(socketId) || false;
 }
@@ -1382,6 +1404,52 @@ io.on("connection", (socket) => {
   });
 
   /**
+   * The teacher can leave the studio without terminating the classroom. The
+   * recovery token reserves the room for the same teacher to resume later.
+   * Payload: { level, resumeToken }
+   */
+  socket.on("teacher_leave_studio", async (data = {}, acknowledgement) => {
+    try {
+      const level = normalizeText(data.level);
+      const resumeToken = normalizeText(data.resumeToken);
+
+      if (
+        !isValidLevel(level) ||
+        socket.data.role !== "teacher" ||
+        socket.data.roomLevel !== level ||
+        activeTeachersByLevel.get(level) !== socket.id ||
+        !isInLevelRoom(socket, level) ||
+        !isValidRecoveryToken(resumeToken) ||
+        socket.data.classResumeToken !== resumeToken
+      ) {
+        return emitClassroomError(
+          socket,
+          "teacher_leave_studio",
+          "تعذر مغادرة الاستوديو مع إبقاء الحصة مفتوحة.",
+          acknowledgement
+        );
+      }
+
+      await socket.leave(level);
+      users.delete(socket.id);
+      activeTeachersByLevel.delete(level);
+      resetClassroomData(socket, level);
+      holdClassroomForTeacherReturn(level, resumeToken);
+
+      acknowledge(acknowledgement, { ok: true, level, heldForReturn: true });
+      console.info(`[Socket.io] Teacher ${socket.id} left studio; room held: ${level}`);
+    } catch (error) {
+      console.error("teacher_leave_studio failed:", error);
+      emitClassroomError(
+        socket,
+        "teacher_leave_studio",
+        "تعذر حفظ الحصة عند مغادرة الاستوديو.",
+        acknowledgement
+      );
+    }
+  });
+
+  /**
    * Active teacher ends their class and removes every socket from the level.
    * Payload: { level }
    */
@@ -1454,33 +1522,13 @@ io.on("connection", (socket) => {
     if (role === "teacher" && activeTeachersByLevel.get(level) === socket.id) {
       const resumeToken = socket.data.classResumeToken;
 
-      // Preserve the classroom briefly for a transient transport failure. The
-      // direct WebRTC stream may remain healthy, and the original teacher can
-      // reclaim the room with a token kept only in that browser session.
-      if (isValidRecoveryToken(resumeToken)) {
-        clearPendingTeacherRecovery(level);
-        const timer = setTimeout(() => {
-          const recovery = pendingTeacherRecoveryByLevel.get(level);
-          if (recovery?.resumeToken !== resumeToken) {
-            return;
-          }
-
-          closeClassroom(level, "teacher_disconnected").catch((error) => {
-            console.error("[Socket.io] delayed disconnect cleanup failed:", error);
-          });
-        }, TEACHER_RECOVERY_GRACE_MS);
-
-        pendingTeacherRecoveryByLevel.set(level, {
-          resumeToken,
-          subject: activeSubjectByLevel.get(level),
-          timer,
-        });
-        io.to(level).emit("teacher_reconnecting", { level });
-        io.to(`${level}_lobby`).emit("live_class_recovering", { level });
-        console.info(`[Socket.io] Holding room ${level} for teacher reconnection.`);
+      if (holdClassroomForTeacherReturn(level, resumeToken)) {
+        activeTeachersByLevel.delete(level);
         return;
       }
 
+      // A malformed session has no recovery token, so it cannot safely retain
+      // the room and follows the normal closure path.
       closeClassroom(level, "teacher_disconnected").catch((error) => {
         console.error("[Socket.io] disconnect cleanup failed:", error);
       });
