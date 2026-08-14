@@ -445,32 +445,6 @@ function setStudentMicrophoneOpen(level, socketId, enabled) {
   }
 }
 
-async function notifyOpenStudentMicrophonesOfNewListener(level, listenerSocketId) {
-  const openMics = openStudentMicsByLevel.get(level);
-  if (!openMics?.size) {
-    return;
-  }
-
-  for (const speakerSocketId of openMics) {
-    if (speakerSocketId !== listenerSocketId) {
-      io.to(speakerSocketId).emit("student_audio_mesh_open", {
-        recipients: [listenerSocketId],
-      });
-    }
-  }
-}
-
-async function notifyStudentMeshRecipients(level, speakerSocketId) {
-  const participants = await io.in(level).fetchSockets();
-  const recipients = participants
-    .filter((participant) => participant.id !== speakerSocketId && participant.data.role === "student")
-    .map((participant) => participant.id);
-
-  if (recipients.length) {
-    io.to(speakerSocketId).emit("student_audio_mesh_open", { recipients });
-  }
-}
-
 function isValidRecoveryToken(value) {
   return typeof value === "string" && /^[a-zA-Z0-9-]{16,128}$/.test(value);
 }
@@ -1164,11 +1138,6 @@ io.on("connection", (socket) => {
         studentSocketId: socket.id,
       });
 
-      // If one or more classmates are already approved to speak, tell each
-      // approved speaker to create a direct audio peer with this new listener.
-      // This is the missing join-time edge of the student-to-student mesh.
-      await notifyOpenStudentMicrophonesOfNewListener(level, socket.id);
-
       acknowledge(acknowledgement, {
         ok: true,
         level,
@@ -1318,101 +1287,6 @@ io.on("connection", (socket) => {
   });
 
   /**
-   * Direct audio-only mesh signaling. It is accepted only between two students
-   * in the same active classroom while at least one endpoint has an open
-   * teacher-approved microphone.
-   */
-  socket.on("student_audio_mesh_offer", (data = {}, acknowledgement) => {
-    const level = socket.data.roomLevel;
-    const targetSocketId = normalizeText(data.targetSocketId);
-    const targetSocket = io.sockets.sockets.get(targetSocketId);
-    const hasApprovedSpeaker =
-      isStudentMicrophoneOpen(level, socket.id) || isStudentMicrophoneOpen(level, targetSocketId);
-
-    if (
-      socket.data.role !== "student" ||
-      targetSocket?.data.role !== "student" ||
-      !isValidSocketId(targetSocketId) ||
-      !isValidSessionDescription(data.sdp) ||
-      !shareSameClassroom(socket, targetSocket, level) ||
-      !hasApprovedSpeaker
-    ) {
-      return emitClassroomError(
-        socket,
-        "student_audio_mesh_offer",
-        "تعذر إنشاء قناة صوت التلاميذ.",
-        acknowledgement
-      );
-    }
-
-    io.to(targetSocketId).emit("student_audio_mesh_offer", {
-      fromSocketId: socket.id,
-      sdp: data.sdp,
-    });
-    acknowledge(acknowledgement, { ok: true });
-  });
-
-  socket.on("student_audio_mesh_answer", (data = {}, acknowledgement) => {
-    const level = socket.data.roomLevel;
-    const targetSocketId = normalizeText(data.targetSocketId);
-    const targetSocket = io.sockets.sockets.get(targetSocketId);
-    const hasApprovedSpeaker =
-      isStudentMicrophoneOpen(level, socket.id) || isStudentMicrophoneOpen(level, targetSocketId);
-
-    if (
-      socket.data.role !== "student" ||
-      targetSocket?.data.role !== "student" ||
-      !isValidSocketId(targetSocketId) ||
-      !isValidSessionDescription(data.sdp) ||
-      !shareSameClassroom(socket, targetSocket, level) ||
-      !hasApprovedSpeaker
-    ) {
-      return emitClassroomError(
-        socket,
-        "student_audio_mesh_answer",
-        "تعذر تأكيد قناة صوت التلاميذ.",
-        acknowledgement
-      );
-    }
-
-    io.to(targetSocketId).emit("student_audio_mesh_answer", {
-      fromSocketId: socket.id,
-      sdp: data.sdp,
-    });
-    acknowledge(acknowledgement, { ok: true });
-  });
-
-  socket.on("student_audio_mesh_ice", (data = {}, acknowledgement) => {
-    const level = socket.data.roomLevel;
-    const targetSocketId = normalizeText(data.targetSocketId);
-    const targetSocket = io.sockets.sockets.get(targetSocketId);
-    const hasApprovedSpeaker =
-      isStudentMicrophoneOpen(level, socket.id) || isStudentMicrophoneOpen(level, targetSocketId);
-
-    if (
-      socket.data.role !== "student" ||
-      targetSocket?.data.role !== "student" ||
-      !isValidSocketId(targetSocketId) ||
-      !isValidIceCandidate(data.candidate) ||
-      !shareSameClassroom(socket, targetSocket, level) ||
-      !hasApprovedSpeaker
-    ) {
-      return emitClassroomError(
-        socket,
-        "student_audio_mesh_ice",
-        "تعذر تبادل معلومات اتصال صوت التلاميذ.",
-        acknowledgement
-      );
-    }
-
-    io.to(targetSocketId).emit("student_audio_mesh_ice", {
-      fromSocketId: socket.id,
-      candidate: data.candidate,
-    });
-    acknowledge(acknowledgement, { ok: true });
-  });
-
-  /**
    * Relay one ICE candidate between an active teacher and one of that level's
    * students. Student-to-student routing is rejected by design.
    * Payload: { targetSocketId, candidate }
@@ -1557,14 +1431,6 @@ io.on("connection", (socket) => {
       enabled,
     });
 
-    if (enabled) {
-      // The newly approved speaker must initiate a mesh offer to every student
-      // currently in the room, not only to the teacher.
-      await notifyStudentMeshRecipients(level, targetSocketId);
-    } else {
-      io.to(level).emit("student_audio_mesh_closed", { speakerSocketId: targetSocketId });
-    }
-
     // The teacher uses this authoritative event to update the existing stable
     // Web Audio mix. No viewer page reload or peer-per-student route is needed.
     io.to(socket.id).emit("student_mic_state_changed", {
@@ -1603,7 +1469,6 @@ io.on("connection", (socket) => {
       speakerSocketId: targetSocketId,
       enabled: true,
     });
-    await notifyStudentMeshRecipients(level, targetSocketId);
     io.to(socket.id).emit("student_mic_state_changed", {
       socketId: targetSocketId,
       enabled: true,
@@ -1888,7 +1753,6 @@ io.on("connection", (socket) => {
 
     if (role === "student") {
       setStudentMicrophoneOpen(level, socket.id, false);
-      io.to(level).emit("student_audio_mesh_closed", { speakerSocketId: socket.id });
       const teacherSocketId = activeTeachersByLevel.get(level);
       const teacherSocket = teacherSocketId
         ? io.sockets.sockets.get(teacherSocketId)

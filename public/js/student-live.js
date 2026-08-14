@@ -47,12 +47,6 @@ let recoveryAttempts = 0;
 let recoveryTimer = null;
 const MAX_RECOVERY_ATTEMPTS = 8;
 const pendingIceCandidates = [];
-// Direct audio-only peer connections between approved speaking students and
-// their classmates. This channel is independent from the teacher broadcast.
-const studentAudioMeshPeers = new Map();
-const studentAudioMeshSenders = new Map();
-const pendingStudentAudioMeshRecipients = new Set();
-const pendingStudentAudioMeshIce = new Map();
 const MAX_QUESTION_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const ACCEPTED_QUESTION_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 let selectedQuestionImageFile = null;
@@ -703,7 +697,14 @@ async function prepareStudentMicrophone() {
 
   isPreparingMicrophone = true;
   try {
-    localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    localAudioStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1,
+      },
+    });
     localAudioStream.getAudioTracks().forEach((track) => {
       track.enabled = false;
     });
@@ -882,150 +883,7 @@ function beginStreamRecovery(message) {
   scheduleClassRecovery(Math.min(1_000 * (2 ** recoveryAttempts), 8_000));
 }
 
-function attachStudentMeshAudioTrack(event) {
-  const track = event.track;
-  if (!track || track.kind !== "audio") {
-    return;
-  }
-
-  if (!remoteMediaStream) {
-    pendingRemoteAudioTracks.push(track);
-  } else {
-    addUniqueTrack(remoteMediaStream, track);
-  }
-
-  track.addEventListener("ended", () => {
-    remoteMediaStream?.removeTrack(track);
-    updateRemoteAudioControl();
-  }, { once: true });
-  track.addEventListener("unmute", updateRemoteAudioControl);
-  updateRemoteAudioControl();
-  void startTeacherAudio();
-}
-
-function closeStudentAudioMeshPeer(peerSocketId) {
-  const meshPeer = studentAudioMeshPeers.get(peerSocketId);
-  if (meshPeer) {
-    meshPeer.onicecandidate = null;
-    meshPeer.ontrack = null;
-    meshPeer.onconnectionstatechange = null;
-    if (meshPeer.signalingState !== "closed") {
-      meshPeer.close();
-    }
-  }
-
-  studentAudioMeshPeers.delete(peerSocketId);
-  studentAudioMeshSenders.delete(peerSocketId);
-  pendingStudentAudioMeshIce.delete(peerSocketId);
-  pendingStudentAudioMeshRecipients.delete(peerSocketId);
-}
-
-function closeAllStudentAudioMeshPeers() {
-  Array.from(studentAudioMeshPeers.keys()).forEach(closeStudentAudioMeshPeer);
-  pendingStudentAudioMeshRecipients.clear();
-  pendingStudentAudioMeshIce.clear();
-}
-
-function createStudentAudioMeshPeer(peerSocketId) {
-  const existingPeer = studentAudioMeshPeers.get(peerSocketId);
-  if (existingPeer && existingPeer.signalingState !== "closed") {
-    return existingPeer;
-  }
-
-  closeStudentAudioMeshPeer(peerSocketId);
-  const meshPeer = new RTCPeerConnection(rtcConfig);
-  studentAudioMeshPeers.set(peerSocketId, meshPeer);
-
-  meshPeer.onicecandidate = (event) => {
-    if (!event.candidate || !socket.connected) {
-      return;
-    }
-    socket.emit("student_audio_mesh_ice", {
-      targetSocketId: peerSocketId,
-      candidate: event.candidate.toJSON(),
-    });
-  };
-
-  meshPeer.ontrack = attachStudentMeshAudioTrack;
-  meshPeer.onconnectionstatechange = () => {
-    if (meshPeer.connectionState === "failed" || meshPeer.connectionState === "closed") {
-      closeStudentAudioMeshPeer(peerSocketId);
-    }
-  };
-
-  return meshPeer;
-}
-
-async function flushStudentAudioMeshIce(peerSocketId) {
-  const meshPeer = studentAudioMeshPeers.get(peerSocketId);
-  const queuedCandidates = pendingStudentAudioMeshIce.get(peerSocketId) || [];
-  if (!meshPeer?.remoteDescription || !queuedCandidates.length) {
-    return;
-  }
-
-  pendingStudentAudioMeshIce.delete(peerSocketId);
-  for (const candidate of queuedCandidates) {
-    try {
-      if (candidate) {
-        await meshPeer.addIceCandidate(new RTCIceCandidate(candidate));
-      }
-    } catch (error) {
-      console.warn("Unable to apply classmate audio ICE candidate:", error);
-    }
-  }
-}
-
-async function openStudentAudioMeshRecipient(peerSocketId) {
-  const audioTrack = localAudioStream?.getAudioTracks().find((track) => track.readyState === "live");
-  if (!microphonePermissionGranted || !audioTrack || !peerSocketId || !socket.connected) {
-    return false;
-  }
-
-  const meshPeer = createStudentAudioMeshPeer(peerSocketId);
-  let sender = studentAudioMeshSenders.get(peerSocketId);
-  if (!sender) {
-    sender = meshPeer.addTrack(audioTrack, localAudioStream);
-    studentAudioMeshSenders.set(peerSocketId, sender);
-  } else if (sender.track?.id !== audioTrack.id) {
-    await sender.replaceTrack(audioTrack);
-  }
-
-  if (meshPeer.signalingState !== "stable") {
-    pendingStudentAudioMeshRecipients.add(peerSocketId);
-    return false;
-  }
-
-  const offer = await meshPeer.createOffer();
-  await meshPeer.setLocalDescription(offer);
-  await emitWithAcknowledgement("student_audio_mesh_offer", {
-    targetSocketId: peerSocketId,
-    sdp: meshPeer.localDescription,
-  });
-  return true;
-}
-
-function disableStudentAudioMeshSenders() {
-  for (const sender of studentAudioMeshSenders.values()) {
-    sender.replaceTrack(null).catch(() => {});
-  }
-}
-
-async function openPendingStudentAudioMeshRecipients() {
-  const recipients = Array.from(pendingStudentAudioMeshRecipients);
-  pendingStudentAudioMeshRecipients.clear();
-
-  for (const peerSocketId of recipients) {
-    try {
-      await openStudentAudioMeshRecipient(peerSocketId);
-    } catch (error) {
-      console.warn("Unable to open classmate audio channel:", error);
-      pendingStudentAudioMeshRecipients.add(peerSocketId);
-    }
-  }
-}
-
 function closePeerConnection() {
-  closeAllStudentAudioMeshPeers();
   if (pc) {
     pc.onicecandidate = null;
     pc.ontrack = null;
@@ -1266,7 +1124,8 @@ async function enableApprovedMicrophone() {
     }
     updateMicControl();
     await negotiateStudentMicrophone();
-    await openPendingStudentAudioMeshRecipients();
+    // All approved student audio arrives through the teacher's master mix.
+
     return;
   }
 
@@ -1274,7 +1133,14 @@ async function enableApprovedMicrophone() {
   updateMicControl();
 
   try {
-    localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    localAudioStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1,
+      },
+    });
     microphonePrepared = true;
 
     // The peer might have been closed while the permission prompt was open.
@@ -1291,7 +1157,8 @@ async function enableApprovedMicrophone() {
     // Do not depend only on negotiationneeded: explicitly create the offer so
     // the approved microphone works consistently across browsers.
     await negotiateStudentMicrophone();
-    await openPendingStudentAudioMeshRecipients();
+    // All approved student audio arrives through the teacher's master mix.
+
   } catch (error) {
     console.error("Unable to access student microphone:", error);
     microphonePermissionGranted = false;
@@ -1673,98 +1540,6 @@ socket.on("webrtc_renegotiation_answer", async (data = {}) => {
   }
 });
 
-socket.on("student_audio_mesh_open", async (data = {}) => {
-  const recipients = Array.isArray(data.recipients) ? data.recipients : [];
-  for (const peerSocketId of recipients) {
-    if (peerSocketId) {
-      pendingStudentAudioMeshRecipients.add(peerSocketId);
-    }
-  }
-
-  if (microphonePermissionGranted) {
-    await openPendingStudentAudioMeshRecipients();
-  }
-});
-
-socket.on("student_audio_mesh_offer", async (data = {}) => {
-  const { fromSocketId, sdp } = data;
-  if (!fromSocketId || !sdp) {
-    return;
-  }
-
-  try {
-    const meshPeer = createStudentAudioMeshPeer(fromSocketId);
-    if (meshPeer.signalingState !== "stable") {
-      return;
-    }
-
-    await meshPeer.setRemoteDescription(new RTCSessionDescription(sdp));
-    await flushStudentAudioMeshIce(fromSocketId);
-    const answer = await meshPeer.createAnswer();
-    await meshPeer.setLocalDescription(answer);
-    await emitWithAcknowledgement("student_audio_mesh_answer", {
-      targetSocketId: fromSocketId,
-      sdp: meshPeer.localDescription,
-    });
-  } catch (error) {
-    console.warn("Unable to answer a classmate audio offer:", error);
-    closeStudentAudioMeshPeer(fromSocketId);
-  }
-});
-
-socket.on("student_audio_mesh_answer", async (data = {}) => {
-  const { fromSocketId, sdp } = data;
-  const meshPeer = studentAudioMeshPeers.get(fromSocketId);
-  if (!meshPeer || !sdp || meshPeer.signalingState === "closed") {
-    return;
-  }
-
-  try {
-    await meshPeer.setRemoteDescription(new RTCSessionDescription(sdp));
-    await flushStudentAudioMeshIce(fromSocketId);
-  } catch (error) {
-    console.warn("Unable to apply a classmate audio answer:", error);
-    closeStudentAudioMeshPeer(fromSocketId);
-  }
-});
-
-socket.on("student_audio_mesh_ice", async (data = {}) => {
-  const { fromSocketId, candidate } = data;
-  if (!fromSocketId || candidate === undefined) {
-    return;
-  }
-
-  const meshPeer = studentAudioMeshPeers.get(fromSocketId);
-  if (!meshPeer || !meshPeer.remoteDescription) {
-    const queuedCandidates = pendingStudentAudioMeshIce.get(fromSocketId) || [];
-    queuedCandidates.push(candidate);
-    pendingStudentAudioMeshIce.set(fromSocketId, queuedCandidates);
-    return;
-  }
-
-  try {
-    if (candidate) {
-      await meshPeer.addIceCandidate(new RTCIceCandidate(candidate));
-    }
-  } catch (error) {
-    console.warn("Unable to add classmate audio ICE candidate:", error);
-  }
-});
-
-socket.on("student_audio_mesh_closed", (data = {}) => {
-  const speakerSocketId = data.speakerSocketId;
-  if (!speakerSocketId) {
-    return;
-  }
-
-  if (speakerSocketId === socket.id) {
-    disableStudentAudioMeshSenders();
-    closeAllStudentAudioMeshPeers();
-    return;
-  }
-  closeStudentAudioMeshPeer(speakerSocketId);
-});
-
 socket.on("permission_granted", async () => {
   if (!joinedClass) {
     return;
@@ -1789,8 +1564,6 @@ socket.on("microphone_revoked", () => {
   if (audioTrack) {
     audioTrack.enabled = false;
   }
-  disableStudentAudioMeshSenders();
-
   setRaisedHandState({ waiting: false });
   elements.handWaitingActions.hidden = true;
   updateMicControl();

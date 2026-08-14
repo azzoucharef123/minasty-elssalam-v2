@@ -357,7 +357,14 @@
   async function ensureGuestMicrophone() {
     const activeTrack = guestMicStream?.getAudioTracks().find((track) => track.readyState === "live");
     if (activeTrack) return guestMicStream;
-    guestMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    guestMicStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1,
+      },
+    });
     guestMicStream.getAudioTracks().forEach((track) => { track.enabled = false; });
     return guestMicStream;
   }
@@ -388,7 +395,14 @@
       const combined = new MediaStream();
       display.getTracks().forEach((track) => combined.addTrack(track));
       try {
-        const microphone = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const microphone = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+          },
+        });
         microphone.getAudioTracks().forEach((track) => combined.addTrack(track));
       } catch (_) {
         // The screen stream can still be broadcast if the host declines microphone access.
