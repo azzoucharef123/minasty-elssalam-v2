@@ -12,10 +12,6 @@ const elements = {
   studentName: document.getElementById("student-name"),
   studentLevel: document.getElementById("student-level"),
   paymentStatus: document.getElementById("payment-status"),
-  paymentAmount: document.getElementById("payment-amount"),
-  enrollmentSubjects: document.getElementById("enrollment-subjects"),
-  mathNote: document.getElementById("math-note"),
-  physicsNote: document.getElementById("physics-note"),
   logoutButton: document.getElementById("logout-btn"),
   materialsList: document.getElementById("materials-list"),
   attendanceCount: document.getElementById("attendance-count"),
@@ -190,33 +186,11 @@ function renderStudent(student) {
   if (elements.universityDashboardLink) {
     elements.universityDashboardLink.hidden = student.level !== "طالب جامعي";
   }
-  elements.mathNote.textContent = student.mathNote || "لا توجد ملاحظات حالياً.";
-  elements.physicsNote.textContent = student.physicsNote || "لا توجد ملاحظات حالياً.";
-
   const paymentStage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
   const isPaid = paymentStage === "PAID";
-  const paymentLabel =
-    paymentStage === "PAID"
-      ? "تم الدفع بنجاح"
-      : paymentStage === "PROMISED"
-        ? "اتصل بالأستاذ وسيدفع"
-        : "في انتظار الدفع";
-  elements.paymentStatus.textContent = paymentLabel;
+  elements.paymentStatus.textContent = isPaid ? "اشتراك مدفوع" : "اشتراك مجاني";
   elements.paymentStatus.classList.toggle("is-paid", isPaid);
-  elements.paymentStatus.classList.toggle("is-unpaid", !isPaid);
-
-  const hasAmountDue = Number.isInteger(student.amountDue);
-  elements.paymentAmount.hidden = !hasAmountDue;
-  elements.paymentAmount.textContent = hasAmountDue
-    ? `المبلغ المطلوب: ${student.amountDue.toLocaleString("ar-DZ")} دج`
-    : "";
-
-  const enrolledSubjects = [];
-  if (student.mathEnrollment) enrolledSubjects.push("الرياضيات");
-  if (student.physicsEnrollment) enrolledSubjects.push("الفيزياء");
-  elements.enrollmentSubjects.textContent = enrolledSubjects.length
-    ? enrolledSubjects.join(" و ")
-    : "لم تُحدد المواد بعد";
+  elements.paymentStatus.classList.toggle("is-free", !isPaid);
 }
 
 /**

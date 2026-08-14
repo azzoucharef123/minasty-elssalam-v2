@@ -33,8 +33,6 @@
     .university-status .success { color: #15803d; }
     .university-status .pending { color: #b45309; }
     .university-status .danger { color: #b91c1c; }
-    .university-subjects { display: flex; flex-wrap: wrap; gap: .55rem; }
-    .university-subject { padding: .55rem .75rem; color: #1e3a8a; background: #dbeafe; border-radius: 999px; font-size: .82rem; font-weight: 800; }
     .university-actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1rem; }
     .university-actions button, .university-actions a { flex: 1; min-width: 12rem; text-align: center; }
     #university-error { margin-bottom: 1rem; }
@@ -60,7 +58,7 @@
       <div class="university-welcome">
         <p class="eyebrow">مساحتك التعليمية</p>
         <h1>مرحبًا بك في لوحة الطالب الجامعي</h1>
-        <p>تابع حالة تسجيلك، البطاقة الجامعية، والمواد والحصة المباشرة من مكان واحد.</p>
+        <p>تابع نوع اشتراكك، البطاقة الجامعية، والحصة المباشرة من مكان واحد.</p>
       </div>
 
       <div class="university-grid">
@@ -77,14 +75,9 @@
         <article class="university-card">
           <h2>حالة الملف</h2>
           <div class="university-status"><span>صورة البطاقة</span><strong id="university-card-status">—</strong></div>
-          <div class="university-status"><span>حالة الدفع</span><strong id="university-payment-status">—</strong></div>
-          <div class="university-status"><span>المبلغ المطلوب</span><strong id="university-amount-due">لا يوجد</strong></div>
+          <div class="university-status"><span>نوع الاشتراك</span><strong id="university-payment-status">—</strong></div>
         </article>
 
-        <article class="university-card">
-          <h2>المواد المسجل فيها</h2>
-          <div id="university-subjects" class="university-subjects"></div>
-        </article>
 
         <article class="university-card">
           <h2>الوصول إلى الحصة</h2>

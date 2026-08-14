@@ -57,16 +57,16 @@
 
       <article class="bento-card bento-payment-card">
         <div class="bento-card-heading"><span class="bento-kicker">متابعة الاشتراكات</span><span class="bento-card-index">02</span></div>
-        <div class="payment-bento-values"><div><span>تم الدفع</span><strong id="summary-paid">0</strong></div><div><span>بانتظار الإجراء</span><strong id="summary-unpaid">0</strong></div></div>
+        <div class="payment-bento-values"><div><span>اشتراك مدفوع</span><strong id="summary-paid">0</strong></div><div><span>اشتراك مجاني</span><strong id="summary-unpaid">0</strong></div></div>
         <div class="payment-progress-track" aria-hidden="true"><span id="payment-progress-bar"></span></div>
         <p id="payment-progress-caption">ستظهر حالة الدفع بعد تحميل القائمة.</p>
       </article>
 
       <article class="bento-card bento-subject-card">
-        <div class="bento-card-heading"><span class="bento-kicker">تسجيل المواد</span><span class="bento-card-index">03</span></div>
+        <div class="bento-card-heading"><span class="bento-kicker">أنواع الاشتراك</span><span class="bento-card-index">03</span></div>
         <h2>نظرة سريعة</h2>
-        <div class="subject-stat-list"><div><span class="subject-bullet subject-math"></span>رياضيات <strong id="bento-math-count">0</strong></div><div><span class="subject-bullet subject-physics"></span>فيزياء <strong id="bento-physics-count">0</strong></div></div>
-        <p>يمكن تعديل المواد وصلاحية الحصة من بطاقة كل تلميذ.</p>
+        <div class="subject-stat-list"><div><span class="subject-bullet subject-math"></span>مدفوع <strong id="bento-math-count">0</strong></div><div><span class="subject-bullet subject-physics"></span>مجاني <strong id="bento-physics-count">0</strong></div></div>
+        <p>يمكن تعديل الاشتراك وصلاحية الحصة من بطاقة كل تلميذ.</p>
       </article>
 
       <article class="bento-card bento-quick-card">
@@ -103,21 +103,20 @@
 
       <section class="roster-toolbar" aria-label="بحث وتصفية التلاميذ">
         <label class="teacher-search-field" for="student-search"><span>البحث</span><input id="student-search" placeholder="البحث باسم التلميذ..." /></label>
-        <label class="teacher-filter-field" for="payment-filter"><span>حالة الدفع</span><select id="payment-filter"><option value="all">كل الحالات</option><option value="paid">تم الدفع</option><option value="unpaid">بانتظار الإجراء</option></select></label>
+        <label class="teacher-filter-field" for="payment-filter"><span>نوع الاشتراك</span><select id="payment-filter"><option value="all">كل الاشتراكات</option><option value="paid">اشتراك مدفوع</option><option value="unpaid">اشتراك مجاني</option></select></label>
         <span id="filtered-results-label" class="filtered-results-label">0 نتيجة معروضة</span>
       </section>
 
       <section class="table-card teacher-table-card">
         <div class="table-title"><div><span class="table-kicker">المستوى المختار</span><h2 id="current-level-title">السنة الأولى</h2></div><span class="table-status"><i></i>تحديث مباشر</span></div>
-        <div class="table-wrap"><table><thead><tr><th>التلميذ</th><th>رقم الولي</th><th>الدفع</th><th>الرياضيات</th><th>الفيزياء</th><th>بطاقة الطالب</th><th>الإجراءات</th></tr></thead><tbody id="students-table-body"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>التلميذ</th><th>رقم الولي</th><th>نوع الاشتراك</th><th>بطاقة الطالب</th><th>الإجراءات</th></tr></thead><tbody id="students-table-body"></tbody></table></div>
         <p id="table-empty-state" hidden>لا يوجد تلاميذ مسجلون في هذا المستوى حالياً.</p>
       </section>
     </section>
   </main>
 
-  <div id="edit-modal" class="modal" hidden><div class="modal-card"><button id="cancel-edit-btn" class="modal-close" type="button">×</button><h2 id="modal-student-name"></h2><form id="edit-student-form" class="stack-form"><label>ملاحظة الرياضيات<textarea id="math-note"></textarea></label><label>ملاحظة الفيزياء<textarea id="physics-note"></textarea></label><button class="cta-button cta-primary" type="submit">حفظ التعديلات</button></form></div></div>
   <div id="attendance-modal" class="modal" hidden><div class="modal-card"><button id="close-attendance-modal" class="modal-close" type="button">×</button><h2>سجل حضور <span id="attendance-student-name"></span></h2><p id="attendance-empty" hidden>لا توجد سجلات حضور بعد.</p><ul id="attendance-list" class="attendance-list"></ul></div></div>
-  <div id="subscription-modal" class="modal" hidden><div class="modal-card"><button id="close-subscription-modal" class="modal-close" type="button">×</button><p class="eyebrow">إعدادات الاشتراك</p><h2 id="subscription-student-name">التلميذ</h2><form id="subscription-form" class="stack-form"><fieldset><legend>مواد التسجيل</legend><label><input id="subscription-math" type="checkbox" /> الرياضيات</label><label><input id="subscription-physics" type="checkbox" /> الفيزياء</label></fieldset><label>حالة الدفع<select id="subscription-payment-stage" required><option value="PAID">تم الدفع بنجاح</option><option value="UNPAID">لم يتم الدفع — في انتظار الدفع</option><option value="PROMISED">لم يتم الدفع — اتصل بالأستاذ وسيقوم بالدفع</option></select></label><label>المبلغ المطلوب (دج)<input id="subscription-amount-due" type="number" min="0" max="10000000" step="1" placeholder="مثال: 3000" /></label><label><input id="subscription-live-access" type="checkbox" /> السماح بدخول الحصة المباشرة</label><button class="cta-button cta-primary" type="submit">حفظ الاشتراك والدفع</button></form></div></div>
+  <div id="subscription-modal" class="modal" hidden><div class="modal-card"><button id="close-subscription-modal" class="modal-close" type="button">×</button><p class="eyebrow">إعدادات الاشتراك</p><h2 id="subscription-student-name">التلميذ</h2><form id="subscription-form" class="stack-form"><label>نوع الاشتراك<select id="subscription-payment-stage" required><option value="PAID">اشتراك مدفوع</option><option value="UNPAID">اشتراك مجاني</option></select></label><label><input id="subscription-live-access" type="checkbox" /> السماح بدخول الحصة المباشرة</label><button class="cta-button cta-primary" type="submit">حفظ الاشتراك</button></form></div></div>
   <div id="toast" class="toast" hidden></div>
   <script src="./js/teacher-dashboard.js"></script>
 </body>

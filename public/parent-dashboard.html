@@ -405,7 +405,7 @@
 
       .student-overview {
         display: grid;
-        grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(12rem, 1fr));
+        grid-template-columns: minmax(0, 1.5fr) minmax(12rem, 1fr);
         gap: 1rem;
         margin-bottom: 1rem;
       }
@@ -477,9 +477,9 @@
         background: var(--parent-green-soft);
       }
 
-      #payment-status.is-unpaid {
-        color: #b45309;
-        background: #fffbeb;
+      #payment-status.is-free {
+        color: #0369a1;
+        background: #e0f2fe;
       }
 
       .payment-card small,
@@ -765,7 +765,7 @@
 
       <section class="dashboard-welcome" aria-labelledby="dashboard-title">
         <h1 id="dashboard-title">متابعة تقدّم التلميذ</h1>
-        <p>اطلع على الحالة المالية وملاحظات الأستاذ لكل مادة.</p>
+        <p>اطلع على نوع اشتراك التلميذ وحالة الحصة المباشرة.</p>
       </section>
 
       <div id="loading-state" role="status">جارٍ تحميل بيانات التلميذ…</div>
@@ -794,32 +794,8 @@
           </article>
 
           <article class="overview-card payment-card">
-            <span>حالة الدفع</span>
+            <span>نوع الاشتراك</span>
             <strong id="payment-status">—</strong>
-            <small id="payment-amount" hidden></small>
-          </article>
-
-          <article class="overview-card enrollment-card">
-            <span>المواد المسجّل فيها</span>
-            <strong id="enrollment-subjects">—</strong>
-          </article>
-        </div>
-
-        <div class="notes-grid">
-          <article class="note-card math-card">
-            <div class="note-card-header">
-              <span class="note-icon" aria-hidden="true">∑</span>
-              <h3>ملاحظات الرياضيات</h3>
-            </div>
-            <p id="math-note">لا توجد ملاحظات حالياً.</p>
-          </article>
-
-          <article class="note-card physics-card">
-            <div class="note-card-header">
-              <span class="note-icon" aria-hidden="true">F</span>
-              <h3>ملاحظات الفيزياء</h3>
-            </div>
-            <p id="physics-note">لا توجد ملاحظات حالياً.</p>
           </article>
         </div>
       </section>

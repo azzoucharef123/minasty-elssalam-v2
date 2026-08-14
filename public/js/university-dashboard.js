@@ -9,8 +9,6 @@ const elements = {
   name: document.getElementById("university-student-name"),
   cardStatus: document.getElementById("university-card-status"),
   paymentStatus: document.getElementById("university-payment-status"),
-  amountDue: document.getElementById("university-amount-due"),
-  subjects: document.getElementById("university-subjects"),
   liveStatus: document.getElementById("university-live-status"),
   liveButton: document.getElementById("university-live-button"),
   logout: document.getElementById("university-logout"),
@@ -79,9 +77,9 @@ async function parentFetch(url, options = {}) {
 
 function paymentLabel(student) {
   const stage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
-  if (stage === "PAID") return { text: "تم الدفع بنجاح", className: "success" };
-  if (stage === "PROMISED") return { text: "اتصل بالأستاذ وسيدفع", className: "pending" };
-  return { text: "في انتظار الدفع", className: "pending" };
+  return stage === "PAID"
+    ? { text: "اشتراك مدفوع", className: "success" }
+    : { text: "اشتراك مجاني", className: "pending" };
 }
 
 function renderStudent(student) {
@@ -98,22 +96,6 @@ function renderStudent(student) {
   const payment = paymentLabel(student);
   elements.paymentStatus.textContent = payment.text;
   elements.paymentStatus.className = payment.className;
-
-  const amount = Number.isInteger(student.amountDue);
-  elements.amountDue.textContent = amount
-    ? `${student.amountDue.toLocaleString("ar-DZ")} دج`
-    : "لا يوجد";
-
-  elements.subjects.replaceChildren();
-  const subjects = [];
-  if (student.mathEnrollment) subjects.push("الرياضيات");
-  if (student.physicsEnrollment) subjects.push("الفيزياء");
-  (subjects.length ? subjects : ["لم تُحدد المواد بعد"]).forEach((subject) => {
-    const tag = document.createElement("span");
-    tag.className = "university-subject";
-    tag.textContent = subject;
-    elements.subjects.append(tag);
-  });
 
   elements.liveStatus.textContent = student.liveAccessEnabled ? "الدخول مفعّل" : "بانتظار تفعيل الأستاذ";
   elements.liveStatus.className = student.liveAccessEnabled ? "success" : "pending";
