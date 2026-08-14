@@ -47,8 +47,8 @@
     .attendance-empty { margin:0; padding:1.1rem .5rem; color:var(--muted); text-align:center; font-size:.84rem; }
     .attendee { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.45rem; align-items:center; padding:.6rem; border-bottom:1px solid rgba(148,163,184,.12); }
     .attendee:last-child { border-bottom:0; }
-    .attendee-name { overflow:hidden; color:#e0ecff; font-size:.87rem; font-weight:800; text-overflow:ellipsis; white-space:nowrap; }
-    .attendee-meta { display:flex; gap:.35rem; margin-top:.18rem; color:var(--muted); font-size:.7rem; }
+    .attendee-name { min-width:0; overflow:visible; color:#e0ecff; font-size:.87rem; font-weight:800; line-height:1.55; overflow-wrap:anywhere; white-space:normal; }
+    .attendee-meta { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.18rem; color:var(--muted); font-size:.7rem; }
     .state-pill { padding:.12rem .35rem; border-radius:99px; background:#263b5b; }
     .state-pill.hand { color:#fde68a; background:rgba(180,83,9,.28); }
     .state-pill.pending { color:#fde68a; background:rgba(180,83,9,.28); }
@@ -58,6 +58,11 @@
     .attendee-control { min-width:4.8rem; min-height:2.15rem; padding:.35rem .45rem; border:0; border-radius:.55rem; color:#fff; font-family:inherit; font-size:.72rem; font-weight:800; cursor:pointer; background:#15803d; }
     .attendee-control.approve { background:#ca8a04; color:#fff7ed; }
     .attendee-control.close { background:#b91c1c; }
+    @media (max-width: 480px) {
+      .attendee { grid-template-columns:1fr; align-items:stretch; }
+      .attendee-controls { justify-content:flex-start; }
+      .attendee-control { flex:1 1 7rem; }
+    }
     .guest-actions { display:flex; align-items:center; gap:.65rem; }
     .guest-mic-status { color:#bbf7d0; font-size:.8rem; font-weight:800; }
     .guest-mic-status.closed { color:#fecaca; }
