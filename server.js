@@ -149,7 +149,8 @@ app.set("io", io);
  * Socket.io adapter (such as Redis) plus shared classroom state.
  */
 const activeTeachersByLevel = new Map();
-// Stores the subject selected for each active level: MATH or PHYSICS.
+// Stores the selected class type for each active level: a subject for school levels
+// or a subscription type for university students.
 const activeSubjectByLevel = new Map();
 // A brief signaling outage must not end an otherwise healthy direct WebRTC
 // stream. This map reserves a room only for its original teacher while the
@@ -174,7 +175,9 @@ const users = new Map();
 const MAX_LEVEL_LENGTH = 100;
 const MAX_NAME_LENGTH = 120;
 const MAX_CHAT_MESSAGE_LENGTH = 800;
-const ACTIVE_SUBJECTS = new Set(["MATH", "PHYSICS"]);
+const UNIVERSITY_LEVEL = "طالب جامعي";
+const SCHOOL_SUBJECTS = new Set(["MATH", "PHYSICS"]);
+const UNIVERSITY_SUBSCRIPTION_TYPES = new Set(["PAID", "FREE"]);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** Return a trimmed string, or an empty string for a non-string input. */
@@ -186,8 +189,14 @@ function isValidLevel(level) {
   return level.length > 0 && level.length <= MAX_LEVEL_LENGTH;
 }
 
-function isValidActiveSubject(subject) {
-  return ACTIVE_SUBJECTS.has(subject);
+function isValidActiveClassType(level, classType) {
+  return level === UNIVERSITY_LEVEL
+    ? UNIVERSITY_SUBSCRIPTION_TYPES.has(classType)
+    : SCHOOL_SUBJECTS.has(classType);
+}
+
+function isPaidSubscription(student) {
+  return student.paymentStage === "PAID" || student.paymentStatus === true;
 }
 
 function isValidStudentName(studentName) {
@@ -473,13 +482,12 @@ io.on("connection", (socket) => {
         );
       }
 
-      if (!isValidActiveSubject(subject)) {
-        return emitClassroomError(
-          socket,
-          "teacher_start_room",
-          "اختر مادة صالحة للحصة: الرياضيات أو الفيزياء.",
-          acknowledgement
-        );
+      if (!isValidActiveClassType(level, subject)) {
+        const message =
+          level === UNIVERSITY_LEVEL
+            ? "اختر نوع اشتراك صالحًا للحصة: مدفوع أو مجاني."
+            : "اختر مادة صالحة للحصة: الرياضيات أو الفيزياء.";
+        return emitClassroomError(socket, "teacher_start_room", message, acknowledgement);
       }
 
       if (!isValidRecoveryToken(resumeToken)) {
@@ -626,6 +634,8 @@ io.on("connection", (socket) => {
           studentName: true,
           level: true,
           liveAccessEnabled: true,
+          paymentStatus: true,
+          paymentStage: true,
           mathEnrollment: true,
           physicsEnrollment: true,
         },
@@ -701,13 +711,21 @@ io.on("connection", (socket) => {
       }
 
       const activeSubject = activeSubjectByLevel.get(level);
-      const isEligibleForActiveSubject =
-        (activeSubject === "MATH" && student.mathEnrollment) ||
-        (activeSubject === "PHYSICS" && student.physicsEnrollment);
+      const isUniversityClass = level === UNIVERSITY_LEVEL;
+      const isEligibleForActiveSubject = isUniversityClass
+        ? (activeSubject === "PAID" && isPaidSubscription(student)) ||
+          (activeSubject === "FREE" && !isPaidSubscription(student))
+        : (activeSubject === "MATH" && student.mathEnrollment) ||
+          (activeSubject === "PHYSICS" && student.physicsEnrollment);
 
       if (!isEligibleForActiveSubject) {
-        const message =
-          activeSubject === "PHYSICS"
+        const message = isUniversityClass
+          ? activeSubject === "PAID"
+            ? "هذه الحصة مخصصة لأصحاب الاشتراك المدفوع."
+            : activeSubject === "FREE"
+              ? "هذه الحصة مخصصة لأصحاب الاشتراك المجاني."
+              : "تعذر التحقق من نوع اشتراك الحصة الحالية. يرجى إعادة المحاولة."
+          : activeSubject === "PHYSICS"
             ? "أنت لست مؤهلًا لحضور هذه الحصة لأنها فيزياء وأنت لم تسجل في الفيزياء."
             : activeSubject === "MATH"
               ? "أنت لست مؤهلًا لحضور هذه الحصة لأنها رياضيات وأنت لم تسجل في الرياضيات."

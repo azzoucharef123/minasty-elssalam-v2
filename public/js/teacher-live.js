@@ -74,6 +74,7 @@ const elements = {
   attendeesEmpty: document.getElementById("attendees-empty"),
   attendeeCount: document.getElementById("attendee-count"),
   levelSelect: document.getElementById("level-select"),
+  subjectSelectLabel: document.getElementById("subject-select-label"),
   subjectSelect: document.getElementById("subject-select"),
   startButton: document.getElementById("start-class-btn"),
   toggleMicButton: document.getElementById("toggle-mic-btn"),
@@ -89,6 +90,49 @@ const elements = {
   questionImageModalImage: document.getElementById("question-image-modal-img"),
   closeQuestionImageModalButton: document.getElementById("close-question-image-modal"),
 };
+
+const UNIVERSITY_LEVEL = "طالب جامعي";
+const SECONDARY_CLASS_OPTIONS = [
+  { value: "MATH", label: "الرياضيات" },
+  { value: "PHYSICS", label: "الفيزياء" },
+];
+const UNIVERSITY_SUBSCRIPTION_OPTIONS = [
+  { value: "PAID", label: "اشتراك مدفوع" },
+  { value: "FREE", label: "اشتراك مجاني" },
+];
+const VALID_CLASS_TYPES = new Set([
+  ...SECONDARY_CLASS_OPTIONS.map(({ value }) => value),
+  ...UNIVERSITY_SUBSCRIPTION_OPTIONS.map(({ value }) => value),
+]);
+
+function isUniversityLevel(level) {
+  return level === UNIVERSITY_LEVEL;
+}
+
+function getClassTypeName(level, classType) {
+  if (isUniversityLevel(level)) {
+    return classType === "PAID" ? "اشتراك مدفوع" : "اشتراك مجاني";
+  }
+
+  return classType === "PHYSICS" ? "الفيزياء" : "الرياضيات";
+}
+
+function syncClassTypeSelector({ selectedValue = "" } = {}) {
+  const isUniversity = isUniversityLevel(elements.levelSelect.value);
+  const options = isUniversity ? UNIVERSITY_SUBSCRIPTION_OPTIONS : SECONDARY_CLASS_OPTIONS;
+  const nextValue = options.some(({ value }) => value === selectedValue)
+    ? selectedValue
+    : options[0].value;
+
+  elements.subjectSelectLabel.textContent = isUniversity ? "نوع الاشتراك" : "مادة الحصة";
+  elements.subjectSelect.setAttribute(
+    "aria-label",
+    isUniversity ? "اختر نوع الاشتراك" : "اختر مادة الحصة"
+  );
+  elements.subjectSelect.replaceChildren(
+    ...options.map(({ value, label }) => new Option(label, value, false, value === nextValue))
+  );
+}
 
 /**
  * Write a short, accessible status without rendering server/user text as HTML.
@@ -146,7 +190,7 @@ function readLiveClassRecovery() {
     if (
       recovery &&
       typeof recovery.level === "string" &&
-      ["MATH", "PHYSICS"].includes(recovery.subject) &&
+      VALID_CLASS_TYPES.has(recovery.subject) &&
       typeof recovery.resumeToken === "string" &&
       /^[a-zA-Z0-9-]{16,128}$/.test(recovery.resumeToken)
     ) {
@@ -1572,7 +1616,7 @@ async function startLiveClass() {
 
   const selectedLevel = elements.levelSelect.value;
   const selectedSubject = elements.subjectSelect.value;
-  const selectedSubjectName = selectedSubject === "PHYSICS" ? "الفيزياء" : "الرياضيات";
+  const selectedSubjectName = getClassTypeName(selectedLevel, selectedSubject);
   const pageRecovery =
     pendingPageRecovery &&
     pendingPageRecovery.level === selectedLevel &&
@@ -1797,8 +1841,8 @@ socket.on("connect_error", () => {
 
 socket.on("room_ready", (data) => {
   if (data?.role === "teacher" && classActive) {
-    const subjectName = data.subject === "PHYSICS" ? "الفيزياء" : "الرياضيات";
-    setStudioStatus(`الحصة مباشرة الآن — ${data.level} | ${subjectName}`, "live");
+    const classTypeName = getClassTypeName(data.level, data.subject);
+    setStudioStatus(`الحصة مباشرة الآن — ${data.level} | ${classTypeName}`, "live");
   }
 });
 
@@ -2013,6 +2057,11 @@ socket.on("disconnect", () => {
 
 // --- User controls ---
 
+elements.levelSelect.addEventListener("change", () => {
+  if (!classActive && !isStarting && !isEnding) {
+    syncClassTypeSelector();
+  }
+});
 elements.startButton.addEventListener("click", startLiveClass);
 elements.toggleMicButton.addEventListener("click", toggleMicrophone);
 elements.endClassButton.addEventListener("click", () => {
@@ -2051,8 +2100,10 @@ window.addEventListener("pagehide", () => {
 pendingPageRecovery = readLiveClassRecovery();
 if (pendingPageRecovery) {
   elements.levelSelect.value = pendingPageRecovery.level;
-  elements.subjectSelect.value = pendingPageRecovery.subject;
+  syncClassTypeSelector({ selectedValue: pendingPageRecovery.subject });
   setStudioStatus("تم حفظ الحصة السابقة. اضغط «بدء الحصة المباشرة» واختر الشاشة لاستئنافها.", "neutral");
+} else {
+  syncClassTypeSelector();
 }
 
 updateAttendeeCount();
