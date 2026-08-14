@@ -127,6 +127,10 @@ app.use("/uploads", (_req, res) => {
 
 // Serve index.html, the registration flow, and the portal pages from /public.
 app.use(express.static(path.join(__dirname, "public")));
+// Keep the public invite page available through an explicit route as well.
+app.get("/public-class.html", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "public-class.html"));
+});
 
 app.get("/api/health", (_req, res) => {
   res.status(200).json({ status: "ok", message: "Server is running" });
