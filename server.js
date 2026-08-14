@@ -1164,6 +1164,11 @@ io.on("connection", (socket) => {
         studentSocketId: socket.id,
       });
 
+      // If one or more classmates are already approved to speak, tell each
+      // approved speaker to create a direct audio peer with this new listener.
+      // This is the missing join-time edge of the student-to-student mesh.
+      await notifyOpenStudentMicrophonesOfNewListener(level, socket.id);
+
       acknowledge(acknowledgement, {
         ok: true,
         level,
@@ -1552,6 +1557,14 @@ io.on("connection", (socket) => {
       enabled,
     });
 
+    if (enabled) {
+      // The newly approved speaker must initiate a mesh offer to every student
+      // currently in the room, not only to the teacher.
+      await notifyStudentMeshRecipients(level, targetSocketId);
+    } else {
+      io.to(level).emit("student_audio_mesh_closed", { speakerSocketId: targetSocketId });
+    }
+
     // The teacher uses this authoritative event to update the existing stable
     // Web Audio mix. No viewer page reload or peer-per-student route is needed.
     io.to(socket.id).emit("student_mic_state_changed", {
@@ -1590,6 +1603,7 @@ io.on("connection", (socket) => {
       speakerSocketId: targetSocketId,
       enabled: true,
     });
+    await notifyStudentMeshRecipients(level, targetSocketId);
     io.to(socket.id).emit("student_mic_state_changed", {
       socketId: targetSocketId,
       enabled: true,
