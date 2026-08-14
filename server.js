@@ -350,14 +350,28 @@ function holdClassroomForTeacherReturn(level, resumeToken) {
   }
 
   clearPendingTeacherRecovery(level);
-  pendingTeacherRecoveryByLevel.set(level, {
+  const recovery = {
     resumeToken,
     subject: activeSubjectByLevel.get(level),
     timer: null,
-  });
+  };
+  recovery.timer = setTimeout(() => {
+    const currentRecovery = pendingTeacherRecoveryByLevel.get(level);
+    const activeTeacherSocketId = activeTeachersByLevel.get(level);
+    if (currentRecovery?.resumeToken !== resumeToken || activeTeacherSocketId) {
+      return;
+    }
+
+    // A teacher did not reclaim the room during the advertised three-minute
+    // grace period. Close it so the level never stays blocked indefinitely.
+    closeClassroom(level, "teacher_recovery_timeout").catch((error) => {
+      console.error(`[Socket.io] recovery timeout cleanup failed for ${level}:`, error);
+    });
+  }, TEACHER_RECOVERY_GRACE_MS);
+  pendingTeacherRecoveryByLevel.set(level, recovery);
   io.to(level).emit("teacher_reconnecting", { level });
   io.to(`${level}_lobby`).emit("live_class_recovering", { level });
-  console.info(`[Socket.io] Holding room ${level} until the teacher returns or ends it.`);
+  console.info(`[Socket.io] Holding room ${level} for ${TEACHER_RECOVERY_GRACE_MS / 1000}s until the teacher returns or ends it.`);
   return true;
 }
 
