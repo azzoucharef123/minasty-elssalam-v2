@@ -15,6 +15,85 @@ const { removeImageFile } = require("./liveChatController");
 const uploadDirectory =
   process.env.UPLOAD_DIR || path.join(__dirname, "..", "public", "uploads");
 
+const DOCUMENT_KINDS = Object.freeze({
+  CARD: "CARD",
+  PAYMENT_RECEIPT: "PAYMENT_RECEIPT",
+});
+
+function documentReference(kind) {
+  return `db:${kind}`;
+}
+
+async function readUploadedFileBuffer(uploadedFile) {
+  if (!uploadedFile?.path) {
+    throw new Error("الملف المرفوع غير متاح للحفظ.");
+  }
+  return fs.promises.readFile(uploadedFile.path);
+}
+
+async function upsertStudentDocument(tx, { studentId, kind, uploadedFile, buffer }) {
+  const data = buffer || await readUploadedFileBuffer(uploadedFile);
+  return tx.studentDocument.upsert({
+    where: { studentId_kind: { studentId, kind } },
+    create: {
+      studentId,
+      kind,
+      originalName: uploadedFile.originalname || `${kind.toLowerCase()}.jpg`,
+      mimeType: uploadedFile.mimetype || "application/octet-stream",
+      fileSize: data.length,
+      data,
+    },
+    update: {
+      originalName: uploadedFile.originalname || `${kind.toLowerCase()}.jpg`,
+      mimeType: uploadedFile.mimetype || "application/octet-stream",
+      fileSize: data.length,
+      data,
+    },
+  });
+}
+
+async function getStudentDocument(studentId, kind, legacyFilename) {
+  const stored = await prisma.studentDocument.findUnique({
+    where: { studentId_kind: { studentId, kind } },
+  });
+  if (stored) return stored;
+
+  // Backward compatibility: migrate a legacy disk file to PostgreSQL on first access.
+  const safeFilename = legacyFilename ? path.basename(legacyFilename) : "";
+  if (!safeFilename) return null;
+  const filePath = path.join(uploadDirectory, safeFilename);
+  try {
+    const data = await fs.promises.readFile(filePath);
+    const legacyMimeType = safeFilename.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
+    return prisma.studentDocument.upsert({
+      where: { studentId_kind: { studentId, kind } },
+      create: {
+        studentId,
+        kind,
+        originalName: safeFilename,
+        mimeType: legacyMimeType,
+        fileSize: data.length,
+        data,
+      },
+      update: {
+        originalName: safeFilename,
+        fileSize: data.length,
+        data,
+      },
+    });
+  } catch (error) {
+    if (error.code !== "ENOENT") console.warn("Unable to migrate legacy document:", error.message);
+    return null;
+  }
+}
+
+function sendStudentDocument(res, document) {
+  res.setHeader("Content-Type", document.mimeType || "application/octet-stream");
+  res.setHeader("Content-Length", String(document.fileSize || document.data.length));
+  res.setHeader("Cache-Control", "private, no-store");
+  return res.send(Buffer.from(document.data));
+}
+
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -122,7 +201,7 @@ async function registerStudent(req, res) {
         });
       }
 
-      return tx.student.create({
+      const createdStudent = await tx.student.create({
         data: {
           studentName,
           parentPhone,
@@ -135,7 +214,7 @@ async function registerStudent(req, res) {
           liveAccessEnabled: false,
           mathNote: "",
           physicsNote: "",
-          cardPhotoUrl: uploadedCardFile?.filename || null,
+          cardPhotoUrl: uploadedCardFile ? documentReference(DOCUMENT_KINDS.CARD) : null,
           paymentReceiptUrl: null,
           paymentReceiptPending: false,
           paymentReceiptSubmittedAt: null,
@@ -143,6 +222,16 @@ async function registerStudent(req, res) {
           cardReuploadRequested: false,
         },
       });
+
+      if (uploadedCardFile) {
+        await upsertStudentDocument(tx, {
+          studentId: createdStudent.id,
+          kind: DOCUMENT_KINDS.CARD,
+          uploadedFile: uploadedCardFile,
+        });
+      }
+
+      return createdStudent;
     });
 
     return res.status(201).json({ status: "success", data: student });
@@ -189,21 +278,23 @@ async function getStudentCard(req, res) {
   try {
     const student = await prisma.student.findUnique({
       where: { id: req.params.id },
-      select: { cardPhotoUrl: true },
+      select: { id: true, cardPhotoUrl: true },
     });
 
     if (!student?.cardPhotoUrl) {
       return res.status(404).json({ error: "لا توجد صورة بطاقة لهذا الطالب." });
     }
 
-    const filename = path.basename(student.cardPhotoUrl);
-    const filePath = path.join(uploadDirectory, filename);
-
-    if (!fs.existsSync(filePath)) {
+    const document = await getStudentDocument(
+      student.id,
+      DOCUMENT_KINDS.CARD,
+      student.cardPhotoUrl.startsWith("db:") ? null : student.cardPhotoUrl
+    );
+    if (!document) {
       return res.status(404).json({ error: "صورة البطاقة غير متاحة حالياً." });
     }
 
-    return res.sendFile(filePath);
+    return sendStudentDocument(res, document);
   } catch (error) {
     console.error("Student card lookup failed:", error);
     return res.status(500).json({ error: "تعذر عرض صورة البطاقة حالياً." });
@@ -408,16 +499,27 @@ async function replaceStudentCard(req, res) {
       return res.status(400).json({ error: "لم يطلب الأستاذ إعادة رفع بطاقة هذا الطالب." });
     }
 
-    const updatedStudent = await prisma.student.update({
-      where: { id: student.id },
-      data: {
-        cardPhotoUrl: uploadedCardFile.filename,
-        // الصورة البديلة تحتاج مراجعة الأستاذ مثل البطاقة الأولى.
-        accountActive: false,
-        cardReuploadRequested: false,
-      },
+    const updatedStudent = await prisma.$transaction(async (tx) => {
+      const data = await readUploadedFileBuffer(uploadedCardFile);
+      const updated = await tx.student.update({
+        where: { id: student.id },
+        data: {
+          cardPhotoUrl: documentReference(DOCUMENT_KINDS.CARD),
+          // الصورة البديلة تحتاج مراجعة الأستاذ مثل البطاقة الأولى.
+          accountActive: false,
+          cardReuploadRequested: false,
+        },
+      });
+      await upsertStudentDocument(tx, {
+        studentId: student.id,
+        kind: DOCUMENT_KINDS.CARD,
+        uploadedFile: uploadedCardFile,
+        buffer: data,
+      });
+      return updated;
     });
-    await removeUploadedCard(student.cardPhotoUrl);
+    await removeUploadedCard(student.cardPhotoUrl?.startsWith("db:") ? null : student.cardPhotoUrl);
+    await removeUploadedCard(uploadedCardFile.filename);
     notifyAccountStatus(req, updatedStudent);
 
     return res.status(200).json({
@@ -484,11 +586,25 @@ async function submitPaymentReceipt(req, res) {
       updateData.amountDue = subscriptionType === "BOTH" ? 2000 : 1000;
     }
 
-    const updatedStudent = await prisma.student.update({
-      where: { id: student.id },
-      data: updateData,
+    const updatedStudent = await prisma.$transaction(async (tx) => {
+      const data = await readUploadedFileBuffer(uploadedReceiptFile);
+      const updated = await tx.student.update({
+        where: { id: student.id },
+        data: {
+          ...updateData,
+          paymentReceiptUrl: documentReference(DOCUMENT_KINDS.PAYMENT_RECEIPT),
+        },
+      });
+      await upsertStudentDocument(tx, {
+        studentId: student.id,
+        kind: DOCUMENT_KINDS.PAYMENT_RECEIPT,
+        uploadedFile: uploadedReceiptFile,
+        buffer: data,
+      });
+      return updated;
     });
-    await removeUploadedCard(student.paymentReceiptUrl);
+    await removeUploadedCard(student.paymentReceiptUrl?.startsWith("db:") ? null : student.paymentReceiptUrl);
+    await removeUploadedCard(uploadedReceiptFile.filename);
     notifyPaymentReceiptStatus(req, updatedStudent);
 
     return res.status(200).json({
@@ -512,20 +628,23 @@ async function getStudentPaymentReceipt(req, res) {
   try {
     const student = await prisma.student.findUnique({
       where: { id: req.params.id },
-      select: { paymentReceiptUrl: true },
+      select: { id: true, paymentReceiptUrl: true },
     });
 
     if (!student?.paymentReceiptUrl) {
       return res.status(404).json({ error: "لا يوجد وصل دفع مرفوع لهذا الطالب." });
     }
 
-    const filename = path.basename(student.paymentReceiptUrl);
-    const filePath = path.join(uploadDirectory, filename);
-    if (!fs.existsSync(filePath)) {
+    const document = await getStudentDocument(
+      student.id,
+      DOCUMENT_KINDS.PAYMENT_RECEIPT,
+      student.paymentReceiptUrl.startsWith("db:") ? null : student.paymentReceiptUrl
+    );
+    if (!document) {
       return res.status(404).json({ error: "وصل الدفع غير متاح حالياً." });
     }
 
-    return res.sendFile(filePath);
+    return sendStudentDocument(res, document);
   } catch (error) {
     console.error("Payment receipt lookup failed:", error);
     return res.status(500).json({ error: "تعذر عرض وصل الدفع حالياً." });

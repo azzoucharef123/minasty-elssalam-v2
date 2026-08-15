@@ -113,6 +113,8 @@ let googlePickerLoadPromise = null;
 let googleDriveListPromise = null;
 let googlePickerAccessToken = null;
 let googlePickerTokenExpiresAt = 0;
+let googleDriveUploadAccessToken = null;
+let googleDriveUploadTokenExpiresAt = 0;
 let cardPreviewObjectUrl = null;
 let cardPreviewRequestId = 0;
 let cardPreviewPreviousFocus = null;
@@ -245,6 +247,7 @@ const GOOGLE_DRIVE_FILE_SCOPE = [
   "https://www.googleapis.com/auth/drive.file",
   "https://www.googleapis.com/auth/drive.metadata.readonly",
 ].join(" ");
+const GOOGLE_DRIVE_UPLOAD_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const VIDEO_MIME_TYPES = "video/mp4,video/webm,video/quicktime,video/x-matroska,video/avi,video/mpeg";
 const GOOGLE_DRIVE_UPLOAD_CHUNK_SIZE = 8 * 1024 * 1024;
 
@@ -337,6 +340,33 @@ async function requestGooglePickerToken() {
       },
     });
     tokenClient.requestAccessToken({ prompt: "" });
+  });
+}
+
+async function requestGoogleDriveUploadToken() {
+  if (googleDriveUploadAccessToken && Date.now() < googleDriveUploadTokenExpiresAt - 60_000) {
+    return googleDriveUploadAccessToken;
+  }
+  await ensureGooglePickerReady();
+
+  return new Promise((resolve, reject) => {
+    const tokenClient = window.google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_DRIVE_CLIENT_ID,
+      scope: GOOGLE_DRIVE_UPLOAD_SCOPE,
+      callback: (response) => {
+        if (response?.error || !response?.access_token) {
+          reject(new Error(response?.error_description || "لم يتم منح صلاحية رفع المستند إلى Google Drive."));
+          return;
+        }
+        googleDriveUploadAccessToken = response.access_token;
+        googleDriveUploadTokenExpiresAt = Date.now() + (Number(response.expires_in) || 3_600) * 1_000;
+        resolve(googleDriveUploadAccessToken);
+      },
+      error_callback: (error) => {
+        reject(new Error(error?.message || "تم إغلاق نافذة صلاحية Google Drive."));
+      },
+    });
+    tokenClient.requestAccessToken({ prompt: "consent" });
   });
 }
 
@@ -437,6 +467,7 @@ async function uploadStudentBlobToDrive({ student, kind, blob, accessToken }) {
     const response = await fetch(sessionUrl, {
       method: "PUT",
       headers: {
+        Authorization: `Bearer ${accessToken}`,
         "Content-Type": mimeType,
         "Content-Range": `bytes ${offset}-${end - 1}/${blob.size}`,
       },
@@ -486,7 +517,7 @@ async function saveStudentDocumentToDrive(studentId, kind, button) {
     if (!blob.type.startsWith("image/")) throw new Error("الملف المرفوع ليس صورة صالحة.");
 
     showToast("جارٍ فتح صلاحية Google Drive…");
-    const accessToken = await requestGooglePickerToken();
+    const accessToken = await requestGoogleDriveUploadToken();
     await uploadStudentBlobToDrive({ student, kind, blob, accessToken });
     showToast(`تم حفظ ${kind === "card" ? "بطاقة الطالب" : "وصل الدفع"} في Google Drive.`);
   } catch (error) {

@@ -31,10 +31,28 @@ model Student {
   attendances   Attendance[]
   questionImages LiveQuestionImage[]
   messages      Message[]
+  documents     StudentDocument[]
 
   @@index([level, createdAt(sort: Desc)])
   @@index([parentPhone])
   @@unique([studentName, parentPhone, level])
+}
+
+model StudentDocument {
+  id           String   @id @default(uuid()) @db.Uuid
+  studentId    String   @db.Uuid
+  kind         String
+  originalName String
+  mimeType     String
+  fileSize     Int
+  data         Bytes
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, kind])
+  @@index([studentId, createdAt(sort: Desc)])
 }
 
 model Message {
