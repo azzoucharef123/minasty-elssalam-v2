@@ -138,3 +138,86 @@
 .parent-schedule-join:not(:disabled):hover { color: #fff; background: var(--primary-blue); }
 .parent-schedule-join:disabled { color: #9ca3af; border-color: #e5e7eb; background: #f3f4f6; cursor: not-allowed; }
 @media (max-width: 520px) { .parent-schedule-item { grid-template-columns: 2rem minmax(0,1fr); } .parent-schedule-join { grid-column: 2; justify-self: start; } }
+
+/* Active student context and quick switching */
+.active-student-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 1rem;
+  padding: 0.72rem 0.9rem;
+  color: #1e3a8a;
+  background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
+  border: 1px solid #bfdbfe;
+  border-radius: 0.9rem;
+  box-shadow: 0 7px 18px rgba(37, 99, 235, 0.07);
+}
+
+.active-student-bar[hidden] { display: none; }
+
+.active-student-copy {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.active-student-label {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.active-student-copy strong {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.change-student-button {
+  flex: 0 0 auto;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.72rem;
+  color: #1d4ed8;
+  background: #ffffff;
+  border: 1px solid #93c5fd;
+  border-radius: 0.62rem;
+  font: inherit;
+  font-size: 0.73rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.2s ease, color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.change-student-button:hover {
+  color: #1e40af;
+  background: #dbeafe;
+  box-shadow: 0 6px 13px rgba(37, 99, 235, 0.12);
+  transform: translateY(-0.08rem);
+}
+
+.change-student-button:active { transform: scale(0.97); }
+
+.change-student-button:focus-visible,
+.student-switcher-card:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.32);
+  outline-offset: 3px;
+}
+
+@media (max-width: 42rem) {
+  .active-student-bar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .change-student-button { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .change-student-button { transition: none; }
+  .change-student-button:hover { transform: none; }
+}

@@ -47,6 +47,9 @@ const elements = {
   attendanceCount: document.getElementById("attendance-count"),
   studentSwitcher: document.getElementById("student-switcher"),
   studentSwitcherList: document.getElementById("student-switcher-list"),
+  activeStudentBar: document.getElementById("active-student-bar"),
+  activeStudentName: document.getElementById("active-student-name"),
+  changeStudentButton: document.getElementById("change-student-button"),
   paymentAccessModal: document.getElementById("payment-access-modal"),
   paymentAccessTitle: document.getElementById("payment-access-title"),
   paymentAccessHeadMessage: document.getElementById("payment-access-head-message"),
@@ -359,6 +362,28 @@ async function loadParentSchedule(level) {
   }
 }
 
+function openStudentPicker() {
+  if (currentStudents.length < 2 || !elements.studentSwitcher) {
+    return;
+  }
+
+  elements.studentSwitcher.hidden = false;
+  if (elements.dashboardContent) elements.dashboardContent.hidden = true;
+  if (elements.activeStudentBar) elements.activeStudentBar.hidden = true;
+  renderStudentSwitcher(currentStudents);
+  elements.studentSwitcher.querySelector(".student-switcher-card")?.focus();
+}
+
+function updateActiveStudentBar(student) {
+  const hasMultipleStudents = currentStudents.length > 1;
+  if (elements.activeStudentBar) {
+    elements.activeStudentBar.hidden = !hasMultipleStudents;
+  }
+  if (elements.activeStudentName) {
+    elements.activeStudentName.textContent = student?.studentName || "—";
+  }
+}
+
 function selectStudent(studentId) {
   const student = currentStudents.find((item) => item.id === studentId);
   if (!student) {
@@ -366,8 +391,11 @@ function selectStudent(studentId) {
   }
 
   currentStudent = student;
-  // Never carry an absence announcement from a previously selected level while
-  // this student's own schedule is loading.
+  // Clear level-specific state before loading the selected student's data so
+  // the previous student's schedule or live class cannot flash in the UI.
+  parentScheduledClasses = [];
+  activeLiveClassType = null;
+  setLiveClassVisible(false);
   parentTeacherAbsent = false;
   teacherAbsenceLevel = null;
   renderParentSchedule();
@@ -375,6 +403,8 @@ function selectStudent(studentId) {
   sessionStorage.setItem("parentStudents", JSON.stringify(currentStudents));
   persistStudentSession(student);
   renderStudentSwitcher(currentStudents);
+  updateActiveStudentBar(student);
+  if (elements.studentSwitcher) elements.studentSwitcher.hidden = true;
   renderStudent(student);
   elements.dashboardContent.hidden = false;
   clearError();
@@ -794,9 +824,18 @@ async function loadDashboard({ backgroundRefresh = false } = {}) {
     sessionStorage.setItem("parentStudents", JSON.stringify(currentStudents));
 
     const storedStudentId = sessionStorage.getItem("selectedStudentId");
-    const selectedStudent =
-      currentStudents.find((student) => student.id === storedStudentId) || currentStudents[0];
-    selectStudent(selectedStudent.id);
+    const storedStudent = currentStudents.find((student) => student.id === storedStudentId);
+    if (currentStudents.length > 1 && !storedStudent) {
+      currentStudent = null;
+      updateActiveStudentBar(null);
+      renderStudentSwitcher(currentStudents);
+      if (elements.studentSwitcher) elements.studentSwitcher.hidden = false;
+      elements.dashboardContent.hidden = true;
+      clearError();
+      return;
+    }
+
+    selectStudent((storedStudent || currentStudents[0]).id);
   } catch (error) {
     if (!/انتهت الجلسة/.test(error.message)) {
       console.error("Unable to load parent dashboard:", error);
@@ -1198,6 +1237,7 @@ if (!getParentToken()) {
   });
   elements.logoutButton?.addEventListener("click", logout);
   elements.parentSidebarLogout?.addEventListener("click", logout);
+  elements.changeStudentButton?.addEventListener("click", openStudentPicker);
   elements.parentSidebarToggle?.addEventListener("click", () => setParentSidebarOpen(!elements.parentSidebar?.classList.contains("is-open")));
   elements.parentSidebarClose?.addEventListener("click", () => setParentSidebarOpen(false));
   elements.parentSidebarBackdrop?.addEventListener("click", () => setParentSidebarOpen(false));
