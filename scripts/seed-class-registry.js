@@ -2,57 +2,121 @@
 
 const prisma = require("../lib/prisma");
 
-// These are the platform's canonical database values. The UI displays the
-// full Arabic labels: السنة الأولى متوسط ... السنة الرابعة متوسط.
-const RULES = [
-  { level: "السنة الأولى", subject: "PHYSICS", weekday: 0, hour: 18 },
-  { level: "السنة الأولى", subject: "MATH", weekday: 4, hour: 18 },
-  { level: "السنة الثانية", subject: "PHYSICS", weekday: 1, hour: 18 },
-  { level: "السنة الثانية", subject: "MATH", weekday: 5, hour: 18 },
-  { level: "السنة الثالثة", subject: "PHYSICS", weekday: 2, hour: 18 },
-  { level: "السنة الثالثة", subject: "MATH", weekday: 6, hour: 10 },
-  { level: "السنة الرابعة", subject: "PHYSICS", weekday: 3, hour: 18 },
-  { level: "السنة الرابعة", subject: "MATH", weekday: 6, hour: 18 },
+// The database keeps the platform's canonical values (the UI displays the
+// full Arabic level labels such as السنة الأولى متوسط).
+const EXPLICIT_SESSIONS = [
+  {
+    level: "السنة الأولى",
+    subject: "PHYSICS",
+    hour: 18,
+    dates: [
+      "2026-09-06", "2026-09-13", "2026-09-20", "2026-09-27",
+      "2026-10-04", "2026-10-11", "2026-10-18", "2026-10-25",
+      "2026-11-01", "2026-11-08", "2026-11-15", "2026-11-22", "2026-11-29",
+    ],
+  },
+  {
+    level: "السنة الأولى",
+    subject: "MATH",
+    hour: 18,
+    dates: [
+      "2026-09-03", "2026-09-10", "2026-09-17", "2026-09-24",
+      "2026-10-01", "2026-10-08", "2026-10-15", "2026-10-22", "2026-10-29",
+      "2026-11-05", "2026-11-12", "2026-11-19", "2026-11-26",
+    ],
+  },
+  {
+    level: "السنة الثانية",
+    subject: "PHYSICS",
+    hour: 18,
+    dates: [
+      "2026-09-07", "2026-09-14", "2026-09-21", "2026-09-28",
+      "2026-10-05", "2026-10-12", "2026-10-19", "2026-10-26",
+      "2026-11-02", "2026-11-09", "2026-11-16", "2026-11-23", "2026-11-30",
+    ],
+  },
+  {
+    level: "السنة الثانية",
+    subject: "MATH",
+    hour: 18,
+    dates: [
+      "2026-09-04", "2026-09-11", "2026-09-18", "2026-09-25",
+      "2026-10-02", "2026-10-09", "2026-10-16", "2026-10-23", "2026-10-30",
+      "2026-11-06", "2026-11-13", "2026-11-20", "2026-11-27",
+    ],
+  },
+  {
+    level: "السنة الثالثة",
+    subject: "PHYSICS",
+    hour: 18,
+    dates: [
+      "2026-09-01", "2026-09-08", "2026-09-15", "2026-09-22", "2026-09-29",
+      "2026-10-06", "2026-10-13", "2026-10-20", "2026-10-27",
+      "2026-11-03", "2026-11-10", "2026-11-17", "2026-11-24",
+    ],
+  },
+  {
+    level: "السنة الثالثة",
+    subject: "MATH",
+    hour: 10,
+    dates: [
+      "2026-09-05", "2026-09-12", "2026-09-19", "2026-09-26",
+      "2026-10-03", "2026-10-10", "2026-10-17", "2026-10-24", "2026-10-31",
+      "2026-11-07", "2026-11-14", "2026-11-21", "2026-11-28",
+    ],
+  },
+  {
+    level: "السنة الرابعة",
+    subject: "PHYSICS",
+    hour: 18,
+    dates: [
+      "2026-09-02", "2026-09-09", "2026-09-16", "2026-09-23", "2026-09-30",
+      "2026-10-07", "2026-10-14", "2026-10-21", "2026-10-28",
+      "2026-11-04", "2026-11-11", "2026-11-18", "2026-11-25",
+    ],
+  },
+  {
+    level: "السنة الرابعة",
+    subject: "MATH",
+    hour: 18,
+    dates: [
+      "2026-09-05", "2026-09-12", "2026-09-19", "2026-09-26",
+      "2026-10-03", "2026-10-10", "2026-10-17", "2026-10-24", "2026-10-31",
+      "2026-11-07", "2026-11-14", "2026-11-21", "2026-11-28",
+    ],
+  },
 ];
 
-const START_DATE = new Date(Date.UTC(2026, 8, 1));
-const END_DATE = new Date(Date.UTC(2026, 10, 30));
+const MONTH_NAMES = Object.freeze({ "09": "سبتمبر", "10": "أكتوبر", "11": "نوفمبر" });
+
+function toAlgeriaDate(dateString, hour) {
+  // Algeria is UTC+1 for the requested months. The stored UTC value therefore
+  // represents the exact local class time in Africa/Algiers.
+  return new Date(`${dateString}T${String(hour).padStart(2, "0")}:00:00+01:00`);
+}
 
 function monthKey(date) {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-function monthName(monthIndex) {
-  return { 8: "سبتمبر", 9: "أكتوبر", 10: "نوفمبر" }[monthIndex] || "";
-}
-
-function classDateForDay(day, hour) {
-  const date = new Date(day);
-  // Algeria is UTC+1 during September-November 2026.
-  date.setUTCHours(hour - 1, 0, 0, 0);
-  return date;
+function monthNameFromDateString(dateString) {
+  return MONTH_NAMES[dateString.slice(5, 7)] || "";
 }
 
 function buildExpectedSessions() {
-  const sessions = [];
-  for (let day = new Date(START_DATE); day <= END_DATE; day.setUTCDate(day.getUTCDate() + 1)) {
-    const weekday = day.getUTCDay();
-    for (const rule of RULES) {
-      if (rule.weekday !== weekday) continue;
-      const scheduledAt = classDateForDay(day, rule.hour);
-      sessions.push({
-        level: rule.level,
-        subject: rule.subject,
-        scheduledAt,
-        monthKey: monthKey(scheduledAt),
-        monthName: monthName(scheduledAt.getUTCMonth()),
-        status: "PENDING",
-        driveLink: null,
-        notes: null,
-      });
-    }
-  }
-  return sessions;
+  return EXPLICIT_SESSIONS.flatMap((group) => group.dates.map((dateString) => {
+    const scheduledAt = toAlgeriaDate(dateString, group.hour);
+    return {
+      level: group.level,
+      subject: group.subject,
+      scheduledAt,
+      monthKey: monthKey(scheduledAt),
+      monthName: monthNameFromDateString(dateString),
+      status: "PENDING",
+      driveLink: null,
+      notes: null,
+    };
+  }));
 }
 
 async function backfillMonthKeys() {
@@ -110,12 +174,18 @@ async function seedClassRegistry() {
 if (require.main === module) {
   if (process.argv.includes("--dry-run")) {
     const expected = buildExpectedSessions();
-    console.log(JSON.stringify({ expected: expected.length, first: expected[0], last: expected.at(-1) }, null, 2));
+    console.log(JSON.stringify({
+      expected: expected.length,
+      byLevel: expected.reduce((counts, item) => {
+        counts[item.level] = (counts[item.level] || 0) + 1;
+        return counts;
+      }, {}),
+      first: expected[0],
+      last: expected.at(-1),
+    }, null, 2));
   } else {
     seedClassRegistry()
-      .then((result) => {
-        console.log(JSON.stringify(result, null, 2));
-      })
+      .then((result) => console.log(JSON.stringify(result, null, 2)))
       .catch((error) => {
         console.error(error);
         process.exitCode = 1;
