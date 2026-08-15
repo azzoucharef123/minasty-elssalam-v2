@@ -6,11 +6,12 @@
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
-    "start": "npx prisma db push --skip-generate && node server.js",
+    "start": "npx prisma db push --skip-generate && node scripts/seed-class-registry.js && node server.js",
     "dev": "nodemon server.js",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
+    "seed:class-registry": "node scripts/seed-class-registry.js",
     "check": "node scripts/check-syntax.js",
     "test": "node --test test/*.test.js"
   },

@@ -13,6 +13,9 @@ const LEVELS = new Set([
 const UNIVERSITY_LEVEL = "طالب جامعي";
 const SECONDARY_TYPES = new Set(["MATH", "PHYSICS"]);
 const UNIVERSITY_TYPES = new Set(["PAID", "FREE"]);
+const REGISTRY_STATUSES = new Set(["PENDING", "COMPLETED", "TEACHER_ABSENT"]);
+const MONTH_KEY_PATTERN = /^20\d{2}-(0[1-9]|1[0-2])$/;
+const DRIVE_FILE_ID_PATTERN = /^[A-Za-z0-9_-]{20,200}$/;
 
 function normalizeText(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -35,6 +38,71 @@ function parseScheduledAt(value) {
 
   const scheduledAt = new Date(value);
   return Number.isFinite(scheduledAt.getTime()) ? scheduledAt : null;
+}
+
+function monthKeyFromDate(date) {
+  const value = date instanceof Date ? date : new Date(date);
+  return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function parseMonthKey(value) {
+  const monthKey = normalizeText(value);
+  return MONTH_KEY_PATTERN.test(monthKey) ? monthKey : "";
+}
+
+function extractGoogleDriveFileId(value) {
+  const rawUrl = normalizeText(value);
+  if (!rawUrl) return "";
+  try {
+    const parsed = new URL(rawUrl);
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    if (host !== "drive.google.com" && host !== "docs.google.com") return "";
+    const pathId = parsed.pathname.match(/\/file\/d\/([A-Za-z0-9_-]{20,200})/)?.[1] || "";
+    const queryId = parsed.searchParams.get("id") || "";
+    const fileId = pathId || queryId;
+    return DRIVE_FILE_ID_PATTERN.test(fileId) ? fileId : "";
+  } catch {
+    return "";
+  }
+}
+
+function getRegistryAccess(student, subject) {
+  if (!student) return { canWatch: false, reason: "NO_STUDENT" };
+  if (student.level === UNIVERSITY_LEVEL) {
+    const paid = student.paymentStage === "PAID" || student.paymentStatus === true;
+    return { canWatch: subject === "PAID" ? paid : true, reason: paid ? "PAID" : "FREE" };
+  }
+  const paid = (student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID")) !== "UNPAID";
+  const enrolled = subject === "MATH" ? student.mathEnrollment === true : subject === "PHYSICS" && student.physicsEnrollment === true;
+  return { canWatch: paid && enrolled, reason: !paid ? "PAYMENT_REQUIRED" : enrolled ? "AUTHORIZED" : "SUBJECT_NOT_ENROLLED" };
+}
+
+function serializeRegistryClass(item, { teacher = false, student = null } = {}) {
+  const access = teacher ? { canWatch: true, reason: "TEACHER" } : getRegistryAccess(student, item.subject);
+  const fileId = extractGoogleDriveFileId(item.driveLink);
+  const canRevealVideo = item.status === "COMPLETED" && access.canWatch && Boolean(fileId);
+  return {
+    id: item.id,
+    level: item.level,
+    subject: item.subject,
+    scheduledAt: item.scheduledAt,
+    monthKey: item.monthKey || monthKeyFromDate(item.scheduledAt),
+    status: item.status || "PENDING",
+    notes: item.notes || null,
+    canWatch: canRevealVideo,
+    accessReason: access.reason,
+    driveLink: teacher ? item.driveLink : canRevealVideo ? item.driveLink : null,
+    previewUrl: canRevealVideo ? `https://drive.google.com/file/d/${fileId}/preview` : null,
+  };
+}
+
+async function getParentRegistryStudent(req, level) {
+  const studentId = normalizeText(req.query?.studentId);
+  if (req.user?.role !== "parent" || !req.user.phone || !studentId) return null;
+  return prisma.student.findFirst({
+    where: { id: studentId, parentPhone: req.user.phone, level },
+    select: { id: true, level: true, paymentStage: true, paymentStatus: true, mathEnrollment: true, physicsEnrollment: true },
+  });
 }
 
 async function notifyScheduleChange(req, level, action = "SCHEDULE_UPDATED") {
@@ -108,7 +176,7 @@ async function createScheduledClass(req, res) {
     }
 
     const scheduledClass = await prisma.scheduledClass.create({
-      data: { level, subject, scheduledAt },
+      data: { level, subject, scheduledAt, monthKey: monthKeyFromDate(scheduledAt), status: "PENDING" },
     });
     void notifyScheduleChange(req, level, "SCHEDULE_CREATED");
 
@@ -149,7 +217,7 @@ async function updateScheduledClass(req, res) {
 
     const scheduledClass = await prisma.scheduledClass.update({
       where: { id: existing.id },
-      data: { level, subject, scheduledAt },
+      data: { level, subject, scheduledAt, monthKey: monthKeyFromDate(scheduledAt) },
     });
     void notifyScheduleChange(req, existing.level, "SCHEDULE_UPDATED");
     if (existing.level !== level) {
@@ -183,6 +251,65 @@ async function deleteScheduledClass(req, res) {
   } catch (error) {
     console.error("Unable to delete scheduled class:", error);
     return res.status(500).json({ error: "تعذر حذف الحصة حالياً." });
+  }
+}
+
+async function getClassRegistry(req, res) {
+  try {
+    const level = normalizeText(req.params.level);
+    const monthKey = parseMonthKey(req.query?.month);
+    const subject = normalizeText(req.query?.subject).toUpperCase();
+    if (!isValidLevel(level)) return res.status(400).json({ error: "المستوى الدراسي غير صالح." });
+    if (subject && !isValidClassType(level, subject)) return res.status(400).json({ error: "المادة أو نوع الاشتراك غير صالح." });
+    if (req.user?.role !== "teacher" && req.user?.role !== "parent") return res.status(403).json({ error: "لا تملك صلاحية الاطلاع على سجل الحصص." });
+
+    const student = req.user.role === "parent" ? await getParentRegistryStudent(req, level) : null;
+    if (req.user.role === "parent" && !student) return res.status(403).json({ error: "اختر تلميذًا مرتبطًا بحساب الولي لهذا المستوى." });
+
+    const classes = await prisma.scheduledClass.findMany({
+      where: { level, ...(monthKey ? { monthKey } : {}), ...(subject ? { subject } : {}) },
+      orderBy: { scheduledAt: "asc" },
+    });
+    return res.status(200).json({
+      status: "success",
+      level,
+      month: monthKey || null,
+      subject: subject || null,
+      data: classes.map((item) => serializeRegistryClass(item, { teacher: req.user.role === "teacher", student })),
+    });
+  } catch (error) {
+    console.error("Unable to load class registry:", error);
+    return res.status(500).json({ error: "تعذر تحميل سجل الحصص حالياً." });
+  }
+}
+
+async function updateClassRegistry(req, res) {
+  try {
+    const status = normalizeText(req.body?.status).toUpperCase();
+    const existing = await prisma.scheduledClass.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: "الحصة غير موجودة في السجل." });
+    if (!REGISTRY_STATUSES.has(status)) return res.status(400).json({ error: "حالة الحصة غير صالحة." });
+
+    const notes = normalizeText(req.body?.notes).slice(0, 2000);
+    const driveFileId = extractGoogleDriveFileId(req.body?.driveLink);
+    if (status === "COMPLETED" && !driveFileId) return res.status(400).json({ error: "أدخل رابط Google Drive صحيحًا للحصة المسجلة." });
+    if (status === "TEACHER_ABSENT" && !notes) return res.status(400).json({ error: "اكتب سبب غياب الأستاذ أو ملاحظة الحصة." });
+
+    const updated = await prisma.scheduledClass.update({
+      where: { id: existing.id },
+      data: {
+        status,
+        driveLink: status === "COMPLETED" ? `https://drive.google.com/file/d/${driveFileId}/view` : null,
+        notes: status === "PENDING" ? null : notes || null,
+      },
+    });
+    const io = req.app.get("io");
+    io?.to(`${existing.level}_lobby`).emit("class_registry_updated", { level: existing.level, classId: existing.id });
+    void logAudit(req, { action: `CLASS_REGISTRY_${status}`, entityType: "ScheduledClass", entityId: existing.id, metadata: { level: existing.level, subject: existing.subject } });
+    return res.status(200).json({ status: "success", message: "تم تحديث سجل الحصة.", data: serializeRegistryClass(updated, { teacher: true }) });
+  } catch (error) {
+    console.error("Unable to update class registry:", error);
+    return res.status(500).json({ error: "تعذر تحديث سجل الحصة حالياً." });
   }
 }
 
@@ -234,6 +361,8 @@ async function updateTeacherAbsence(req, res) {
 
 module.exports = {
   getLevelSchedule,
+  getClassRegistry,
+  updateClassRegistry,
   getCalendarIcs,
   createScheduledClass,
   updateScheduledClass,

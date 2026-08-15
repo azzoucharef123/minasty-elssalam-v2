@@ -1263,6 +1263,13 @@
           <div id="lesson-video-list" class="lesson-video-list" aria-live="polite"></div>
         </section>
 
+        <section id="class-registry-student" class="class-registry-student" aria-labelledby="class-registry-student-title">
+          <header class="class-registry-student-head"><div><span>متابعة الحصص</span><h2 id="class-registry-student-title">سجل الحصص والدروس المسجلة</h2><p>اختر الشهر ثم المادة لمتابعة الحصص المنجزة والمواد المتاحة لك.</p></div></header>
+          <div class="class-registry-months" role="tablist" aria-label="اختيار شهر السجل"><button type="button" class="registry-month-tab is-active" data-registry-month="2026-09">سبتمبر 2026</button><button type="button" class="registry-month-tab" data-registry-month="2026-10">أكتوبر 2026</button><button type="button" class="registry-month-tab" data-registry-month="2026-11">نوفمبر 2026</button></div>
+          <div class="class-registry-subjects" role="tablist" aria-label="اختيار المادة"><button type="button" class="registry-subject-tab is-active" data-registry-subject="MATH">⌐ الرياضيات</button><button type="button" class="registry-subject-tab" data-registry-subject="PHYSICS">ϟ الفيزياء</button></div>
+          <div id="parent-class-registry-list" class="class-registry-list" aria-live="polite"></div>
+        </section>
+
         <section id="parent-payment-confirmed" class="parent-payment-confirmed" hidden aria-live="polite">لقد تم تأكيد الدفع. أصبح حساب الطالب مدفوعًا ويمكنه الدخول إلى جميع الحصص.</section>
 
         <section id="university-payment-upgrade" class="university-payment-upgrade" hidden aria-live="polite">
@@ -1300,6 +1307,7 @@
       </section>
         </main>
     </div>
+  <div id="registry-upsell-modal" class="registry-upsell-modal" role="dialog" aria-modal="true" aria-labelledby="registry-upsell-title" hidden><section class="registry-upsell-dialog"><button id="registry-upsell-close" class="lesson-video-close" type="button" aria-label="إغلاق">×</button><span class="registry-upsell-icon" aria-hidden="true">🔒</span><p class="registry-upsell-kicker">محتوى يحتاج إلى ترقية</p><h2 id="registry-upsell-title">عذرًا، أنت غير مؤهل لمشاهدة هذا المحتوى.</h2><p>حسابك الحالي غير مفعّل لهذه المادة. لمشاهدة دروس هذه المادة المسجلة والمباشرة، يرجى الاتصال بالأستاذ لترقية حسابك.</p><a class="registry-upsell-call" href="tel:0556960950">تواصل مع الأستاذ</a></section></div>
   <div id="lesson-video-modal" class="lesson-video-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-video-modal-title" hidden>
     <section class="lesson-video-dialog">
       <header class="lesson-video-modal-head">
@@ -1355,5 +1363,6 @@
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
     <script src="./js/parent-dashboard.js?v=free-class-access-1"></script>
+    <script src="./js/class-registry-parent.js?v=registry-1"></script>
   </body>
 </html>

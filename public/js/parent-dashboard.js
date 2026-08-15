@@ -391,6 +391,7 @@ function selectStudent(studentId) {
   }
 
   currentStudent = student;
+  window.dispatchEvent(new CustomEvent("active-student-changed", { detail: student }));
   // Clear level-specific state before loading the selected student's data so
   // the previous student's schedule or live class cannot flash in the UI.
   parentScheduledClasses = [];

@@ -1577,3 +1577,11 @@ body.parent-login-modal-open {
 @media (prefers-reduced-motion: reduce) {
   .teacher-nav-link, .table-action-group button, .teacher-sidebar { transition: none; }
 }
+
+/* Teacher class registry */
+.class-registry-manager { margin-top: 1rem; padding: 1.1rem; border: 1px solid #c7d2fe; border-radius: 1rem; background: linear-gradient(145deg,#fff,#eef2ff); box-shadow: 0 8px 22px rgba(30,64,175,.07); }
+.class-registry-head { padding-bottom: .8rem; border-bottom: 1px solid #e0e7ff; }
+.class-registry-filters { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .7rem; margin-top: .85rem; }
+.class-registry-filters label { display: grid; gap: .3rem; color: #475569; font-size: .7rem; font-weight: 800; }
+.class-registry-filters select { min-height: 2.55rem; padding: .45rem .6rem; color: #0f172a; background: #fff; border: 1px solid #c7d2fe; border-radius: .6rem; font: inherit; font-size: .75rem; }
+@media (max-width: 520px) { .class-registry-filters { grid-template-columns: 1fr; } }
