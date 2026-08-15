@@ -1006,6 +1006,7 @@ async function uploadReplacementCard() {
 }
 
 function logout() {
+  void window.revokeServerSession?.();
   clearParentSession();
   window.location.replace("./parent-login.html");
 }

@@ -1,28 +1,10 @@
-"use strict";
-
-const jwt = require("jsonwebtoken");
-
-const JWT_ISSUER = "online-tutoring-platform";
-const JWT_AUDIENCE = "online-tutoring-platform-web";
-
-function getJwtSecret() {
-  const secret = process.env.JWT_SECRET;
-
-  if (!secret || secret.length < 32) {
-    throw new Error("JWT_SECRET is missing or too short.");
-  }
-
-  return secret;
-}
+const { verifySessionToken } = require("../utils/sessionAuth");
 
 /**
- * Extracts and verifies a JWT from Authorization: Bearer <token>.
- *
- * A 401 response means the credential was not supplied or malformed. A 403
- * response means a supplied credential failed signature, validity, issuer,
- * audience, or expiration checks.
+ * Extracts and verifies a JWT from Authorization: Bearer <token> and, for
+ * session-aware tokens, checks that the server-side session is still active.
  */
-function verifyToken(req, res, next) {
+async function verifyToken(req, res, next) {
   const authorizationHeader = req.get("authorization") || "";
   const [scheme, token] = authorizationHeader.split(/\s+/);
 
@@ -33,52 +15,32 @@ function verifyToken(req, res, next) {
   }
 
   try {
-    const decodedToken = jwt.verify(token, getJwtSecret(), {
-      algorithms: ["HS256"],
-      issuer: JWT_ISSUER,
-      audience: JWT_AUDIENCE,
-    });
-
-    req.user = decodedToken;
+    req.user = await verifySessionToken(token);
     return next();
   } catch (error) {
-    console.warn("JWT verification rejected:", error.name);
-
+    console.warn("JWT verification rejected:", error.name || error.message);
     return res.status(403).json({
       error: "رمز الدخول غير صالح أو منتهي الصلاحية.",
     });
   }
 }
 
-/** Restricts a route to a JWT that was issued for the teacher role. */
 function isTeacher(req, res, next) {
   if (req.user?.role !== "teacher") {
     return res.status(403).json({
       error: "هذه العملية متاحة للأستاذ فقط.",
     });
   }
-
   return next();
 }
 
-/**
- * Restricts the parent detail endpoint to the specific phone number embedded
- * in the signed parent token. Teachers do not use this endpoint because their
- * roster access is provided through the separately protected level route.
- */
 function isParentAccessingOwnRecord(req, res, next) {
   const requestedPhone = typeof req.params.phone === "string" ? req.params.phone.trim() : "";
-
-  if (
-    req.user?.role !== "parent" ||
-    !req.user.phone ||
-    req.user.phone !== requestedPhone
-  ) {
+  if (req.user?.role !== "parent" || !req.user.phone || req.user.phone !== requestedPhone) {
     return res.status(403).json({
       error: "لا تملك صلاحية الوصول إلى بيانات هذا التلميذ.",
     });
   }
-
   return next();
 }
 

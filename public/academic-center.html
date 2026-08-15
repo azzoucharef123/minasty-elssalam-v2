@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>المركز الأكاديمي | أكاديمية التفوق</title>
+  <link rel="stylesheet" href="./css/style.css" />
+  <link rel="stylesheet" href="./css/academic-center.css" />
+</head>
+<body class="academic-page">
+  <header class="academic-topbar">
+    <a href="./index.html" class="academic-brand">أكاديمية التفوق <small>المركز الأكاديمي</small></a>
+    <nav class="academic-nav" aria-label="التنقل"><a id="back-link" href="./parent-dashboard.html">العودة</a><button id="academic-logout" type="button">تسجيل الخروج</button></nav>
+  </header>
+  <main class="academic-shell">
+    <section class="academic-hero"><div><span class="academic-eyebrow">تعلم قابل للقياس</span><h1 id="academic-title">مركز التقدم الأكاديمي</h1><p id="academic-subtitle">تابع الدرجات والواجبات والدروس والإنجازات في مكان واحد.</p></div><div id="academic-student-picker" class="academic-student-picker" hidden><label for="academic-student-select">التلميذ</label><select id="academic-student-select"></select></div></section>
+    <p id="academic-error" class="academic-error" role="alert" hidden></p>
+    <div id="student-view" class="academic-view">
+      <section class="academic-stats"><article><span>متوسط العلامات</span><strong id="student-average">—</strong></article><article><span>الدروس المكتملة</span><strong id="student-completed">0</strong></article><article><span>الواجبات المسلّمة</span><strong id="student-submissions">0</strong></article><article><span>الشارات</span><strong id="student-badges">0</strong></article></section>
+      <div class="academic-grid">
+        <section class="academic-card"><header><div><span class="card-kicker">مساري</span><h2>خطة التعلم الشخصية</h2></div></header><div id="student-path" class="academic-list"></div></section>
+        <section class="academic-card"><header><div><span class="card-kicker">التقييم</span><h2>علاماتي الأخيرة</h2></div></header><div id="student-grades" class="academic-list"></div></section>
+        <section class="academic-card"><header><div><span class="card-kicker">المهام</span><h2>الواجبات</h2></div></header><div id="student-assignments" class="academic-list"></div></section>
+        <section class="academic-card"><header><div><span class="card-kicker">اختبر نفسك</span><h2>الاختبارات المتاحة</h2></div></header><div id="student-assessments" class="academic-list"></div></section>
+      </div>
+    </div>
+    <div id="teacher-view" class="academic-view" hidden>
+      <section class="academic-stats"><article><span>عدد الطلاب</span><strong id="teacher-students">—</strong></article><article><span>الحضور</span><strong id="teacher-attendance">—</strong></article><article><span>الواجبات المسلمة</span><strong id="teacher-submissions">—</strong></article><article><span>متوسط العلامات</span><strong id="teacher-average">—</strong></article></section>
+      <div class="academic-grid teacher-forms-grid">
+        <section class="academic-card"><header><div><span class="card-kicker">واجب جديد</span><h2>نشر واجب</h2></div></header><form id="assignment-form" class="academic-form"><label>المستوى<select name="level" required><option value="السنة الأولى">السنة الأولى متوسط</option><option value="السنة الثانية">السنة الثانية متوسط</option><option value="السنة الثالثة">السنة الثالثة متوسط</option><option value="السنة الرابعة">السنة الرابعة متوسط</option><option value="طالب جامعي">طالب جامعي</option></select></label><label>المادة<select name="subject" required><option value="MATH">الرياضيات</option><option value="PHYSICS">الفيزياء</option><option value="GENERAL">عام</option></select></label><label>العنوان<input name="title" maxlength="160" required /></label><label>الوصف<textarea name="description" rows="4" required></textarea></label><label>آخر أجل<input name="dueAt" type="datetime-local" /></label><button class="academic-primary" type="submit">نشر الواجب</button></form></section>
+        <section class="academic-card"><header><div><span class="card-kicker">سؤال جديد</span><h2>إضافة إلى بنك الأسئلة</h2></div></header><form id="question-form" class="academic-form"><label>المستوى<select name="level" required><option value="السنة الأولى">السنة الأولى متوسط</option><option value="السنة الثانية">السنة الثانية متوسط</option><option value="السنة الثالثة">السنة الثالثة متوسط</option><option value="السنة الرابعة">السنة الرابعة متوسط</option><option value="طالب جامعي">طالب جامعي</option></select></label><label>المادة<select name="subject" required><option value="MATH">الرياضيات</option><option value="PHYSICS">الفيزياء</option></select></label><label>نص السؤال<textarea name="prompt" rows="4" required></textarea></label><label>الإجابة الصحيحة<input name="answer" placeholder="مثال: A أو 12" /></label><button class="academic-primary" type="submit">حفظ السؤال</button></form></section>
+        <section class="academic-card"><header><div><span class="card-kicker">الرقابة</span><h2>حالة المنصة</h2></div><button id="refresh-analytics" class="academic-secondary" type="button">تحديث</button></header><div id="teacher-health" class="academic-list"></div></section>
+      </div>
+    </div>
+  </main>
+  <script src="./js/session-storage.js"></script>
+  <script src="./js/academic-center.js?v=academic-1"></script>
+</body>
+</html>

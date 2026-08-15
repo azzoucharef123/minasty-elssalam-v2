@@ -53,4 +53,14 @@
     }
     return value;
   };
+
+  window.revokeServerSession = function revokeServerSession() {
+    const token = sessionStorage.getItem("teacherToken") || sessionStorage.getItem("parentToken");
+    if (!token) return Promise.resolve();
+    return fetch("/api/auth/logout", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      keepalive: true,
+    }).catch(() => {});
+  };
 })();

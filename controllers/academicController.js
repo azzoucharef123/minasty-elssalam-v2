@@ -1,0 +1,195 @@
+const prisma = require("../lib/prisma");
+const { logAudit } = require("../utils/audit");
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const LEVELS = new Set(["السنة الأولى", "السنة الثانية", "السنة الثالثة", "السنة الرابعة", "طالب جامعي"]);
+const SUBJECTS = new Set(["MATH", "PHYSICS", "FREE", "PAID", "GENERAL"]);
+
+function text(value, max = 5000) {
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+function isTeacher(req) {
+  return req.user?.role === "teacher";
+}
+
+async function getStudentForUser(req, studentId) {
+  if (!UUID.test(studentId)) return null;
+  return prisma.student.findFirst({
+    where: isTeacher(req) ? { id: studentId } : { id: studentId, parentPhone: req.user?.phone },
+  });
+}
+
+function requireTeacher(req, res) {
+  if (!isTeacher(req)) {
+    res.status(403).json({ error: "هذه العملية متاحة للأستاذ فقط." });
+    return false;
+  }
+  return true;
+}
+
+async function listGrades(req, res) {
+  const student = await getStudentForUser(req, text(req.params.studentId, 80));
+  if (!student) return res.status(403).json({ error: "لا تملك صلاحية هذه البيانات." });
+  const grades = await prisma.grade.findMany({ where: { studentId: student.id }, orderBy: { gradedAt: "desc" }, take: 200 });
+  return res.json({ status: "success", data: grades });
+}
+
+async function createGrade(req, res) {
+  if (!requireTeacher(req, res)) return;
+  const student = await getStudentForUser(req, text(req.params.studentId, 80));
+  if (!student) return res.status(404).json({ error: "التلميذ غير موجود." });
+  const subject = text(req.body?.subject, 40).toUpperCase();
+  const score = Number(req.body?.score);
+  const maxScore = Number(req.body?.maxScore ?? 100);
+  const title = text(req.body?.title, 160);
+  if (!SUBJECTS.has(subject) || !title || !Number.isFinite(score) || !Number.isFinite(maxScore) || score < 0 || maxScore <= 0 || score > maxScore) {
+    return res.status(400).json({ error: "بيانات العلامة غير صحيحة." });
+  }
+  const grade = await prisma.grade.create({ data: { studentId: student.id, subject, category: text(req.body?.category, 80) || "تقييم", title, score, maxScore, note: text(req.body?.note, 2000) || null } });
+  void logAudit(req, { action: "GRADE_CREATED", entityType: "Grade", entityId: grade.id, studentId: student.id, metadata: { score, maxScore, subject } });
+  return res.status(201).json({ status: "success", data: grade });
+}
+
+async function createAssignment(req, res) {
+  if (!requireTeacher(req, res)) return;
+  const level = text(req.body?.level, 100);
+  const subject = text(req.body?.subject, 40).toUpperCase();
+  const title = text(req.body?.title, 160);
+  const description = text(req.body?.description, 10000);
+  if (!LEVELS.has(level) || !SUBJECTS.has(subject) || !title || !description) return res.status(400).json({ error: "أدخل المستوى والمادة وعنوان الواجب ووصفه." });
+  const assignment = await prisma.assignment.create({ data: { level, subject, title, description, dueAt: req.body?.dueAt ? new Date(req.body.dueAt) : null, attachmentUrl: text(req.body?.attachmentUrl, 1000) || null } });
+  void logAudit(req, { action: "ASSIGNMENT_CREATED", entityType: "Assignment", entityId: assignment.id, metadata: { level, subject } });
+  return res.status(201).json({ status: "success", data: assignment });
+}
+
+async function listAssignments(req, res) {
+  const student = await getStudentForUser(req, text(req.params.studentId, 80));
+  if (!student) return res.status(403).json({ error: "لا تملك صلاحية هذه البيانات." });
+  const assignments = await prisma.assignment.findMany({ where: { level: student.level, ...(req.query.subject ? { subject: text(req.query.subject, 40).toUpperCase() } : {}) }, include: { submissions: { where: { studentId: student.id }, take: 1 } }, orderBy: { createdAt: "desc" }, take: 100 });
+  return res.json({ status: "success", data: assignments });
+}
+
+async function submitAssignment(req, res) {
+  const student = await getStudentForUser(req, text(req.params.studentId, 80));
+  if (!student || isTeacher(req)) return res.status(403).json({ error: "هذه العملية متاحة للطالب أو الولي صاحب الحساب." });
+  const assignment = await prisma.assignment.findUnique({ where: { id: text(req.params.assignmentId, 80) } });
+  if (!assignment || assignment.level !== student.level) return res.status(404).json({ error: "الواجب غير موجود." });
+  const submission = await prisma.assignmentSubmission.upsert({ where: { assignmentId_studentId: { assignmentId: assignment.id, studentId: student.id } }, create: { assignmentId: assignment.id, studentId: student.id, answerText: text(req.body?.answerText, 10000) || null, attachmentUrl: text(req.body?.attachmentUrl, 1000) || null }, update: { answerText: text(req.body?.answerText, 10000) || null, attachmentUrl: text(req.body?.attachmentUrl, 1000) || null, status: "SUBMITTED", submittedAt: new Date() } });
+  return res.status(201).json({ status: "success", data: submission });
+}
+
+async function listSubmissions(req, res) {
+  if (!requireTeacher(req, res)) return;
+  const assignmentId = text(req.params.assignmentId, 80);
+  const submissions = await prisma.assignmentSubmission.findMany({ where: { assignmentId }, include: { student: { select: { id: true, studentName: true, level: true } } }, orderBy: { submittedAt: "desc" } });
+  return res.json({ status: "success", data: submissions });
+}
+
+async function gradeSubmission(req, res) {
+  if (!requireTeacher(req, res)) return;
+  const score = Number(req.body?.grade);
+  if (!Number.isFinite(score) || score < 0 || score > 100) return res.status(400).json({ error: "العلامة يجب أن تكون بين 0 و100." });
+  const submission = await prisma.assignmentSubmission.update({ where: { id: text(req.params.submissionId, 80) }, data: { grade: score, teacherNote: text(req.body?.teacherNote, 3000) || null, status: "GRADED", gradedAt: new Date() } });
+  void logAudit(req, { action: "ASSIGNMENT_GRADED", entityType: "AssignmentSubmission", entityId: submission.id, studentId: submission.studentId, metadata: { grade: score } });
+  return res.json({ status: "success", data: submission });
+}
+
+async function createQuestion(req, res) {
+  if (!requireTeacher(req, res)) return;
+  const level = text(req.body?.level, 100);
+  const subject = text(req.body?.subject, 40).toUpperCase();
+  const prompt = text(req.body?.prompt, 10000);
+  if (!LEVELS.has(level) || !SUBJECTS.has(subject) || !prompt) return res.status(400).json({ error: "بيانات السؤال غير مكتملة." });
+  const question = await prisma.question.create({ data: { level, subject, prompt, explanation: text(req.body?.explanation, 5000) || null, difficulty: text(req.body?.difficulty, 40).toUpperCase() || "MEDIUM", questionType: text(req.body?.questionType, 40).toUpperCase() || "MCQ", optionsJson: req.body?.options ? JSON.stringify(req.body.options) : null, answerJson: req.body?.answer ? JSON.stringify(req.body.answer) : null } });
+  return res.status(201).json({ status: "success", data: question });
+}
+
+async function createAssessment(req, res) {
+  if (!requireTeacher(req, res)) return;
+  const level = text(req.body?.level, 100);
+  const subject = text(req.body?.subject, 40).toUpperCase();
+  const title = text(req.body?.title, 160);
+  const questionIds = Array.isArray(req.body?.questionIds) ? req.body.questionIds.filter((id) => UUID.test(id)).slice(0, 100) : [];
+  if (!LEVELS.has(level) || !SUBJECTS.has(subject) || !title || !questionIds.length) return res.status(400).json({ error: "أدخل بيانات الاختبار وسؤالًا واحدًا على الأقل." });
+  const assessment = await prisma.assessment.create({ data: { level, subject, title, description: text(req.body?.description, 5000) || null, timeLimitSeconds: Number.isFinite(Number(req.body?.timeLimitSeconds)) ? Number(req.body.timeLimitSeconds) : null, published: Boolean(req.body?.published), questions: { create: questionIds.map((questionId, position) => ({ questionId, position, points: 1 })) } }, include: { questions: { include: { question: true }, orderBy: { position: "asc" } } } });
+  void logAudit(req, { action: "ASSESSMENT_CREATED", entityType: "Assessment", entityId: assessment.id, metadata: { level, subject } });
+  return res.status(201).json({ status: "success", data: assessment });
+}
+
+async function listAssessments(req, res) {
+  const student = await getStudentForUser(req, text(req.params.studentId, 80));
+  if (!student) return res.status(403).json({ error: "لا تملك صلاحية هذه البيانات." });
+  const assessments = await prisma.assessment.findMany({ where: { level: student.level, published: true, ...(req.query.subject ? { subject: text(req.query.subject, 40).toUpperCase() } : {}) }, include: { questions: { include: { question: true }, orderBy: { position: "asc" } }, attempts: { where: { studentId: student.id }, take: 1 } }, orderBy: { createdAt: "desc" } });
+  return res.json({ status: "success", data: assessments });
+}
+
+async function submitAssessment(req, res) {
+  const student = await getStudentForUser(req, text(req.params.studentId, 80));
+  if (!student || isTeacher(req)) return res.status(403).json({ error: "لا تملك صلاحية إرسال الاختبار." });
+  const assessment = await prisma.assessment.findFirst({ where: { id: text(req.params.assessmentId, 80), level: student.level, published: true }, include: { questions: { include: { question: true } } } });
+  if (!assessment) return res.status(404).json({ error: "الاختبار غير موجود." });
+  const answers = req.body?.answers && typeof req.body.answers === "object" ? req.body.answers : {};
+  let total = 0;
+  let score = 0;
+  for (const item of assessment.questions) {
+    total += item.points;
+    const expected = item.question.answerJson;
+    if (expected && JSON.stringify(answers[item.questionId]) === expected) score += item.points;
+  }
+  const attempt = await prisma.assessmentAttempt.upsert({ where: { assessmentId_studentId: { assessmentId: assessment.id, studentId: student.id } }, create: { assessmentId: assessment.id, studentId: student.id, answersJson: JSON.stringify(answers), score: total ? (score / total) * 100 : 0, submittedAt: new Date(), completed: true }, update: { answersJson: JSON.stringify(answers), score: total ? (score / total) * 100 : 0, submittedAt: new Date(), completed: true } });
+  return res.json({ status: "success", data: { attempt, correct: score, total } });
+}
+
+async function getProgress(req, res) {
+  const student = await getStudentForUser(req, text(req.params.studentId, 80));
+  if (!student) return res.status(403).json({ error: "لا تملك صلاحية هذه البيانات." });
+  const [progress, grades, assignments, badges, path] = await Promise.all([
+    prisma.lessonProgress.findMany({ where: { studentId: student.id }, include: { lessonVideo: true }, orderBy: { updatedAt: "desc" }, take: 100 }),
+    prisma.grade.findMany({ where: { studentId: student.id }, orderBy: { gradedAt: "desc" }, take: 100 }),
+    prisma.assignmentSubmission.findMany({ where: { studentId: student.id }, include: { assignment: true }, orderBy: { submittedAt: "desc" }, take: 100 }),
+    prisma.studentBadge.findMany({ where: { studentId: student.id }, orderBy: { awardedAt: "desc" } }),
+    prisma.learningPathItem.findMany({ where: { studentId: student.id }, orderBy: { position: "asc" } }),
+  ]);
+  return res.json({ status: "success", data: { progress, grades, assignments, badges, path } });
+}
+
+async function updateLessonProgress(req, res) {
+  const student = await getStudentForUser(req, text(req.params.studentId, 80));
+  if (!student || isTeacher(req)) return res.status(403).json({ error: "لا تملك صلاحية تحديث التقدم." });
+  const lessonVideoId = text(req.params.lessonVideoId, 80);
+  const watchedSeconds = Math.max(0, Math.floor(Number(req.body?.watchedSeconds) || 0));
+  const durationSeconds = Number.isFinite(Number(req.body?.durationSeconds)) ? Math.max(1, Math.floor(Number(req.body.durationSeconds))) : null;
+  const completed = Boolean(req.body?.completed) || (durationSeconds ? watchedSeconds / durationSeconds >= 0.9 : false);
+  const progress = await prisma.lessonProgress.upsert({ where: { studentId_lessonVideoId: { studentId: student.id, lessonVideoId } }, create: { studentId: student.id, lessonVideoId, watchedSeconds, durationSeconds, completed }, update: { watchedSeconds: { set: watchedSeconds }, durationSeconds, completed, lastWatchedAt: new Date() } });
+  return res.json({ status: "success", data: progress });
+}
+
+async function listNotifications(req, res) {
+  const recipientId = isTeacher(req) ? (req.user.sessionId || "teacher") : req.user.phone;
+  const notifications = await prisma.notification.findMany({ where: { recipientRole: isTeacher(req) ? "teacher" : "parent", recipientId }, orderBy: { createdAt: "desc" }, take: 100 });
+  return res.json({ status: "success", data: notifications });
+}
+
+async function markNotificationRead(req, res) {
+  const recipientId = isTeacher(req) ? (req.user.sessionId || "teacher") : req.user.phone;
+  const notification = await prisma.notification.updateMany({ where: { id: text(req.params.id, 80), recipientRole: isTeacher(req) ? "teacher" : "parent", recipientId }, data: { isRead: true, readAt: new Date() } });
+  return res.json({ status: "success", updated: notification.count });
+}
+
+async function getTeacherAnalytics(req, res) {
+  if (!requireTeacher(req, res)) return;
+  const from = req.query.from ? new Date(req.query.from) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const to = req.query.to ? new Date(req.query.to) : new Date();
+  const [students, attendance, grades, submissions, events] = await Promise.all([
+    prisma.student.count(),
+    prisma.attendance.count({ where: { joinedAt: { gte: from, lte: to } } }),
+    prisma.grade.findMany({ where: { gradedAt: { gte: from, lte: to } }, select: { score: true, maxScore: true, subject: true } }),
+    prisma.assignmentSubmission.count({ where: { submittedAt: { gte: from, lte: to } } }),
+    prisma.analyticsEvent.groupBy({ by: ["eventType"], where: { createdAt: { gte: from, lte: to } }, _count: { _all: true } }),
+  ]);
+  const average = grades.length ? grades.reduce((sum, item) => sum + (item.score / item.maxScore) * 100, 0) / grades.length : null;
+  return res.json({ status: "success", data: { from, to, students, attendance, submissions, gradeCount: grades.length, averageGrade: average, events } });
+}
+
+module.exports = { listGrades, createGrade, createAssignment, listAssignments, submitAssignment, listSubmissions, gradeSubmission, createQuestion, createAssessment, listAssessments, submitAssessment, getProgress, updateLessonProgress, listNotifications, markNotificationRead, getTeacherAnalytics };

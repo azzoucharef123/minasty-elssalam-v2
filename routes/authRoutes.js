@@ -1,12 +1,12 @@
-"use strict";
-
 const express = require("express");
-const { teacherLogin, parentLogin } = require("../controllers/authController");
+const { teacherLogin, parentLogin, logout } = require("../controllers/authController");
+const { verifyToken } = require("../middleware/authMiddleware");
+const { authRateLimit } = require("../middleware/rateLimit");
 
 const router = express.Router();
 
-// Mounted by server.js at /api/auth.
-router.post("/teacher", teacherLogin);
-router.post("/parent", parentLogin);
+router.post("/teacher", authRateLimit, teacherLogin);
+router.post("/parent", authRateLimit, parentLogin);
+router.post("/logout", verifyToken, logout);
 
 module.exports = router;

@@ -9,13 +9,7 @@ const {
   verifyParentPin,
 } = require("../utils/parentPin");
 const prisma = require("../lib/prisma");
-
-const JWT_ISSUER = "online-tutoring-platform";
-const JWT_AUDIENCE = "online-tutoring-platform-web";
-// Keep authenticated sessions available across browser restarts. The explicit
-// one-year lifetime prevents an older Railway JWT_EXPIRES_IN value from silently
-// reducing the session to a few hours. Explicit logout still removes local access.
-const JWT_EXPIRES_IN = "365d";
+const { issueSession, JWT_EXPIRES_IN, revokeSessionByTokenId } = require("../utils/sessionAuth");
 
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET;
@@ -27,13 +21,8 @@ function getJwtSecret() {
   return secret;
 }
 
-function createToken(payload) {
-  return jwt.sign(payload, getJwtSecret(), {
-    algorithm: "HS256",
-    expiresIn: JWT_EXPIRES_IN,
-    issuer: JWT_ISSUER,
-    audience: JWT_AUDIENCE,
-  });
+async function createToken(payload, req) {
+  return issueSession(payload, req);
 }
 
 /** Compare passcodes without leaking matching-prefix timing information. */
@@ -55,25 +44,27 @@ function safeEquals(receivedValue, expectedValue) {
  * POST /api/auth/teacher
  * Body: { passcode }
  *
- * The prompt's development passcode remains the fallback for compatibility.
- * Set TEACHER_PASSCODE in the deployment environment instead of committing a
- * real credential to source control.
+ * TEACHER_PASSCODE must be supplied by the deployment environment. There is
+ * deliberately no development fallback in the running application.
  */
 async function teacherLogin(req, res) {
   try {
     const { passcode } = req.body || {};
-    const expectedPasscode = process.env.TEACHER_PASSCODE || "123654789";
+    const expectedPasscode = String(process.env.TEACHER_PASSCODE || "").trim();
+    if (!expectedPasscode) {
+      return res.status(503).json({ error: "لم يتم إعداد دخول الأستاذ على الخادم." });
+    }
 
     if (!safeEquals(passcode, expectedPasscode)) {
       return res.status(401).json({ error: "رمز دخول الأستاذ غير صحيح." });
     }
 
-    const token = createToken({ role: "teacher" });
+    const session = await createToken({ role: "teacher" }, req);
 
     return res.status(200).json({
-      token,
+      token: session.token,
       tokenType: "Bearer",
-      expiresIn: JWT_EXPIRES_IN,
+      expiresIn: session.expiresIn,
       role: "teacher",
     });
   } catch (error) {
@@ -155,15 +146,15 @@ async function parentLogin(req, res) {
     }
 
     // Token now represents the parent session for all their students.
-    const token = createToken({
+    const session = await createToken({
       role: "parent",
       phone: parentPhone,
-    });
+    }, req);
 
     return res.status(200).json({
-      token,
+      token: session.token,
       tokenType: "Bearer",
-      expiresIn: JWT_EXPIRES_IN,
+      expiresIn: session.expiresIn,
       role: "parent",
       parentPhone,
       students: students.map((s) => ({
@@ -192,7 +183,18 @@ async function parentLogin(req, res) {
   }
 }
 
+async function logout(req, res) {
+  try {
+    await revokeSessionByTokenId(req.user?.sessionId);
+    return res.status(200).json({ status: "success" });
+  } catch (error) {
+    console.error("Logout failed:", error);
+    return res.status(500).json({ error: "تعذر تسجيل الخروج من الخادم حالياً." });
+  }
+}
+
 module.exports = {
   teacherLogin,
   parentLogin,
+  logout,
 };

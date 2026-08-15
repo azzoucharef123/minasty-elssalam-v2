@@ -11,6 +11,7 @@ const {
 } = require("../utils/parentPin");
 const prisma = require("../lib/prisma");
 const { removeImageFile } = require("./liveChatController");
+const { logAudit } = require("../utils/audit");
 
 const uploadDirectory =
   process.env.UPLOAD_DIR || path.join(__dirname, "..", "public", "uploads");
@@ -406,6 +407,13 @@ async function requestStudentCardReupload(req, res) {
       data: { accountActive: false, cardReuploadRequested: true },
     });
     notifyAccountStatus(req, updatedStudent);
+    void logAudit(req, {
+      action: "CARD_REUPLOAD_REQUESTED",
+      entityType: "Student",
+      entityId: student.id,
+      studentId: student.id,
+      metadata: { level: student.level },
+    });
 
     return res.status(200).json({
       status: "success",
@@ -457,6 +465,13 @@ async function confirmStudentCardIdentity(req, res) {
       data: { accountActive: true, cardReuploadRequested: false },
     });
     notifyAccountStatus(req, updatedStudent);
+    void logAudit(req, {
+      action: "CARD_IDENTITY_CONFIRMED",
+      entityType: "Student",
+      entityId: student.id,
+      studentId: student.id,
+      metadata: { level: student.level },
+    });
 
     return res.status(200).json({
       status: "success",
@@ -606,6 +621,17 @@ async function submitPaymentReceipt(req, res) {
     await removeUploadedCard(student.paymentReceiptUrl?.startsWith("db:") ? null : student.paymentReceiptUrl);
     await removeUploadedCard(uploadedReceiptFile.filename);
     notifyPaymentReceiptStatus(req, updatedStudent);
+    void logAudit(req, {
+      action: "PAYMENT_RECEIPT_SUBMITTED",
+      entityType: "PaymentEvent",
+      entityId: student.id,
+      studentId: student.id,
+      metadata: {
+        level: student.level,
+        subscriptionType: isUniversityStudent ? "UNIVERSITY" : subscriptionType,
+        amountDue: updatedStudent.amountDue,
+      },
+    });
 
     return res.status(200).json({
       status: "success",
@@ -683,6 +709,23 @@ async function confirmStudentPaymentReceipt(req, res) {
       },
     });
     notifyPaymentReceiptStatus(req, updatedStudent);
+    void prisma.paymentEvent.create({
+      data: {
+        studentId: student.id,
+        stage: "PAID",
+        amount: 0,
+        actorRole: req.user?.role || "teacher",
+        actorId: req.user?.sessionId || null,
+        note: "تم تأكيد وصل الدفع",
+      },
+    }).catch(() => {});
+    void logAudit(req, {
+      action: "PAYMENT_RECEIPT_CONFIRMED",
+      entityType: "PaymentEvent",
+      entityId: student.id,
+      studentId: student.id,
+      metadata: { level: updatedStudent.level, stage: "PAID" },
+    });
 
     const io = req.app.get("io");
     io?.to(`${updatedStudent.level}_lobby`).emit("student_live_access_updated", {
@@ -725,6 +768,12 @@ async function deleteStudent(req, res) {
     await removeUploadedCard(student.cardPhotoUrl);
     await removeUploadedCard(student.paymentReceiptUrl);
     await Promise.all(student.questionImages.map((image) => removeImageFile(image.fileName)));
+    void logAudit(req, {
+      action: "STUDENT_DELETED",
+      entityType: "Student",
+      entityId: student.id,
+      metadata: { studentName: student.studentName },
+    });
 
     return res.status(200).json({
       status: "success",
@@ -791,6 +840,30 @@ async function updateStudentStatusAndNotes(req, res) {
     // Parent dashboards observing this level receive only the changed student
     // identifier and current class-access flag. They then refresh their own
     // authenticated data without a manual page reload.
+    void prisma.paymentEvent.create({
+      data: {
+        studentId: student.id,
+        stage: paymentStage,
+        amount: normalizedAmount,
+        actorRole: req.user?.role || "teacher",
+        actorId: req.user?.sessionId || null,
+        note: "تحديث حالة الاشتراك من لوحة الأستاذ",
+      },
+    }).catch(() => {});
+    void logAudit(req, {
+      action: "STUDENT_SUBSCRIPTION_UPDATED",
+      entityType: "Student",
+      entityId: student.id,
+      studentId: student.id,
+      metadata: {
+        paymentStage,
+        amountDue: normalizedAmount,
+        mathEnrollment,
+        physicsEnrollment,
+        liveAccessEnabled,
+      },
+    });
+
     const io = req.app.get("io");
     io?.to(`${student.level}_lobby`).emit("student_live_access_updated", {
       studentId: student.id,

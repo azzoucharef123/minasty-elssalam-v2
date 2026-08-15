@@ -16,6 +16,7 @@ const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
 const prisma = require("./lib/prisma");
 const { verifyToken, isTeacher } = require("./middleware/authMiddleware");
+const { requestMetrics, socketConnected, socketDisconnected, snapshot: metricsSnapshot } = require("./utils/metrics");
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -105,13 +106,11 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "100kb" }));
+app.use(requestMetrics);
 
-// Simple request logger
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-  if (req.method === 'POST' && req.url.includes('/api/students/register')) {
-    console.log('Register request body:', req.body);
-  }
+// Never log request bodies: registration and payment payloads contain secrets and identity data.
+app.use((req, _res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
@@ -124,6 +123,7 @@ const liveChatRoutes = require("./routes/liveChatRoutes");
 const scheduleRoutes = require("./routes/scheduleRoutes");
 const lessonVideoRoutes = require("./routes/lessonVideoRoutes");
 const messageRoutes = require("./routes/messageRoutes");
+const academicRoutes = require("./routes/academicRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/students", studentRoutes);
@@ -132,6 +132,7 @@ app.use("/api/live-chat", liveChatRoutes);
 app.use("/api/schedules", scheduleRoutes);
 app.use("/api/lesson-videos", lessonVideoRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/academic", academicRoutes);
 
 // Course-material uploads are intentionally disabled. Block the legacy public
 // path before the general static middleware so old files cannot be downloaded.
@@ -168,6 +169,22 @@ app.get("/api/google-picker/config", verifyToken, isTeacher, (_req, res) => {
 
 app.get("/api/health", (_req, res) => {
   res.status(200).json({ status: "ok", message: "Server is running" });
+});
+
+app.get("/api/health/detailed", verifyToken, isTeacher, async (_req, res) => {
+  let database = "ok";
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+  } catch {
+    database = "error";
+  }
+  const relayUrl = String(process.env.FACEBOOK_RELAY_URL || "").trim();
+  return res.status(database === "ok" ? 200 : 503).json({
+    status: database === "ok" ? "ok" : "degraded",
+    database,
+    relayConfigured: Boolean(relayUrl),
+    metrics: metricsSnapshot(),
+  });
 });
 
 const io = new Server(httpServer, {
@@ -569,6 +586,7 @@ async function closeClassroom(level, reason) {
 }
 
 io.on("connection", (socket) => {
+  socketConnected();
   console.info(`[Socket.io] Client connected: ${socket.id}`);
 
   // Socket data is server-owned after room entry and is used for authorization.
@@ -1817,6 +1835,7 @@ io.on("connection", (socket) => {
    * the existing class-close path removes every remaining socket and record.
    */
   socket.on("disconnect", (reason) => {
+    socketDisconnected();
     const publicRoomId = socket.data.publicRoomId;
     const publicRole = socket.data.publicRole;
     if (publicRoomId) {
@@ -1890,6 +1909,18 @@ app.use((error, _req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 
+function assertProductionConfiguration() {
+  if (process.env.NODE_ENV !== "production") return;
+  const required = ["DATABASE_URL", "JWT_SECRET", "TEACHER_PASSCODE", "CLIENT_ORIGIN"];
+  const missing = required.filter((name) => !String(process.env[name] || "").trim());
+  if (missing.length) {
+    throw new Error(`Missing required production configuration: ${missing.join(", ")}`);
+  }
+  if (process.env.ENABLE_OPEN_CORS === "true") {
+    throw new Error("ENABLE_OPEN_CORS must be false or absent in production.");
+  }
+}
+
 async function shutdown(signal) {
   console.info(`Received ${signal}; closing HTTP server and Prisma connection.`);
 
@@ -1909,6 +1940,7 @@ async function shutdown(signal) {
 }
 
 if (require.main === module) {
+  assertProductionConfiguration();
   httpServer.listen(PORT, () => {
     console.info(`Server listening on port ${PORT}`);
   });

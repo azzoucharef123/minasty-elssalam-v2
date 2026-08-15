@@ -1912,6 +1912,7 @@ function jumpToRoster() {
 }
 
 function logoutTeacher() {
+  void window.revokeServerSession?.();
   clearTeacherSession();
   window.location.replace("./teacher-login.html");
 }
