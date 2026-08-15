@@ -2,6 +2,8 @@
 
 const prisma = require("../lib/prisma");
 
+// These are the platform's canonical database values. The UI displays the
+// full Arabic labels: السنة الأولى متوسط ... السنة الرابعة متوسط.
 const RULES = [
   { level: "السنة الأولى", subject: "PHYSICS", weekday: 0, hour: 18 },
   { level: "السنة الأولى", subject: "MATH", weekday: 4, hour: 18 },
@@ -13,53 +15,115 @@ const RULES = [
   { level: "السنة الرابعة", subject: "MATH", weekday: 6, hour: 18 },
 ];
 
+const START_DATE = new Date(Date.UTC(2026, 8, 1));
+const END_DATE = new Date(Date.UTC(2026, 10, 30));
+
 function monthKey(date) {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-function firstMatchingDate(year, monthIndex, weekday) {
-  const date = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0));
-  const offset = (weekday - date.getUTCDay() + 7) % 7;
-  date.setUTCDate(1 + offset);
+function monthName(monthIndex) {
+  return { 8: "سبتمبر", 9: "أكتوبر", 10: "نوفمبر" }[monthIndex] || "";
+}
+
+function classDateForDay(day, hour) {
+  const date = new Date(day);
+  // Algeria is UTC+1 during September-November 2026.
+  date.setUTCHours(hour - 1, 0, 0, 0);
   return date;
 }
 
-function buildDate(year, monthIndex, weekday, hour) {
-  const date = firstMatchingDate(year, monthIndex, weekday);
-  date.setUTCHours(hour - 1, 0, 0, 0); // Algeria is UTC+1 for these months.
-  return date;
-}
-
-async function main() {
-  const existing = await prisma.scheduledClass.findMany({ select: { id: true, scheduledAt: true, monthKey: true } });
-  for (const item of existing) {
-    if (!item.monthKey) {
-      await prisma.scheduledClass.update({ where: { id: item.id }, data: { monthKey: monthKey(item.scheduledAt), status: "PENDING" } });
+function buildExpectedSessions() {
+  const sessions = [];
+  for (let day = new Date(START_DATE); day <= END_DATE; day.setUTCDate(day.getUTCDate() + 1)) {
+    const weekday = day.getUTCDay();
+    for (const rule of RULES) {
+      if (rule.weekday !== weekday) continue;
+      const scheduledAt = classDateForDay(day, rule.hour);
+      sessions.push({
+        level: rule.level,
+        subject: rule.subject,
+        scheduledAt,
+        monthKey: monthKey(scheduledAt),
+        monthName: monthName(scheduledAt.getUTCMonth()),
+        status: "PENDING",
+        driveLink: null,
+        notes: null,
+      });
     }
   }
+  return sessions;
+}
 
+async function backfillMonthKeys() {
+  const existing = await prisma.scheduledClass.findMany({
+    where: { monthKey: "" },
+    select: { id: true, scheduledAt: true },
+  });
+  for (const item of existing) {
+    await prisma.scheduledClass.update({
+      where: { id: item.id },
+      data: { monthKey: monthKey(item.scheduledAt) },
+    });
+  }
+  return existing.length;
+}
+
+async function seedClassRegistry() {
+  const backfilled = await backfillMonthKeys();
+  const expected = buildExpectedSessions();
   let created = 0;
   let skipped = 0;
-  for (const rule of RULES) {
-    for (let monthIndex = 8; monthIndex <= 10; monthIndex += 1) {
-      const year = 2026;
-      for (let date = buildDate(year, monthIndex, rule.weekday, rule.hour); date.getUTCMonth() === monthIndex; date.setUTCDate(date.getUTCDate() + 7)) {
-        const duplicate = await prisma.scheduledClass.findFirst({ where: { level: rule.level, subject: rule.subject, scheduledAt: date } });
-        if (duplicate) {
-          skipped += 1;
-          continue;
-        }
-        await prisma.scheduledClass.create({ data: { level: rule.level, subject: rule.subject, scheduledAt: date, monthKey: monthKey(date), status: "PENDING" } });
-        created += 1;
-      }
+
+  for (const session of expected) {
+    const duplicate = await prisma.scheduledClass.findFirst({
+      where: {
+        level: session.level,
+        subject: session.subject,
+        scheduledAt: session.scheduledAt,
+      },
+      select: { id: true },
+    });
+
+    if (duplicate) {
+      skipped += 1;
+      continue;
     }
+
+    await prisma.scheduledClass.create({
+      data: {
+        level: session.level,
+        subject: session.subject,
+        scheduledAt: session.scheduledAt,
+        monthKey: session.monthKey,
+        status: session.status,
+        driveLink: session.driveLink,
+        notes: session.notes,
+      },
+    });
+    created += 1;
   }
-  console.log(JSON.stringify({ created, skipped }, null, 2));
+
+  return { expected: expected.length, created, skipped, backfilled };
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-}).finally(async () => {
-  await prisma.$disconnect();
-});
+if (require.main === module) {
+  if (process.argv.includes("--dry-run")) {
+    const expected = buildExpectedSessions();
+    console.log(JSON.stringify({ expected: expected.length, first: expected[0], last: expected.at(-1) }, null, 2));
+  } else {
+    seedClassRegistry()
+      .then((result) => {
+        console.log(JSON.stringify(result, null, 2));
+      })
+      .catch((error) => {
+        console.error(error);
+        process.exitCode = 1;
+      })
+      .finally(async () => {
+        await prisma.$disconnect();
+      });
+  }
+}
+
+module.exports = { buildExpectedSessions, seedClassRegistry };
