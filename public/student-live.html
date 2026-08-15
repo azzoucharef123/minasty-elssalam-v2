@@ -783,12 +783,6 @@
           <header class="student-chat-head">
             <h2 id="student-chat-title">طرح سؤال على الأستاذ</h2>
           </header>
-          <div class="chat-zoom-toolbar" aria-label="حجم نصوص الدردشة">
-            <label class="chat-zoom-label" for="chat-zoom-range">حجم الرسائل</label>
-            <input id="chat-zoom-range" class="chat-zoom-range" type="range" min="100" max="200" step="10" value="100" aria-label="تكبير رسائل الدردشة من 100 إلى 200 بالمئة" />
-            <output id="chat-zoom-value" class="chat-zoom-value" for="chat-zoom-range">100%</output>
-            <button id="chat-zoom-reset" class="chat-zoom-reset" type="button">إعادة 100%</button>
-          </div>
           <div id="chat-box" class="student-chat-box" aria-live="polite" aria-label="أسئلتك وردود الأستاذ">
             <p id="chat-empty" class="student-chat-empty">اكتب سؤالك وسيظهر رد الأستاذ هنا.</p>
           </div>
@@ -834,11 +828,9 @@
     </div>
 
     <link rel="stylesheet" href="./css/private-messages.css" />
-    <link rel="stylesheet" href="./css/chat-zoom.css?v=chat-zoom-1" />
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/chat-zoom.js?v=chat-zoom-1"></script>
     <script src="./js/student-live.js?v=central-mix-1"></script>
   </body>
 </html>
