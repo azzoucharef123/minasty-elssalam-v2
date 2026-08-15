@@ -1170,6 +1170,7 @@
           <span id="live-status-text">الاستوديو جاهز</span>
         </div>
         <span id="local-recording-state" class="local-recording-state" role="status" aria-live="polite" hidden>جارٍ تسجيل الحصة محليًا</span>
+        <a class="message-bell" data-message-bell href="./teacher-chat.html" target="_blank" rel="noopener" aria-label="الرسائل"><span aria-hidden="true">✉</span><b data-message-badge hidden>0</b></a>
       </header>
 
       <main class="studio-layout">
@@ -1297,7 +1298,9 @@
       </div>
     </div>
 
+    <link rel="stylesheet" href="./css/private-messages.css" />
     <script src="/socket.io/socket.io.js"></script>
+    <script src="./js/message-notifications.js"></script>
     <script id="google-identity-services" src="https://accounts.google.com/gsi/client" defer></script>
     <script src="./js/teacher-live.js?v=recording-audio-1" defer></script>
   </body>

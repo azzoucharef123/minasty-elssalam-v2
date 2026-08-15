@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>الرسائل | أكاديمية التفوق</title>
+  <link rel="stylesheet" href="./css/style.css" />
+  <link rel="stylesheet" href="./css/private-messages.css" />
+</head>
+<body class="private-messages-page">
+  <header class="private-chat-topbar">
+    <a class="private-chat-brand" href="./teacher-dashboard.html">أكاديمية التفوق <small>رسائل الأستاذ</small></a>
+    <div class="private-chat-topbar-actions">
+      <a class="message-bell" data-message-bell href="./teacher-chat.html" aria-label="الرسائل">
+        <span aria-hidden="true">✉</span><b data-message-badge hidden>0</b>
+      </a>
+      <a class="private-chat-back" href="./teacher-dashboard.html">العودة إلى لوحة الأستاذ</a>
+    </div>
+  </header>
+  <main class="private-chat-layout">
+    <aside class="conversation-sidebar" aria-label="قائمة الطلاب">
+      <div class="conversation-sidebar-head"><span>المحادثات</span><small id="conversation-count">0 طالب</small></div>
+      <div id="conversation-list" class="conversation-list"></div>
+      <p id="conversation-empty" class="conversation-empty">ستظهر هنا محادثات الطلاب عند وصول أول رسالة.</p>
+    </aside>
+    <section class="conversation-main" aria-label="المحادثة">
+      <div id="chat-empty-state" class="chat-empty-state"><span>✦</span><h1>رسائل خاصة وآمنة</h1><p>اختر طالبًا من القائمة لعرض المحادثة والرد عليه.</p></div>
+      <div id="chat-panel" class="chat-panel" hidden>
+        <header class="chat-panel-head"><div><strong id="chat-student-name">الطالب</strong><small id="chat-student-level"></small></div><span>محادثة خاصة مع الأستاذ</span></header>
+        <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
+        <form id="chat-form" class="chat-compose"><textarea id="chat-input" rows="1" maxlength="4000" placeholder="اكتب رسالة للطالب…" required></textarea><button type="submit">إرسال</button></form>
+      </div>
+    </section>
+  </main>
+  <div id="chat-error" class="chat-inline-error" hidden></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="./js/message-notifications.js"></script>
+  <script src="./js/teacher-chat.js"></script>
+</body>
+</html>

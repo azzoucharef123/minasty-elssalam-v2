@@ -30,10 +30,29 @@ model Student {
   updatedAt     DateTime @updatedAt
   attendances   Attendance[]
   questionImages LiveQuestionImage[]
+  messages      Message[]
 
   @@index([level, createdAt(sort: Desc)])
   @@index([parentPhone])
   @@unique([studentName, parentPhone, level])
+}
+
+model Message {
+  id          String   @id @default(uuid()) @db.Uuid
+  studentId   String   @db.Uuid
+  senderId    String
+  receiverId  String
+  senderRole  String
+  receiverRole String
+  content     String   @db.Text
+  createdAt   DateTime @default(now())
+  isRead      Boolean  @default(false) @map("is_read")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, createdAt(sort: Desc)])
+  @@index([receiverId, isRead, createdAt(sort: Desc)])
+  @@index([senderId, createdAt(sort: Desc)])
 }
 
 model ScheduledClass {

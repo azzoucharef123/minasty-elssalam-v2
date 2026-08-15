@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>مراسلتي مع الأستاذ | أكاديمية التفوق</title>
+  <link rel="stylesheet" href="./css/style.css" />
+  <link rel="stylesheet" href="./css/private-messages.css" />
+</head>
+<body class="private-messages-page student-chat-page">
+  <header class="private-chat-topbar">
+    <a class="private-chat-brand" href="./parent-dashboard.html">أكاديمية التفوق <small>مراسلتي مع الأستاذ</small></a>
+    <div class="private-chat-topbar-actions">
+      <a class="message-bell" data-message-bell href="./student-chat.html" aria-label="الرسائل"><span aria-hidden="true">✉</span><b data-message-badge hidden>0</b></a>
+      <a class="private-chat-back" href="./parent-dashboard.html">العودة إلى حسابي</a>
+    </div>
+  </header>
+  <main class="student-chat-shell">
+    <section class="chat-panel student-chat-panel">
+      <header class="chat-panel-head"><div><strong id="student-chat-name">محادثتي مع الأستاذ</strong><small id="student-chat-level"></small></div><span>لا يمكن للطلاب مراسلة بعضهم</span></header>
+      <div id="student-chat-messages" class="chat-messages" aria-live="polite"></div>
+      <form id="student-chat-form" class="chat-compose"><textarea id="student-chat-input" rows="1" maxlength="4000" placeholder="اكتب رسالتك للأستاذ…" required></textarea><button type="submit">إرسال</button></form>
+    </section>
+  </main>
+  <div id="student-chat-error" class="chat-inline-error" hidden></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="./js/message-notifications.js"></script>
+  <script src="./js/student-chat.js"></script>
+</body>
+</html>

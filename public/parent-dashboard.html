@@ -16,6 +16,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./css/style.css" />
+    <link rel="stylesheet" href="./css/private-messages.css" />
 
     <style>
       :root {
@@ -1120,7 +1121,11 @@
             <small>بوابة متابعة الولي</small>
           </span>
         </div>
-        <button id="logout-btn" class="logout-button" type="button">تسجيل الخروج</button>
+        <div class="parent-header-actions">
+          <a class="message-bell" data-message-bell href="./student-chat.html" target="_blank" rel="noopener" aria-label="مراسلتي مع الأستاذ"><span aria-hidden="true">✉</span><b data-message-badge hidden>0</b></a>
+          <a class="parent-messages-link" href="./student-chat.html" target="_blank" rel="noopener">مراسلتي مع الأستاذ</a>
+          <button id="logout-btn" class="logout-button" type="button">تسجيل الخروج</button>
+        </div>
       </div>
     </header>
 
@@ -1315,6 +1320,7 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="./js/message-notifications.js"></script>
     <script src="./js/parent-dashboard.js"></script>
   </body>
 </html>

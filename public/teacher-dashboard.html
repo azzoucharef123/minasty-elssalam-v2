@@ -6,6 +6,7 @@
   <title>لوحة الأستاذ | أكاديمية التفوق</title>
   <link rel="stylesheet" href="./css/style.css" />
   <link rel="stylesheet" href="./css/app.css" />
+  <link rel="stylesheet" href="./css/private-messages.css" />
 </head>
 <body class="dashboard-page teacher-dashboard-page">
   <header class="teacher-topbar">
@@ -16,6 +17,8 @@
     <div class="teacher-topbar-actions">
       <span class="teacher-presence"><i aria-hidden="true"></i>جاهز للإدارة</span>
       <a class="topbar-studio-link" href="./teacher-live.html">الاستوديو المباشر</a>
+      <a class="message-bell teacher-dashboard-message-bell" data-message-bell href="./teacher-chat.html" target="_blank" rel="noopener" aria-label="الرسائل"><span aria-hidden="true">✉</span><b data-message-badge hidden>0</b></a>
+      <a class="topbar-messages-link" href="./teacher-chat.html" target="_blank" rel="noopener">الرسائل</a>
       <button id="public-invite-btn" class="topbar-public-invite" type="button">Join</button>
       <button id="logout-btn" class="topbar-logout" type="button">تسجيل الخروج</button>
     </div>
@@ -192,6 +195,8 @@
   <div id="toast" class="toast" hidden></div>
   <script id="google-identity-services" src="https://accounts.google.com/gsi/client" defer></script>
   <script id="google-picker-api" src="https://apis.google.com/js/api.js" defer></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="./js/message-notifications.js"></script>
   <script src="./js/teacher-dashboard.js" defer></script>
 </body>
 </html>

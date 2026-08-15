@@ -12,6 +12,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const path = require("path");
 const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
 const prisma = require("./lib/prisma");
 const { verifyToken, isTeacher } = require("./middleware/authMiddleware");
@@ -122,6 +123,7 @@ const attendanceRoutes = require("./routes/attendanceRoutes");
 const liveChatRoutes = require("./routes/liveChatRoutes");
 const scheduleRoutes = require("./routes/scheduleRoutes");
 const lessonVideoRoutes = require("./routes/lessonVideoRoutes");
+const messageRoutes = require("./routes/messageRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/students", studentRoutes);
@@ -129,6 +131,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/live-chat", liveChatRoutes);
 app.use("/api/schedules", scheduleRoutes);
 app.use("/api/lesson-videos", lessonVideoRoutes);
+app.use("/api/messages", messageRoutes);
 
 // Course-material uploads are intentionally disabled. Block the legacy public
 // path before the general static middleware so old files cannot be downloaded.
@@ -141,6 +144,12 @@ app.use(express.static(path.join(__dirname, "public")));
 // Keep the public invite page available through an explicit route as well.
 app.get("/public-class.html", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "public-class.html"));
+});
+app.get("/teacher-chat", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "teacher-chat.html"));
+});
+app.get("/student-chat", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "student-chat.html"));
 });
 
 app.get("/api/google-picker/config", verifyToken, isTeacher, (_req, res) => {
@@ -169,9 +178,61 @@ const io = new Server(httpServer, {
   pingTimeout: 60_000,
 });
 
+const privateMessagesNamespace = io.of("/private-messages");
+privateMessagesNamespace.use(async (socket, next) => {
+  try {
+    const token = typeof socket.handshake.auth?.token === "string"
+      ? socket.handshake.auth.token
+      : "";
+    if (!token) return next(new Error("يلزم تسجيل الدخول للرسائل."));
+
+    const secret = process.env.JWT_SECRET;
+    if (!secret || secret.length < 32) return next(new Error("إعداد المصادقة غير متاح."));
+    const decoded = jwt.verify(token, secret, {
+      algorithms: ["HS256"],
+      issuer: "online-tutoring-platform",
+      audience: "online-tutoring-platform-web",
+    });
+
+    if (decoded.role === "teacher") {
+      socket.data.privateRole = "teacher";
+      socket.data.privateStudentId = null;
+      return next();
+    }
+
+    if (decoded.role !== "parent" || !decoded.phone) {
+      return next(new Error("لا تملك صلاحية استخدام الرسائل."));
+    }
+
+    const studentId = String(socket.handshake.auth?.studentId || "").trim();
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      select: { id: true, parentPhone: true },
+    });
+    if (!student || student.parentPhone !== decoded.phone) {
+      return next(new Error("لا تملك صلاحية هذه المحادثة."));
+    }
+
+    socket.data.privateRole = "student";
+    socket.data.privateStudentId = student.id;
+    return next();
+  } catch (error) {
+    return next(new Error("رمز الرسائل غير صالح أو منتهي الصلاحية."));
+  }
+});
+
+privateMessagesNamespace.on("connection", (socket) => {
+  if (socket.data.privateRole === "teacher") {
+    socket.join("teacher");
+  } else if (socket.data.privateStudentId) {
+    socket.join(`student:${socket.data.privateStudentId}`);
+  }
+});
+
 // REST controllers use this server-owned reference only to publish minimal
 // non-sensitive dashboard refresh events after a teacher changes a student.
 app.set("io", io);
+app.set("privateMessagesNamespace", privateMessagesNamespace);
 
 /**
  * Maps each study level to its active teacher socket ID.
