@@ -166,15 +166,43 @@ async function updateLessonProgress(req, res) {
 }
 
 async function listNotifications(req, res) {
-  const recipientId = isTeacher(req) ? (req.user.sessionId || "teacher") : req.user.phone;
+  const recipientId = isTeacher(req) ? "teacher" : req.user.phone;
   const notifications = await prisma.notification.findMany({ where: { recipientRole: isTeacher(req) ? "teacher" : "parent", recipientId }, orderBy: { createdAt: "desc" }, take: 100 });
   return res.json({ status: "success", data: notifications });
 }
 
 async function markNotificationRead(req, res) {
-  const recipientId = isTeacher(req) ? (req.user.sessionId || "teacher") : req.user.phone;
+  const recipientId = isTeacher(req) ? "teacher" : req.user.phone;
   const notification = await prisma.notification.updateMany({ where: { id: text(req.params.id, 80), recipientRole: isTeacher(req) ? "teacher" : "parent", recipientId }, data: { isRead: true, readAt: new Date() } });
   return res.json({ status: "success", updated: notification.count });
+}
+
+async function listPaymentHistory(req, res) {
+  const student = await getStudentForUser(req, text(req.params.studentId, 80));
+  if (!student) return res.status(403).json({ error: "لا تملك صلاحية هذا السجل." });
+  const events = await prisma.paymentEvent.findMany({ where: { studentId: student.id }, orderBy: { createdAt: "desc" }, take: 100 });
+  return res.json({ status: "success", data: events });
+}
+
+async function listAuditLogs(req, res) {
+  if (!requireTeacher(req, res)) return;
+  const logs = await prisma.auditLog.findMany({ where: req.query.studentId && UUID.test(String(req.query.studentId)) ? { studentId: String(req.query.studentId) } : {}, orderBy: { createdAt: "desc" }, take: 200 });
+  return res.json({ status: "success", data: logs });
+}
+
+async function bulkUpdateStudents(req, res) {
+  if (!requireTeacher(req, res)) return;
+  const studentIds = Array.isArray(req.body?.studentIds) ? req.body.studentIds.filter((id) => UUID.test(id)).slice(0, 200) : [];
+  if (!studentIds.length) return res.status(400).json({ error: "اختر طالبًا واحدًا على الأقل." });
+  const allowed = ["PAID", "PROMISED", "UNPAID"];
+  const paymentStage = req.body?.paymentStage === undefined ? undefined : text(req.body.paymentStage, 20).toUpperCase();
+  const liveAccessEnabled = req.body?.liveAccessEnabled === undefined ? undefined : Boolean(req.body.liveAccessEnabled);
+  if (paymentStage !== undefined && !allowed.includes(paymentStage)) return res.status(400).json({ error: "حالة الدفع غير صالحة." });
+  const data = { ...(paymentStage !== undefined ? { paymentStage, paymentStatus: paymentStage === "PAID", paymentReceiptPending: paymentStage === "PAID" ? false : undefined } : {}), ...(liveAccessEnabled !== undefined ? { liveAccessEnabled } : {}) };
+  const students = await prisma.student.findMany({ where: { id: { in: studentIds } }, select: { id: true, level: true } });
+  await prisma.$transaction(students.map((student) => prisma.student.update({ where: { id: student.id }, data })));
+  await Promise.all(students.map((student) => logAudit(req, { action: "BULK_STUDENT_UPDATE", entityType: "Student", entityId: student.id, studentId: student.id, metadata: data })));
+  return res.json({ status: "success", updated: students.length });
 }
 
 async function getTeacherAnalytics(req, res) {
@@ -192,4 +220,4 @@ async function getTeacherAnalytics(req, res) {
   return res.json({ status: "success", data: { from, to, students, attendance, submissions, gradeCount: grades.length, averageGrade: average, events } });
 }
 
-module.exports = { listGrades, createGrade, createAssignment, listAssignments, submitAssignment, listSubmissions, gradeSubmission, createQuestion, createAssessment, listAssessments, submitAssessment, getProgress, updateLessonProgress, listNotifications, markNotificationRead, getTeacherAnalytics };
+module.exports = { listGrades, createGrade, createAssignment, listAssignments, submitAssignment, listSubmissions, gradeSubmission, createQuestion, createAssessment, listAssessments, submitAssessment, getProgress, updateLessonProgress, listNotifications, markNotificationRead, getTeacherAnalytics, listPaymentHistory, listAuditLogs, bulkUpdateStudents };

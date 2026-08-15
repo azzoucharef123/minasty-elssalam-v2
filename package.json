@@ -10,7 +10,9 @@
     "dev": "nodemon server.js",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "check": "node scripts/check-syntax.js",
+    "test": "node --test test/*.test.js"
   },
   "engines": {
     "node": ">=20.18.0"

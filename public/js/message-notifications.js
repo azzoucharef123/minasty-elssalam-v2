@@ -20,6 +20,17 @@
     bell.classList.toggle("has-unread", unreadCount > 0);
   }
 
+  function showBrowserNotification(message) {
+    if (!("Notification" in window) || document.visibilityState === "visible") return;
+    if (Notification.permission === "granted") {
+      new Notification(role === "teacher" ? `رسالة جديدة من ${message.senderName || "طالب"}` : "رسالة جديدة من الأستاذ", {
+        body: String(message.content || "").slice(0, 160),
+        icon: "/assets/teacher-azzeddine-charef.jpg",
+        tag: `private-message-${message.studentId || "general"}`,
+      });
+    }
+  }
+
   function showMessageToast(message) {
     const toast = document.createElement("div");
     toast.className = "message-notification-toast";
@@ -62,10 +73,16 @@
       unreadCount += 1;
       renderBadge();
       showMessageToast(message);
+      showBrowserNotification(message);
     });
   }
 
   window.addEventListener("private-messages-read", () => { void loadUnreadCount(); });
+  document.addEventListener("click", () => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, { once: true });
   void loadUnreadCount();
   connectNotifications();
 })();

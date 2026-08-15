@@ -148,6 +148,17 @@ async function sendMessage(req, res) {
         content,
       },
     });
+    await prisma.notification.create({
+      data: {
+        studentId: student.id,
+        recipientRole: roles.receiverRole,
+        recipientId: roles.receiverRole === "teacher" ? "teacher" : student.parentPhone,
+        type: "MESSAGE",
+        title: roles.receiverRole === "teacher" ? `رسالة جديدة من ${student.studentName}` : "رسالة جديدة من الأستاذ",
+        body: content.slice(0, 300),
+        link: roles.receiverRole === "teacher" ? "./teacher-chat.html" : "./student-chat.html",
+      },
+    });
     emitMessage(req, message, student);
     return res.status(201).json({ message: serializeMessage(message, student.studentName) });
   } catch (error) {

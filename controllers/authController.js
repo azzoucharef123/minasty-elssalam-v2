@@ -183,6 +183,29 @@ async function parentLogin(req, res) {
   }
 }
 
+function sessionOwnerWhere(req) {
+  return req.user?.role === "parent"
+    ? { role: "parent", subjectId: req.user.phone }
+    : { role: "teacher" };
+}
+
+async function listSessions(req, res) {
+  const sessions = await prisma.session.findMany({
+    where: { ...sessionOwnerWhere(req), revokedAt: null, expiresAt: { gt: new Date() } },
+    select: { id: true, role: true, userAgent: true, ipAddress: true, createdAt: true, lastSeenAt: true, expiresAt: true, tokenId: true },
+    orderBy: { lastSeenAt: "desc" },
+  });
+  return res.json({ status: "success", data: sessions.map((session) => ({ ...session, current: session.tokenId === req.user?.sessionId })) });
+}
+
+async function revokeSession(req, res) {
+  const sessionId = String(req.params.id || "");
+  const result = await prisma.session.updateMany({ where: { id: sessionId, ...sessionOwnerWhere(req), revokedAt: null }, data: { revokedAt: new Date() } });
+  if (!result.count) return res.status(404).json({ error: "الجلسة غير موجودة أو أُبطلت بالفعل." });
+  void prisma.auditLog.create({ data: { actorRole: req.user?.role || "unknown", actorId: req.user?.sessionId || null, action: "SESSION_REVOKED", entityType: "Session", entityId: sessionId, metadata: "{}" } }).catch(() => {});
+  return res.json({ status: "success" });
+}
+
 async function logout(req, res) {
   try {
     await revokeSessionByTokenId(req.user?.sessionId);
@@ -197,4 +220,6 @@ module.exports = {
   teacherLogin,
   parentLogin,
   logout,
+  listSessions,
+  revokeSession,
 };
