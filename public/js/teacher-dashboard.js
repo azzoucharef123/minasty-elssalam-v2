@@ -10,6 +10,18 @@ const elements = {
   dashboardError: document.querySelector("#dashboard-error, #message-box"),
   logoutButton: document.querySelector("#logout-btn, [data-action='logout']"),
   publicInviteButton: document.getElementById("public-invite-btn"),
+  sidebar: document.getElementById("teacher-sidebar"),
+  sidebarBackdrop: document.getElementById("teacher-sidebar-backdrop"),
+  sidebarToggle: document.getElementById("teacher-sidebar-toggle"),
+  sidebarClose: document.getElementById("teacher-sidebar-close"),
+  sidebarLogout: document.getElementById("sidebar-logout-btn"),
+  sidebarLinks: Array.from(document.querySelectorAll(".teacher-nav-link")),
+  pageTitle: document.getElementById("teacher-page-title"),
+  deleteModal: document.getElementById("confirm-delete-modal"),
+  deleteModalMessage: document.getElementById("confirm-delete-message"),
+  deleteModalClose: document.getElementById("close-confirm-delete"),
+  deleteModalCancel: document.getElementById("cancel-confirm-delete"),
+  deleteModalApprove: document.getElementById("approve-confirm-delete"),
 
   toast: document.querySelector("#toast, #success-toast"),
   searchInput: document.getElementById("student-search"),
@@ -119,6 +131,7 @@ let cardPreviewObjectUrl = null;
 let cardPreviewRequestId = 0;
 let cardPreviewPreviousFocus = null;
 let cardPreviewStudentId = null;
+let pendingDeleteStudentId = null;
 const driveFileUploadInProgress = new Set();
 
 function clearTeacherSession() {
@@ -1023,7 +1036,7 @@ function renderTable(studentsArray) {
     paymentButton.title = "اضغط لتعديل حالة الدفع والمبلغ";
 
     const liveAccessButton = createButton(
-      student.liveAccessEnabled ? "دخول الحصة مفتوح" : "فتح دخول الحصة",
+      student.liveAccessEnabled ? "↗" : "🔒",
       `payment-toggle ${student.liveAccessEnabled ? "is-paid" : "is-unpaid"}`,
       () => toggleLiveAccess(student.id)
     );
@@ -1033,18 +1046,18 @@ function renderTable(studentsArray) {
       : "اضغط للسماح لهذا التلميذ بدخول الحصة";
 
     const subscriptionButton = createButton(
-      "تعديل الاشتراك",
-      "edit-notes-btn",
+      "✎",
+      "edit-notes-btn icon-action",
       () => openSubscriptionModal(student.id)
     );
     const attendanceButton = createButton(
-      "سجل الحضور",
-      "attendance-log-btn",
+      "◉",
+      "attendance-log-btn icon-action",
       () => openAttendanceModal(student.id)
     );
     const deleteButton = createButton(
-      "حذف المستخدم",
-      "delete-student-btn",
+      "⌫",
+      "delete-student-btn icon-action",
       () => deleteStudent(student.id)
     );
     const actionGroup = document.createElement("div");
@@ -1766,16 +1779,48 @@ async function confirmPaymentReceipt(studentId) {
   }
 }
 
-async function deleteStudent(studentId) {
+function setSidebarOpen(isOpen) {
+  elements.sidebar?.classList.toggle("is-open", isOpen);
+  if (elements.sidebarBackdrop) elements.sidebarBackdrop.hidden = !isOpen;
+  elements.sidebarToggle?.setAttribute("aria-expanded", String(isOpen));
+  document.body.classList.toggle("teacher-sidebar-open", isOpen);
+}
+
+function updateSidebarActive(link) {
+  elements.sidebarLinks.forEach((item) => item.classList.toggle("is-active", item === link));
+  if (elements.pageTitle && link) elements.pageTitle.textContent = link.textContent.trim();
+}
+
+function openDeleteConfirmation(studentId) {
+  const student = currentStudents.find((item) => item.id === studentId);
+  if (!student || !elements.deleteModal) return;
+  pendingDeleteStudentId = studentId;
+  if (elements.deleteModalMessage) elements.deleteModalMessage.textContent = `سيتم حذف حساب ${student.studentName} وبياناته وسجل حضوره نهائيًا ولا يمكن التراجع عن هذا الإجراء.`;
+  elements.deleteModal.hidden = false;
+  elements.deleteModal.classList.add("is-open");
+  elements.deleteModalApprove?.focus();
+}
+
+function closeDeleteConfirmation() {
+  pendingDeleteStudentId = null;
+  elements.deleteModal?.classList.remove("is-open");
+  if (elements.deleteModal) elements.deleteModal.hidden = true;
+}
+
+async function approveDeleteConfirmation() {
+  const studentId = pendingDeleteStudentId;
+  closeDeleteConfirmation();
+  if (studentId) await deleteStudent(studentId, true);
+}
+
+async function deleteStudent(studentId, confirmed = false) {
   const student = currentStudents.find((item) => item.id === studentId);
   if (!student) {
     return;
   }
 
-  const confirmed = window.confirm(
-    `هل أنت متأكد من حذف المستخدم ${student.studentName}؟ سيتم حذف بياناته وسجل حضوره نهائياً.`
-  );
   if (!confirmed) {
+    openDeleteConfirmation(studentId);
     return;
   }
 
@@ -1938,6 +1983,15 @@ if (!getTeacherToken()) {
     button.addEventListener("click", () => fetchStudents(button.dataset.level));
   });
   elements.publicInviteButton?.addEventListener("click", () => { void createPublicInvite(); });
+  elements.sidebarToggle?.addEventListener("click", () => setSidebarOpen(!elements.sidebar?.classList.contains("is-open")));
+  elements.sidebarClose?.addEventListener("click", () => setSidebarOpen(false));
+  elements.sidebarBackdrop?.addEventListener("click", () => setSidebarOpen(false));
+  elements.sidebarLogout?.addEventListener("click", logoutTeacher);
+  elements.sidebarLinks.forEach((link) => link.addEventListener("click", () => { updateSidebarActive(link); setSidebarOpen(false); }));
+  elements.deleteModalClose?.addEventListener("click", closeDeleteConfirmation);
+  elements.deleteModalCancel?.addEventListener("click", closeDeleteConfirmation);
+  elements.deleteModalApprove?.addEventListener("click", () => { void approveDeleteConfirmation(); });
+  elements.deleteModal?.addEventListener("click", (event) => { if (event.target === elements.deleteModal) closeDeleteConfirmation(); });
 
   elements.paymentStatusForm?.addEventListener("submit", savePaymentStatus);
   elements.paymentStatusStage?.addEventListener("change", syncPaymentAmountField);
@@ -1989,6 +2043,14 @@ elements.driveVideoModal?.addEventListener("click", (e) => {
   });
 
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && elements.deleteModal && !elements.deleteModal.hidden) {
+      closeDeleteConfirmation();
+      return;
+    }
+    if (event.key === "Escape" && elements.sidebar?.classList.contains("is-open")) {
+      setSidebarOpen(false);
+      return;
+    }
     if (event.key === "Escape" && elements.cardPreviewModal && !elements.cardPreviewModal.hidden) {
       closeStudentCardPreview();
     }
