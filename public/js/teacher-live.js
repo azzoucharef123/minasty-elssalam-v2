@@ -10,7 +10,17 @@
  */
 
 // Socket.io is served by the Express server at /socket.io/socket.io.js.
-const socket = io();
+// Start explicitly so the studio can wait for a healthy signaling connection
+// before emitting teacher_start_room, while retaining WebSocket/polling fallback.
+const socket = io({
+  autoConnect: false,
+  transports: ["websocket", "polling"],
+  reconnection: true,
+  reconnectionAttempts: Infinity,
+  reconnectionDelay: 500,
+  reconnectionDelayMax: 5000,
+  timeout: 10000,
+});
 
 // STUN helps browsers discover a viable peer-to-peer route. A TURN server is
 // still recommended for a production deployment where restrictive networks
@@ -1945,13 +1955,35 @@ async function flushPendingIceCandidates(studentSocketId) {
  * Send an event with an acknowledgement timeout. This prevents a disabled UI
  * if the server is unavailable or a route is rejected by server-side checks.
  */
-function emitWithAcknowledgement(eventName, payload, timeoutMs = 10_000) {
-  return new Promise((resolve, reject) => {
-    if (!socket.connected) {
-      reject(new Error("الاتصال بالخادم غير متاح حالياً."));
-      return;
-    }
+function waitForSocketConnection(timeoutMs = 12_000) {
+  if (socket.connected) return Promise.resolve(true);
 
+  return new Promise((resolve) => {
+    let settled = false;
+    const timeoutId = window.setTimeout(() => finish(false), timeoutMs);
+    const finish = (connected) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      socket.off("connect", handleConnect);
+      resolve(connected);
+    };
+    const handleConnect = () => finish(true);
+
+    socket.once("connect", handleConnect);
+    socket.connect();
+  });
+}
+
+async function emitWithAcknowledgement(eventName, payload, timeoutMs = 10_000) {
+  if (!socket.connected) {
+    const connected = await waitForSocketConnection(Math.min(timeoutMs, 12_000));
+    if (!connected || !socket.connected) {
+      throw new Error("تعذر الاتصال بالخادم حالياً. حاول مرة أخرى بعد لحظات.");
+    }
+  }
+
+  return new Promise((resolve, reject) => {
     const timeoutId = window.setTimeout(() => {
       reject(new Error("انتهت مهلة الاستجابة من الخادم."));
     }, timeoutMs);
@@ -2181,8 +2213,16 @@ async function startLiveClass() {
   }
 
   if (!socket.connected) {
-    setStudioStatus("تعذر بدء الحصة لأن الاتصال بالخادم غير متاح.", "error");
-    return;
+    isStarting = true;
+    updateControls();
+    setStudioStatus("جارٍ الاتصال بخادم الحصة قبل البدء…", "neutral");
+    const connected = await waitForSocketConnection(12_000);
+    if (!connected || !socket.connected) {
+      isStarting = false;
+      updateControls();
+      setStudioStatus("تعذر الاتصال بالخادم حالياً. حاول مرة أخرى بعد لحظات.", "error");
+      return;
+    }
   }
 
   const selectedLevel = elements.levelSelect.value;
@@ -2400,13 +2440,24 @@ socket.on("connect", () => {
     return;
   }
 
+  if (isStarting) {
+    setStudioStatus("تم الاتصال بالخادم. جارٍ تجهيز الحصة…", "neutral");
+    return;
+  }
+
   if (!classActive) {
     setStudioStatus("الاستوديو جاهز", "neutral");
   }
 });
 
 socket.on("connect_error", () => {
-  setStudioStatus("تعذر الاتصال بخادم الحصص المباشرة.", "error");
+  if (classActive) {
+    setStudioStatus("انقطع اتصال الإشارة. جارٍ استعادة الحصة تلقائياً…", "error");
+  } else if (isStarting) {
+    setStudioStatus("جارٍ إعادة الاتصال بالخادم قبل بدء الحصة…", "neutral");
+  } else {
+    setStudioStatus("تعذر الاتصال بخادم الحصص المباشرة. جارٍ إعادة المحاولة…", "neutral");
+  }
 });
 
 socket.on("room_ready", (data) => {
@@ -2613,6 +2664,7 @@ socket.on("classroom_error", (data = {}) => {
 
 socket.on("disconnect", () => {
   if (!classActive) {
+    if (isStarting) setStudioStatus("انقطع الاتصال. جارٍ إعادة الاتصال قبل بدء الحصة…", "neutral");
     return;
   }
 
@@ -2626,6 +2678,11 @@ socket.on("disconnect", () => {
 });
 
 // --- User controls ---
+
+// Begin the signaling connection as soon as the studio loads. The start button
+// still waits for this connection, so a slow first handshake cannot produce a
+// false "server unavailable" failure.
+socket.connect();
 
 elements.levelSelect.addEventListener("change", () => {
   if (!classActive && !isStarting && !isEnding) {
