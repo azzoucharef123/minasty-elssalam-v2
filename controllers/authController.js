@@ -12,9 +12,10 @@ const prisma = require("../lib/prisma");
 
 const JWT_ISSUER = "online-tutoring-platform";
 const JWT_AUDIENCE = "online-tutoring-platform-web";
-// Keep authenticated sessions available across browser restarts. Deployments may
-// still override this with JWT_EXPIRES_IN when a shorter security window is required.
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "365d";
+// Keep authenticated sessions available across browser restarts. The explicit
+// one-year lifetime prevents an older Railway JWT_EXPIRES_IN value from silently
+// reducing the session to a few hours. Explicit logout still removes local access.
+const JWT_EXPIRES_IN = "365d";
 
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET;
