@@ -12,7 +12,9 @@ const prisma = require("../lib/prisma");
 
 const JWT_ISSUER = "online-tutoring-platform";
 const JWT_AUDIENCE = "online-tutoring-platform-web";
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "8h";
+// Keep authenticated sessions available across browser restarts. Deployments may
+// still override this with JWT_EXPIRES_IN when a shorter security window is required.
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "365d";
 
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET;
