@@ -58,6 +58,7 @@ function startFfmpeg(session, serverUrl, streamKey) {
     "-hide_banner",
     "-loglevel", "warning",
     "-fflags", "+genpts",
+    "-re",
     "-f", "webm",
     "-analyzeduration", "1M",
     "-probesize", "1M",
