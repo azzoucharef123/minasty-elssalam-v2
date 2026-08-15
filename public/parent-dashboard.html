@@ -498,179 +498,625 @@
       }
 
       .student-card p {
-        margin: 0.25rem 0 0;
+        margin: 0.22rem 0 0;
         color: var(--parent-muted);
-        font-size: 0.72rem;
+        font-size: 0.75rem;
         font-weight: 600;
       }
 
-      .note-card {
-        padding: 1.15rem;
+      .payment-card {
+        padding: 1.1rem;
       }
 
-      .note-card h3 {
-        margin: 0 0 0.5rem;
-        font-size: 0.88rem;
+      .payment-card span {
+        display: block;
+        color: var(--parent-muted);
+        font-size: 0.72rem;
+        font-weight: 700;
+      }
+
+      #payment-status {
+        display: inline-flex;
+        align-items: center;
+        margin-top: 0.42rem;
+        padding: 0.37rem 0.58rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
         font-weight: 800;
       }
 
-      .note-card p {
-        margin: 0;
-        color: var(--parent-muted);
-        font-size: 0.78rem;
-        line-height: 1.6;
+      #payment-status.is-paid {
+        color: #047857;
+        background: var(--parent-green-soft);
       }
 
-      .parent-kpi-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-        gap: 1rem;
-        margin-bottom: 1.25rem;
+      #payment-status.is-free {
+        color: #0369a1;
+        background: #e0f2fe;
       }
 
-      .parent-kpi-card {
-        display: flex;
-        align-items: center;
-        gap: 0.95rem;
-        padding: 1.1rem;
-        background: #ffffff;
-        border: 1px solid rgba(148, 163, 184, 0.15);
+      .university-payment-upgrade[hidden],
+      .university-payment-transfer[hidden] {
+        display: none;
+      }
+
+      .university-payment-upgrade {
+        margin: 0 0 1rem;
+        padding: 1.05rem 1.1rem;
+        border: 1px solid #bfdbfe;
         border-radius: 1rem;
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+        background: linear-gradient(135deg, #ffffff, #eff6ff);
+        box-shadow: 0 8px 22px rgba(37, 99, 235, 0.07);
       }
 
-      .parent-kpi-icon {
+      .university-payment-upgrade h2,
+      .university-payment-upgrade p {
+        margin: 0;
+      }
+
+      .university-payment-upgrade h2 {
+        color: #1d4ed8;
+        font-size: 0.98rem;
+      }
+
+      .university-payment-upgrade > p {
+        margin-top: 0.28rem;
+        color: #475569;
+        font-size: 0.77rem;
+        font-weight: 600;
+        line-height: 1.8;
+      }
+
+      .university-upgrade-button {
+        width: 100%;
+        min-height: 3rem;
+        margin-top: 0.85rem;
+        color: #ffffff;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        border: 0;
+        border-radius: 0.72rem;
+        font: inherit;
+        font-size: 0.8rem;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .university-payment-transfer {
         display: grid;
-        width: 2.7rem;
-        height: 2.7rem;
-        flex: 0 0 auto;
-        place-items: center;
-        color: #2563eb;
-        background: #eff6ff;
-        border-radius: 0.85rem;
-        font-size: 1.2rem;
+        gap: 0.68rem;
+        margin-top: 0.9rem;
+        padding-top: 0.9rem;
+        border-top: 1px solid #bfdbfe;
       }
 
-      .parent-kpi-card small {
-        display: block;
+      .university-payment-transfer h3,
+      .university-payment-transfer p {
+        margin: 0;
+      }
+
+      .university-payment-transfer h3 {
+        color: #0f172a;
+        font-size: 0.85rem;
+      }
+
+      .university-payment-transfer > p {
+        color: #64748b;
+        font-size: 0.73rem;
+        font-weight: 600;
+        line-height: 1.75;
+      }
+
+      .parent-payment-details {
+        display: grid;
+        gap: 0.42rem;
+        margin: 0;
+      }
+
+      .parent-payment-details div {
+        display: grid;
+        grid-template-columns: 6.5rem minmax(0, 1fr);
+        gap: 0.45rem;
+        padding: 0.5rem 0.6rem;
+        border: 1px solid #dbeafe;
+        border-radius: 0.6rem;
+        background: #ffffff;
+      }
+
+      .parent-payment-details dt {
         color: #64748b;
         font-size: 0.68rem;
-        font-weight: 700;
-        text-transform: uppercase;
-      }
-
-      .parent-kpi-card strong {
-        display: block;
-        margin-top: 0.1rem;
-        color: #0f172a;
-        font-size: 1.05rem;
         font-weight: 800;
       }
 
-      .parent-kpi-card em {
-        display: block;
-        margin-top: 0.15rem;
-        color: #94a3b8;
-        font-size: 0.65rem;
-        font-style: normal;
-        font-weight: 600;
+      .parent-payment-details dd {
+        margin: 0;
+        color: #0f172a;
+        font-family: Arial, sans-serif;
+        font-size: 0.72rem;
+        font-weight: 800;
+        overflow-wrap: anywhere;
       }
 
-      .parent-content-split {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1.25rem;
-        margin-bottom: 1.25rem;
-      }
-
-      .parent-feedback-card {
-        padding: 1.5rem;
+      .parent-payment-receipt-input {
+        width: 100%;
+        padding: 0.52rem;
+        border: 1px dashed #60a5fa;
+        border-radius: 0.62rem;
         background: #ffffff;
-        border: 1px solid rgba(148, 163, 184, 0.15);
-        border-radius: 1.15rem;
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+        font: inherit;
       }
 
-      .parent-panel-kicker {
-        margin-bottom: 0.5rem;
-        color: #2563eb;
-        font-size: 0.72rem;
+      .parent-payment-submit {
+        min-height: 2.75rem;
+        color: #ffffff;
+        background: #059669;
+        border: 0;
+        border-radius: 0.66rem;
+        font: inherit;
+        font-size: 0.78rem;
         font-weight: 800;
-        text-transform: uppercase;
+        cursor: pointer;
       }
 
-      .parent-feedback-card h2 {
-        margin: 0 0 1rem;
-        color: #0f172a;
-        font-size: 1.15rem;
+      .parent-payment-pending {
+        padding: 0.64rem 0.72rem;
+        color: #92400e;
+        border-radius: 0.62rem;
+        background: #fef3c7;
+        font-size: 0.75rem;
         font-weight: 800;
-      }
-
-      .parent-feedback-card blockquote {
-        margin: 0 0 1rem;
-        padding: 0.85rem 1.1rem;
-        color: #475569;
-        background: #f8fafc;
-        border-right: 4px solid #3b82f6;
-        border-radius: 0.5rem;
-        font-size: 0.88rem;
-        font-style: italic;
-        line-height: 1.6;
-      }
-
-      .parent-feedback-card small {
-        color: #94a3b8;
-        font-size: 0.72rem;
-        font-weight: 600;
-      }
-
-      .parent-payment-confirmed {
-        margin-top: 1.25rem;
-        padding: 1rem;
-        color: #065f46;
-        background: #ecfdf5;
-        border: 1px solid #a7f3d0;
-        border-radius: 0.85rem;
-        text-align: center;
-        font-size: 0.88rem;
-        font-weight: 700;
+        line-height: 1.75;
       }
 
       .parent-payment-confirmed[hidden] {
         display: none;
       }
 
+      .parent-payment-confirmed {
+        margin: 0 0 1rem;
+        padding: 0.82rem 0.95rem;
+        color: #166534;
+        background: #ecfdf5;
+        border: 1px solid #bbf7d0;
+        border-radius: 0.85rem;
+        font-size: 0.79rem;
+        font-weight: 800;
+        line-height: 1.75;
+      }
+
+      .payment-card small,
+      .enrollment-card strong {
+        display: block;
+        margin-top: 0.5rem;
+        color: #475569;
+        font-size: 0.75rem;
+        font-weight: 700;
+        line-height: 1.7;
+      }
+
+      .enrollment-card {
+        padding: 1.1rem;
+      }
+
+      .enrollment-card > span {
+        display: block;
+        color: var(--parent-muted);
+        font-size: 0.72rem;
+        font-weight: 700;
+      }
+
+      .notes-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+      }
+
+      .note-card {
+        padding: 1.1rem;
+      }
+
+      .note-card-header {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        margin-bottom: 0.7rem;
+      }
+
+      .note-icon {
+        display: grid;
+        width: 2.1rem;
+        height: 2.1rem;
+        place-items: center;
+        color: #1d4ed8;
+        background: var(--parent-blue-soft);
+        border-radius: 0.62rem;
+        font-weight: 800;
+      }
+
+      .physics-card .note-icon {
+        color: #7e22ce;
+        background: #faf5ff;
+      }
+
+      .note-card h3 {
+        margin: 0;
+        font-size: 0.9rem;
+        font-weight: 800;
+      }
+
+      .note-card p {
+        min-height: 3.8rem;
+        margin: 0;
+        color: #475569;
+        font-size: 0.81rem;
+        font-weight: 500;
+        line-height: 1.9;
+        white-space: pre-wrap;
+      }
+
+      .card-reupload-panel[hidden] {
+        display: none;
+      }
+
+      .card-reupload-panel {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.9rem;
+        margin: 0 0 1rem;
+        padding: 1rem 1.1rem;
+        color: #7f1d1d;
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        border-radius: 1rem;
+      }
+
+      .card-reupload-panel strong,
+      .card-reupload-panel p {
+        display: block;
+        margin: 0;
+      }
+
+      .card-reupload-panel strong {
+        font-size: 0.9rem;
+      }
+
+      .card-reupload-panel p {
+        margin-top: 0.25rem;
+        color: #9a3412;
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1.75;
+      }
+
+      .card-reupload-action {
+        min-height: 2.65rem;
+        padding: 0.55rem 0.8rem;
+        color: #ffffff;
+        background: #b91c1c;
+        border: 0;
+        border-radius: 0.68rem;
+        font: inherit;
+        font-size: 0.76rem;
+        font-weight: 800;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .payment-access-modal[hidden] {
+        display: none;
+      }
+
+      .payment-access-modal {
+        position: fixed;
+        z-index: 100;
+        inset: 0;
+        display: grid;
+        padding: 1rem;
+        place-items: center;
+        background: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(6px);
+      }
+
+      .payment-access-dialog {
+        width: min(100%, 25rem);
+        overflow: hidden;
+        background: #ffffff;
+        border: 1px solid rgba(254, 202, 202, 0.86);
+        border-radius: 1.2rem;
+        box-shadow: 0 24px 55px rgba(15, 23, 42, 0.28);
+        animation: payment-dialog-enter 0.25s ease both;
+      }
+
+      .payment-access-dialog-head {
+        padding: 1.25rem 1.25rem 1rem;
+        color: #ffffff;
+        background: linear-gradient(135deg, #b91c1c, #dc2626);
+      }
+
+      .payment-access-dialog-icon {
+        display: grid;
+        width: 2.8rem;
+        height: 2.8rem;
+        margin-bottom: 0.75rem;
+        place-items: center;
+        color: #fef2f2;
+        background: rgba(255, 255, 255, 0.16);
+        border: 1px solid rgba(255, 255, 255, 0.26);
+        border-radius: 0.82rem;
+        font-size: 1.35rem;
+        font-weight: 900;
+      }
+
+      .payment-access-dialog h2,
+      .payment-access-dialog p {
+        margin: 0;
+      }
+
+      .payment-access-dialog h2 {
+        font-size: 1.03rem;
+        font-weight: 800;
+      }
+
+      .payment-access-dialog-head p {
+        margin-top: 0.35rem;
+        color: #fee2e2;
+        font-size: 0.76rem;
+        font-weight: 600;
+        line-height: 1.8;
+      }
+
+      .payment-access-dialog-body {
+        padding: 1.2rem 1.25rem 1.3rem;
+      }
+
+      .payment-access-dialog-body > p {
+        color: #475569;
+        font-size: 0.82rem;
+        font-weight: 600;
+        line-height: 1.95;
+      }
+
+      .payment-access-actions {
+        display: grid;
+        gap: 0.58rem;
+        margin-top: 1.1rem;
+      }
+
+      .payment-access-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 3rem;
+        padding: 0.65rem 0.9rem;
+        border-radius: 0.72rem;
+        font: inherit;
+        font-size: 0.82rem;
+        font-weight: 800;
+        text-decoration: none;
+        cursor: pointer;
+        transition: transform 0.2s ease, filter 0.2s ease;
+      }
+
+      .payment-access-action:hover {
+        filter: brightness(1.06);
+        transform: translateY(-0.1rem);
+      }
+
+      .payment-access-action.call {
+        color: #ffffff;
+        background: linear-gradient(135deg, #059669, #16a34a);
+        border: 1px solid transparent;
+        box-shadow: 0 8px 16px rgba(5, 150, 105, 0.2);
+      }
+
+      .payment-access-action.cancel {
+        color: #b91c1c;
+        background: #fff5f5;
+        border: 1px solid #fecaca;
+      }
+
+      .lesson-repository-card {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+        margin: 0 0 1.25rem;
+        padding: clamp(1rem, 2.4vw, 1.45rem);
+        border: 1px solid rgba(187, 247, 208, 0.95);
+        border-radius: 1.35rem;
+        background:
+          radial-gradient(circle at 8% 0%, rgba(134, 239, 172, 0.28), transparent 16rem),
+          linear-gradient(145deg, #ffffff 0%, #f0fdf4 100%);
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+      }
+
+      .lesson-repository-card::after {
+        position: absolute;
+        z-index: -1;
+        top: -4.5rem;
+        left: -3rem;
+        width: 13rem;
+        height: 13rem;
+        content: "";
+        border: 1px solid rgba(34, 197, 94, 0.12);
+        border-radius: 50%;
+      }
+
+      .lesson-repository-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(187, 247, 208, 0.72);
+      }
+
+      .lesson-repository-head span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        color: #15803d;
+        font-size: 0.7rem;
+        font-weight: 900;
+        letter-spacing: 0.02em;
+      }
+
+      .lesson-repository-head span::before {
+        width: 0.45rem;
+        height: 0.45rem;
+        content: "";
+        background: #22c55e;
+        border-radius: 999px;
+        box-shadow: 0 0 0 0.25rem rgba(34, 197, 94, 0.13);
+      }
+
+      .lesson-repository-head h2,
+      .lesson-repository-head p { margin: 0; }
+      .lesson-repository-head h2 { margin-top: 0.28rem; color: #14532d; font-size: clamp(1.05rem, 2vw, 1.28rem); letter-spacing: -0.02em; }
+      .lesson-repository-head p { max-width: 42rem; margin-top: 0.38rem; color: #64748b; font-size: 0.76rem; line-height: 1.8; }
+      .lesson-video-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 0.9rem; margin-top: 1.1rem; }
+      .lesson-video-item { display: grid; grid-template-columns: 6.1rem minmax(0, 1fr); gap: 0.85rem; align-items: center; min-width: 0; padding: 0.7rem; border: 1px solid #dcfce7; border-radius: 1rem; background: rgba(255, 255, 255, 0.9); box-shadow: 0 8px 20px rgba(15, 23, 42, 0.045); transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
+      .lesson-video-item:hover { border-color: #86efac; box-shadow: 0 13px 26px rgba(22, 101, 52, 0.11); transform: translateY(-0.15rem); }
+      .lesson-video-art { position: relative; display: grid; min-height: 4.35rem; place-items: center; overflow: hidden; color: #ffffff; background: linear-gradient(135deg, #14532d, #16a34a 58%, #86efac); border-radius: 0.75rem; }
+      .lesson-video-art::before { position: absolute; width: 4.8rem; height: 4.8rem; content: ""; border: 1px solid rgba(255, 255, 255, 0.26); border-radius: 50%; }
+      .lesson-video-art::after { position: absolute; width: 0.35rem; height: 0.35rem; content: ""; background: #dcfce7; border-radius: 50%; box-shadow: 1.55rem -1rem 0 rgba(255, 255, 255, 0.45), -1.6rem 1rem 0 rgba(255, 255, 255, 0.34); }
+      .lesson-video-art svg { position: relative; z-index: 1; width: 1.65rem; height: 1.65rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
+      .lesson-video-copy { display: grid; gap: 0.34rem; min-width: 0; }
+      .lesson-video-copy strong { display: block; overflow: hidden; color: #14532d; font-size: 0.84rem; line-height: 1.55; text-overflow: ellipsis; white-space: nowrap; }
+      .lesson-video-type { display: inline-flex; width: fit-content; max-width: 100%; overflow: hidden; padding: 0.18rem 0.42rem; color: #166534; background: #dcfce7; border-radius: 999px; font-size: 0.62rem; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+      .lesson-video-copy small { overflow: hidden; color: #64748b; font-size: 0.68rem; text-overflow: ellipsis; white-space: nowrap; }
+      .lesson-video-copy small::before { content: "◷ "; color: #16a34a; font-weight: 900; }
+      .watch-lesson-video-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; width: fit-content; min-height: 2.25rem; margin-top: 0.18rem; padding: 0.42rem 0.72rem; color: #ffffff; background: linear-gradient(135deg, #15803d, #16a34a); border: 0; border-radius: 0.62rem; font: inherit; font-size: 0.7rem; font-weight: 900; cursor: pointer; box-shadow: 0 7px 14px rgba(22, 163, 74, 0.18); transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease; }
+      .watch-lesson-video-btn::before { content: "▶"; font-size: 0.58rem; }
+      .watch-lesson-video-btn:hover { filter: brightness(1.05); box-shadow: 0 10px 18px rgba(22, 163, 74, 0.27); transform: translateY(-0.08rem); }
+      .watch-lesson-video-btn:active { transform: scale(0.97); }
+      .lesson-video-empty { grid-column: 1 / -1; margin: 0; padding: 1.15rem; color: #64748b; background: rgba(248, 250, 252, 0.82); border: 1px dashed #86efac; border-radius: 0.9rem; font-size: 0.76rem; text-align: center; }
+      .lesson-video-modal { position: fixed; z-index: 90; inset: 0; display: grid; place-items: center; padding: clamp(0.65rem, 2.4vw, 2rem); background: rgba(2, 6, 23, 0.84); backdrop-filter: blur(12px); animation: lesson-modal-fade 0.2s ease-out; }
+      .lesson-video-modal[hidden] { display: none; }
+      .lesson-video-dialog { display: grid; width: min(100%, 76rem); max-height: min(92vh, 54rem); gap: 1rem; padding: clamp(0.8rem, 2.2vw, 1.35rem); overflow: auto; background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%); border: 1px solid rgba(255, 255, 255, 0.55); border-radius: clamp(1rem, 2.2vw, 1.5rem); box-shadow: 0 30px 100px rgba(2, 6, 23, 0.48); animation: lesson-dialog-enter 0.24s cubic-bezier(0.23, 1, 0.32, 1); }
+      .lesson-video-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+      .lesson-video-modal-brand { display: grid; gap: 0.18rem; min-width: 0; }
+      .lesson-video-modal-brand span { color: #16a34a; font-size: 0.68rem; font-weight: 900; }
+      .lesson-video-modal-brand h2 { margin: 0; overflow: hidden; color: #0f172a; font-size: clamp(1.05rem, 2vw, 1.35rem); line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
+      .lesson-video-modal-brand p { margin: 0; color: #64748b; font-size: 0.72rem; }
+      .lesson-video-close { display: grid; width: 2.55rem; height: 2.55rem; flex: 0 0 auto; place-items: center; color: #475569; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 0.8rem; font-size: 1.35rem; line-height: 1; cursor: pointer; transition: color 0.18s ease, background 0.18s ease, transform 0.18s ease; }
+      .lesson-video-close:hover { color: #b91c1c; background: #fef2f2; transform: rotate(4deg); }
+      .lesson-video-modal-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem); gap: 1rem; align-items: start; }
+      .lesson-video-player-shell { min-width: 0; overflow: hidden; background: #020617; border: 1px solid #1e293b; border-radius: 1.05rem; box-shadow: 0 16px 36px rgba(15, 23, 42, 0.2); }
+      .lesson-video-player-topbar { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; padding: 0.62rem 0.78rem; color: #cbd5e1; background: #0f172a; font-size: 0.68rem; font-weight: 800; }
+      .lesson-video-player-topbar span { display: inline-flex; align-items: center; gap: 0.35rem; }
+      .lesson-video-player-topbar span::before { width: 0.42rem; height: 0.42rem; content: ""; background: #22c55e; border-radius: 50%; box-shadow: 0 0 0 0.22rem rgba(34, 197, 94, 0.16); }
+      .lesson-video-player-topbar small { color: #94a3b8; font-size: 0.64rem; }
+      .lesson-video-frame { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; background: #020617; }
+      .lesson-video-sidebar { display: grid; gap: 0.75rem; padding: 0.9rem; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 1rem; }
+      .lesson-video-sidebar-label { color: #16a34a; font-size: 0.68rem; font-weight: 900; }
+      .lesson-video-sidebar h3 { margin: 0.28rem 0 0; color: #0f172a; font-size: 0.94rem; line-height: 1.6; }
+      .lesson-video-sidebar-meta { display: block; margin-top: 0.38rem; color: #64748b; font-size: 0.69rem; line-height: 1.7; }
+      .lesson-video-sidebar-tip { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.55rem; align-items: start; padding: 0.72rem; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 0.78rem; font-size: 0.68rem; line-height: 1.75; }
+      .lesson-video-sidebar-tip::before { content: "✓"; display: grid; width: 1.35rem; height: 1.35rem; place-items: center; color: #ffffff; background: #16a34a; border-radius: 50%; font-size: 0.66rem; font-weight: 900; }
+
+      @keyframes lesson-modal-fade { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes lesson-dialog-enter { from { opacity: 0; transform: translateY(0.8rem) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+      @keyframes payment-dialog-enter {
+        from {
+          opacity: 0;
+          transform: translateY(0.7rem) scale(0.97);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
       @keyframes banner-enter {
-        from { opacity: 0; transform: translateY(-1rem); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+          opacity: 0;
+          transform: translateY(-0.5rem);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
 
       @keyframes banner-pulse {
-        0%, 100% { box-shadow: 0 14px 30px rgba(37, 99, 235, 0.24); }
-        50% { box-shadow: 0 14px 45px rgba(37, 99, 235, 0.38); }
+        0%,
+        100% {
+          box-shadow: 0 14px 30px rgba(37, 99, 235, 0.24);
+        }
+        50% {
+          box-shadow: 0 16px 38px rgba(37, 99, 235, 0.42);
+        }
       }
 
-      @media (max-width: 64rem) {
-        .student-overview { grid-template-columns: 1fr; }
-        .parent-content-split { grid-template-columns: 1fr; }
+      @media (max-width: 42rem) {
+        .parent-header-content,
+        .parent-main {
+          width: min(100% - 1.25rem, 73rem);
+        }
+
+        #live-class-banner {
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .join-live-class-button {
+          width: 100%;
+        }
+
+        .student-overview {
+          grid-template-columns: 1fr;
+        }
+
+        .card-reupload-panel {
+          grid-template-columns: 1fr;
+        }
+
+        .card-reupload-action {
+          width: 100%;
+        }
       }
 
-      @media (max-width: 40rem) {
-        .parent-header-content { min-height: 4.5rem; }
-        .student-card { flex-direction: column; text-align: center; }
-        .live-banner-copy { flex-direction: column; text-align: center; }
-        #live-class-banner { flex-direction: column; text-align: center; gap: 1.15rem; }
+      @media (max-width: 58rem) {
+        .lesson-video-modal-body { grid-template-columns: 1fr; }
+        .lesson-video-sidebar { grid-template-columns: minmax(0, 1fr) minmax(15rem, 0.85fr); align-items: center; }
+      }
+
+      @media (max-width: 42rem) {
+        .lesson-repository-head { align-items: flex-start; }
+        .lesson-video-list { grid-template-columns: 1fr; }
+        .lesson-video-item { grid-template-columns: 5.65rem minmax(0, 1fr); gap: 0.7rem; }
+        .lesson-video-art { min-height: 4rem; }
+        .lesson-video-modal { align-items: end; padding: 0; }
+        .lesson-video-dialog { width: 100%; max-height: 94dvh; padding: 0.8rem; border-radius: 1.25rem 1.25rem 0 0; }
+        .lesson-video-modal-body { gap: 0.75rem; }
+        .lesson-video-player-shell { border-radius: 0.85rem; }
+        .lesson-video-player-topbar { padding: 0.55rem 0.65rem; }
+        .lesson-video-player-topbar small { display: none; }
+        .lesson-video-sidebar { grid-template-columns: 1fr; gap: 0.6rem; padding: 0.75rem; }
+        .lesson-video-sidebar-tip { font-size: 0.67rem; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .parent-dashboard-page *,
+        .parent-dashboard-page *::before,
+        .parent-dashboard-page *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+        }
       }
     </style>
-    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css" />
-    <link rel="stylesheet" href="./css/participation.css" />
+    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=parent-dashboard-1" />
   </head>
   <body class="parent-dashboard-page">
     <div id="parent-sidebar-backdrop" class="parent-sidebar-backdrop" hidden></div>
     <aside id="parent-sidebar" class="parent-sidebar" aria-label="القائمة الجانبية">
       <div class="parent-sidebar-brand"><div class="parent-brand"><span class="parent-brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 8 12 3.75 20.5 8 12 12.25 3.5 8Z" /><path d="M6.5 9.5v5.9c3.1 2.25 7.9 2.25 11 0V9.5" /></svg></span><span class="parent-brand-copy"><strong>أكاديمية التفوق</strong><small>بوابة الولي</small></span></div><button id="parent-sidebar-close" class="parent-sidebar-close" type="button" aria-label="إغلاق القائمة">×</button></div>
       <div class="parent-profile-card"><span class="parent-profile-avatar" aria-hidden="true">و</span><span><strong>حساب الولي</strong><small>متابعة الأبناء</small></span><i aria-hidden="true"></i></div>
-      <nav class="parent-sidebar-nav" aria-label="تنقل بوابة الولي"><a class="parent-nav-link is-active" href="#dashboard-content"><span aria-hidden="true">⌂</span>لوحة المتابعة</a><a class="parent-nav-link" href="#student-switcher"><span aria-hidden="true">♙</span>أبنائي</a><a class="parent-nav-link" href="#secondary-payment-upgrade"><span aria-hidden="true">▤</span>الفواتير والاشتراكات</a><a class="parent-nav-link" href="./account-center.html"><span aria-hidden="true">⚙</span>الإعدادات</a></nav>
+      <nav class="parent-sidebar-nav" aria-label="تنقل بوابة الولي"><a class="parent-nav-link is-active" href="#dashboard-content"><span aria-hidden="true">⌂</span>لوحة المتابعة</a><a class="parent-nav-link" href="#student-switcher"><span aria-hidden="true">♙</span>أبنائي</a><a class="parent-nav-link" href="#parent-schedule-card"><span aria-hidden="true">▣</span>جدول الحصص</a><a class="parent-nav-link" href="#secondary-payment-upgrade"><span aria-hidden="true">▤</span>الفواتير والاشتراكات</a><a class="parent-nav-link" href="./account-center.html"><span aria-hidden="true">⚙</span>الإعدادات</a></nav>
       <div class="parent-sidebar-footer"><a href="./academic-center.html">المركز الأكاديمي</a><button id="parent-sidebar-logout" type="button">↪ تسجيل الخروج</button></div>
     </aside>
     <div class="parent-dashboard-shell">
@@ -681,128 +1127,110 @@
           <span class="parent-brand-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M3.5 8 12 3.75 20.5 8 12 12.25 3.5 8Z" /><path d="M6.5 9.5v5.9c3.1 2.25 7.9 2.25 11 0V9.5" /></svg>
           </span>
-          <div class="parent-brand-copy">
+          <span class="parent-brand-copy">
             <strong>أكاديمية التفوق</strong>
-            <small>بوابة الولي</small>
-          </div>
+            <small>بوابة متابعة الولي</small>
+          </span>
         </div>
-        <button id="logout-button" class="logout-button" type="button">تسجيل الخروج</button>
+        <div class="parent-header-actions">
+          <a class="message-bell" data-message-bell href="./student-chat.html" target="_blank" rel="noopener" aria-label="مراسلتي مع الأستاذ"><span aria-hidden="true">✉</span><b data-message-badge hidden>0</b></a>
+          <a class="parent-messages-link" href="./student-chat.html" target="_blank" rel="noopener">مراسلتي مع الأستاذ</a>
+          <a class="parent-messages-link" href="./academic-center.html">المركز الأكاديمي</a>
+          <a class="parent-messages-link" href="./account-center.html">الحساب والأمان</a>
+          <button id="logout-btn" class="logout-button" type="button">تسجيل الخروج</button>
+        </div>
       </div>
     </header>
 
     <main class="parent-main">
-      <div id="active-student-bar" class="active-student-bar" hidden>
-        <div class="active-student-info">
-          <span class="active-student-label">التلميذ الحالي:</span>
+      <!-- Prompt 10: this remains display:none until the parent level's live event arrives. -->
+      <section id="live-class-banner" aria-live="polite" aria-label="تنبيه الحصة المباشرة">
+        <div class="live-banner-copy">
+          <span class="live-banner-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4.75 5.75A1.75 1.75 0 0 1 6.5 4h11A1.75 1.75 0 0 1 19.25 5.75v9.5A1.75 1.75 0 0 1 17.5 17h-11a1.75 1.75 0 0 1-1.75-1.75v-9.5ZM9 20h6M12 17v3" /><path d="m10 8 5 3.5-5 3.5V8Z" /></svg>
+          </span>
+          <span>
+            <strong>الأستاذ بدأ الحصة المباشرة الآن!</strong>
+            <small>يمكن لابنك الانضمام إلى البث الخاص بمستواه الدراسي.</small>
+          </span>
+        </div>
+        <button id="join-live-class-btn" class="join-live-class-button" type="button">الدخول للحصة</button>
+      </section>
+
+      <div id="dashboard-error" class="dashboard-error" role="alert"></div>
+
+      <section id="active-student-bar" class="active-student-bar" hidden aria-live="polite" aria-label="التلميذ المختار">
+        <div class="active-student-copy">
+          <span class="active-student-label">التلميذ الحالي</span>
           <strong id="active-student-name">—</strong>
         </div>
-        <button id="change-student-btn" class="change-student-btn" type="button">تغيير التلميذ</button>
-      </div>
+        <button id="change-student-button" class="change-student-button" type="button">تغيير التلميذ</button>
+      </section>
 
-      <section id="student-switcher" class="student-switcher" hidden>
-        <div class="student-switcher-heading">
-          <span class="student-switcher-icon" aria-hidden="true">♙</span>
-          <div>
-            <p class="student-switcher-kicker">مرحباً بك في بوابة الولي</p>
-            <h2>اختر التلميذ للمتابعة</h2>
-            <p>يمكنك التبديل بين أبنائك في أي وقت من هذه القائمة.</p>
-          </div>
-        </div>
-        <div id="student-list" class="student-switcher-list" role="list">
-          <!-- Student cards injected here -->
+      <section id="secondary-payment-upgrade" class="university-payment-upgrade secondary-payment-upgrade" hidden aria-live="polite">
+        <h2>ترقية حسابي</h2>
+        <p>اختر المواد التي تريد الاشتراك فيها، ثم ارفع وصل الدفع للتمتع بالحصص المباشرة ومقاطع الدروس المسجلة.</p>
+        <button id="secondary-upgrade-button" class="university-upgrade-button" type="button">ترقية حسابي والتمتع بالحصص المسجلة والمباشرة</button>
+
+        <div id="secondary-payment-transfer" class="university-payment-transfer" hidden>
+          <h3>اختر نوع الاشتراك</h3>
+          <div class="payment-choice-heading"><span>المادة والسعر</span><small>اختر خيارًا واحدًا قبل رفع وصل الدفع</small></div>
+          <label class="payment-choice-label" for="secondary-subscription-type">نوع الاشتراك المطلوب</label>
+          <select id="secondary-subscription-type" class="secondary-subscription-type" aria-describedby="secondary-subscription-help">
+
+            <option value="" selected disabled>اختر الاشتراك</option>
+            <option value="BOTH">رياضيات وفيزياء — 2000 دج</option>
+            <option value="MATH">رياضيات فقط — 1000 دج</option>
+            <option value="PHYSICS">فيزياء فقط — 1000 دج</option>
+          </select>
+          <small id="secondary-subscription-help" class="payment-choice-help">رياضيات وفيزياء: 2000 دج — مادة واحدة: 1000 دج.</small>
+          <dl class="parent-payment-details">
+            <div><dt>صاحب الحساب</dt><dd>Charef Azzeddine</dd></div>
+            <div><dt>الولاية</dt><dd>Biskra</dd></div>
+            <div><dt>CCP</dt><dd>17570324</dd></div>
+            <div><dt>المفتاح</dt><dd>04</dd></div>
+            <div><dt>BaridiMob</dt><dd>00799999001757032404</dd></div>
+          </dl>
+          <label for="secondary-payment-receipt-input">ارفع وصل الدفع من البريد أو BaridiMob</label>
+          <input id="secondary-payment-receipt-input" class="parent-payment-receipt-input" type="file" accept="image/jpeg,image/png" capture="environment" />
+          <button id="secondary-payment-submit" class="parent-payment-submit" type="button">إرسال وصل الدفع للأستاذ</button>
+          <p id="secondary-payment-pending" class="parent-payment-pending" hidden></p>
         </div>
       </section>
 
-      <div id="loading-state">
-        <p>جارٍ تحميل بيانات التلميذ…</p>
-      </div>
+      <section class="dashboard-welcome" aria-labelledby="dashboard-title">
+        <h1 id="dashboard-title">متابعة تقدّم التلميذ</h1>
+        <p>اطلع على نوع اشتراك التلميذ وحالة الحصة المباشرة.</p>
+      </section>
+      <p id="teacher-absence-notice" class="teacher-absence-notice" hidden>الأستاذ غائب اليوم لظروف خاصة</p>
 
-      <div id="dashboard-error" class="dashboard-error" aria-live="assertive"></div>
+      <div id="loading-state" role="status">جارٍ تحميل بيانات التلميذ…</div>
 
-      <div id="dashboard-content" hidden>
-        <div id="teacher-absence-notice" hidden aria-live="polite">
-          الأستاذ غائب اليوم لظروف خاصة
-        </div>
-
-        <section id="live-class-banner" aria-live="polite">
-          <div class="live-banner-copy">
-            <span class="live-banner-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /><circle cx="8.5" cy="12" r="1.5" /></svg>
-            </span>
-            <div>
-              <strong>الحصة المباشرة بدأت الآن!</strong>
-              <small id="live-class-subject">انضم فوراً للتفاعل مع الأستاذ وزملائك.</small>
-            </div>
+      <section id="student-switcher" class="student-switcher" hidden aria-labelledby="student-switcher-title">
+        <div class="student-switcher-heading">
+          <div class="student-switcher-icon" aria-hidden="true">⌂</div>
+          <div>
+            <p class="student-switcher-kicker">حساب الولي</p>
+            <h2 id="student-switcher-title">اختر التلميذ الذي تريد متابعته</h2>
+            <p>هذا الرقم مرتبط بأكثر من تلميذ. اختر اسمًا لعرض ملفه الدراسي.</p>
           </div>
-          <button id="join-live-class-button" class="join-live-class-button" type="button">
-            <span>انضمام للحصة</span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </button>
-        </section>
-
-        <div class="dashboard-welcome">
-          <h1 id="welcome-message">مرحباً بك</h1>
-          <p>إليك ملخص متابعة تلميذك لليوم.</p>
         </div>
+        <div id="student-switcher-list" class="student-switcher-list" role="list"></div>
+      </section>
 
+      <section id="dashboard-content" hidden>
         <div class="student-overview">
           <article class="overview-card student-card">
-            <div id="student-avatar" class="student-avatar" aria-hidden="true">—</div>
+            <span id="student-avatar" class="student-avatar" aria-hidden="true">ت</span>
             <div>
-              <h2 id="student-name">
-                —
-                <span id="account-status" class="account-status-chip">...</span>
-              </h2>
-              <p id="student-level">—</p>
+              <h2><span id="student-name">—</span><span id="account-status" class="account-status-chip">—</span></h2>
+              <p>المستوى الدراسي: <span id="student-level">—</span></p>
             </div>
           </article>
 
-          <article id="card-reupload-panel" class="overview-card note-card" hidden>
-            <h3>تأكيد الهوية مطلوب</h3>
-            <p>طلب الأستاذ إعادة رفع صورة بطاقة الطالب/التعريف. يرجى رفع صورة واضحة لتفعيل الحساب.</p>
-            <div style="margin-top: 0.75rem; display: grid; gap: 0.5rem;">
-              <input type="file" id="replacement-card-input" accept="image/*" style="font-size: 0.75rem;" />
-              <button id="replacement-card-button" class="join-live-class-button" style="min-height: 2.2rem; background: #2563eb; color: #fff; border: none;">رفع البطاقة الجديدة</button>
-            </div>
-          </article>
-
-          <article id="university-payment-upgrade" class="overview-card note-card" hidden>
-            <h3>ترقية الحساب الجامعي</h3>
-            <p>حسابك الحالي مجاني. للاستفادة من الحصص المدفوعة، يرجى دفع <strong>2000 دج</strong> للسداسي ورفع الوصل.</p>
-            <div style="margin-top: 0.75rem; font-size: 0.75rem; background: #f8fafc; padding: 0.6rem; border-radius: 0.5rem; border: 1px solid #e2e8f0;">
-              <strong>CCP:</strong> 17570324 clé 04<br>
-              <strong>Name:</strong> Charef Azzeddine<br>
-              <strong>Baridimob:</strong> 00799999001757032404
-            </div>
-            <div style="margin-top: 0.75rem; display: grid; gap: 0.5rem;">
-              <input type="file" id="university-receipt-input" accept="image/*" style="font-size: 0.75rem;" />
-              <button id="university-receipt-button" class="join-live-class-button" style="min-height: 2.2rem; background: #2563eb; color: #fff; border: none;">إرسال وصل الدفع</button>
-            </div>
-            <small id="university-payment-state" hidden></small>
-          </article>
-
-          <article id="secondary-payment-upgrade" class="overview-card note-card" hidden>
-            <div class="parent-panel-kicker">الاشتراكات والدفع</div>
-            <h3>تفعيل اشتراك التلميذ</h3>
-            <p>يرجى اختيار نوع الاشتراك، دفع المبلغ المطلوب، ثم رفع وصل الدفع لتفعيل الحساب.</p>
-            <div style="margin: 0.75rem 0; font-size: 0.75rem; background: #f0f9ff; padding: 0.8rem; border-radius: 0.6rem; border: 1px solid #bae6fd; line-height: 1.5;">
-              <strong>معلومات الدفع (CCP):</strong><br>
-              17570324 clé 04 — Charef Azzeddine<br>
-              <strong>Baridimob:</strong> 00799999001757032404
-            </div>
-            <div style="display: grid; gap: 0.75rem;">
-              <select id="secondary-subscription-type" style="padding: 0.5rem; border-radius: 0.4rem; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.85rem;">
-                <option value="">-- اختر نوع الاشتراك --</option>
-                <option value="BOTH">رياضيات و فيزياء (2000 دج)</option>
-                <option value="MATH">رياضيات فقط (1000 دج)</option>
-                <option value="PHYSICS">فيزياء فقط (1000 دج)</option>
-              </select>
-              <div style="display: grid; gap: 0.35rem;">
-                <label for="secondary-receipt-input" style="font-size: 0.7rem; font-weight: 800; color: #64748b;">صورة وصل الدفع:</label>
-                <input type="file" id="secondary-receipt-input" accept="image/*" style="font-size: 0.75rem;" />
-              </div>
-              <button id="secondary-receipt-button" class="join-live-class-button" style="min-height: 2.5rem; background: #059669; color: #fff; border: none; font-size: 0.85rem;">إرسال طلب التفعيل</button>
-            </div>
+          <article class="overview-card payment-card">
+            <span>نوع الاشتراك</span>
+            <strong id="payment-status">—</strong>
             <small id="secondary-payment-state" hidden></small>
           </article>
                 </div>
@@ -813,6 +1241,15 @@
           <article class="parent-kpi-card"><span class="parent-kpi-icon">★</span><div><small>التقييم العام</small><strong id="parent-kpi-rating">في انتظار التقييم</strong><em>لا يوجد تقييم مسجل بعد</em></div></article>
         </section>
         <div class="parent-content-split">
+        <section id="parent-schedule-card" class="parent-schedule-card" aria-labelledby="parent-schedule-title">
+          <header class="parent-schedule-head">
+            <div>
+              <span>برنامج الحصص</span>
+              <h2 id="parent-schedule-title">الحصص القادمة</h2>
+            </div>
+          </header>
+                    <div id="parent-schedule-list" class="parent-schedule-list" aria-live="polite"></div>
+        </section>
         <aside class="parent-feedback-card" aria-labelledby="parent-feedback-title"><div class="parent-panel-kicker">متابعة الأستاذ</div><h2 id="parent-feedback-title">ملاحظات الأستاذ</h2><blockquote>لا توجد ملاحظات جديدة من الأستاذ حول تقدّم هذا التلميذ حالياً.</blockquote><small>ستظهر هنا الملاحظات بعد إضافتها من المركز الأكاديمي.</small></aside>
         </div>
         <section id="lesson-repository-card" class="lesson-repository-card" aria-labelledby="lesson-repository-parent-title">
@@ -835,26 +1272,41 @@
 
         <section id="parent-payment-confirmed" class="parent-payment-confirmed" hidden aria-live="polite">لقد تم تأكيد الدفع. أصبح حساب الطالب مدفوعًا ويمكنه الدخول إلى جميع الحصص.</section>
 
-        <section class="parent-private-messages">
-          <div class="private-messages-head">
-            <span class="private-messages-icon" aria-hidden="true">✉</span>
-            <div>
-              <h2>الرسائل الخاصة</h2>
-              <p>تواصل مباشرة مع الأستاذ بخصوص مستوى التلميذ.</p>
-            </div>
-          </div>
-          <div id="parent-chat-container" class="parent-chat-container">
-            <div id="parent-chat-messages" class="parent-chat-messages" aria-live="polite"></div>
-            <form id="parent-chat-form" class="parent-chat-form">
-              <input type="text" id="parent-chat-input" placeholder="اكتب رسالتك هنا..." required aria-label="رسالة للأستاذ" />
-              <button type="submit" aria-label="إرسال">➤</button>
-            </form>
+        <section id="university-payment-upgrade" class="university-payment-upgrade" hidden aria-live="polite">
+          <h2>ترقية الاشتراك</h2>
+          <p>ارتقِ إلى الحساب المدفوع للتمتع بجميع الحصص المدفوعة والمجانية خلال السداسي.</p>
+          <button id="university-upgrade-button" class="university-upgrade-button" type="button">ترقية حسابي إلى حساب مدفوع والتمتع بالحصص المدفوعة</button>
+
+          <div id="university-payment-transfer" class="university-payment-transfer" hidden>
+            <h3>معلومات التحويل البريدي</h3>
+            <p>قيمة الاشتراك للسداسي الواحد: <strong>2000 دج</strong>. بعد الدفع، ارفع صورة واضحة لوصل الدفع ليؤكده الأستاذ.</p>
+            <dl class="parent-payment-details">
+              <div><dt>صاحب الحساب</dt><dd>Charef Azzeddine</dd></div>
+              <div><dt>الولاية</dt><dd>Biskra</dd></div>
+              <div><dt>CCP</dt><dd>17570324</dd></div>
+              <div><dt>المفتاح</dt><dd>04</dd></div>
+              <div><dt>BaridiMob</dt><dd>00799999001757032404</dd></div>
+              <div><dt>قيمة السداسي</dt><dd>2000 دج</dd></div>
+            </dl>
+            <label for="parent-payment-receipt-input">ارفع وصل الدفع من البريد أو BaridiMob</label>
+            <input id="parent-payment-receipt-input" class="parent-payment-receipt-input" type="file" accept="image/jpeg,image/png" capture="environment" />
+            <button id="parent-payment-submit" class="parent-payment-submit" type="button">إرسال وصل الدفع للأستاذ</button>
+            <p id="parent-payment-pending" class="parent-payment-pending" hidden></p>
           </div>
         </section>
-      </div>
-    </main>
-  </div>
 
+
+        <section id="card-reupload-panel" class="card-reupload-panel" hidden aria-live="polite">
+          <div>
+            <strong>يجب إعادة رفع بطاقة الطالب</strong>
+            <p>طلب الأستاذ صورة أوضح للبطاقة. التقط صورة واضحة ثم ارفعها من هنا.</p>
+          </div>
+          <input id="replacement-card-input" type="file" accept="image/jpeg,image/png" capture="environment" hidden />
+          <button id="replacement-card-button" class="card-reupload-action" type="button">رفع بطاقة جديدة</button>
+        </section>
+      </section>
+        </main>
+    </div>
   <div id="registry-upsell-modal" class="registry-upsell-modal" role="dialog" aria-modal="true" aria-labelledby="registry-upsell-title" hidden><section class="registry-upsell-dialog"><button id="registry-upsell-close" class="lesson-video-close" type="button" aria-label="إغلاق">×</button><span class="registry-upsell-icon" aria-hidden="true">🔒</span><p class="registry-upsell-kicker">محتوى يحتاج إلى ترقية</p><h2 id="registry-upsell-title">عذرًا، أنت غير مؤهل لمشاهدة هذا المحتوى.</h2><p>حسابك الحالي غير مفعّل لهذه المادة. لمشاهدة دروس هذه المادة المسجلة والمباشرة، يرجى الاتصال بالأستاذ لترقية حسابك.</p><a class="registry-upsell-call" href="tel:0556960950">تواصل مع الأستاذ</a></section></div>
   <div id="lesson-video-modal" class="lesson-video-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-video-modal-title" hidden>
     <section class="lesson-video-dialog">
@@ -866,6 +1318,7 @@
         </div>
         <button id="lesson-video-close" class="lesson-video-close" type="button" aria-label="إغلاق الفيديو">×</button>
       </header>
+
       <div class="lesson-video-modal-body">
         <div class="lesson-video-player-shell">
           <div class="lesson-video-player-topbar">
@@ -874,6 +1327,7 @@
           </div>
           <iframe id="lesson-video-frame" class="lesson-video-frame" title="فيديو الحصة المسجلة" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="no-referrer"></iframe>
         </div>
+
         <aside class="lesson-video-sidebar" aria-label="معلومات الدرس">
           <div>
             <span class="lesson-video-sidebar-label">الدرس الحالي</span>
@@ -885,7 +1339,9 @@
       </div>
     </section>
   </div>
+
   <div id="document-feedback-modal" class="document-feedback-modal" role="dialog" aria-modal="true" aria-labelledby="document-feedback-title" hidden><section class="document-feedback-dialog"><div class="document-feedback-head"><span class="document-feedback-icon" aria-hidden="true">!</span><div><h2 id="document-feedback-title">تعذر إتمام العملية</h2><p>راجع البيانات والوثيقة ثم حاول مرة أخرى.</p></div></div><div id="document-feedback-message" class="document-feedback-body"></div><button id="document-feedback-close" class="document-feedback-close" type="button">إغلاق</button></section></div>
+
   <div id="payment-access-modal" class="payment-access-modal" role="dialog" aria-modal="true" aria-labelledby="payment-access-title" hidden>
       <section class="payment-access-dialog">
         <div class="payment-access-dialog-head">
@@ -902,6 +1358,7 @@
         </div>
       </section>
     </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
