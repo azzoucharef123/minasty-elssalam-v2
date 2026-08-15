@@ -22,6 +22,10 @@ const elements = {
   deleteModalClose: document.getElementById("close-confirm-delete"),
   deleteModalCancel: document.getElementById("cancel-confirm-delete"),
   deleteModalApprove: document.getElementById("approve-confirm-delete"),
+  documentFeedbackModal: document.getElementById("document-feedback-modal"),
+  documentFeedbackTitle: document.getElementById("document-feedback-title"),
+  documentFeedbackMessage: document.getElementById("document-feedback-message"),
+  documentFeedbackClose: document.getElementById("document-feedback-close"),
 
   toast: document.querySelector("#toast, #success-toast"),
   searchInput: document.getElementById("student-search"),
@@ -154,6 +158,23 @@ function getTeacherToken() {
   }
 
   return token;
+}
+
+function openDocumentFeedback(message, title = "تعذر إتمام العملية") {
+  if (!elements.documentFeedbackModal) {
+    showDashboardError(message);
+    return;
+  }
+  if (elements.documentFeedbackTitle) elements.documentFeedbackTitle.textContent = title;
+  if (elements.documentFeedbackMessage) elements.documentFeedbackMessage.textContent = String(message || "تعذر إتمام العملية.");
+  elements.documentFeedbackModal.hidden = false;
+  elements.documentFeedbackModal.classList.add("is-open");
+  elements.documentFeedbackClose?.focus();
+}
+
+function closeDocumentFeedback() {
+  elements.documentFeedbackModal?.classList.remove("is-open");
+  if (elements.documentFeedbackModal) elements.documentFeedbackModal.hidden = true;
 }
 
 function showDashboardError(message = "") {
@@ -511,7 +532,7 @@ async function saveStudentDocumentToDrive(studentId, kind, button) {
   const student = currentStudents.find((item) => item.id === studentId);
   const fileUrl = kind === "card" ? student?.cardPhotoUrl : student?.paymentReceiptUrl;
   if (!student || !fileUrl) {
-    showDashboardError(kind === "card" ? "لا توجد صورة بطاقة لهذا المستخدم." : "لا يوجد وصل دفع لهذا المستخدم.");
+    openDocumentFeedback(kind === "card" ? "لا توجد صورة بطاقة محفوظة لهذا المستخدم." : "وصل الدفع غير متاح حالياً لهذا المستخدم.", kind === "card" ? "البطاقة غير متاحة" : "وصل الدفع غير متاح");
     return;
   }
 
@@ -543,7 +564,7 @@ async function saveStudentDocumentToDrive(studentId, kind, button) {
   } catch (error) {
     if (!/انتهت الجلسة/.test(error.message)) {
       console.error("Unable to save student document to Google Drive:", error);
-      showDashboardError(error.message || "تعذر حفظ الملف في Google Drive.");
+      openDocumentFeedback(error.message || "تعذر حفظ الملف في Google Drive.", "تعذر حفظ الوثيقة");
     }
   } finally {
     driveFileUploadInProgress.delete(uploadKey);
@@ -1738,9 +1759,14 @@ async function viewStudentCard(studentId) {
 }
 
 async function viewStudentPaymentReceipt(studentId) {
+  const student = currentStudents.find((item) => item.id === studentId);
+  if (!student?.paymentReceiptUrl) {
+    openDocumentFeedback("وصل الدفع غير متاح حالياً لهذا المستخدم.", "وصل الدفع غير متاح");
+    return;
+  }
   const previewWindow = window.open("about:blank", "_blank");
   if (!previewWindow) {
-    showDashboardError("اسمح بالنوافذ المنبثقة لعرض وصل الدفع.");
+    openDocumentFeedback("اسمح بالنوافذ المنبثقة من المتصفح حتى تتمكن من رؤية وصل الدفع.", "تعذر فتح الوثيقة");
     return;
   }
 
@@ -1760,7 +1786,7 @@ async function viewStudentPaymentReceipt(studentId) {
     previewWindow.close();
     if (!/انتهت الجلسة/.test(error.message)) {
       console.error("Unable to view payment receipt:", error);
-      showDashboardError(error.message || "تعذر عرض وصل الدفع.");
+      openDocumentFeedback(error.message || "تعذر عرض وصل الدفع.", "تعذر عرض وصل الدفع");
     }
   }
 }
@@ -1999,6 +2025,8 @@ if (!getTeacherToken()) {
   elements.deleteModalCancel?.addEventListener("click", closeDeleteConfirmation);
   elements.deleteModalApprove?.addEventListener("click", () => { void approveDeleteConfirmation(); });
   elements.deleteModal?.addEventListener("click", (event) => { if (event.target === elements.deleteModal) closeDeleteConfirmation(); });
+  elements.documentFeedbackClose?.addEventListener("click", closeDocumentFeedback);
+  elements.documentFeedbackModal?.addEventListener("click", (event) => { if (event.target === elements.documentFeedbackModal) closeDocumentFeedback(); });
 
   elements.paymentStatusForm?.addEventListener("submit", savePaymentStatus);
   elements.paymentStatusStage?.addEventListener("change", syncPaymentAmountField);
@@ -2050,6 +2078,10 @@ elements.driveVideoModal?.addEventListener("click", (e) => {
   });
 
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && elements.documentFeedbackModal && !elements.documentFeedbackModal.hidden) {
+      closeDocumentFeedback();
+      return;
+    }
     if (event.key === "Escape" && elements.deleteModal && !elements.deleteModal.hidden) {
       closeDeleteConfirmation();
       return;

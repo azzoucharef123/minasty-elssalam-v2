@@ -1,0 +1,32 @@
+/* Payment-document feedback and upgrade clarity */
+.document-feedback-modal[hidden] { display: none; }
+.document-feedback-modal { position: fixed; inset: 0; z-index: 180; display: grid; place-items: center; padding: 1rem; background: rgba(15, 23, 42, .64); backdrop-filter: blur(6px); }
+.document-feedback-dialog { width: min(100%, 28rem); overflow: hidden; border: 1px solid #fecaca; border-radius: 1.1rem; background: #fff; box-shadow: 0 24px 70px rgba(15, 23, 42, .28); animation: paymentFeedbackRise .22s cubic-bezier(.23,1,.32,1) both; }
+.document-feedback-head { display: flex; align-items: flex-start; gap: .75rem; padding: 1.2rem 1.25rem; color: #7f1d1d; background: linear-gradient(135deg, #fff1f2, #fee2e2); border-bottom: 1px solid #fecaca; }
+.document-feedback-icon { display: grid; width: 2.45rem; height: 2.45rem; flex: 0 0 auto; place-items: center; color: #fff; border-radius: .75rem; background: #dc2626; font-size: 1.2rem; font-weight: 900; }
+.document-feedback-head h2, .document-feedback-head p { margin: 0; }
+.document-feedback-head h2 { font-size: 1.05rem; font-weight: 800; line-height: 1.5; }
+.document-feedback-head p { margin-top: .25rem; color: #991b1b; font-size: .78rem; line-height: 1.75; }
+.document-feedback-body { padding: 1.1rem 1.25rem; color: #374151; font-size: .88rem; line-height: 1.9; white-space: pre-line; }
+.document-feedback-close { width: calc(100% - 2.5rem); min-height: 2.75rem; margin: 0 1.25rem 1.25rem; color: #fff; border: 0; border-radius: .7rem; background: #6b7280; font: inherit; font-size: .86rem; font-weight: 800; cursor: pointer; transition: background .18s ease, transform .18s ease; }
+.document-feedback-close:hover { background: #4b5563; transform: translateY(-1px); }
+.payment-choice-heading { display: grid; gap: .25rem; margin: 1.1rem 0 .65rem; color: #111827; font-size: .9rem; font-weight: 800; }
+.payment-choice-heading small { color: #6b7280; font-size: .76rem; font-weight: 600; }
+.payment-choice-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; margin: .65rem 0 1rem; }
+.payment-choice-grid label { position: relative; display: flex; min-height: 4.7rem; align-items: center; justify-content: center; padding: .7rem .55rem; color: #1e3a8a; border: 2px solid #dbeafe; border-radius: .85rem; background: #f8fbff; font-size: .82rem; font-weight: 800; text-align: center; cursor: pointer; transition: border-color .18s ease, background .18s ease, transform .18s ease; }
+.payment-choice-grid label:hover { border-color: #60a5fa; background: #eff6ff; transform: translateY(-1px); }
+.payment-choice-grid input { position: absolute; opacity: 0; pointer-events: none; }
+.payment-choice-grid label:has(input:checked) { color: #fff; border-color: #1a56db; background: #1a56db; box-shadow: 0 8px 18px rgba(26, 86, 219, .2); }
+.payment-choice-grid label:has(input:focus-visible) { outline: 3px solid rgba(26, 86, 219, .22); outline-offset: 2px; }
+.payment-receipt-upload-box { display: grid; gap: .45rem; margin-top: .8rem; padding: .9rem; border: 1px dashed #93c5fd; border-radius: .85rem; background: #f8fbff; }
+.payment-receipt-upload-box label { color: #1e3a8a; font-size: .82rem; font-weight: 800; }
+.payment-receipt-upload-box input { width: 100%; padding: .7rem; color: #374151; border: 1px solid #bfdbfe; border-radius: .65rem; background: #fff; font: inherit; font-size: .78rem; }
+.payment-receipt-upload-box input:focus { outline: none; border-color: #1a56db; box-shadow: 0 0 0 3px rgba(26, 86, 219, .15); }
+@keyframes paymentFeedbackRise { from { opacity: 0; transform: translateY(.6rem) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (max-width: 560px) { .payment-choice-grid { grid-template-columns: 1fr; } .payment-choice-grid label { min-height: 3.7rem; } }
+@media (prefers-reduced-motion: reduce) { .document-feedback-dialog, .document-feedback-close, .payment-choice-grid label { animation: none; transition: none; } }
+
+.payment-choice-label { display: block; margin: .45rem 0 .35rem; color: #1e3a8a; font-size: .82rem; font-weight: 800; }
+.secondary-subscription-type { width: 100%; min-height: 3.25rem; padding: .75rem 1rem; color: #111827; border: 2px solid #93c5fd; border-radius: .8rem; background: #fff; font: inherit; font-size: .92rem; font-weight: 800; cursor: pointer; }
+.secondary-subscription-type:focus { outline: none; border-color: #1a56db; box-shadow: 0 0 0 4px rgba(26, 86, 219, .16); }
+.payment-choice-help { display: block; margin: .35rem 0 .85rem; color: #6b7280; font-size: .75rem; font-weight: 600; line-height: 1.7; }

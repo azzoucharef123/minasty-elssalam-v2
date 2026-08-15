@@ -53,6 +53,10 @@ const elements = {
   paymentAccessMessage: document.getElementById("payment-access-message"),
   callTeacherNowButton: document.getElementById("call-teacher-now-btn"),
   declineRegistrationButton: document.getElementById("decline-registration-btn"),
+  documentFeedbackModal: document.getElementById("document-feedback-modal"),
+  documentFeedbackTitle: document.getElementById("document-feedback-title"),
+  documentFeedbackMessage: document.getElementById("document-feedback-message"),
+  documentFeedbackClose: document.getElementById("document-feedback-close"),
 };
 
 let socket = null;
@@ -125,6 +129,23 @@ function showError(message = "") {
 
 function clearError() {
   showError();
+}
+
+function openDocumentFeedback(message, title = "تعذر إتمام العملية") {
+  if (!elements.documentFeedbackModal) {
+    showError(message);
+    return;
+  }
+  if (elements.documentFeedbackTitle) elements.documentFeedbackTitle.textContent = title;
+  if (elements.documentFeedbackMessage) elements.documentFeedbackMessage.textContent = String(message || "تعذر إتمام العملية.");
+  elements.documentFeedbackModal.hidden = false;
+  elements.documentFeedbackModal.classList.add("is-open");
+  elements.documentFeedbackClose?.focus();
+}
+
+function closeDocumentFeedback() {
+  elements.documentFeedbackModal?.classList.remove("is-open");
+  if (elements.documentFeedbackModal) elements.documentFeedbackModal.hidden = true;
 }
 
 function openPaymentAccessModal(reason = "access") {
@@ -886,13 +907,17 @@ function openSecondaryPaymentTransfer() {
 async function submitSecondaryPaymentReceipt() {
   const receipt = elements.secondaryPaymentReceiptInput?.files?.[0];
   const subscriptionType = elements.secondarySubscriptionType?.value;
-  if (!receipt || !currentStudent) {
-    showError("اختر صورة وصل الدفع أولاً.");
+  if (!currentStudent) {
+    openDocumentFeedback("تعذر تحديد حساب التلميذ الحالي. أعد فتح لوحة الولي وحاول مرة أخرى.", "تعذر تحديد الحساب");
     return;
   }
-  if (!["BOTH", "MATH", "PHYSICS"].includes(subscriptionType)) {
-    showError("اختر نوع الاشتراك قبل إرسال الوصل.");
-    elements.secondarySubscriptionType?.focus();
+  const missing = [];
+  if (!receipt) missing.push("لم ترفع وصل الدفع.");
+  if (!["BOTH", "MATH", "PHYSICS"].includes(subscriptionType)) missing.push("لم تختَر المادة أو نوع الاشتراك.");
+  if (missing.length) {
+    openDocumentFeedback(missing.join("\n"), "بيانات الترقية ناقصة");
+    if (!receipt) elements.secondaryPaymentReceiptInput?.focus();
+    else elements.secondarySubscriptionType?.focus();
     return;
   }
 
@@ -920,7 +945,7 @@ async function submitSecondaryPaymentReceipt() {
     await loadDashboard({ backgroundRefresh: true });
   } catch (error) {
     if (!/انتهت الجلسة/.test(error.message)) {
-      showError(error.message || "تعذر إرسال وصل الدفع.");
+      openDocumentFeedback(error.message || "تعذر إرسال وصل الدفع.", "تعذر إرسال وصل الدفع");
     }
   } finally {
     if (elements.secondaryPaymentSubmit && !currentStudent?.paymentReceiptPending) {
@@ -932,8 +957,13 @@ async function submitSecondaryPaymentReceipt() {
 
 async function submitUniversityPaymentReceipt() {
   const receipt = elements.parentPaymentReceiptInput?.files?.[0];
-  if (!receipt || !currentStudent) {
-    showError("اختر صورة وصل الدفع أولاً.");
+  if (!currentStudent) {
+    openDocumentFeedback("تعذر تحديد حساب الطالب الجامعي الحالي. أعد فتح لوحة الولي وحاول مرة أخرى.", "تعذر تحديد الحساب");
+    return;
+  }
+  if (!receipt) {
+    openDocumentFeedback("لم ترفع وصل الدفع.", "وصل الدفع مطلوب");
+    elements.parentPaymentReceiptInput?.focus();
     return;
   }
 
@@ -960,7 +990,7 @@ async function submitUniversityPaymentReceipt() {
     await loadDashboard({ backgroundRefresh: true });
   } catch (error) {
     if (!/انتهت الجلسة/.test(error.message)) {
-      showError(error.message || "تعذر إرسال وصل الدفع.");
+      openDocumentFeedback(error.message || "تعذر إرسال وصل الدفع.", "تعذر إرسال وصل الدفع");
     }
   } finally {
     if (elements.parentPaymentSubmit && !currentStudent?.paymentReceiptPending) {
@@ -1126,6 +1156,10 @@ if (!getParentToken()) {
     void uploadReplacementCard();
   });
   elements.logoutButton?.addEventListener("click", logout);
+  elements.documentFeedbackClose?.addEventListener("click", closeDocumentFeedback);
+  elements.documentFeedbackModal?.addEventListener("click", (event) => {
+    if (event.target === elements.documentFeedbackModal) closeDocumentFeedback();
+  });
   elements.lessonVideoClose?.addEventListener("click", closeLessonVideo);
   elements.lessonVideoModal?.addEventListener("click", (event) => {
     if (event.target === elements.lessonVideoModal) closeLessonVideo();
@@ -1144,6 +1178,7 @@ if (!getParentToken()) {
   });
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      closeDocumentFeedback();
       closePaymentAccessModal();
       closeLessonVideo();
     }
