@@ -1,0 +1,19 @@
+/* Shared live-chat zoom controls: 100%–200% */
+.chat-zoom-toolbar { display: flex; align-items: center; gap: .55rem; margin-top: .55rem; padding: .45rem .6rem; border: 1px solid rgba(148,163,184,.2); border-radius: .55rem; background: rgba(15,23,42,.35); }
+.chat-zoom-label { color: #94a3b8; font-size: .64rem; font-weight: 800; white-space: nowrap; }
+.chat-zoom-range { width: min(8rem, 42%); min-width: 5.5rem; accent-color: #60a5fa; cursor: pointer; }
+.chat-zoom-value { min-width: 2.7rem; color: #bfdbfe; font-size: .68rem; font-weight: 900; text-align: center; direction: ltr; }
+.chat-zoom-reset { min-height: 1.7rem; padding: .2rem .45rem; color: #cbd5e1; border: 1px solid rgba(148,163,184,.28); border-radius: .38rem; background: rgba(51,65,85,.55); font: inherit; font-size: .6rem; font-weight: 800; cursor: pointer; }
+.chat-zoom-reset:hover, .chat-zoom-reset:focus-visible { color: #fff; border-color: #60a5fa; background: rgba(37,99,235,.55); outline: none; }
+.chat-message-body { font-size: calc(.72rem * var(--chat-zoom, 1)); }
+.student-chat-body { font-size: calc(.68rem * var(--chat-zoom, 1)); }
+.chat-message-sender { font-size: calc(.63rem * var(--chat-zoom, 1)); }
+.student-chat-sender { font-size: calc(.59rem * var(--chat-zoom, 1)); }
+.chat-message, .student-chat-message { transition: font-size .15s ease, padding .15s ease; }
+@media (max-width: 480px) {
+  .chat-zoom-toolbar { gap: .35rem; }
+  .chat-zoom-label { font-size: .59rem; }
+  .chat-zoom-range { min-width: 4.3rem; }
+  .chat-zoom-reset { font-size: .56rem; }
+}
+@media (prefers-reduced-motion: reduce) { .chat-message, .student-chat-message { transition: none; } }

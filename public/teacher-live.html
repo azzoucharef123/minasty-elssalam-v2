@@ -1276,6 +1276,12 @@
                 <p>الأسئلة تصل إليك فقط.</p>
               </div>
             </header>
+            <div class="chat-zoom-toolbar" aria-label="حجم نصوص الدردشة">
+              <label class="chat-zoom-label" for="chat-zoom-range">حجم الرسائل</label>
+              <input id="chat-zoom-range" class="chat-zoom-range" type="range" min="100" max="200" step="10" value="100" aria-label="تكبير رسائل الدردشة من 100 إلى 200 بالمئة" />
+              <output id="chat-zoom-value" class="chat-zoom-value" for="chat-zoom-range">100%</output>
+              <button id="chat-zoom-reset" class="chat-zoom-reset" type="button">إعادة 100%</button>
+            </div>
             <div id="chat-box" class="chat-box" aria-live="polite" aria-label="رسائل وأسئلة التلاميذ">
               <p id="chat-empty" class="chat-empty">لا توجد رسائل بعد.</p>
             </div>
@@ -1299,9 +1305,11 @@
     </div>
 
     <link rel="stylesheet" href="./css/private-messages.css" />
+    <link rel="stylesheet" href="./css/chat-zoom.css?v=chat-zoom-1" />
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
+    <script src="./js/chat-zoom.js?v=chat-zoom-1"></script>
     <script id="google-identity-services" src="https://accounts.google.com/gsi/client" defer></script>
     <script src="./js/teacher-live.js?v=socket-reconnect-1" defer></script>
   </body>
