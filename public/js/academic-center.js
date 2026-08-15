@@ -92,6 +92,21 @@ function initializeTeacher() {
   $("assignment-form")?.addEventListener("submit", async (event) => { event.preventDefault(); try { await submitForm(event.currentTarget, "/api/academic/assignments", "تم نشر الواجب"); } catch (error) { showError(error.message); } });
   $("question-form")?.addEventListener("submit", async (event) => { event.preventDefault(); const form = event.currentTarget; const body = Object.fromEntries(new FormData(form).entries()); body.answer = body.answer ? JSON.stringify(body.answer) : ""; try { await api("/api/academic/questions", { method: "POST", body: JSON.stringify(body) }); form.reset(); showError("تم حفظ السؤال في بنك الأسئلة."); setTimeout(() => showError(""), 3500); } catch (error) { showError(error.message); } });
   $("refresh-analytics")?.addEventListener("click", () => void loadTeacherAnalytics().catch((error) => showError(error.message)));
+  $("download-backup")?.addEventListener("click", async () => {
+    try {
+      const response = await fetch("/api/admin/backup", { headers: { Authorization: `Bearer ${token}` } });
+      if (!response.ok) throw new Error("تعذر إنشاء النسخة الاحتياطية.");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `akademiat-altawafuq-backup-${Date.now()}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showError("تم إنشاء النسخة الاحتياطية وتنزيلها.");
+      setTimeout(() => showError(""), 3500);
+    } catch (error) { showError(error.message); }
+  });
   void loadTeacherAnalytics().catch((error) => showError(error.message));
 }
 

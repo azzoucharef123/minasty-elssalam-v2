@@ -17,6 +17,8 @@ const { Server } = require("socket.io");
 const prisma = require("./lib/prisma");
 const { verifyToken, isTeacher } = require("./middleware/authMiddleware");
 const { requestMetrics, socketConnected, socketDisconnected, snapshot: metricsSnapshot } = require("./utils/metrics");
+const { createDatabaseSnapshot } = require("./utils/backup");
+const { createRateLimiter } = require("./middleware/rateLimit");
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -169,6 +171,21 @@ app.get("/api/google-picker/config", verifyToken, isTeacher, (_req, res) => {
 
 app.get("/api/health", (_req, res) => {
   res.status(200).json({ status: "ok", message: "Server is running" });
+});
+
+const backupRateLimit = createRateLimiter({ windowMs: 10 * 60 * 1000, max: 2, message: "تم إنشاء نسخ احتياطية كثيرة خلال فترة قصيرة." });
+
+app.get("/api/admin/backup", verifyToken, isTeacher, backupRateLimit, async (req, res) => {
+  try {
+    const includeDocuments = String(req.query.includeDocuments || "") === "true";
+    const snapshot = await createDatabaseSnapshot({ includeDocuments });
+    res.type("application/json");
+    res.setHeader("Content-Disposition", `attachment; filename=akademiat-altawafuq-backup-${Date.now()}.json`);
+    return res.status(200).send(JSON.stringify(snapshot));
+  } catch (error) {
+    console.error("Database backup failed:", error);
+    return res.status(500).json({ error: "تعذر إنشاء النسخة الاحتياطية حالياً." });
+  }
 });
 
 app.get("/api/health/detailed", verifyToken, isTeacher, async (_req, res) => {
