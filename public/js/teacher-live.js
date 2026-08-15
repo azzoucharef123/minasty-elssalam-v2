@@ -134,6 +134,7 @@ const UNIVERSITY_LEVEL = "طالب جامعي";
 const SECONDARY_CLASS_OPTIONS = [
   { value: "MATH", label: "الرياضيات" },
   { value: "PHYSICS", label: "الفيزياء" },
+  { value: "FREE", label: "حصة مجانية" },
 ];
 const UNIVERSITY_SUBSCRIPTION_OPTIONS = [
   { value: "PAID", label: "اشتراك مدفوع" },
@@ -153,6 +154,7 @@ function getClassTypeName(level, classType) {
     return classType === "PAID" ? "اشتراك مدفوع" : "اشتراك مجاني";
   }
 
+  if (classType === "FREE") return "حصة مجانية";
   return classType === "PHYSICS" ? "الفيزياء" : "الرياضيات";
 }
 

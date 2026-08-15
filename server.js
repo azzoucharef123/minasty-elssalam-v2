@@ -376,7 +376,7 @@ const MAX_LEVEL_LENGTH = 100;
 const MAX_NAME_LENGTH = 120;
 const MAX_CHAT_MESSAGE_LENGTH = 800;
 const UNIVERSITY_LEVEL = "طالب جامعي";
-const SCHOOL_SUBJECTS = new Set(["MATH", "PHYSICS"]);
+const SCHOOL_SUBJECTS = new Set(["MATH", "PHYSICS", "FREE"]);
 const UNIVERSITY_SUBSCRIPTION_TYPES = new Set(["PAID", "FREE"]);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PUBLIC_ROOM_ID_PATTERN = /^[a-zA-Z0-9_-]{16,128}$/;
@@ -1193,11 +1193,16 @@ io.on("connection", (socket) => {
         );
       }
 
+      const activeSubject = activeSubjectByLevel.get(level);
+      const isFreeSecondaryClass = level !== UNIVERSITY_LEVEL && activeSubject === "FREE";
+
       // For secondary levels, a confirmed payment or a teacher-approved promise
-      // grants access automatically. University access keeps its dedicated flow.
+      // grants access automatically. A FREE class is the only exception: every
+      // registered student in the same level may enter regardless of payment.
+      // University access keeps its dedicated flow.
       const hasSecondaryPaymentAccess =
         student.level !== UNIVERSITY_LEVEL && ["PAID", "PROMISED"].includes(student.paymentStage);
-      if (!student.liveAccessEnabled && !hasSecondaryPaymentAccess) {
+      if (!student.liveAccessEnabled && !hasSecondaryPaymentAccess && !isFreeSecondaryClass) {
         return emitClassroomError(
           socket,
           "student_join_room",
@@ -1264,12 +1269,12 @@ io.on("connection", (socket) => {
         });
       }
 
-      const activeSubject = activeSubjectByLevel.get(level);
       const isUniversityClass = level === UNIVERSITY_LEVEL;
       const isEligibleForActiveSubject = isUniversityClass
         ? (activeSubject === "PAID" && isPaidSubscription(student)) ||
           activeSubject === "FREE"
-        : (activeSubject === "MATH" && student.mathEnrollment) ||
+        : activeSubject === "FREE" ||
+          (activeSubject === "MATH" && student.mathEnrollment) ||
           (activeSubject === "PHYSICS" && student.physicsEnrollment);
 
       if (!isEligibleForActiveSubject) {
