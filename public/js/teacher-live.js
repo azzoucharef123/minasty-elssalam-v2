@@ -92,6 +92,7 @@ let googleDriveAccessToken = null;
 let googleDriveTokenExpiresAt = 0;
 let googleDriveUploadInProgress = false;
 let googleIdentityLoadPromise = null;
+let studioDurationStartedAt = 0;
 
 const elements = {
   localVideo: document.getElementById("local-video"),
@@ -114,6 +115,11 @@ const elements = {
   endClassButton: document.getElementById("end-class-btn"),
   liveStatus: document.getElementById("live-status"),
   liveStatusText: document.getElementById("live-status-text"),
+  studioDuration: document.getElementById("studio-duration"),
+  sidebarAttendeeCount: document.getElementById("sidebar-attendee-count"),
+  attendeeSearch: document.getElementById("attendee-search"),
+  sidebarTabs: Array.from(document.querySelectorAll("[data-sidebar-tab]")),
+  sidebarPanes: Array.from(document.querySelectorAll("[data-sidebar-pane]")),
   chatBox: document.getElementById("chat-box"),
   chatEmpty: document.getElementById("chat-empty"),
   chatForm: document.getElementById("chat-form"),
@@ -1301,8 +1307,54 @@ function updateAttendeeCount() {
   const count = attendeeElements.size;
   elements.attendeeCount.textContent = String(count);
   elements.attendeeCount.setAttribute("aria-label", `عدد الحضور: ${count}`);
+  if (elements.sidebarAttendeeCount) elements.sidebarAttendeeCount.textContent = String(count);
   elements.attendeesEmpty.hidden = count > 0;
+  filterAttendees();
 }
+
+function setSidebarTab(tabName) {
+  elements.sidebarTabs.forEach((tab) => {
+    const active = tab.dataset.sidebarTab === tabName;
+    tab.classList.toggle("is-active", active);
+    tab.setAttribute("aria-selected", String(active));
+  });
+  elements.sidebarPanes.forEach((pane) => {
+    const active = pane.dataset.sidebarPane === tabName;
+    pane.classList.toggle("is-active", active);
+    pane.hidden = !active;
+  });
+}
+
+function filterAttendees() {
+  const query = String(elements.attendeeSearch?.value || "").trim().toLocaleLowerCase("ar");
+  attendeeElements.forEach((item) => {
+    const name = String(item.querySelector(".attendee-name")?.textContent || "").toLocaleLowerCase("ar");
+    item.hidden = Boolean(query && !name.includes(query));
+  });
+}
+
+function formatStudioDuration(totalSeconds) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
+}
+
+function refreshStudioDuration() {
+  if (!elements.studioDuration) return;
+  if (!classActive) {
+    studioDurationStartedAt = 0;
+    elements.studioDuration.hidden = true;
+    elements.studioDuration.textContent = "00:00:00";
+    return;
+  }
+  if (!studioDurationStartedAt) studioDurationStartedAt = Date.now();
+  const elapsed = Math.max(0, Math.floor((Date.now() - studioDurationStartedAt) / 1000));
+  elements.studioDuration.hidden = false;
+  elements.studioDuration.textContent = formatStudioDuration(elapsed);
+}
+
+window.setInterval(refreshStudioDuration, 1000);
 
 function displayInitials(name) {
   const words = String(name || "تلميذ")
@@ -2683,6 +2735,15 @@ socket.on("disconnect", () => {
 // still waits for this connection, so a slow first handshake cannot produce a
 // false "server unavailable" failure.
 socket.connect();
+
+elements.sidebarTabs.forEach((tab) => {
+  tab.addEventListener("click", () => setSidebarTab(tab.dataset.sidebarTab));
+});
+elements.attendeeSearch?.addEventListener("input", filterAttendees);
+setSidebarTab("participants");
+
+// UI-only duration refresh; it reads classActive and never changes media/signaling state.
+refreshStudioDuration();
 
 elements.levelSelect.addEventListener("change", () => {
   if (!classActive && !isStarting && !isEnding) {
