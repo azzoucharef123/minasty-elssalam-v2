@@ -201,6 +201,13 @@ function secondaryPaymentStatusMeta(student) {
 }
 
 function accountStatusMeta(student) {
+  if (student.level !== "طالب جامعي") {
+    const stage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
+    return ["PAID", "PROMISED"].includes(stage)
+      ? { label: "حساب مدفوع", className: "is-active" }
+      : { label: "حساب مجاني", className: "is-inactive" };
+  }
+
   if (student.level === "طالب جامعي") {
     if (student.cardReuploadRequested) {
       return { label: "إعادة رفع البطاقة مطلوبة", className: "is-inactive" };

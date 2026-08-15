@@ -453,6 +453,7 @@ function renderStudent(student) {
   elements.studentName.textContent = student.studentName;
   elements.studentLevel.textContent = displayLevelLabel(student.level);
   const isUniversityStudent = student.level === "طالب جامعي";
+  const paymentStage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
   const accountActive = student.accountActive !== false && !student.cardReuploadRequested;
   const identityPending =
     isUniversityStudent &&
@@ -460,16 +461,19 @@ function renderStudent(student) {
     !student.cardReuploadRequested &&
     Boolean(student.cardPhotoUrl);
   if (elements.accountStatus) {
-    elements.accountStatus.textContent = student.cardReuploadRequested
-      ? "إعادة رفع البطاقة مطلوبة"
-      : identityPending
-        ? "في انتظار تأكيد هوية البطاقة"
-        : accountActive
-          ? "حساب مفعل"
-          : "حساب غير مفعل";
-    elements.accountStatus.classList.toggle("is-active", accountActive);
-    elements.accountStatus.classList.toggle("is-inactive", !accountActive && !identityPending);
-    elements.accountStatus.classList.toggle("is-pending", identityPending);
+    const secondaryPaid = !isUniversityStudent && ["PAID", "PROMISED"].includes(paymentStage);
+    elements.accountStatus.textContent = !isUniversityStudent
+      ? secondaryPaid ? "حساب مدفوع" : "حساب مجاني"
+      : student.cardReuploadRequested
+        ? "إعادة رفع البطاقة مطلوبة"
+        : identityPending
+          ? "في انتظار تأكيد هوية البطاقة"
+          : accountActive
+            ? "حساب مفعل"
+            : "حساب غير مفعل";
+    elements.accountStatus.classList.toggle("is-active", !isUniversityStudent ? secondaryPaid : accountActive);
+    elements.accountStatus.classList.toggle("is-inactive", !isUniversityStudent ? !secondaryPaid : !accountActive && !identityPending);
+    elements.accountStatus.classList.toggle("is-pending", isUniversityStudent && identityPending);
   }
   if (elements.cardReuploadPanel) {
     elements.cardReuploadPanel.hidden = !(
@@ -477,7 +481,6 @@ function renderStudent(student) {
     );
   }
 
-  const paymentStage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
   const isPaid = paymentStage === "PAID";
   syncLessonRepositoryVisibility(student);
   elements.paymentStatus.textContent = isUniversityStudent
