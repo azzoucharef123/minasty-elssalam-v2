@@ -1391,3 +1391,43 @@ body.parent-login-modal-open {
 .drive-video-item-icon { flex: 0 0 auto; color: #2563eb; font-size: 1.25rem; }
 .drive-video-empty, .drive-video-loading { margin: 0; padding: 1rem; color: #64748b; background: #f8fafc; border: 1px dashed #bfdbfe; border-radius: 0.72rem; font-size: 0.75rem; text-align: center; }
 @media (max-width: 720px) { .drive-video-modal-card { width: calc(100vw - 1rem); } .drive-video-item-title { white-space: normal; } }
+
+
+.student-document-drive-btn {
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+}
+
+.student-document-drive-btn:hover:not(:disabled) {
+  color: #ffffff;
+  background: #16a34a;
+}
+
+.student-document-drive-btn:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.student-card-preview-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+}
+
+.student-card-preview-actions .student-document-drive-btn {
+  min-height: 2.7rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 0.65rem;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+@media (max-width: 520px) {
+  .student-card-preview-actions .student-document-drive-btn {
+    width: 100%;
+  }
+}

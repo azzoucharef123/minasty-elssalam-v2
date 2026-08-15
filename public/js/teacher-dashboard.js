@@ -56,6 +56,7 @@ const elements = {
   cardPreviewTitle: document.getElementById("student-card-preview-title"),
   cardPreviewStatus: document.getElementById("student-card-preview-status"),
   cardPreviewImage: document.getElementById("student-card-preview-image"),
+  cardPreviewSaveDriveButton: document.getElementById("save-student-card-to-drive"),
   closeCardPreviewButton: document.getElementById("close-student-card-preview"),
   scheduleForm: document.getElementById("schedule-form"),
   scheduleSubject: document.getElementById("schedule-subject"),
@@ -115,6 +116,8 @@ let googlePickerTokenExpiresAt = 0;
 let cardPreviewObjectUrl = null;
 let cardPreviewRequestId = 0;
 let cardPreviewPreviousFocus = null;
+let cardPreviewStudentId = null;
+const driveFileUploadInProgress = new Set();
 
 function clearTeacherSession() {
   sessionStorage.removeItem(TEACHER_TOKEN_KEY);
@@ -243,6 +246,7 @@ const GOOGLE_DRIVE_FILE_SCOPE = [
   "https://www.googleapis.com/auth/drive.metadata.readonly",
 ].join(" ");
 const VIDEO_MIME_TYPES = "video/mp4,video/webm,video/quicktime,video/x-matroska,video/avi,video/mpeg";
+const GOOGLE_DRIVE_UPLOAD_CHUNK_SIZE = 8 * 1024 * 1024;
 
 function isGooglePickerTokenUsable() {
   return Boolean(googlePickerAccessToken && Date.now() < googlePickerTokenExpiresAt - 60_000);
@@ -334,6 +338,169 @@ async function requestGooglePickerToken() {
     });
     tokenClient.requestAccessToken({ prompt: "" });
   });
+}
+
+function safeDriveFilePart(value, fallback = "ملف") {
+  return String(value || fallback)
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, "-")
+    .slice(0, 80) || fallback;
+}
+
+async function teacherDriveRequest(url, options, accessToken) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...(options.headers || {}),
+    },
+  });
+  if (!response.ok) {
+    const details = await response.json().catch(() => null);
+    throw new Error(details?.error?.message || `تعذر الاتصال بـ Google Drive (${response.status}).`);
+  }
+  return response;
+}
+
+function escapeTeacherDriveQueryValue(value) {
+  return String(value || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+async function ensureTeacherDriveFolder(name, parentId, accessToken) {
+  const conditions = [
+    `name = '${escapeTeacherDriveQueryValue(name)}'`,
+    "mimeType = 'application/vnd.google-apps.folder'",
+    "trashed = false",
+  ];
+  if (parentId) conditions.push(`'${escapeTeacherDriveQueryValue(parentId)}' in parents`);
+  const query = encodeURIComponent(conditions.join(" and "));
+  const fields = encodeURIComponent("files(id,name)");
+  const listResponse = await teacherDriveRequest(
+    `https://www.googleapis.com/drive/v3/files?q=${query}&spaces=drive&fields=${fields}&pageSize=1`,
+    { method: "GET" },
+    accessToken
+  );
+  const existing = await listResponse.json();
+  if (existing.files?.[0]?.id) return existing.files[0].id;
+
+  const createResponse = await teacherDriveRequest(
+    "https://www.googleapis.com/drive/v3/files?fields=id,name",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        mimeType: "application/vnd.google-apps.folder",
+        ...(parentId ? { parents: [parentId] } : {}),
+      }),
+    },
+    accessToken
+  );
+  const created = await createResponse.json();
+  if (!created.id) throw new Error("تعذر إنشاء مجلد مستندات الطلبة في Google Drive.");
+  return created.id;
+}
+
+async function uploadStudentBlobToDrive({ student, kind, blob, accessToken }) {
+  const isCard = kind === "card";
+  const rootFolderId = await ensureTeacherDriveFolder("مستندات الطلبة", null, accessToken);
+  const typeFolderId = await ensureTeacherDriveFolder(isCard ? "بطاقات الطلبة" : "وصول الدفع", rootFolderId, accessToken);
+  const levelFolderId = await ensureTeacherDriveFolder(
+    displayLevelLabel(student.level || "غير محدد"),
+    typeFolderId,
+    accessToken
+  );
+  const extension = blob.type === "image/png" ? "png" : "jpg";
+  const label = isCard ? "بطاقة-الطالب" : "وصل-الدفع";
+  const fileName = `${safeDriveFilePart(student.studentName, "طالب")}-${label}-${new Date().toISOString().replace(/[:.]/g, "-")}.${extension}`;
+  const mimeType = blob.type || "application/octet-stream";
+  const sessionResponse = await teacherDriveRequest(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,webViewLink",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json; charset=UTF-8",
+        "X-Upload-Content-Type": mimeType,
+        "X-Upload-Content-Length": String(blob.size),
+      },
+      body: JSON.stringify({ name: fileName, mimeType, parents: [levelFolderId] }),
+    },
+    accessToken
+  );
+  const sessionUrl = sessionResponse.headers.get("Location");
+  if (!sessionUrl) throw new Error("تعذر تجهيز رفع المستند إلى Google Drive.");
+
+  let offset = 0;
+  while (offset < blob.size) {
+    const end = Math.min(offset + GOOGLE_DRIVE_UPLOAD_CHUNK_SIZE, blob.size);
+    const response = await fetch(sessionUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": mimeType,
+        "Content-Range": `bytes ${offset}-${end - 1}/${blob.size}`,
+      },
+      body: blob.slice(offset, end),
+    });
+    if (response.status === 308) {
+      offset = end;
+      showToast(`جارٍ رفع ${isCard ? "البطاقة" : "وصل الدفع"}: ${Math.round((offset / blob.size) * 100)}%`);
+      continue;
+    }
+    if (!response.ok) {
+      const details = await response.json().catch(() => null);
+      throw new Error(details?.error?.message || `تعذر رفع المستند (${response.status}).`);
+    }
+    return response.json();
+  }
+  throw new Error("لم يكتمل رفع المستند إلى Google Drive.");
+}
+
+async function saveStudentDocumentToDrive(studentId, kind, button) {
+  const student = currentStudents.find((item) => item.id === studentId);
+  const fileUrl = kind === "card" ? student?.cardPhotoUrl : student?.paymentReceiptUrl;
+  if (!student || !fileUrl) {
+    showDashboardError(kind === "card" ? "لا توجد صورة بطاقة لهذا المستخدم." : "لا يوجد وصل دفع لهذا المستخدم.");
+    return;
+  }
+
+  const uploadKey = `${kind}:${studentId}`;
+  if (driveFileUploadInProgress.has(uploadKey)) return;
+  driveFileUploadInProgress.add(uploadKey);
+  const originalLabel = button?.textContent || "حفظ في Google Drive";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "جارٍ الحفظ…";
+  }
+
+  try {
+    const response = await teacherFetch(
+      `/api/students/${encodeURIComponent(studentId)}/${kind === "card" ? "card-photo" : "payment-receipt"}`,
+      { headers: { Accept: "image/*" } }
+    );
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || "تعذر تحميل الملف قبل حفظه.");
+    }
+    const blob = await response.blob();
+    if (!blob.type.startsWith("image/")) throw new Error("الملف المرفوع ليس صورة صالحة.");
+
+    showToast("جارٍ فتح صلاحية Google Drive…");
+    const accessToken = await requestGooglePickerToken();
+    await uploadStudentBlobToDrive({ student, kind, blob, accessToken });
+    showToast(`تم حفظ ${kind === "card" ? "بطاقة الطالب" : "وصل الدفع"} في Google Drive.`);
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) {
+      console.error("Unable to save student document to Google Drive:", error);
+      showDashboardError(error.message || "تعذر حفظ الملف في Google Drive.");
+    }
+  } finally {
+    driveFileUploadInProgress.delete(uploadKey);
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalLabel;
+    }
+  }
 }
 
 function closeDriveVideoModal() {
@@ -885,7 +1052,7 @@ function renderTable(studentsArray) {
         !student.cardReuploadRequested &&
         Boolean(student.cardPhotoUrl);
       if (identityPending) {
-        const confirmIdentityButton = createButton(
+          const confirmIdentityButton = createButton(
           "تأكيد هوية البطاقة",
           "card-confirm-btn",
           () => confirmCardIdentity(student.id)
@@ -898,20 +1065,29 @@ function renderTable(studentsArray) {
 
     const paymentReceiptPending =
       Boolean(student.paymentReceiptPending) && Boolean(student.paymentReceiptUrl);
-    if (paymentReceiptPending) {
+    if (student.paymentReceiptUrl) {
       const viewReceiptButton = createButton(
         "عرض وصل الدفع",
         "payment-receipt-view-btn",
         () => viewStudentPaymentReceipt(student.id)
       );
       viewReceiptButton.title = "عرض وصل الدفع المرفوع من الولي";
-      const confirmPaymentButton = createButton(
-        "تأكيد وصل الدفع",
-        "payment-receipt-confirm-btn",
-        () => confirmPaymentReceipt(student.id)
+      const saveReceiptButton = createButton(
+        "حفظ في Drive",
+        "student-document-drive-btn",
+        (event) => saveStudentDocumentToDrive(student.id, "receipt", event.currentTarget)
       );
-      confirmPaymentButton.title = "تأكيد الدفع وتفعيل اشتراك التلميذ";
-      actionGroup.append(viewReceiptButton, confirmPaymentButton);
+      saveReceiptButton.title = "حفظ نسخة من وصل الدفع في Google Drive";
+      actionGroup.append(viewReceiptButton, saveReceiptButton);
+      if (paymentReceiptPending) {
+        const confirmPaymentButton = createButton(
+          "تأكيد وصل الدفع",
+          "payment-receipt-confirm-btn",
+          () => confirmPaymentReceipt(student.id)
+        );
+        confirmPaymentButton.title = "تأكيد الدفع وتفعيل اشتراك التلميذ";
+        actionGroup.append(confirmPaymentButton);
+      }
     }
 
     const cardCell = document.createElement("td");
@@ -932,7 +1108,13 @@ function renderTable(studentsArray) {
         () => viewStudentCard(student.id)
       );
       cardButton.title = "عرض صورة بطاقة الطالب الجامعي";
-      cardCell.append(cardButton);
+      const saveCardButton = createButton(
+        "حفظ في Drive",
+        "student-document-drive-btn",
+        (event) => saveStudentDocumentToDrive(student.id, "card", event.currentTarget)
+      );
+      saveCardButton.title = "حفظ نسخة من بطاقة الطالب في Google Drive";
+      cardCell.append(cardButton, saveCardButton);
     } else {
       cardCell.textContent = "غير متوفرة";
       cardCell.classList.add("muted-cell");
@@ -1409,6 +1591,7 @@ function revokeCardPreviewObjectUrl() {
 
 function closeStudentCardPreview() {
   cardPreviewRequestId += 1;
+  cardPreviewStudentId = null;
   revokeCardPreviewObjectUrl();
   if (elements.cardPreviewImage) {
     elements.cardPreviewImage.onload = null;
@@ -1423,6 +1606,10 @@ function closeStudentCardPreview() {
   if (elements.cardPreviewStatus) {
     elements.cardPreviewStatus.textContent = "";
     elements.cardPreviewStatus.classList.remove("is-error");
+  }
+  if (elements.cardPreviewSaveDriveButton) {
+    elements.cardPreviewSaveDriveButton.disabled = true;
+    elements.cardPreviewSaveDriveButton.textContent = "حفظ البطاقة في Google Drive";
   }
   cardPreviewPreviousFocus?.focus?.();
   cardPreviewPreviousFocus = null;
@@ -1442,6 +1629,7 @@ async function viewStudentCard(studentId) {
   }
 
   const requestId = ++cardPreviewRequestId;
+  cardPreviewStudentId = studentId;
   cardPreviewPreviousFocus = document.activeElement;
   revokeCardPreviewObjectUrl();
   elements.cardPreviewTitle.textContent = `بطاقة الطالب: ${student.studentName || "طالب جامعي"}`;
@@ -1475,8 +1663,9 @@ async function viewStudentCard(studentId) {
     cardPreviewObjectUrl = imageUrl;
     elements.cardPreviewImage.onload = () => {
       if (requestId === cardPreviewRequestId) {
-        elements.cardPreviewStatus.textContent = "تم تحميل البطاقة. يمكنك مراجعتها ثم إغلاق النافذة.";
+        elements.cardPreviewStatus.textContent = "تم تحميل البطاقة. يمكنك مراجعتها ثم حفظها في Google Drive أو إغلاقها.";
         elements.cardPreviewImage.hidden = false;
+        if (elements.cardPreviewSaveDriveButton) elements.cardPreviewSaveDriveButton.disabled = false;
       }
     };
     elements.cardPreviewImage.onerror = () => {
@@ -1751,6 +1940,11 @@ elements.driveVideoModal?.addEventListener("click", (e) => {
   });
   elements.closeAttendanceButton?.addEventListener("click", closeAttendanceModal);
   elements.closeCardPreviewButton?.addEventListener("click", closeStudentCardPreview);
+  elements.cardPreviewSaveDriveButton?.addEventListener("click", (event) => {
+    if (cardPreviewStudentId) {
+      void saveStudentDocumentToDrive(cardPreviewStudentId, "card", event.currentTarget);
+    }
+  });
   elements.cardPreviewModal?.addEventListener("click", (event) => {
     if (event.target === elements.cardPreviewModal) {
       closeStudentCardPreview();
