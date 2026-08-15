@@ -573,7 +573,14 @@
     if (!isHost || ended) return;
     try {
       setStatus("اختر الشاشة وفعّل مشاركة الصوت إن رغبت…");
-      const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      const display = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          width: { ideal: 1920, max: 1920 },
+          height: { ideal: 1080, max: 1080 },
+          frameRate: { ideal: 30, max: 30 },
+        },
+        audio: true,
+      });
       const combined = new MediaStream();
       display.getTracks().forEach((track) => combined.addTrack(track));
       try {
@@ -755,7 +762,11 @@
     const mimeType = getPublicRecordingMimeType();
     const recorder = new MediaRecorder(
       relayStream,
-      mimeType ? { mimeType, videoBitsPerSecond: 2_500_000, audioBitsPerSecond: 128_000 } : undefined
+      mimeType ? {
+        mimeType,
+        videoBitsPerSecond: 8_000_000,
+        audioBitsPerSecond: 192_000,
+      } : undefined
     );
     facebookRelayStream = relayStream;
     facebookRelayRecorder = recorder;
@@ -788,7 +799,7 @@
       facebookRelayReady = false;
       if (facebookRelayRecorder?.state === "recording") facebookRelayRecorder.stop();
     });
-    recorder.start(1_000);
+    recorder.start(250);
     setFacebookBroadcastUi(true);
     setStatus("البث الداخلي وFacebook يعملان الآن.");
   }
