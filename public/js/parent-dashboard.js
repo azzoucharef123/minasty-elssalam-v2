@@ -849,6 +849,7 @@ async function enterLiveClass() {
     currentStudent.paymentStage === "PAID" || currentStudent.paymentStatus === true;
   const hasSecondaryPaymentAccess =
     !isUniversityStudent && ["PAID", "PROMISED"].includes(currentStudent.paymentStage);
+  const isFreeSecondaryClass = !isUniversityStudent && activeLiveClassType === "FREE";
   const identityPending =
     isUniversityStudent &&
     currentStudent.accountActive === false &&
@@ -864,7 +865,7 @@ async function enterLiveClass() {
     return;
   }
 
-  if (!currentStudent.liveAccessEnabled && !hasSecondaryPaymentAccess) {
+  if (!isFreeSecondaryClass && !currentStudent.liveAccessEnabled && !hasSecondaryPaymentAccess) {
     clearError();
     openPaymentAccessModal();
     return;
