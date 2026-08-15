@@ -1109,10 +1109,20 @@
         }
       }
     </style>
+    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=parent-dashboard-1" />
   </head>
   <body class="parent-dashboard-page">
+    <div id="parent-sidebar-backdrop" class="parent-sidebar-backdrop" hidden></div>
+    <aside id="parent-sidebar" class="parent-sidebar" aria-label="القائمة الجانبية">
+      <div class="parent-sidebar-brand"><div class="parent-brand"><span class="parent-brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 8 12 3.75 20.5 8 12 12.25 3.5 8Z" /><path d="M6.5 9.5v5.9c3.1 2.25 7.9 2.25 11 0V9.5" /></svg></span><span class="parent-brand-copy"><strong>أكاديمية التفوق</strong><small>بوابة الولي</small></span></div><button id="parent-sidebar-close" class="parent-sidebar-close" type="button" aria-label="إغلاق القائمة">×</button></div>
+      <div class="parent-profile-card"><span class="parent-profile-avatar" aria-hidden="true">و</span><span><strong>حساب الولي</strong><small>متابعة الأبناء</small></span><i aria-hidden="true"></i></div>
+      <nav class="parent-sidebar-nav" aria-label="تنقل بوابة الولي"><a class="parent-nav-link is-active" href="#dashboard-content"><span aria-hidden="true">⌂</span>لوحة المتابعة</a><a class="parent-nav-link" href="#student-switcher"><span aria-hidden="true">♙</span>أبنائي</a><a class="parent-nav-link" href="#parent-schedule-card"><span aria-hidden="true">▣</span>جدول الحصص</a><a class="parent-nav-link" href="#secondary-payment-upgrade"><span aria-hidden="true">▤</span>الفواتير والاشتراكات</a><a class="parent-nav-link" href="./account-center.html"><span aria-hidden="true">⚙</span>الإعدادات</a></nav>
+      <div class="parent-sidebar-footer"><a href="./academic-center.html">المركز الأكاديمي</a><button id="parent-sidebar-logout" type="button">↪ تسجيل الخروج</button></div>
+    </aside>
+    <div class="parent-dashboard-shell">
     <header class="parent-header">
-      <div class="parent-header-content">
+        <div class="parent-header-content">
+        <button id="parent-sidebar-toggle" class="parent-menu-toggle" type="button" aria-label="فتح القائمة" aria-expanded="false">☰</button>
         <div class="parent-brand">
           <span class="parent-brand-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M3.5 8 12 3.75 20.5 8 12 12.25 3.5 8Z" /><path d="M6.5 9.5v5.9c3.1 2.25 7.9 2.25 11 0V9.5" /></svg>
@@ -1215,8 +1225,14 @@
             <strong id="payment-status">—</strong>
             <small id="secondary-payment-state" hidden></small>
           </article>
-        </div>
-
+                </div>
+        <section class="parent-kpi-grid" aria-label="مؤشرات التلميذ الحالي">
+          <article class="parent-kpi-card"><span class="parent-kpi-icon">✓</span><div><small>الحضور</small><strong id="attendance-count">—</strong><em>حصة مسجلة</em></div></article>
+          <article class="parent-kpi-card"><span class="parent-kpi-icon">▣</span><div><small>حالة الاشتراك</small><strong id="parent-kpi-subscription">—</strong><em>تتحدث حسب حالة الدفع</em></div></article>
+          <article class="parent-kpi-card"><span class="parent-kpi-icon">◷</span><div><small>الحصة القادمة</small><strong id="parent-kpi-next-class">—</strong><em>حسب برنامج المستوى</em></div></article>
+          <article class="parent-kpi-card"><span class="parent-kpi-icon">★</span><div><small>التقييم العام</small><strong id="parent-kpi-rating">في انتظار التقييم</strong><em>لا يوجد تقييم مسجل بعد</em></div></article>
+        </section>
+        <div class="parent-content-split">
         <section id="parent-schedule-card" class="parent-schedule-card" aria-labelledby="parent-schedule-title">
           <header class="parent-schedule-head">
             <div>
@@ -1224,9 +1240,10 @@
               <h2 id="parent-schedule-title">الحصص القادمة</h2>
             </div>
           </header>
-          <div id="parent-schedule-list" class="parent-schedule-list" aria-live="polite"></div>
+                    <div id="parent-schedule-list" class="parent-schedule-list" aria-live="polite"></div>
         </section>
-
+        <aside class="parent-feedback-card" aria-labelledby="parent-feedback-title"><div class="parent-panel-kicker">متابعة الأستاذ</div><h2 id="parent-feedback-title">ملاحظات الأستاذ</h2><blockquote>لا توجد ملاحظات جديدة من الأستاذ حول تقدّم هذا التلميذ حالياً.</blockquote><small>ستظهر هنا الملاحظات بعد إضافتها من المركز الأكاديمي.</small></aside>
+        </div>
         <section id="lesson-repository-card" class="lesson-repository-card" aria-labelledby="lesson-repository-parent-title">
           <header class="lesson-repository-head">
             <div>
@@ -1273,9 +1290,8 @@
           <button id="replacement-card-button" class="card-reupload-action" type="button">رفع بطاقة جديدة</button>
         </section>
       </section>
-    </main>
-
-
+        </main>
+    </div>
   <div id="lesson-video-modal" class="lesson-video-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-video-modal-title" hidden>
     <section class="lesson-video-dialog">
       <header class="lesson-video-modal-head">
@@ -1330,6 +1346,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/parent-dashboard.js?v=account-status-1"></script>
+    <script src="./js/parent-dashboard.js?v=parent-dashboard-1"></script>
   </body>
 </html>

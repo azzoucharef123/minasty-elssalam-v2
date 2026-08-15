@@ -53,6 +53,15 @@ const elements = {
   paymentAccessMessage: document.getElementById("payment-access-message"),
   callTeacherNowButton: document.getElementById("call-teacher-now-btn"),
   declineRegistrationButton: document.getElementById("decline-registration-btn"),
+  parentKpiSubscription: document.getElementById("parent-kpi-subscription"),
+  parentKpiNextClass: document.getElementById("parent-kpi-next-class"),
+  parentKpiRating: document.getElementById("parent-kpi-rating"),
+  parentSidebar: document.getElementById("parent-sidebar"),
+  parentSidebarBackdrop: document.getElementById("parent-sidebar-backdrop"),
+  parentSidebarToggle: document.getElementById("parent-sidebar-toggle"),
+  parentSidebarClose: document.getElementById("parent-sidebar-close"),
+  parentSidebarLogout: document.getElementById("parent-sidebar-logout"),
+  parentNavLinks: Array.from(document.querySelectorAll(".parent-nav-link")),
   documentFeedbackModal: document.getElementById("document-feedback-modal"),
   documentFeedbackTitle: document.getElementById("document-feedback-title"),
   documentFeedbackMessage: document.getElementById("document-feedback-message"),
@@ -231,7 +240,7 @@ function renderStudentSwitcher(students) {
   for (const student of students) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "student-switcher-card";
+    button.className = "student-switcher-card student-switcher-tab";
     button.setAttribute("role", "listitem");
     button.classList.toggle("is-active", currentStudent?.id === student.id);
     button.setAttribute(
@@ -291,6 +300,11 @@ function renderParentSchedule() {
   if (elements.teacherAbsenceNotice) {
     elements.teacherAbsenceNotice.hidden = !isAbsenceForCurrentStudent;
   }
+  if (elements.parentKpiNextClass) {
+    elements.parentKpiNextClass.textContent = parentScheduledClasses.length
+      ? scheduleTypeLabel(currentStudent?.level, parentScheduledClasses[0].subject)
+      : "لا توجد";
+  }
   if (!elements.parentScheduleList) return;
   elements.parentScheduleList.replaceChildren();
 
@@ -311,9 +325,18 @@ function renderParentSchedule() {
     const date = document.createElement("span");
     date.textContent = formatParentScheduleDate(scheduledClass.scheduledAt);
     content.append(title, date);
-    const dot = document.createElement("i");
-    dot.setAttribute("aria-hidden", "true");
-    item.append(content, dot);
+    const subjectIcon = document.createElement("i");
+    subjectIcon.className = "parent-schedule-subject-icon";
+    subjectIcon.setAttribute("aria-hidden", "true");
+    subjectIcon.textContent = scheduledClass.subject === "PHYSICS" ? "ϟ" : scheduledClass.subject === "MATH" ? "∠" : "★";
+    const join = document.createElement("button");
+    join.type = "button";
+    join.className = "parent-schedule-join";
+    join.textContent = "دخول الحصة";
+    join.disabled = !activeLiveClassType;
+    join.title = join.disabled ? "يتفعل الزر عند بدء الحصة" : "الدخول إلى الحصة المباشرة";
+    if (!join.disabled) join.addEventListener("click", () => void enterLiveClass());
+    item.append(subjectIcon, content, join);
     elements.parentScheduleList.append(item);
   });
 }
@@ -510,6 +533,13 @@ function renderStudent(student) {
   elements.paymentStatus.classList.toggle("is-paid", isUniversityStudent && isPaid);
   elements.paymentStatus.classList.toggle("is-free", isUniversityStudent && !isPaid);
   elements.paymentStatus.classList.toggle("is-subject", !isUniversityStudent);
+  if (elements.parentKpiSubscription) {
+    elements.parentKpiSubscription.textContent = isUniversityStudent
+      ? isPaid ? "مدفوع" : "مجاني"
+      : secondarySubscriptionLabel(student);
+    elements.parentKpiSubscription.classList.toggle("is-paid", isPaid || (!isUniversityStudent && paymentStage !== "UNPAID"));
+    elements.parentKpiSubscription.classList.toggle("is-unpaid", !isPaid && (isUniversityStudent || paymentStage === "UNPAID"));
+  }
   if (elements.secondaryPaymentState) {
     elements.secondaryPaymentState.hidden = isUniversityStudent;
     elements.secondaryPaymentState.textContent = isUniversityStudent
@@ -591,15 +621,20 @@ function openLessonVideo(video) {
   window.setTimeout(() => elements.lessonVideoClose?.focus(), 0);
 }
 
+function createLessonVideoEmptyState(message) {
+  const empty = document.createElement("div");
+  empty.className = "lesson-video-empty";
+  empty.innerHTML = '<svg class="lesson-video-empty-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.75 6.5A1.75 1.75 0 0 1 6.5 4.75h5l1.6 1.75h4.4A1.75 1.75 0 0 1 19.25 8v9.5a1.75 1.75 0 0 1-1.75 1.75h-11a1.75 1.75 0 0 1-1.75-1.75v-11Z"/><path d="m10 11 4 2.5-4 2.5V11Z"/></svg><span></span>';
+  empty.querySelector("span").textContent = message;
+  return empty;
+}
+
 function renderLessonVideos(videos) {
   if (!elements.lessonVideoList) return;
   elements.lessonVideoList.replaceChildren();
 
   if (!videos.length) {
-    const empty = document.createElement("p");
-    empty.className = "lesson-video-empty";
-    empty.textContent = "لا توجد حصص مسجلة في مستودع هذا المستوى حالياً.";
-    elements.lessonVideoList.append(empty);
+    elements.lessonVideoList.append(createLessonVideoEmptyState("لا توجد حصص مسجلة متاحة حالياً."));
     return;
   }
 
@@ -643,10 +678,7 @@ async function loadLessonVideos(level) {
     elements.lessonRepositoryLevelCaption.textContent = `فيديوهات حصص ${displayLevelLabel(level)} المتاحة حسب مادة أو نوع اشتراك التلميذ.`;
   }
   elements.lessonVideoList.replaceChildren();
-  const loading = document.createElement("p");
-  loading.className = "lesson-video-empty";
-  loading.textContent = "جارٍ تحميل مستودع الدروس…";
-  elements.lessonVideoList.append(loading);
+  elements.lessonVideoList.append(createLessonVideoEmptyState("جارٍ تحميل مستودع الدروس…"));
 
   try {
     const studentId = currentStudent?.id ? `?studentId=${encodeURIComponent(currentStudent.id)}` : "";
@@ -661,10 +693,7 @@ async function loadLessonVideos(level) {
     if (/انتهت الجلسة/.test(error.message)) return;
     console.error("Unable to load lesson videos:", error);
     if (!currentStudent || currentStudent.level !== level) return;
-    const unavailable = document.createElement("p");
-    unavailable.className = "lesson-video-empty";
-    unavailable.textContent = "تعذر تحميل مستودع الدروس حالياً.";
-    elements.lessonVideoList.replaceChildren(unavailable);
+    elements.lessonVideoList.replaceChildren(createLessonVideoEmptyState("تعذر تحميل مستودع الدروس حالياً."));
   }
 }
 
@@ -1044,6 +1073,17 @@ function logout() {
   window.location.replace("./parent-login.html");
 }
 
+function setParentSidebarOpen(isOpen) {
+  elements.parentSidebar?.classList.toggle("is-open", isOpen);
+  if (elements.parentSidebarBackdrop) elements.parentSidebarBackdrop.hidden = !isOpen;
+  elements.parentSidebarToggle?.setAttribute("aria-expanded", String(isOpen));
+  document.body.classList.toggle("parent-sidebar-open", isOpen);
+}
+
+function setParentActiveNav(link) {
+  elements.parentNavLinks.forEach((item) => item.classList.toggle("is-active", item === link));
+}
+
 function initializeLobbySocket() {
   // Socket.io is loaded by parent-dashboard.html before this script.
   if (typeof io !== "function") {
@@ -1156,6 +1196,11 @@ if (!getParentToken()) {
     void uploadReplacementCard();
   });
   elements.logoutButton?.addEventListener("click", logout);
+  elements.parentSidebarLogout?.addEventListener("click", logout);
+  elements.parentSidebarToggle?.addEventListener("click", () => setParentSidebarOpen(!elements.parentSidebar?.classList.contains("is-open")));
+  elements.parentSidebarClose?.addEventListener("click", () => setParentSidebarOpen(false));
+  elements.parentSidebarBackdrop?.addEventListener("click", () => setParentSidebarOpen(false));
+  elements.parentNavLinks.forEach((link) => link.addEventListener("click", () => { setParentActiveNav(link); setParentSidebarOpen(false); }));
   elements.documentFeedbackClose?.addEventListener("click", closeDocumentFeedback);
   elements.documentFeedbackModal?.addEventListener("click", (event) => {
     if (event.target === elements.documentFeedbackModal) closeDocumentFeedback();
@@ -1178,6 +1223,7 @@ if (!getParentToken()) {
   });
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      setParentSidebarOpen(false);
       closeDocumentFeedback();
       closePaymentAccessModal();
       closeLessonVideo();
