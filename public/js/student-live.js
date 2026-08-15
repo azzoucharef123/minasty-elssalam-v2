@@ -59,6 +59,7 @@ let initialAutoJoinPending = directClassEntryRequested;
 // After the teacher ends a class, the viewer stays in a passive lobby and
 // automatically re-enters the next class for the same level.
 let waitingForNextClass = false;
+let participationCount = 0;
 
 // The viewer stores teacher-provided normalized segments only; there is no
 // student drawing input or outbound drawing event anywhere in this client.
@@ -71,6 +72,7 @@ const elements = {
   placeholderTitle: document.getElementById("placeholder-title"),
   placeholderDescription: document.getElementById("placeholder-description"),
   classLevelLabel: document.getElementById("class-level-label"),
+  participationCount: document.getElementById("student-participation-count"),
   joinButton: document.getElementById("join-class-btn"),
   raiseHandButton: document.getElementById("raise-hand-btn"),
   handWaitingActions: document.getElementById("hand-waiting-actions"),
@@ -235,6 +237,13 @@ function joinClassAutomaticallyFromLobby() {
 function setViewerStatus() {
   // The visual status tray was removed to keep the learner interface compact.
   // Connection and classroom operations continue without rendering a bottom notice.
+}
+
+function setParticipationCount(value) {
+  participationCount = Math.max(0, Number.parseInt(value, 10) || 0);
+  if (elements.participationCount) {
+    elements.participationCount.textContent = `مشاركاتي: ${participationCount}`;
+  }
 }
 
 function setPlaceholder(title, description) {
@@ -918,6 +927,7 @@ function resetViewerState({ message, mode = "neutral", showJoin = true } = {}) {
   clearStudentBoard();
   joinedClass = false;
   isJoining = false;
+  setParticipationCount(0);
 
   resetRemoteMedia();
   // The learner never needs a manual join control inside the live classroom.
@@ -1371,6 +1381,7 @@ socket.on("room_joined", (data = {}) => {
   if (data.role === "student") {
     waitingForNextClass = false;
     teacherSocketId = data.teacherSocketId || teacherSocketId;
+    setParticipationCount(data.participationCount);
     clearStudentBoard();
     requestAnimationFrame(resizeStudentCanvas);
   }
@@ -1410,6 +1421,12 @@ socket.on("receive_draw_data", (data = {}) => {
 
 socket.on("board_cleared", () => {
   clearStudentBoard();
+});
+
+socket.on("participation_count_updated", (data = {}) => {
+  if (joinedClass || data.level === level) {
+    setParticipationCount(data.count);
+  }
 });
 
 socket.on("teacher_message_received", (data = {}) => {

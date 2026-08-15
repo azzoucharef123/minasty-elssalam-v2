@@ -1369,12 +1369,14 @@ function displayInitials(name) {
 }
 
 /** Add or refresh a student item without exposing their socket ID visibly. */
-function upsertAttendee(socketId, studentName = "تلميذ") {
+function upsertAttendee(socketId, studentName = "تلميذ", participationCount = 0) {
   let item = attendeeElements.get(socketId);
 
   if (item) {
     item.querySelector(".attendee-name").textContent = studentName;
     item.querySelector(".attendee-avatar").textContent = displayInitials(studentName);
+    const participation = item.querySelector(".attendee-participation");
+    if (participation && Number.isFinite(Number(participationCount))) participation.textContent = `المشاركات: ${Math.max(0, Number(participationCount))}`;
     return item;
   }
 
@@ -1408,7 +1410,10 @@ function upsertAttendee(socketId, studentName = "تلميذ") {
   const qos = document.createElement("small");
   qos.className = "attendee-qos";
   qos.textContent = "جودة الاتصال: جارٍ القياس…";
-  details.append(name, state, qos);
+  const participation = document.createElement("small");
+  participation.className = "attendee-participation";
+  participation.textContent = `المشاركات: ${Math.max(0, Number(participationCount) || 0)}`;
+  details.append(name, state, qos, participation);
   item.append(avatar, details);
 
   elements.attendeesList.append(item);
@@ -2520,13 +2525,13 @@ socket.on("room_ready", (data) => {
 });
 
 socket.on("student_joined", async (data = {}) => {
-  const { socketId, studentName } = data;
+  const { socketId, studentName, participationCount } = data;
 
   if (!classActive || !socketId) {
     return;
   }
 
-  const attendee = upsertAttendee(socketId, studentName || "تلميذ");
+  const attendee = upsertAttendee(socketId, studentName || "تلميذ", participationCount);
   syncStudentMicButton(attendee, socketId, false);
   await createAndSendOffer(socketId);
 });
@@ -2534,6 +2539,13 @@ socket.on("student_joined", async (data = {}) => {
 socket.on("student_mic_state_changed", (data = {}) => {
   const { socketId, enabled } = data;
   applyStudentMicrophoneState(socketId, Boolean(enabled));
+});
+
+socket.on("student_participation_updated", (data = {}) => {
+  if (!data.socketId) return;
+  const attendee = attendeeElements.get(data.socketId);
+  const participation = attendee?.querySelector(".attendee-participation");
+  if (participation) participation.textContent = `المشاركات: ${Math.max(0, Number(data.count) || 0)}`;
 });
 
 socket.on("recovery_students", async (data = {}) => {
@@ -2546,7 +2558,7 @@ socket.on("recovery_students", async (data = {}) => {
       continue;
     }
 
-    const attendee = upsertAttendee(student.socketId, student.studentName || "تلميذ");
+    const attendee = upsertAttendee(student.socketId, student.studentName || "تلميذ", student.participationCount);
     syncStudentMicButton(attendee, student.socketId, Boolean(student.micEnabled));
     applyStudentMicrophoneState(student.socketId, Boolean(student.micEnabled));
     await createAndSendOffer(student.socketId);

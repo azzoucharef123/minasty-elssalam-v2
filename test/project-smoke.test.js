@@ -8,7 +8,7 @@ const schema = fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8");
 const routes = fs.readFileSync(path.join(root, "routes/academicRoutes.js"), "utf8");
 
 test("selected academic models exist", () => {
-  for (const model of ["Session", "AuditLog", "Notification", "PaymentEvent", "Grade", "Assignment", "Question", "Assessment", "LessonProgress"]) {
+  for (const model of ["Session", "AuditLog", "Notification", "PaymentEvent", "Grade", "Assignment", "Question", "Assessment", "LessonProgress", "ClassParticipation"]) {
     assert.match(schema, new RegExp(`model ${model}\\b`));
   }
 });

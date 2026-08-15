@@ -6,6 +6,7 @@
   <title>المركز الأكاديمي | أكاديمية التفوق</title>
   <link rel="stylesheet" href="./css/style.css" />
   <link rel="stylesheet" href="./css/academic-center.css" />
+  <link rel="stylesheet" href="./css/participation.css?v=participation-1" />
 </head>
 <body class="academic-page">
   <header class="academic-topbar">
@@ -18,8 +19,9 @@
     <div id="student-view" class="academic-view">
       <section class="academic-stats"><article><span>متوسط العلامات</span><strong id="student-average">—</strong></article><article><span>الدروس المكتملة</span><strong id="student-completed">0</strong></article><article><span>الواجبات المسلّمة</span><strong id="student-submissions">0</strong></article><article><span>الشارات</span><strong id="student-badges">0</strong></article></section>
       <div class="academic-grid">
+        <section class="academic-card"><header><div><span class="card-kicker">المشاركة</span><h2>سجل مشاركاتي</h2></div></header><div id="student-participation-total" class="participation-total-card"><strong>0</strong><span>إجمالي مرات المشاركة أثناء الحصص</span></div><div id="student-participations" class="academic-list"></div></section>
         <section class="academic-card"><header><div><span class="card-kicker">مساري</span><h2>خطة التعلم الشخصية</h2></div></header><div id="student-path" class="academic-list"></div></section>
-        <section class="academic-card"><header><div><span class="card-kicker">التقييم</span><h2>علاماتي الأخيرة</h2></div></header><div id="student-grades" class="academic-list"></div></section>
+        <section class="academic-card"><header><div><span class="card-kicker">التقييم</span><h2>سجل التقييمات والمشاركات</h2></div></header><div id="student-grades" class="academic-list"></div></section>
         <section class="academic-card"><header><div><span class="card-kicker">المهام</span><h2>الواجبات</h2></div></header><div id="student-assignments" class="academic-list"></div></section>
         <section class="academic-card"><header><div><span class="card-kicker">اختبر نفسك</span><h2>الاختبارات المتاحة</h2></div></header><div id="student-assessments" class="academic-list"></div></section>
       </div>
@@ -34,6 +36,6 @@
     </div>
   </main>
   <script src="./js/session-storage.js"></script>
-  <script src="./js/academic-center.js?v=academic-1"></script>
+  <script src="./js/academic-center.js?v=participation-1"></script>
 </body>
 </html>

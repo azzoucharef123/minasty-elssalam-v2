@@ -36,12 +36,33 @@ function renderList(container, items, renderer) {
 function renderStudentProgress(data) {
   const grades = data.grades || [];
   const average = grades.length ? grades.reduce((sum, item) => sum + (Number(item.score) / Number(item.maxScore || 100)) * 100, 0) / grades.length : null;
+  const participationTotal = Number(data.participationTotal || 0);
+  const participationTotalCard = $("student-participation-total");
+  if (participationTotalCard) {
+    const totalValue = participationTotalCard.querySelector("strong");
+    if (totalValue) totalValue.textContent = String(participationTotal);
+  }
+  renderList($("student-participations"), data.participations, (item) => `<div class="academic-list-item participation-list-item"><div><strong>${escapeHtml(item.subject === "PHYSICS" ? "الفيزياء" : item.subject === "MATH" ? "الرياضيات" : item.subject)}</strong><small>${escapeHtml(item.level)} · آخر مشاركة: ${new Date(item.lastParticipatedAt || item.updatedAt || item.createdAt).toLocaleDateString("ar-DZ")}</small></div><strong>${Number(item.count || 0)} مشاركة</strong></div>`);
   $("student-average").textContent = average === null ? "—" : `${Math.round(average)}%`;
   $("student-completed").textContent = (data.progress || []).filter((item) => item.completed).length;
   $("student-submissions").textContent = (data.assignments || []).length;
   $("student-badges").textContent = (data.badges || []).length;
   renderList($("student-path"), data.path, (item) => `<div class="academic-list-item"><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.subject)} · ${escapeHtml(item.status)}</small></div><span class="status-pill ${item.status === "DONE" ? "" : "pending"}">${item.status === "DONE" ? "مكتمل" : "قيد المتابعة"}</span></div>`);
-  renderList($("student-grades"), grades.slice(0, 8), (item) => `<div class="academic-list-item"><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.subject)} · ${escapeHtml(item.category)}</small></div><strong>${Number(item.score)}/${Number(item.maxScore)}</strong></div>`);
+  const evaluationEntries = [
+    ...(data.participations || []).map((item) => ({
+      kind: "participation",
+      title: "مشاركة في الحصة",
+      subject: item.subject,
+      category: "مشاركة",
+      count: item.count,
+      level: item.level,
+      at: item.lastParticipatedAt || item.updatedAt || item.createdAt,
+    })),
+    ...grades,
+  ].slice(0, 20);
+  renderList($("student-grades"), evaluationEntries, (item) => item.kind === "participation"
+    ? `<div class="academic-list-item participation-list-item"><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.level)} · ${item.at ? new Date(item.at).toLocaleDateString("ar-DZ") : "حصة مباشرة"}</small></div><strong>${Number(item.count || 0)} مشاركة</strong></div>`
+    : `<div class="academic-list-item"><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.subject)} · ${escapeHtml(item.category)}</small></div><strong>${Number(item.score)}/${Number(item.maxScore)}</strong></div>`);
   renderList($("student-assignments"), data.assignments, (item) => `<div class="academic-list-item"><div><strong>${escapeHtml(item.assignment?.title || "واجب")}</strong><small>${item.grade == null ? "لم يُصحح بعد" : `العلامة: ${item.grade}`}</small></div><span class="status-pill ${item.status === "GRADED" ? "" : "pending"}">${item.status === "GRADED" ? "مصحح" : "مسلّم"}</span></div>`);
   renderList($("student-assessments"), data.assessments, (item) => `<div class="academic-list-item"><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.subject)} · ${item.questions?.length || 0} سؤال</small></div><span class="status-pill">متاح</span></div>`);
 }

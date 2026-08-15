@@ -43,6 +43,7 @@ model Student {
   lessonProgress LessonProgress[]
   learningPathItems LearningPathItem[]
   badges StudentBadge[]
+  classParticipations ClassParticipation[]
 
   @@index([level, createdAt(sort: Desc)])
   @@index([parentPhone])
@@ -402,6 +403,24 @@ model Grade {
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId, subject, gradedAt(sort: Desc)])
+}
+
+model ClassParticipation {
+  id                  String   @id @default(uuid()) @db.Uuid
+  studentId           String   @db.Uuid
+  level               String
+  subject             String
+  sessionKey          String
+  count               Int      @default(0)
+  lastParticipatedAt  DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, sessionKey])
+  @@index([studentId, createdAt(sort: Desc)])
+  @@index([level, sessionKey])
 }
 
 model PublicRoomArchive {

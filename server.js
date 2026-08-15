@@ -598,6 +598,34 @@ function setStudentMicrophoneOpen(level, socketId, enabled) {
   }
 }
 
+async function getClassParticipation(studentId, sessionKey) {
+  if (!isValidStudentId(studentId) || !isValidRecoveryToken(sessionKey)) return null;
+  try {
+    return await prisma.classParticipation.findUnique({
+      where: { studentId_sessionKey: { studentId, sessionKey } },
+      select: { id: true, studentId: true, level: true, subject: true, sessionKey: true, count: true, lastParticipatedAt: true },
+    });
+  } catch (error) {
+    console.error("Class participation lookup failed:", error);
+    return null;
+  }
+}
+
+async function recordClassParticipation({ studentId, level, subject, sessionKey }) {
+  if (!isValidStudentId(studentId) || !isValidLevel(level) || !isValidActiveClassType(level, subject) || !isValidRecoveryToken(sessionKey)) return null;
+  try {
+    return await prisma.classParticipation.upsert({
+      where: { studentId_sessionKey: { studentId, sessionKey } },
+      create: { studentId, level, subject, sessionKey, count: 1 },
+      update: { count: { increment: 1 }, lastParticipatedAt: new Date() },
+      select: { id: true, studentId: true, level: true, subject: true, sessionKey: true, count: true, lastParticipatedAt: true },
+    });
+  } catch (error) {
+    console.error("Class participation record failed:", error);
+    return null;
+  }
+}
+
 function isValidRecoveryToken(value) {
   return typeof value === "string" && /^[a-zA-Z0-9-]{16,128}$/.test(value);
 }
@@ -1085,12 +1113,16 @@ io.on("connection", (socket) => {
       users.set(socket.id, { role: "teacher", level, name: "الأستاذ" });
 
       const recoveryStudents = isResuming
-        ? (await io.in(level).fetchSockets())
+        ? await Promise.all((await io.in(level).fetchSockets())
             .filter((participant) => participant.id !== socket.id && participant.data.role === "student")
-            .map((participant) => ({
-              socketId: participant.id,
-              studentName: participant.data.studentName || "تلميذ",
-              micEnabled: isStudentMicrophoneOpen(level, participant.id),
+            .map(async (participant) => {
+              const participation = await getClassParticipation(participant.data.studentId, resumeToken);
+              return {
+                socketId: participant.id,
+                studentName: participant.data.studentName || "تلميذ",
+                micEnabled: isStudentMicrophoneOpen(level, participant.id),
+                participationCount: participation?.count || 0,
+              };
             }))
         : [];
 
@@ -1275,10 +1307,15 @@ io.on("connection", (socket) => {
       socket.data.studentId = student.id;
       users.set(socket.id, { role: "student", level, name: studentName, studentId: student.id });
 
+      const sessionKey = teacherSocket.data.classResumeToken;
+      const participation = await getClassParticipation(student.id, sessionKey);
+      const participationCount = participation?.count || 0;
+
       socket.emit("room_joined", {
         level,
         role: "student",
         teacherSocketId,
+        participationCount,
       });
 
       // Only the active teacher receives the student identity/socket ID.
@@ -1287,6 +1324,7 @@ io.on("connection", (socket) => {
         io.to(teacherSocketId).emit("student_joined", {
           socketId: socket.id,
           studentName,
+          participationCount,
           recovering: data.rejoin === true,
         });
       }
@@ -1575,7 +1613,24 @@ io.on("connection", (socket) => {
     // Persist the teacher decision before notifying the student. This makes the
     // decision available to the teacher browser during a short reconnection and
     // prevents a late-arriving audio track from being rebroadcast after closure.
+    const wasOpen = isStudentMicrophoneOpen(level, targetSocketId);
     setStudentMicrophoneOpen(level, targetSocketId, enabled);
+
+    let participationCount;
+    const sessionKey = socket.data.classResumeToken;
+    if (enabled) {
+      const participation = wasOpen
+        ? await getClassParticipation(targetSocket.data.studentId, sessionKey)
+        : await recordClassParticipation({
+            studentId: targetSocket.data.studentId,
+            level,
+            subject: activeSubjectByLevel.get(level),
+            sessionKey,
+          });
+      participationCount = participation?.count || 0;
+      io.to(targetSocketId).emit("participation_count_updated", { level, count: participationCount });
+      io.to(socket.id).emit("student_participation_updated", { socketId: targetSocketId, count: participationCount });
+    }
 
     io.to(targetSocketId).emit(
       enabled ? "permission_granted" : "microphone_revoked",
@@ -1622,7 +1677,19 @@ io.on("connection", (socket) => {
       );
     }
 
+    const wasOpen = isStudentMicrophoneOpen(level, targetSocketId);
     setStudentMicrophoneOpen(level, targetSocketId, true);
+    const participation = wasOpen
+      ? await getClassParticipation(targetSocket.data.studentId, socket.data.classResumeToken)
+      : await recordClassParticipation({
+          studentId: targetSocket.data.studentId,
+          level,
+          subject: activeSubjectByLevel.get(level),
+          sessionKey: socket.data.classResumeToken,
+        });
+    const participationCount = participation?.count || 0;
+    io.to(targetSocketId).emit("participation_count_updated", { level, count: participationCount });
+    io.to(socket.id).emit("student_participation_updated", { socketId: targetSocketId, count: participationCount });
     io.to(targetSocketId).emit("permission_granted", { level });
     io.to(level).emit("classroom_track_state", {
       type: "student_audio",

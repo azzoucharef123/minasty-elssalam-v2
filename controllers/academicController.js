@@ -144,14 +144,16 @@ async function submitAssessment(req, res) {
 async function getProgress(req, res) {
   const student = await getStudentForUser(req, text(req.params.studentId, 80));
   if (!student) return res.status(403).json({ error: "لا تملك صلاحية هذه البيانات." });
-  const [progress, grades, assignments, badges, path] = await Promise.all([
+  const [progress, grades, assignments, badges, path, participations] = await Promise.all([
     prisma.lessonProgress.findMany({ where: { studentId: student.id }, include: { lessonVideo: true }, orderBy: { updatedAt: "desc" }, take: 100 }),
     prisma.grade.findMany({ where: { studentId: student.id }, orderBy: { gradedAt: "desc" }, take: 100 }),
     prisma.assignmentSubmission.findMany({ where: { studentId: student.id }, include: { assignment: true }, orderBy: { submittedAt: "desc" }, take: 100 }),
     prisma.studentBadge.findMany({ where: { studentId: student.id }, orderBy: { awardedAt: "desc" } }),
     prisma.learningPathItem.findMany({ where: { studentId: student.id }, orderBy: { position: "asc" } }),
+    prisma.classParticipation.findMany({ where: { studentId: student.id }, orderBy: { lastParticipatedAt: "desc" }, take: 100 }),
   ]);
-  return res.json({ status: "success", data: { progress, grades, assignments, badges, path } });
+  const participationTotal = participations.reduce((sum, item) => sum + item.count, 0);
+  return res.json({ status: "success", data: { progress, grades, assignments, badges, path, participations, participationTotal } });
 }
 
 async function updateLessonProgress(req, res) {
