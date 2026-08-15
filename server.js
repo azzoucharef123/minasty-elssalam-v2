@@ -280,6 +280,34 @@ app.get("/api/public-class/status", (_req, res) => {
   return res.status(200).json({ active: Boolean(activeRoomId), roomId: activeRoomId });
 });
 
+app.post("/api/public-class/facebook-relay/session", (req, res) => {
+  const roomId = normalizeText(req.body?.roomId);
+  const hostToken = normalizeText(req.body?.hostToken);
+  const room = publicInviteRooms.get(roomId);
+  const hostSocket = room?.hostSocketId ? io.sockets.sockets.get(room.hostSocketId) : null;
+  const relayUrl = String(process.env.FACEBOOK_RELAY_URL || "").trim();
+  const secret = process.env.JWT_SECRET;
+
+  if (!room || !hostSocket || hostSocket.data.publicRole !== "host" || room.hostToken !== hostToken) {
+    return res.status(403).json({ error: "لا تملك صلاحية بث هذه الحصة إلى Facebook." });
+  }
+  if (!relayUrl || !secret || secret.length < 32) {
+    return res.status(503).json({ error: "لم يتم إعداد خدمة بث Facebook على الخادم بعد." });
+  }
+
+  const relayToken = jwt.sign(
+    { role: "public_host", roomId },
+    secret,
+    {
+      algorithm: "HS256",
+      expiresIn: "15m",
+      issuer: "online-tutoring-platform",
+      audience: "facebook-relay",
+    }
+  );
+  return res.json({ relayUrl: relayUrl.replace(/\/$/, ""), relayToken, expiresIn: "15m" });
+});
+
 const MAX_LEVEL_LENGTH = 100;
 const MAX_NAME_LENGTH = 120;
 const MAX_CHAT_MESSAGE_LENGTH = 800;

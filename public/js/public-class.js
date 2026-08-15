@@ -24,6 +24,12 @@
     copyInviteLink: document.getElementById("copy-public-link"),
     startShare: document.getElementById("start-public-share"),
     recordClass: document.getElementById("record-public-class"),
+    facebookBroadcast: document.getElementById("facebook-broadcast-public-class"),
+    facebookModal: document.getElementById("facebook-relay-modal"),
+    facebookForm: document.getElementById("facebook-relay-form"),
+    facebookServerUrl: document.getElementById("facebook-server-url"),
+    facebookStreamKey: document.getElementById("facebook-stream-key"),
+    closeFacebookModal: document.getElementById("close-facebook-relay-modal"),
     endClass: document.getElementById("end-public-class"),
     toggleHostMic: document.getElementById("toggle-host-mic"),
     chatMessages: document.getElementById("public-chat-messages"),
@@ -62,6 +68,15 @@
   let publicRecordingStream = null;
   let publicRecordingChunks = [];
   let publicRecordingDriveTokenPromise = null;
+  let facebookRelaySocket = null;
+  let facebookRelayRecorder = null;
+  let facebookRelayStream = null;
+  let facebookRelayAudioContext = null;
+  let facebookRelayAudioDestination = null;
+  let facebookRelaySourceNodes = new Map();
+  let facebookRelaySourceSyncTimer = null;
+  let facebookRelayReady = false;
+  let facebookRelayStopRequested = false;
   let publicGoogleDriveAccessToken = null;
   let publicGoogleDriveTokenExpiresAt = 0;
   let publicGoogleIdentityLoadPromise = null;
@@ -585,6 +600,7 @@
       elements.startShare.textContent = "المشاركة جارية";
       elements.startShare.disabled = true;
       elements.recordClass.disabled = false;
+      setFacebookBroadcastUi(false);
       setHostMicUi();
       setStatus("الحصة العامة بدأت. سيظهر زر الدخول في الصفحة الرئيسية للزوار.");
       display.getVideoTracks()[0]?.addEventListener("ended", () => {
@@ -594,6 +610,207 @@
     } catch (error) {
       setStatus("تعذر بدء المشاركة. امنح المتصفح إذن مشاركة الشاشة ثم حاول مرة أخرى.", "error");
     }
+  }
+
+  function setFacebookBroadcastUi(active = false) {
+    if (!elements.facebookBroadcast) return;
+    elements.facebookBroadcast.disabled = !active && (!localStream || ended);
+    elements.facebookBroadcast.textContent = active ? "إيقاف بث Facebook" : "بث إلى Facebook";
+    elements.facebookBroadcast.classList.toggle("danger", active);
+    elements.facebookBroadcast.classList.toggle("facebook", !active);
+  }
+
+  function syncFacebookRelayAudioSources() {
+    if (!facebookRelayAudioContext || !facebookRelayAudioDestination) return;
+    const activeSources = new Map(
+      Array.from(publicAudioSources.entries())
+        .filter(([, source]) => source?.enabled !== false)
+        .map(([sourceKey, source]) => [sourceKey, source?.stream])
+        .filter(([, stream]) => stream?.getAudioTracks?.().some((track) => track.readyState === "live"))
+    );
+
+    facebookRelaySourceNodes.forEach(({ stream, node }, sourceKey) => {
+      if (activeSources.get(sourceKey) === stream) return;
+      try { node.disconnect(); } catch (_) { /* already disconnected */ }
+      facebookRelaySourceNodes.delete(sourceKey);
+    });
+
+    activeSources.forEach((stream, sourceKey) => {
+      if (facebookRelaySourceNodes.has(sourceKey)) return;
+      try {
+        const node = facebookRelayAudioContext.createMediaStreamSource(stream);
+        node.connect(facebookRelayAudioDestination);
+        facebookRelaySourceNodes.set(sourceKey, { stream, node });
+      } catch (error) {
+        console.warn("Unable to add public audio source to Facebook relay:", error);
+      }
+    });
+  }
+
+  function disposeFacebookRelayAudio() {
+    facebookRelaySourceNodes.forEach(({ node }) => {
+      try { node.disconnect(); } catch (_) { /* already disconnected */ }
+    });
+    facebookRelaySourceNodes.clear();
+    if (facebookRelaySourceSyncTimer) {
+      window.clearInterval(facebookRelaySourceSyncTimer);
+      facebookRelaySourceSyncTimer = null;
+    }
+    facebookRelayAudioDestination = null;
+    const context = facebookRelayAudioContext;
+    facebookRelayAudioContext = null;
+    if (context && context.state !== "closed") context.close().catch(() => {});
+  }
+
+  function disposeFacebookRelayResources() {
+    disposeFacebookRelayAudio();
+    facebookRelayStream?.getAudioTracks().forEach((track) => track.stop());
+    facebookRelayStream = null;
+    facebookRelayReady = false;
+    if (facebookRelaySocket && facebookRelaySocket.readyState === WebSocket.OPEN) {
+      facebookRelaySocket.close();
+    }
+    facebookRelaySocket = null;
+    if (elements.facebookStreamKey) elements.facebookStreamKey.value = "";
+    setFacebookBroadcastUi(Boolean(localStream && !ended));
+  }
+
+  async function requestFacebookRelaySession() {
+    const response = await fetch("/api/public-class/facebook-relay/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomId, hostToken }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.relayUrl || !data.relayToken) {
+      throw new Error(data.error || "خدمة بث Facebook غير جاهزة على الخادم.");
+    }
+    return data;
+  }
+
+  function waitForFacebookRelayReady(socket) {
+    return new Promise((resolve, reject) => {
+      const timeout = window.setTimeout(() => reject(new Error("انتهت مهلة الاتصال بخدمة Facebook.")), 15_000);
+      const onMessage = (event) => {
+        let data;
+        try { data = JSON.parse(String(event.data)); } catch (_) { return; }
+        if (data.type === "ready") {
+          window.clearTimeout(timeout);
+          facebookRelayReady = true;
+          resolve();
+        } else if (data.type === "error") {
+          window.clearTimeout(timeout);
+          reject(new Error(data.reason || "تعذر تشغيل بث Facebook."));
+        }
+      };
+      socket.addEventListener("message", onMessage);
+      socket.addEventListener("error", () => {
+        window.clearTimeout(timeout);
+        reject(new Error("تعذر الاتصال بخدمة Facebook Relay."));
+      }, { once: true });
+    });
+  }
+
+  async function startFacebookBroadcast(serverUrl, streamKey) {
+    if (!isHost || ended || facebookRelayRecorder || !localStream) return;
+    facebookRelayStopRequested = false;
+    const videoTrack = localStream.getVideoTracks().find((track) => track.readyState === "live");
+    if (!videoTrack || typeof window.MediaRecorder !== "function" || typeof window.WebSocket !== "function") {
+      throw new Error("هذا المتصفح لا يدعم إرسال البث إلى Facebook.");
+    }
+
+    const { relayUrl, relayToken } = await requestFacebookRelaySession();
+    const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextConstructor) throw new Error("المتصفح لا يدعم مزج صوت البث.");
+
+    const audioContext = new AudioContextConstructor();
+    const destination = audioContext.createMediaStreamDestination();
+    facebookRelayAudioContext = audioContext;
+    facebookRelayAudioDestination = destination;
+    syncFacebookRelayAudioSources();
+    facebookRelaySourceSyncTimer = window.setInterval(syncFacebookRelayAudioSources, 500);
+    if (audioContext.state === "suspended") await audioContext.resume().catch(() => {});
+    const mixedAudioTrack = destination.stream.getAudioTracks()[0];
+    if (!mixedAudioTrack) throw new Error("تعذر إنشاء مسار صوت Facebook.");
+
+    const relaySocketUrl = `${relayUrl.replace(/^http:/i, "ws:").replace(/^https:/i, "wss:")}/ingest`;
+    const relaySocket = new WebSocket(relaySocketUrl);
+    facebookRelaySocket = relaySocket;
+    relaySocket.binaryType = "arraybuffer";
+    await new Promise((resolve, reject) => {
+      const timeout = window.setTimeout(() => reject(new Error("انتهت مهلة فتح اتصال Relay.")), 15_000);
+      relaySocket.addEventListener("open", () => {
+        window.clearTimeout(timeout);
+        relaySocket.send(JSON.stringify({ type: "start", token: relayToken, serverUrl, streamKey }));
+        resolve();
+      }, { once: true });
+      relaySocket.addEventListener("error", () => {
+        window.clearTimeout(timeout);
+        reject(new Error("تعذر فتح قناة البث إلى Relay."));
+      }, { once: true });
+    });
+    await waitForFacebookRelayReady(relaySocket);
+
+    const relayStream = new MediaStream([videoTrack, mixedAudioTrack]);
+    const mimeType = getPublicRecordingMimeType();
+    const recorder = new MediaRecorder(
+      relayStream,
+      mimeType ? { mimeType, videoBitsPerSecond: 2_500_000, audioBitsPerSecond: 128_000 } : undefined
+    );
+    facebookRelayStream = relayStream;
+    facebookRelayRecorder = recorder;
+    recorder.ondataavailable = (event) => {
+      if (event.data?.size && facebookRelayReady && relaySocket.readyState === WebSocket.OPEN) relaySocket.send(event.data);
+    };
+    recorder.onerror = () => {
+      setStatus("حدث خطأ أثناء إرسال البث إلى Facebook.", "error");
+      stopFacebookBroadcast();
+    };
+    recorder.onstop = () => {
+      if (relaySocket.readyState === WebSocket.OPEN) {
+        relaySocket.send(JSON.stringify({ type: "stop" }));
+        window.setTimeout(() => relaySocket.close(), 500);
+      }
+      facebookRelayRecorder = null;
+      disposeFacebookRelayResources();
+      setStatus(facebookRelayStopRequested ? "تم إيقاف البث على Facebook." : "توقف بث Facebook.");
+      facebookRelayStopRequested = false;
+    };
+    relaySocket.addEventListener("message", (event) => {
+      let data;
+      try { data = JSON.parse(String(event.data)); } catch (_) { return; }
+      if (data.type === "error" && facebookRelayRecorder) {
+        setStatus(data.reason || "توقف بث Facebook.", "error");
+        stopFacebookBroadcast();
+      }
+    });
+    relaySocket.addEventListener("close", () => {
+      facebookRelayReady = false;
+      if (facebookRelayRecorder?.state === "recording") facebookRelayRecorder.stop();
+    });
+    recorder.start(1_000);
+    setFacebookBroadcastUi(true);
+    setStatus("البث الداخلي وFacebook يعملان الآن.");
+  }
+
+  function stopFacebookBroadcast() {
+    facebookRelayStopRequested = true;
+    if (facebookRelayRecorder?.state === "recording") {
+      facebookRelayRecorder.stop();
+      return;
+    }
+    disposeFacebookRelayResources();
+  }
+
+  function openFacebookRelayModal() {
+    if (!isHost || !localStream || ended || facebookRelayRecorder) return;
+    elements.facebookModal?.removeAttribute("hidden");
+    elements.facebookStreamKey?.focus();
+  }
+
+  function closeFacebookRelayModal() {
+    elements.facebookModal?.setAttribute("hidden", "hidden");
+    if (elements.facebookStreamKey) elements.facebookStreamKey.value = "";
   }
 
   function getPublicRecordingMimeType() {
@@ -920,6 +1137,7 @@
   function endClass() {
     if (!isHost || ended) return;
     stopPublicRecording();
+    stopFacebookBroadcast();
     socket.emit("public_host_end", {}, (result) => {
       if (!result?.ok) setStatus(result?.error || "تعذر إنهاء الحصة.", "error");
     });
@@ -931,7 +1149,9 @@
     elements.attendance.hidden = false;
     elements.startShare.hidden = false;
     elements.recordClass.hidden = false;
+    elements.facebookBroadcast.hidden = false;
     elements.recordClass.disabled = true;
+    setFacebookBroadcastUi(false);
     elements.toggleHostMic.hidden = false;
     elements.endClass.hidden = false;
     socket.emit("public_host_start", { roomId, hostToken }, async (result) => {
@@ -1121,6 +1341,7 @@
   socket.on("public_room_ended", () => {
     ended = true;
     stopPublicRecording();
+    stopFacebookBroadcast();
     stopPublicAudioMix();
     localStream?.getTracks().forEach((track) => track.stop());
     hostMicrophoneTracks = [];
@@ -1148,6 +1369,27 @@
   });
   elements.startShare?.addEventListener("click", () => { void startShare(); });
   elements.recordClass?.addEventListener("click", togglePublicRecording);
+  elements.facebookBroadcast?.addEventListener("click", () => {
+    if (facebookRelayRecorder) stopFacebookBroadcast();
+    else openFacebookRelayModal();
+  });
+  elements.closeFacebookModal?.addEventListener("click", closeFacebookRelayModal);
+  elements.facebookForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const serverUrl = elements.facebookServerUrl?.value.trim();
+    const streamKey = elements.facebookStreamKey?.value.trim();
+    if (!serverUrl || !streamKey) return;
+    closeFacebookRelayModal();
+    elements.facebookBroadcast.disabled = true;
+    elements.facebookBroadcast.textContent = "جارٍ الاتصال بـ Facebook…";
+    try {
+      await startFacebookBroadcast(serverUrl, streamKey);
+    } catch (error) {
+      disposeFacebookRelayResources();
+      setFacebookBroadcastUi(false);
+      setStatus(error.message || "تعذر بدء البث إلى Facebook.", "error");
+    }
+  });
   elements.toggleHostMic?.addEventListener("click", () => {
     const availableTracks = hostMicrophoneTracks.filter((track) => track.readyState === "live");
     if (!availableTracks.length || ended) return;

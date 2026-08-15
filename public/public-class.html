@@ -31,6 +31,16 @@
     .button.ghost { background:#263b5b; }
     .button.success { background:linear-gradient(135deg,#16a34a,#15803d); }
     .button.warn { background:#a16207; }
+    .button.facebook { background:linear-gradient(135deg,#1877f2,#0b55b0); }
+    .facebook-modal { position:fixed; z-index:30; inset:0; display:grid; place-items:center; padding:1rem; background:rgba(2,6,23,.78); backdrop-filter:blur(6px); }
+    .facebook-modal[hidden] { display:none; }
+    .facebook-card { width:min(32rem,100%); padding:1.35rem; border:1px solid rgba(96,165,250,.42); border-radius:1rem; background:linear-gradient(145deg,#142d55,#0c1c33); box-shadow:0 26px 70px rgba(0,0,0,.45); }
+    .facebook-card h2 { margin:.1rem 0 .45rem; }
+    .facebook-card p { color:#cbd5e1; line-height:1.7; font-size:.86rem; }
+    .facebook-card label { display:block; margin-top:.8rem; color:#bfdbfe; font-size:.82rem; font-weight:800; }
+    .facebook-card input { width:100%; margin-top:.35rem; padding:.7rem; color:#e5eefc; border:1px solid var(--edge); border-radius:.6rem; background:#071a32; direction:ltr; }
+    .facebook-form-actions { display:flex; gap:.55rem; margin-top:1rem; }
+    .facebook-form-actions .button { flex:1; }
     .paid-registration-link { display:inline-flex; align-items:center; justify-content:center; min-height:2.75rem; padding:.55rem .9rem; border:1px solid #facc15; border-radius:.7rem; color:#fef08a; background:linear-gradient(135deg,#dc2626,#991b1b); font-weight:900; text-align:center; text-decoration:none; box-shadow:0 6px 18px rgba(153,27,27,.28); transition:transform .2s ease, box-shadow .2s ease; }
     .paid-registration-link:hover, .paid-registration-link:focus-visible { transform:translateY(-2px); box-shadow:0 10px 24px rgba(153,27,27,.42); outline:0; }
     .paid-registration-link[hidden], .button[hidden], .host-only[hidden], .guest-only[hidden] { display:none; }
@@ -105,6 +115,7 @@
         <div class="controls">
           <button id="start-public-share" class="button primary host-only" type="button" hidden>بدء الحصة ومشاركة الشاشة</button>
           <button id="record-public-class" class="button ghost host-only" type="button" hidden>بدء تسجيل الحصة</button>
+          <button id="facebook-broadcast-public-class" class="button facebook host-only" type="button" hidden disabled>بث إلى Facebook</button>
           <button id="toggle-host-mic" class="button ghost host-only" type="button" hidden disabled>تشغيل مايك المضيف</button>
           <button id="end-public-class" class="button danger host-only" type="button" hidden>إنهاء الحصة العامة</button>
           <div class="guest-actions guest-only" id="guest-actions" hidden>
@@ -128,6 +139,21 @@
       </section>
     </section>
   </main>
+  <div id="facebook-relay-modal" class="facebook-modal" hidden>
+    <form id="facebook-relay-form" class="facebook-card">
+      <h2>البث المباشر إلى Facebook</h2>
+      <p>أدخل عنوان خادم RTMPS ومفتاح البث الدائم من Facebook. لن يتم حفظ مفتاح البث في المتصفح أو قاعدة البيانات.</p>
+      <label for="facebook-server-url">عنوان URL للخادم</label>
+      <input id="facebook-server-url" type="url" inputmode="url" value="rtmps://live-api-s.facebook.com:443/rtmp" placeholder="rtmps://live-api-s.facebook.com:443/rtmp" required />
+      <label for="facebook-stream-key">مفتاح البث الدائم</label>
+      <input id="facebook-stream-key" type="password" autocomplete="off" required />
+      <div class="facebook-form-actions">
+        <button id="close-facebook-relay-modal" class="button ghost" type="button">إلغاء</button>
+        <button class="button facebook" type="submit">بدء البث</button>
+      </div>
+    </form>
+  </div>
+
   <div id="public-nickname-overlay" class="join-overlay" hidden>
     <form id="public-nickname-form" class="join-card">
       <h1>أدخل اسمك الحقيقي</h1>
@@ -140,6 +166,6 @@
   </div>
   <audio id="public-guest-audio" autoplay></audio>
   <script src="/socket.io/socket.io.js"></script>
-  <script src="./js/public-class.js?v=public-drive-recording-1"></script>
+  <script src="./js/public-class.js?v=facebook-relay-1"></script>
 </body>
 </html>
