@@ -851,3 +851,6 @@ body.public-class-modal-open { overflow: hidden; }
     position: static;
   }
 }
+
+/* WebRTC QoS indicators in the teacher studio */
+.attendee-qos{display:block;margin-top:.18rem;color:#94a3b8;font-size:.66rem;font-weight:700;line-height:1.35}.attendee-qos.good{color:#86efac}.attendee-qos.warn{color:#fde68a}.attendee-qos.bad{color:#fca5a5}

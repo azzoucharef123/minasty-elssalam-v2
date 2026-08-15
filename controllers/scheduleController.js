@@ -1,6 +1,7 @@
 "use strict";
 
 const prisma = require("../lib/prisma");
+const { logAudit } = require("../utils/audit");
 
 const LEVELS = new Set([
   "السنة الأولى",
@@ -36,18 +37,26 @@ function parseScheduledAt(value) {
   return Number.isFinite(scheduledAt.getTime()) ? scheduledAt : null;
 }
 
-function notifyScheduleChange(req, level) {
+async function notifyScheduleChange(req, level, action = "SCHEDULE_UPDATED") {
   const io = req.app.get("io");
   io?.to(`${level}_lobby`).emit("class_schedule_updated", { level });
+  const students = await prisma.student.findMany({ where: { level }, select: { id: true, parentPhone: true } });
+  await prisma.notification.createMany({ data: students.map((student) => ({ studentId: student.id, recipientRole: "parent", recipientId: student.parentPhone, type: "SCHEDULE", title: "تحديث برنامج الحصص", body: "تم تعديل برنامج الحصص الخاص بمستواك الدراسي.", link: "./parent-dashboard.html" })) }).catch(() => {});
+  void logAudit(req, { action, entityType: "ScheduledClass", metadata: { level } });
 }
 
-function notifyAbsenceChange(req, absence) {
+async function notifyAbsenceChange(req, absence) {
   const io = req.app.get("io");
   io?.to(`${absence.level}_lobby`).emit("teacher_absence_updated", {
     level: absence.level,
     isAbsent: absence.isAbsent,
     updatedAt: absence.updatedAt,
   });
+  if (absence.isAbsent) {
+    const students = await prisma.student.findMany({ where: { level: absence.level }, select: { id: true, parentPhone: true } });
+    await prisma.notification.createMany({ data: students.map((student) => ({ studentId: student.id, recipientRole: "parent", recipientId: student.parentPhone, type: "ABSENCE", title: "إعلان غياب الأستاذ", body: "الأستاذ غائب اليوم لظروف خاصة.", link: "./parent-dashboard.html" })) }).catch(() => {});
+  }
+  void logAudit(req, { action: absence.isAbsent ? "TEACHER_ABSENCE_ENABLED" : "TEACHER_ABSENCE_DISABLED", entityType: "TeacherAbsence", entityId: absence.level, metadata: { level: absence.level } });
 }
 
 async function getLevelSchedule(req, res) {
@@ -101,7 +110,7 @@ async function createScheduledClass(req, res) {
     const scheduledClass = await prisma.scheduledClass.create({
       data: { level, subject, scheduledAt },
     });
-    notifyScheduleChange(req, level);
+    void notifyScheduleChange(req, level, "SCHEDULE_CREATED");
 
     return res.status(201).json({
       status: "success",
@@ -142,9 +151,9 @@ async function updateScheduledClass(req, res) {
       where: { id: existing.id },
       data: { level, subject, scheduledAt },
     });
-    notifyScheduleChange(req, existing.level);
+    void notifyScheduleChange(req, existing.level, "SCHEDULE_UPDATED");
     if (existing.level !== level) {
-      notifyScheduleChange(req, level);
+      void notifyScheduleChange(req, level, "SCHEDULE_UPDATED");
     }
 
     return res.status(200).json({
@@ -169,11 +178,31 @@ async function deleteScheduledClass(req, res) {
     }
 
     await prisma.scheduledClass.delete({ where: { id: existing.id } });
-    notifyScheduleChange(req, existing.level);
+    void notifyScheduleChange(req, existing.level, "SCHEDULE_DELETED");
     return res.status(200).json({ status: "success", message: "تم حذف الحصة المجدولة." });
   } catch (error) {
     console.error("Unable to delete scheduled class:", error);
     return res.status(500).json({ error: "تعذر حذف الحصة حالياً." });
+  }
+}
+
+async function getCalendarIcs(req, res) {
+  try {
+    const level = normalizeText(req.params.level);
+    if (!isValidLevel(level)) return res.status(400).json({ error: "المستوى الدراسي غير صالح." });
+    const classes = await prisma.scheduledClass.findMany({ where: { level }, orderBy: { scheduledAt: "asc" } });
+    const escapeIcs = (value) => String(value).replace(/([\\,;])/g, "\\$1").replace(/\r?\n/g, "\\n");
+    const formatUtc = (date) => date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+    const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Akademiat Altawafuq//AR", "CALSCALE:GREGORIAN"];
+    for (const item of classes) {
+      lines.push("BEGIN:VEVENT", `UID:${item.id}@dr.africacold.fr`, `DTSTAMP:${formatUtc(item.createdAt)}`, `DTSTART:${formatUtc(item.scheduledAt)}`, `DTEND:${formatUtc(new Date(item.scheduledAt.getTime() + 60 * 60 * 1000))}`, `SUMMARY:${escapeIcs(`أكاديمية التفوق - ${item.subject}`)}`, `DESCRIPTION:${escapeIcs(`حصة المستوى ${item.level}`)}`, "END:VEVENT");
+    }
+    lines.push("END:VCALENDAR");
+    res.type("text/calendar; charset=utf-8");
+    return res.send(lines.join("\r\n"));
+  } catch (error) {
+    console.error("Calendar export failed:", error);
+    return res.status(500).json({ error: "تعذر تصدير التقويم حالياً." });
   }
 }
 
@@ -190,7 +219,7 @@ async function updateTeacherAbsence(req, res) {
       create: { level, isAbsent },
       update: { isAbsent },
     });
-    notifyAbsenceChange(req, absence);
+    void notifyAbsenceChange(req, absence);
 
     return res.status(200).json({
       status: "success",
@@ -205,6 +234,7 @@ async function updateTeacherAbsence(req, res) {
 
 module.exports = {
   getLevelSchedule,
+  getCalendarIcs,
   createScheduledClass,
   updateScheduledClass,
   deleteScheduledClass,

@@ -7,7 +7,7 @@ const express = require("express");
 const multer = require("multer");
 
 const { verifyToken, isTeacher } = require("../middleware/authMiddleware");
-const { createMaterial, getMaterialsByLevel } = require("../controllers/materialController");
+const { createMaterial, getMaterialFile, getMaterialsByLevel } = require("../controllers/materialController");
 
 const router = express.Router();
 // UPLOAD_DIR is mounted to durable storage in production; preview falls back to public/uploads.
@@ -58,6 +58,7 @@ const upload = multer({
 
 // Multer runs only after the teacher JWT and role have been checked.
 router.post("/", verifyToken, isTeacher, upload.single("file"), createMaterial);
+router.get("/:id/file", verifyToken, getMaterialFile);
 router.get("/:level", verifyToken, getMaterialsByLevel);
 
 // Keep Multer errors in the JSON API contract rather than returning an HTML error.

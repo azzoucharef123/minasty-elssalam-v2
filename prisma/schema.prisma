@@ -136,6 +136,7 @@ model Notification {
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
   readAt    DateTime?
+  dedupeKey String?  @unique
 
   student Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
 

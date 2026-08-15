@@ -1,5 +1,5 @@
 const express = require("express");
-const { teacherLogin, parentLogin, logout, listSessions, revokeSession } = require("../controllers/authController");
+const { teacherLogin, parentLogin, logout, listSessions, revokeSession, changeParentPin } = require("../controllers/authController");
 const { verifyToken } = require("../middleware/authMiddleware");
 const { authRateLimit } = require("../middleware/rateLimit");
 
@@ -10,5 +10,6 @@ router.post("/parent", authRateLimit, parentLogin);
 router.post("/logout", verifyToken, logout);
 router.get("/sessions", verifyToken, listSessions);
 router.delete("/sessions/:id", verifyToken, revokeSession);
+router.put("/parent/pin", verifyToken, changeParentPin);
 
 module.exports = router;

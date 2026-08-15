@@ -206,6 +206,20 @@ async function revokeSession(req, res) {
   return res.json({ status: "success" });
 }
 
+async function changeParentPin(req, res) {
+  if (req.user?.role !== "parent" || !req.user.phone) return res.status(403).json({ error: "هذه العملية متاحة للولي فقط." });
+  const currentPin = normalizeParentPin(req.body?.currentPin);
+  const newPin = normalizeParentPin(req.body?.newPin);
+  const confirmPin = normalizeParentPin(req.body?.confirmPin);
+  if (!currentPin || !newPin || newPin !== confirmPin) return res.status(400).json({ error: "أدخل PIN الحالي وPIN جديدًا مطابقًا للتأكيد." });
+  const credential = await prisma.parentCredential.findUnique({ where: { parentPhone: req.user.phone } });
+  if (!credential || !(await verifyParentPin(currentPin, credential.pinHash))) return res.status(401).json({ error: "PIN الحالي غير صحيح." });
+  await prisma.parentCredential.update({ where: { parentPhone: req.user.phone }, data: { pinHash: await hashParentPin(newPin) } });
+  void prisma.session.updateMany({ where: { role: "parent", subjectId: req.user.phone, revokedAt: null, NOT: { tokenId: req.user.sessionId } }, data: { revokedAt: new Date() } });
+  void prisma.auditLog.create({ data: { actorRole: "parent", actorId: req.user.sessionId, action: "PARENT_PIN_CHANGED", entityType: "ParentCredential", entityId: req.user.phone, metadata: "{}" } }).catch(() => {});
+  return res.json({ status: "success", message: "تم تغيير PIN وإبطال الجلسات الأخرى." });
+}
+
 async function logout(req, res) {
   try {
     await revokeSessionByTokenId(req.user?.sessionId);
@@ -222,4 +236,5 @@ module.exports = {
   logout,
   listSessions,
   revokeSession,
+  changeParentPin,
 };

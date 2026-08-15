@@ -2,9 +2,7 @@
 
 const fs = require("fs/promises");
 const path = require("path");
-const { PrismaClient } = require("@prisma/client");
-
-const prisma = new PrismaClient();
+const prisma = require("../lib/prisma");
 const MAX_TITLE_LENGTH = 160;
 const MAX_LEVEL_LENGTH = 100;
 
@@ -50,17 +48,12 @@ async function createMaterial(req, res) {
 
   try {
     const material = await prisma.material.create({
-      data: {
-        title,
-        level,
-        // The generated disk filename is the only value exposed in the public URL.
-        fileUrl: `/uploads/${encodeURIComponent(req.file.filename)}`,
-      },
+      data: { title, level, fileUrl: `/uploads/${encodeURIComponent(req.file.filename)}` },
     });
 
     return res.status(201).json({
       status: "success",
-      data: material,
+      data: { ...material, downloadUrl: `/api/materials/${material.id}/file` },
     });
   } catch (error) {
     await deleteUploadedFile(req.file);
@@ -76,6 +69,23 @@ async function createMaterial(req, res) {
  * the parent phone in the signed JWT, so URL manipulation cannot expose another
  * class's document metadata.
  */
+async function getMaterialFile(req, res) {
+  const material = await prisma.material.findUnique({ where: { id: req.params.id } });
+  if (!material) return res.status(404).json({ error: "الملف غير موجود." });
+  if (req.user?.role === "parent") {
+    const student = await prisma.student.findFirst({ where: { parentPhone: req.user.phone, level: material.level }, select: { id: true, paymentStage: true, paymentStatus: true } });
+    if (!student || (material.level !== "طالب جامعي" && (student.paymentStage || "UNPAID") === "UNPAID")) return res.status(403).json({ error: "لا تملك صلاحية هذا الملف." });
+  } else if (req.user?.role !== "teacher") {
+    return res.status(403).json({ error: "لا تملك صلاحية الاطلاع على هذا الملف." });
+  }
+  const storedFile = await prisma.material.findUnique({ where: { id: material.id }, select: { fileUrl: true } });
+  const originalFilename = storedFile?.fileUrl?.startsWith("/uploads/") ? path.basename(decodeURIComponent(storedFile.fileUrl)) : null;
+  if (!originalFilename) {
+    return res.status(404).json({ error: "الملف غير متاح في التخزين الحالي." });
+  }
+  return res.sendFile(path.join(process.env.UPLOAD_DIR || path.join(__dirname, "..", "public", "uploads"), originalFilename));
+}
+
 async function getMaterialsByLevel(req, res) {
   const level = normalizeText(req.params.level);
 
@@ -106,7 +116,7 @@ async function getMaterialsByLevel(req, res) {
 
     return res.status(200).json({
       status: "success",
-      data: materials,
+      data: materials.map((material) => ({ ...material, downloadUrl: `/api/materials/${material.id}/file` })),
     });
   } catch (error) {
     console.error("Material listing failed:", error);
@@ -116,5 +126,6 @@ async function getMaterialsByLevel(req, res) {
 
 module.exports = {
   createMaterial,
+  getMaterialFile,
   getMaterialsByLevel,
 };

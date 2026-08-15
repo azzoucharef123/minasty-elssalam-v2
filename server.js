@@ -19,6 +19,8 @@ const { verifyToken, isTeacher } = require("./middleware/authMiddleware");
 const { requestMetrics, socketConnected, socketDisconnected, snapshot: metricsSnapshot } = require("./utils/metrics");
 const { createDatabaseSnapshot } = require("./utils/backup");
 const { createRateLimiter } = require("./middleware/rateLimit");
+const { startBackgroundJobs } = require("./utils/backgroundJobs");
+const { ensurePublicArchive, recordPublicAttendance, finishPublicArchive, appendPublicChat } = require("./utils/publicArchive");
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -126,6 +128,7 @@ const scheduleRoutes = require("./routes/scheduleRoutes");
 const lessonVideoRoutes = require("./routes/lessonVideoRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const academicRoutes = require("./routes/academicRoutes");
+const materialRoutes = require("./routes/materialRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/students", studentRoutes);
@@ -135,6 +138,7 @@ app.use("/api/schedules", scheduleRoutes);
 app.use("/api/lesson-videos", lessonVideoRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/academic", academicRoutes);
+app.use("/api/materials", materialRoutes);
 
 // Course-material uploads are intentionally disabled. Block the legacy public
 // path before the general static middleware so old files cannot be downloaded.
@@ -304,6 +308,28 @@ const publicInviteRooms = new Map();
 
 // The homepage only needs a public room ID. Host control tokens never leave the
 // teacher-generated host URL or the authenticated Socket.io handshake.
+app.get("/api/public-class/archives", verifyToken, isTeacher, async (req, res) => {
+  try {
+    const take = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 20, 1), 100);
+    const archives = await prisma.publicRoomArchive.findMany({ orderBy: { startedAt: "desc" }, take, select: { id: true, roomId: true, title: true, startedAt: true, endedAt: true, recordingUrl: true, recordingDriveFileId: true, attendeeCount: true } });
+    return res.json({ status: "success", data: archives });
+  } catch (error) {
+    console.error("Public archives list failed:", error);
+    return res.status(500).json({ error: "تعذر تحميل أرشيف الحصص العامة." });
+  }
+});
+
+app.get("/api/public-class/archive/:roomId", verifyToken, isTeacher, async (req, res) => {
+  try {
+    const archive = await prisma.publicRoomArchive.findUnique({ where: { roomId: normalizeText(req.params.roomId) }, include: { attendees: { orderBy: { joinedAt: "asc" } } } });
+    if (!archive) return res.status(404).json({ error: "لا يوجد أرشيف لهذه الحصة." });
+    return res.json({ status: "success", data: { ...archive, chatArchive: archive.chatArchiveJson ? JSON.parse(archive.chatArchiveJson) : [] } });
+  } catch (error) {
+    console.error("Public archive load failed:", error);
+    return res.status(500).json({ error: "تعذر تحميل أرشيف الحصة." });
+  }
+});
+
 app.get("/api/public-class/status", (_req, res) => {
   let activeRoomId = null;
   for (const [roomId, room] of publicInviteRooms.entries()) {
@@ -646,6 +672,7 @@ io.on("connection", (socket) => {
     socket.data.publicRoomId = roomId;
     socket.data.publicRole = "host";
     publicInviteRooms.set(roomId, { hostSocketId: socket.id, hostToken });
+    void ensurePublicArchive(roomId).catch((error) => console.warn("Public archive init failed:", error.message));
 
     const guests = (await io.in(roomName).fetchSockets())
       .filter((peer) => peer.id !== socket.id && peer.data.publicRole === "guest")
@@ -688,6 +715,7 @@ io.on("connection", (socket) => {
     socket.data.publicApproved = false;
     socket.data.publicHandRaised = false;
     socket.data.publicMicOpen = false;
+    void recordPublicAttendance({ roomId, socketId: socket.id, guestName: realName, event: "joined" }).catch((error) => console.warn("Public attendance save failed:", error.message));
 
     hostSocket.emit("public_guest_join_request", {
       socketId: socket.id,
@@ -699,7 +727,7 @@ io.on("connection", (socket) => {
     acknowledge(acknowledgement, { ok: true, roomId, isLive: true, pendingApproval: true });
   });
 
-  socket.on("public_approve_guest", (data = {}, acknowledgement) => {
+  socket.on("public_approve_guest", async (data = {}, acknowledgement) => {
     const roomId = socket.data.publicRoomId;
     const targetSocketId = normalizeText(data.targetSocketId);
     const room = roomId ? publicInviteRooms.get(roomId) : null;
@@ -714,6 +742,7 @@ io.on("connection", (socket) => {
 
     targetSocket.data.publicApproved = true;
     targetSocket.data.publicApprovalStatus = "approved";
+    void recordPublicAttendance({ roomId, socketId: targetSocket.id, guestName: targetSocket.data.publicNickname || "ضيف", event: "approved" }).catch((error) => console.warn("Public approval archive failed:", error.message));
     targetSocket.emit("public_guest_approval", { approved: true, message: "تم قبول دخولك من الأستاذ." });
     io.to(socket.id).emit("public_guest_approved", {
       socketId: targetSocket.id,
@@ -848,11 +877,13 @@ io.on("connection", (socket) => {
     if (!roomId || !message || (socket.data.publicRole === "guest" && socket.data.publicApproved !== true)) {
       return emitClassroomError(socket, "public_chat_message", "انتظر موافقة الأستاذ قبل استخدام الدردشة.", acknowledgement);
     }
+    const sentAt = new Date().toISOString();
     io.to(publicRoomName(roomId)).emit("public_chat_message", {
       sender: socket.data.publicRole === "host" ? "الأستاذ" : (socket.data.publicNickname || "ضيف"),
       message,
-      sentAt: new Date().toISOString(),
+      sentAt,
     });
+    void appendPublicChat(roomId, { sender: socket.data.publicRole === "host" ? "الأستاذ" : (socket.data.publicNickname || "ضيف"), message, sentAt }).catch((error) => console.warn("Public chat archive failed:", error.message));
     acknowledge(acknowledgement, { ok: true });
   });
 
@@ -864,6 +895,7 @@ io.on("connection", (socket) => {
     }
     const roomName = publicRoomName(roomId);
     publicInviteRooms.delete(roomId);
+    void finishPublicArchive(roomId).catch((error) => console.warn("Public archive finish failed:", error.message));
     io.to(roomName).emit("public_room_ended", { roomId });
     const peers = await io.in(roomName).fetchSockets();
     await Promise.all(peers.map(async (peer) => {
@@ -1860,8 +1892,10 @@ io.on("connection", (socket) => {
       const publicRoom = publicInviteRooms.get(publicRoomId);
       if (publicRole === "host" && publicRoom?.hostSocketId === socket.id) {
         publicInviteRooms.delete(publicRoomId);
+        void finishPublicArchive(publicRoomId).catch((error) => console.warn("Public archive disconnect finish failed:", error.message));
         io.to(roomName).emit("public_room_ended", { roomId: publicRoomId });
       } else if (publicRole === "guest" && publicRoom?.hostSocketId) {
+        void recordPublicAttendance({ roomId: publicRoomId, socketId: socket.id, guestName: socket.data.publicNickname || "ضيف", event: "left" }).catch((error) => console.warn("Public attendance leave save failed:", error.message));
         io.to(publicRoom.hostSocketId).emit("public_guest_left", { socketId: socket.id });
       }
     }
@@ -1938,8 +1972,11 @@ function assertProductionConfiguration() {
   }
 }
 
+let stopBackgroundJobs = null;
+
 async function shutdown(signal) {
   console.info(`Received ${signal}; closing HTTP server and Prisma connection.`);
+  stopBackgroundJobs?.();
 
   httpServer.close(async (serverError) => {
     try {
@@ -1958,6 +1995,7 @@ async function shutdown(signal) {
 
 if (require.main === module) {
   assertProductionConfiguration();
+  stopBackgroundJobs = startBackgroundJobs();
   httpServer.listen(PORT, () => {
     console.info(`Server listening on port ${PORT}`);
   });

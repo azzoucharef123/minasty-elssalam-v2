@@ -1343,7 +1343,10 @@ function upsertAttendee(socketId, studentName = "تلميذ") {
   stateLabel.textContent = "متصل الآن";
 
   state.append(stateDot, stateLabel);
-  details.append(name, state);
+  const qos = document.createElement("small");
+  qos.className = "attendee-qos";
+  qos.textContent = "جودة الاتصال: جارٍ القياس…";
+  details.append(name, state, qos);
   item.append(avatar, details);
 
   elements.attendeesList.append(item);
@@ -1749,6 +1752,48 @@ function closeAllPeerConnections() {
 
 /** Apply conservative per-peer quality limits so screen sharing stays smooth
  * under changing bandwidth rather than building a growing latency buffer. */
+const teacherQosLast = new Map();
+
+async function refreshTeacherQos() {
+  for (const [studentSocketId, peerConnection] of Object.entries(peerConnections)) {
+    if (!peerConnection || peerConnection.connectionState === "closed") continue;
+    const attendee = attendeeElements.get(studentSocketId);
+    if (!attendee || typeof peerConnection.getStats !== "function") continue;
+    try {
+      const report = await peerConnection.getStats();
+      let outboundVideo = null;
+      let remoteInbound = null;
+      report.forEach((entry) => {
+        if (entry.type === "outbound-rtp" && entry.kind === "video") outboundVideo = entry;
+        if (entry.type === "remote-inbound-rtp" && entry.kind === "video") remoteInbound = entry;
+      });
+      const previous = teacherQosLast.get(studentSocketId);
+      const now = performance.now();
+      const seconds = previous ? Math.max(0.1, (now - previous.at) / 1000) : 0;
+      const bitrate = outboundVideo && previous?.bytesSent && seconds ? Math.round(((outboundVideo.bytesSent - previous.bytesSent) * 8) / seconds / 1000) : null;
+      const framesDropped = outboundVideo?.framesDropped ?? 0;
+      const packetsLost = remoteInbound?.packetsLost ?? 0;
+      const packetsReceived = remoteInbound?.packetsReceived ?? 0;
+      const loss = packetsLost + packetsReceived ? (packetsLost / (packetsLost + packetsReceived)) * 100 : 0;
+      const rtt = remoteInbound?.roundTripTime ? Math.round(remoteInbound.roundTripTime * 1000) : null;
+      let state = "جيدة";
+      let stateClass = "good";
+      if ((rtt && rtt > 300) || loss > 5) { state = "متوسطة"; stateClass = "warn"; }
+      if ((rtt && rtt > 700) || loss > 12) { state = "ضعيفة"; stateClass = "bad"; }
+      const qos = attendee.querySelector(".attendee-qos");
+      if (qos) {
+        qos.className = `attendee-qos ${stateClass}`;
+        qos.textContent = `${state} · ${rtt == null ? "—" : `${rtt}ms`} · ${bitrate == null ? "—" : `${bitrate}kbps`} · إسقاط ${framesDropped}`;
+      }
+      teacherQosLast.set(studentSocketId, { at: now, bytesSent: outboundVideo?.bytesSent || 0 });
+    } catch (error) {
+      console.debug("WebRTC QoS stats unavailable:", error);
+    }
+  }
+}
+
+window.setInterval(() => { void refreshTeacherQos(); }, 3000);
+
 async function tuneOutboundSender(sender, kind) {
   try {
     const parameters = sender.getParameters();
