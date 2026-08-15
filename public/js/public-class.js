@@ -9,6 +9,10 @@
   const roomId = hostRoomId || guestRoomId;
   const roomPattern = /^[a-zA-Z0-9_-]{16,128}$/;
   const rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+  const GOOGLE_DRIVE_CLIENT_ID = "938017291163-6uinh4868l66eo8887hsqkt7h3h1ss6e.apps.googleusercontent.com";
+  const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+  const GOOGLE_DRIVE_ROOT_FOLDER = "تسجيلات أكاديمية التفوق";
+  const GOOGLE_DRIVE_UPLOAD_CHUNK_SIZE = 8 * 1024 * 1024;
   const socket = io({ transports: ["websocket", "polling"], autoConnect: false });
   const elements = {
     role: document.getElementById("public-role"),
@@ -57,6 +61,10 @@
   let publicRecordingMediaRecorder = null;
   let publicRecordingStream = null;
   let publicRecordingChunks = [];
+  let publicRecordingDriveTokenPromise = null;
+  let publicGoogleDriveAccessToken = null;
+  let publicGoogleDriveTokenExpiresAt = 0;
+  let publicGoogleIdentityLoadPromise = null;
   let localStream = null;
   let hostMicrophoneTracks = [];
   let guestMicStream = null;
@@ -597,6 +605,180 @@
     ].find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) || "";
   }
 
+  function isPublicGoogleDriveTokenUsable() {
+    return Boolean(publicGoogleDriveAccessToken && Date.now() < publicGoogleDriveTokenExpiresAt - 60_000);
+  }
+
+  function ensurePublicGoogleIdentityServices() {
+    if (window.google?.accounts?.oauth2) return Promise.resolve();
+    if (publicGoogleIdentityLoadPromise) return publicGoogleIdentityLoadPromise;
+
+    publicGoogleIdentityLoadPromise = new Promise((resolve, reject) => {
+      const scriptId = "public-google-identity-services";
+      let script = document.getElementById(scriptId);
+      if (!script) {
+        script = document.createElement("script");
+        script.id = scriptId;
+        script.src = "https://accounts.google.com/gsi/client";
+        script.defer = true;
+        document.head.append(script);
+      }
+
+      let settled = false;
+      const finish = (callback, value) => {
+        if (settled) return;
+        settled = true;
+        window.clearInterval(checkTimer);
+        window.clearTimeout(timeoutTimer);
+        callback(value);
+      };
+      const ready = () => {
+        if (window.google?.accounts?.oauth2) finish(resolve);
+      };
+      const checkTimer = window.setInterval(ready, 100);
+      const timeoutTimer = window.setTimeout(() => {
+        finish(reject, new Error("تعذر تحميل خدمة Google Drive. تحقق من اتصال الإنترنت."));
+      }, 10_000);
+      script.addEventListener("load", ready, { once: true });
+      script.addEventListener("error", () => {
+        finish(reject, new Error("تعذر تحميل خدمة Google Drive."));
+      }, { once: true });
+      ready();
+    }).finally(() => {
+      if (!window.google?.accounts?.oauth2) publicGoogleIdentityLoadPromise = null;
+    });
+
+    return publicGoogleIdentityLoadPromise;
+  }
+
+  function requestPublicGoogleDriveAccessToken() {
+    if (isPublicGoogleDriveTokenUsable()) return Promise.resolve(publicGoogleDriveAccessToken);
+    if (publicRecordingDriveTokenPromise) return publicRecordingDriveTokenPromise;
+
+    publicRecordingDriveTokenPromise = ensurePublicGoogleIdentityServices().then(() => new Promise((resolve, reject) => {
+      const tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_DRIVE_CLIENT_ID,
+        scope: GOOGLE_DRIVE_SCOPE,
+        callback: (response) => {
+          if (response?.error || !response?.access_token) {
+            reject(new Error(response?.error_description || "لم يتم منح إذن الحفظ في Google Drive."));
+            return;
+          }
+          publicGoogleDriveAccessToken = response.access_token;
+          publicGoogleDriveTokenExpiresAt = Date.now() + (Number(response.expires_in) || 3_600) * 1_000;
+          resolve(publicGoogleDriveAccessToken);
+        },
+        error_callback: (error) => reject(new Error(error?.message || "تم إغلاق نافذة تسجيل الدخول إلى Google.")),
+      });
+      tokenClient.requestAccessToken({ prompt: "consent" });
+    })).finally(() => {
+      publicRecordingDriveTokenPromise = null;
+    });
+
+    return publicRecordingDriveTokenPromise;
+  }
+
+  async function publicGoogleDriveRequest(url, options, accessToken) {
+    const response = await fetch(url, {
+      ...options,
+      headers: { Authorization: `Bearer ${accessToken}`, ...(options.headers || {}) },
+    });
+    if (!response.ok) {
+      const details = await response.json().catch(() => null);
+      throw new Error(details?.error?.message || `تعذر الاتصال بـ Google Drive (${response.status}).`);
+    }
+    return response;
+  }
+
+  function escapePublicDriveQueryValue(value) {
+    return String(value || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  }
+
+  async function ensurePublicGoogleDriveFolder(name, parentId, accessToken) {
+    const conditions = [
+      `name = '${escapePublicDriveQueryValue(name)}'`,
+      "mimeType = 'application/vnd.google-apps.folder'",
+      "trashed = false",
+    ];
+    if (parentId) conditions.push(`'${escapePublicDriveQueryValue(parentId)}' in parents`);
+    const query = encodeURIComponent(conditions.join(" and "));
+    const fields = encodeURIComponent("files(id,name)");
+    const listResponse = await publicGoogleDriveRequest(
+      `https://www.googleapis.com/drive/v3/files?q=${query}&spaces=drive&fields=${fields}&pageSize=1`,
+      { method: "GET" },
+      accessToken
+    );
+    const existing = await listResponse.json();
+    if (existing.files?.[0]?.id) return existing.files[0].id;
+
+    const response = await publicGoogleDriveRequest(
+      "https://www.googleapis.com/drive/v3/files?fields=id,name",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          mimeType: "application/vnd.google-apps.folder",
+          ...(parentId ? { parents: [parentId] } : {}),
+        }),
+      },
+      accessToken
+    );
+    const created = await response.json();
+    if (!created.id) throw new Error("تعذر إنشاء مجلد التسجيلات العامة في Google Drive.");
+    return created.id;
+  }
+
+  async function uploadPublicRecordingToGoogleDrive(recording, accessToken) {
+    const rootFolderId = await ensurePublicGoogleDriveFolder(GOOGLE_DRIVE_ROOT_FOLDER, null, accessToken);
+    const publicFolderId = await ensurePublicGoogleDriveFolder("الحصص العامة", rootFolderId, accessToken);
+    const folderId = await ensurePublicGoogleDriveFolder("دعوات عامة", publicFolderId, accessToken);
+    const metadata = {
+      name: recording.fileName,
+      mimeType: recording.mimeType,
+      parents: [folderId],
+    };
+    const sessionResponse = await publicGoogleDriveRequest(
+      "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,webViewLink",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json; charset=UTF-8",
+          "X-Upload-Content-Type": recording.mimeType,
+          "X-Upload-Content-Length": String(recording.blob.size),
+        },
+        body: JSON.stringify(metadata),
+      },
+      accessToken
+    );
+    const sessionUrl = sessionResponse.headers.get("Location");
+    if (!sessionUrl) throw new Error("تعذر تجهيز رفع التسجيل إلى Google Drive.");
+
+    let offset = 0;
+    while (offset < recording.blob.size) {
+      const end = Math.min(offset + GOOGLE_DRIVE_UPLOAD_CHUNK_SIZE, recording.blob.size);
+      const response = await fetch(sessionUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": recording.mimeType,
+          "Content-Range": `bytes ${offset}-${end - 1}/${recording.blob.size}`,
+        },
+        body: recording.blob.slice(offset, end),
+      });
+      if (response.status === 308) {
+        offset = end;
+        setStatus(`جارٍ رفع التسجيل إلى Google Drive: ${Math.round((offset / recording.blob.size) * 100)}%`);
+        continue;
+      }
+      if (!response.ok) {
+        const details = await response.json().catch(() => null);
+        throw new Error(details?.error?.message || `تعذر رفع التسجيل (${response.status}).`);
+      }
+      return response.json();
+    }
+    throw new Error("لم يكتمل رفع التسجيل إلى Google Drive.");
+  }
+
   function syncPublicRecordingAudioSources() {
     if (!publicRecordingAudioContext || !publicRecordingAudioDestination) return;
     const activeSources = new Map(
@@ -676,21 +858,37 @@
       recorder.ondataavailable = (event) => {
         if (event.data?.size) publicRecordingChunks.push(event.data);
       };
-      recorder.onstop = () => {
+      recorder.onstop = async () => {
         const blob = new Blob(publicRecordingChunks, { type: recorder.mimeType || mimeType || "video/webm" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `حصة-عامة-${new Date().toISOString().replace(/[:.]/g, "-")}.webm`;
-        link.click();
-        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        const recording = {
+          blob,
+          mimeType: recorder.mimeType || mimeType || "video/webm",
+          fileName: `حصة-عامة-${new Date().toISOString().replace(/[:.]/g, "-")}.webm`,
+        };
         publicRecordingMediaRecorder = null;
         publicRecordingChunks = [];
         disposePublicRecordingResources();
-        if (!ended) setStatus("تم حفظ تسجيل الحصة العامة على جهازك.");
         if (elements.recordClass) {
-          elements.recordClass.textContent = "بدء تسجيل الحصة";
-          elements.recordClass.classList.remove("danger");
+          elements.recordClass.disabled = true;
+          elements.recordClass.textContent = "جارٍ الحفظ في Google Drive…";
+        }
+
+        try {
+          setStatus("جارٍ فتح صلاحية Google Drive لحفظ التسجيل…");
+          const accessToken = await (publicRecordingDriveTokenPromise || requestPublicGoogleDriveAccessToken());
+          setStatus("جارٍ رفع تسجيل الحصة العامة إلى Google Drive…");
+          await uploadPublicRecordingToGoogleDrive(recording, accessToken);
+          if (!ended) setStatus("تم حفظ تسجيل الحصة العامة مباشرة في Google Drive.");
+        } catch (error) {
+          console.error("Unable to save public class recording to Google Drive:", error);
+          setStatus(error.message || "تعذر حفظ التسجيل في Google Drive. لم يتم تنزيل الملف على الجهاز.", "error");
+        } finally {
+          publicRecordingDriveTokenPromise = null;
+          if (elements.recordClass) {
+            elements.recordClass.disabled = ended;
+            elements.recordClass.textContent = "بدء تسجيل الحصة";
+            elements.recordClass.classList.remove("danger");
+          }
         }
       };
       recorder.start(1_000);
@@ -707,6 +905,9 @@
 
   function stopPublicRecording() {
     if (publicRecordingMediaRecorder?.state === "recording") {
+      // Start OAuth from the user's Stop button so the Google consent window is
+      // not treated as an unsolicited popup by the browser.
+      publicRecordingDriveTokenPromise = requestPublicGoogleDriveAccessToken();
       publicRecordingMediaRecorder.stop();
     }
   }
