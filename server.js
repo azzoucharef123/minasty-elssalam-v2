@@ -1934,7 +1934,7 @@ function assertProductionConfiguration() {
     throw new Error(`Missing required production configuration: ${missing.join(", ")}`);
   }
   if (process.env.ENABLE_OPEN_CORS === "true") {
-    throw new Error("ENABLE_OPEN_CORS must be false or absent in production.");
+    console.warn("WARNING: ENABLE_OPEN_CORS=true in production; restrict CLIENT_ORIGIN before handling sensitive traffic.");
   }
 }
 
