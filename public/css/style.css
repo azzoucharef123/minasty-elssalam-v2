@@ -854,3 +854,126 @@ body.public-class-modal-open { overflow: hidden; }
 
 /* WebRTC QoS indicators in the teacher studio */
 .attendee-qos{display:block;margin-top:.18rem;color:#94a3b8;font-size:.66rem;font-weight:700;line-height:1.35}.attendee-qos.good{color:#86efac}.attendee-qos.warn{color:#fde68a}.attendee-qos.bad{color:#fca5a5}
+
+
+/* Weekly class schedule section */
+.class-schedule {
+  --schedule-body: var(--background-body, #f3f4f6);
+  --schedule-text: var(--text-main, var(--landing-navy, #111827));
+  position: relative;
+  padding: 4rem 1rem;
+  overflow: hidden;
+  background: var(--schedule-body);
+}
+
+.class-schedule::before {
+  position: absolute;
+  top: 2.5rem;
+  left: 50%;
+  width: min(80vw, 48rem);
+  height: 12rem;
+  content: "";
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.1), transparent 68%);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.class-schedule-inner {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 1100px);
+  margin: 0 auto;
+}
+
+.class-schedule-heading {
+  max-width: 46rem;
+  margin: 0 auto 2rem;
+  text-align: center;
+}
+
+.class-schedule-kicker {
+  display: inline-block;
+  margin-bottom: 0.7rem;
+  color: #2563eb;
+  font-family: "Tajawal", "Cairo", Tahoma, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.class-schedule .section-title {
+  margin: 0;
+  color: var(--schedule-text);
+  font-family: "Tajawal", "Cairo", Tahoma, sans-serif;
+  font-size: clamp(1.3rem, 3vw, 1.8rem);
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.class-schedule-heading p {
+  margin: 0.65rem auto 0;
+  color: #64748b;
+  font-family: "Tajawal", "Cairo", Tahoma, sans-serif;
+  font-size: 0.92rem;
+  font-weight: 500;
+  line-height: 1.8;
+}
+
+.class-schedule-frame {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0.7rem;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 1.3rem;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+}
+
+.class-schedule-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.class-schedule-image:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.14);
+}
+
+@media (max-width: 34rem) {
+  .class-schedule {
+    padding: 3rem 0.75rem;
+  }
+
+  .class-schedule-heading {
+    margin-bottom: 1.35rem;
+  }
+
+  .class-schedule-heading p {
+    font-size: 0.82rem;
+  }
+
+  .class-schedule-frame {
+    padding: 0.35rem;
+    border-radius: 0.95rem;
+  }
+
+  .class-schedule-image {
+    border-radius: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .class-schedule-image {
+    transition: none;
+  }
+
+  .class-schedule-image:hover {
+    transform: none;
+  }
+}
