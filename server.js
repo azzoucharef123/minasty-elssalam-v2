@@ -14,6 +14,9 @@ const path = require("path");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
+const { createAdapter } = require("@socket.io/redis-adapter");
+const pushRoutes = require("./routes/pushRoutes");
+const { createClient } = require("redis");
 const prisma = require("./lib/prisma");
 const { verifyToken, isTeacher } = require("./middleware/authMiddleware");
 const { requestMetrics, socketConnected, socketDisconnected, snapshot: metricsSnapshot } = require("./utils/metrics");
@@ -139,6 +142,7 @@ app.use("/api/lesson-videos", lessonVideoRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/academic", academicRoutes);
 app.use("/api/materials", materialRoutes);
+app.use("/api/push", pushRoutes);
 
 // Course-material uploads are intentionally disabled. Block the legacy public
 // path before the general static middleware so old files cannot be downloaded.
@@ -1946,14 +1950,29 @@ io.on("connection", (socket) => {
 // Terminal Express error handler. Route-specific handlers can return useful
 // 4xx responses; unexpected errors are logged server-side and never expose a
 // stack trace or internal database detail to clients.
-app.use((error, _req, res, next) => {
+app.use((error, req, res, next) => {
   if (res.headersSent) {
     return next(error);
   }
 
-  console.error("Unhandled Express error:", error);
+  const incidentId = crypto.randomUUID();
+  console.error(`Unhandled Express error [${incidentId}]:`, error);
+  void prisma.auditLog.create({
+    data: {
+      actorRole: req.user?.role || "system",
+      actorId: req.user?.sessionId || null,
+      action: "HTTP_UNHANDLED_ERROR",
+      entityType: "HttpRequest",
+      entityId: incidentId,
+      metadata: JSON.stringify({ method: req.method, path: req.path, code: error?.code || null }),
+      ipAddress: req.ip || null,
+      userAgent: req.get("user-agent") || null,
+    },
+  }).catch(() => {});
+  res.setHeader("X-Incident-ID", incidentId);
   return res.status(500).json({
     status: "error",
+    incidentId,
     error: "حدث خطأ غير متوقع في الخادم. حاول مرة أخرى لاحقاً.",
   });
 });
@@ -1973,10 +1992,33 @@ function assertProductionConfiguration() {
 }
 
 let stopBackgroundJobs = null;
+let redisClients = [];
+
+async function configureSocketScaling() {
+  const redisUrl = String(process.env.REDIS_URL || "").trim();
+  if (!redisUrl) {
+    console.info("REDIS_URL is not set; Socket.io is running in single-instance mode.");
+    return;
+  }
+  try {
+    const pubClient = createClient({ url: redisUrl });
+    const subClient = pubClient.duplicate();
+    pubClient.on("error", (error) => console.warn("Redis pub client error:", error.message));
+    subClient.on("error", (error) => console.warn("Redis sub client error:", error.message));
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+    io.adapter(createAdapter(pubClient, subClient));
+    redisClients = [pubClient, subClient];
+    console.info("Socket.io Redis adapter enabled.");
+  } catch (error) {
+    console.warn("Redis adapter unavailable; continuing in single-instance mode:", error.message);
+  }
+}
 
 async function shutdown(signal) {
   console.info(`Received ${signal}; closing HTTP server and Prisma connection.`);
   stopBackgroundJobs?.();
+  await Promise.allSettled(redisClients.map((client) => client.quit()));
+  redisClients = [];
 
   httpServer.close(async (serverError) => {
     try {
@@ -1994,13 +2036,19 @@ async function shutdown(signal) {
 }
 
 if (require.main === module) {
-  assertProductionConfiguration();
-  stopBackgroundJobs = startBackgroundJobs();
-  httpServer.listen(PORT, () => {
-    console.info(`Server listening on port ${PORT}`);
+  void (async () => {
+    assertProductionConfiguration();
+    await configureSocketScaling();
+    stopBackgroundJobs = startBackgroundJobs();
+    httpServer.listen(PORT, () => {
+      console.info(`Server listening on port ${PORT}`);
+    });
+  })().catch((error) => {
+    console.error("Unable to start server:", error);
+    process.exit(1);
   });
 
-  process.once("SIGTERM", () => shutdown("SIGTERM"));
+  process.once("SIGTERM", () => void shutdown("SIGTERM"));
   process.once("SIGINT", () => shutdown("SIGINT"));
 }
 

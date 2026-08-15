@@ -160,7 +160,16 @@ async function getLessonVideosByLevel(req, res) {
   }
 
   try {
-    let where = { level };
+    const query = normalizeText(req.query?.q).slice(0, 160);
+    const requestedRepositoryType = normalizeRepositoryType(req.query?.repositoryType);
+    const createdFrom = req.query?.createdFrom ? new Date(req.query.createdFrom) : null;
+    const createdTo = req.query?.createdTo ? new Date(req.query.createdTo) : null;
+    let where = {
+      level,
+      ...(query ? { title: { contains: query, mode: "insensitive" } } : {}),
+      ...(requestedRepositoryType ? { repositoryType: requestedRepositoryType } : {}),
+      ...(createdFrom || createdTo ? { createdAt: { ...(createdFrom ? { gte: createdFrom } : {}), ...(createdTo ? { lte: createdTo } : {}) } } : {}),
+    };
     if (req.user?.role === "parent") {
       const student = await getParentStudentForLevel(req.user.phone, level, normalizeText(req.query?.studentId));
       if (!student) {
@@ -171,7 +180,7 @@ async function getLessonVideosByLevel(req, res) {
         return res.status(403).json({ error: "مستودع الدروس متاح بعد تأكيد الدفع أو تسجيل الوعد بالدفع." });
       }
       const accessibleTypes = getStudentRepositoryTypes(student);
-      where = { level, repositoryType: { in: accessibleTypes } };
+      where = { ...where, repositoryType: requestedRepositoryType && accessibleTypes.includes(requestedRepositoryType) ? requestedRepositoryType : { in: accessibleTypes } };
     } else if (req.user?.role !== "teacher") {
       return res.status(403).json({ error: "لا تملك صلاحية الاطلاع على مستودع الدروس." });
     }

@@ -436,6 +436,19 @@ model PublicRoomAttendance {
   @@index([archiveId, joinedAt(sort: Desc)])
 }
 
+model PushSubscription {
+  id           String   @id @default(uuid()) @db.Uuid
+  endpoint     String   @unique @db.Text
+  p256dh       String   @db.Text
+  auth         String   @db.Text
+  recipientRole String
+  recipientId  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([recipientRole, recipientId])
+}
+
 model AnalyticsEvent {
   id        String   @id @default(uuid()) @db.Uuid
   eventType String

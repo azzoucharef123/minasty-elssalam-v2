@@ -1,6 +1,7 @@
 "use strict";
 
 const prisma = require("../lib/prisma");
+const { sendPushToRecipient } = require("../utils/push");
 
 const MAX_MESSAGE_LENGTH = 4_000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -160,6 +161,15 @@ async function sendMessage(req, res) {
       },
     });
     emitMessage(req, message, student);
+    void sendPushToRecipient(
+      roles.receiverRole === "teacher" ? "teacher" : "parent",
+      roles.receiverRole === "teacher" ? "teacher" : student.parentPhone,
+      {
+        title: roles.receiverRole === "teacher" ? `رسالة جديدة من ${student.studentName}` : "رسالة جديدة من الأستاذ",
+        body: content.slice(0, 160),
+        link: roles.receiverRole === "teacher" ? "./teacher-chat.html" : "./student-chat.html",
+      },
+    ).catch(() => {});
     return res.status(201).json({ message: serializeMessage(message, student.studentName) });
   } catch (error) {
     console.error("Unable to save private message:", error);

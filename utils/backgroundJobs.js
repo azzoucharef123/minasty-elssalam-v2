@@ -2,6 +2,15 @@ const prisma = require("../lib/prisma");
 
 let lastWeeklyReportKey = "";
 
+async function sendOptionalPush(role, recipientId, payload) {
+  try {
+    const { sendPushToRecipient } = require("./push");
+    await sendPushToRecipient(role, recipientId, payload);
+  } catch {
+    // Push is optional; a missing VAPID configuration must not stop jobs.
+  }
+}
+
 function weekKey(date = new Date()) {
   const first = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
   const week = Math.ceil((((date - first) / 86400000) + first.getUTCDay() + 1) / 7);
@@ -15,6 +24,7 @@ async function sendClassReminders(now = new Date()) {
   for (const scheduledClass of classes) {
     const students = await prisma.student.findMany({ where: { level: scheduledClass.level }, select: { id: true, parentPhone: true } });
     if (!students.length) continue;
+    const reminderBody = `تبدأ حصة ${scheduledClass.subject} خلال ساعة تقريبًا.`;
     await prisma.notification.createMany({
       data: students.map((student) => ({
         studentId: student.id,
@@ -22,12 +32,17 @@ async function sendClassReminders(now = new Date()) {
         recipientId: student.parentPhone,
         type: "CLASS_REMINDER",
         title: "تذكير بالحصة",
-        body: `تبدأ حصة ${scheduledClass.subject} خلال ساعة تقريبًا.`,
+        body: reminderBody,
         link: "./parent-dashboard.html",
         dedupeKey: `CLASS_REMINDER:${scheduledClass.id}:${student.id}`,
       })),
       skipDuplicates: true,
     });
+    await Promise.allSettled(students.map((student) => sendOptionalPush("parent", student.parentPhone, {
+      title: "تذكير بالحصة",
+      body: reminderBody,
+      link: "./parent-dashboard.html",
+    })));
   }
 }
 

@@ -78,9 +78,9 @@
   }
 
   window.addEventListener("private-messages-read", () => { void loadUnreadCount(); });
-  document.addEventListener("click", () => {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission().catch(() => {});
+  bell.addEventListener("click", () => {
+    if (typeof window.enablePushNotifications === "function" && "Notification" in window && Notification.permission !== "denied") {
+      window.enablePushNotifications().catch(() => {});
     }
   }, { once: true });
   void loadUnreadCount();
