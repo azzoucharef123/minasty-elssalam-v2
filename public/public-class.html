@@ -104,6 +104,7 @@
         </div>
         <div class="controls">
           <button id="start-public-share" class="button primary host-only" type="button" hidden>بدء الحصة ومشاركة الشاشة</button>
+          <button id="record-public-class" class="button ghost host-only" type="button" hidden>بدء تسجيل الحصة</button>
           <button id="toggle-host-mic" class="button ghost host-only" type="button" hidden disabled>تشغيل مايك المضيف</button>
           <button id="end-public-class" class="button danger host-only" type="button" hidden>إنهاء الحصة العامة</button>
           <div class="guest-actions guest-only" id="guest-actions" hidden>
@@ -139,6 +140,6 @@
   </div>
   <audio id="public-guest-audio" autoplay></audio>
   <script src="/socket.io/socket.io.js"></script>
-  <script src="./js/public-class.js"></script>
+  <script src="./js/public-class.js?v=public-mix-minus-1"></script>
 </body>
 </html>

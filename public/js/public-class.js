@@ -19,6 +19,7 @@
     inviteLink: document.getElementById("public-invite-link"),
     copyInviteLink: document.getElementById("copy-public-link"),
     startShare: document.getElementById("start-public-share"),
+    recordClass: document.getElementById("record-public-class"),
     endClass: document.getElementById("end-public-class"),
     toggleHostMic: document.getElementById("toggle-host-mic"),
     chatMessages: document.getElementById("public-chat-messages"),
@@ -44,7 +45,18 @@
   const pendingCandidates = new Map();
   const hostAudioElements = new Map();
   const guestAudioSources = new Map();
+  const publicAudioSources = new Map();
+  const publicMixDestinations = new Map();
+  const publicRecordingSourceNodes = new Map();
   const offerInProgress = new Set();
+  let publicAudioContext = null;
+  let publicRecordingAudioContext = null;
+  let publicRecordingAudioDestination = null;
+  let publicRecordingMixedAudioTrack = null;
+  let publicRecordingSourceSyncTimer = null;
+  let publicRecordingMediaRecorder = null;
+  let publicRecordingStream = null;
+  let publicRecordingChunks = [];
   let localStream = null;
   let hostMicrophoneTracks = [];
   let guestMicStream = null;
@@ -239,12 +251,147 @@
     return pc.getSenders().some((sender) => sender.track === track);
   }
 
+  function rebuildPublicAudioGraph() {
+    publicAudioSources.forEach(({ node }) => {
+      try { node.disconnect(); } catch (_) { /* already disconnected */ }
+    });
+
+    publicMixDestinations.forEach((destination, destinationGuestId) => {
+      publicAudioSources.forEach((source, sourceGuestId) => {
+        if (source.enabled && sourceGuestId !== destinationGuestId) {
+          source.node.connect(destination);
+        }
+      });
+    });
+  }
+
+  function addPublicAudioSource(sourceGuestId, stream, enabled = true) {
+    if (!publicAudioContext || !stream?.getAudioTracks?.().length || !sourceGuestId) return false;
+    const existing = publicAudioSources.get(sourceGuestId);
+    if (existing?.stream === stream) {
+      existing.enabled = Boolean(enabled);
+      rebuildPublicAudioGraph();
+      return true;
+    }
+    if (existing) {
+      try { existing.node.disconnect(); } catch (_) { /* already disconnected */ }
+    }
+
+    try {
+      const node = publicAudioContext.createMediaStreamSource(stream);
+      publicAudioSources.set(sourceGuestId, { node, stream, enabled: Boolean(enabled) });
+      rebuildPublicAudioGraph();
+      return true;
+    } catch (error) {
+      console.warn("Unable to add public-class audio source:", error);
+      return false;
+    }
+  }
+
+  function setPublicAudioSourceEnabled(sourceGuestId, enabled) {
+    const source = publicAudioSources.get(sourceGuestId);
+    if (!source) return;
+    source.enabled = Boolean(enabled);
+    rebuildPublicAudioGraph();
+  }
+
+  function removePublicAudioSource(sourceGuestId) {
+    const source = publicAudioSources.get(sourceGuestId);
+    if (!source) return;
+    try { source.node.disconnect(); } catch (_) { /* already disconnected */ }
+    publicAudioSources.delete(sourceGuestId);
+    rebuildPublicAudioGraph();
+  }
+
+  function ensurePublicMixDestination(guestSocketId) {
+    if (!publicAudioContext || !guestSocketId) return null;
+    const existing = publicMixDestinations.get(guestSocketId);
+    if (existing?.stream?.getAudioTracks?.().some((track) => track.readyState === "live")) {
+      return existing;
+    }
+    const destination = publicAudioContext.createMediaStreamDestination();
+    const track = destination.stream.getAudioTracks()[0];
+    if (!track) return null;
+    track.contentHint = "speech";
+    publicMixDestinations.set(guestSocketId, destination);
+    rebuildPublicAudioGraph();
+    return destination;
+  }
+
+  function removePublicMixDestination(guestSocketId) {
+    const destination = publicMixDestinations.get(guestSocketId);
+    if (!destination) return;
+    destination.stream.getTracks().forEach((track) => track.stop());
+    publicMixDestinations.delete(guestSocketId);
+    rebuildPublicAudioGraph();
+  }
+
+  function getPublicMixSender(pc) {
+    return pc?.getSenders?.().find((sender) => sender.__publicMixMinusAudio === true) || null;
+  }
+
+  function ensurePublicMixSender(pc, guestSocketId) {
+    const destination = ensurePublicMixDestination(guestSocketId);
+    const track = destination?.stream?.getAudioTracks?.()[0];
+    if (!pc || !destination || !track) return null;
+
+    const existing = getPublicMixSender(pc);
+    if (existing) {
+      if (existing.track !== track) void existing.replaceTrack(track);
+      return existing;
+    }
+
+    const sender = pc.addTrack(track, destination.stream);
+    sender.__publicMixMinusAudio = true;
+    return sender;
+  }
+
+  function initialisePublicAudioMix() {
+    if (!window.AudioContext && !window.webkitAudioContext) return false;
+    if (publicAudioContext && publicAudioContext.state !== "closed") return true;
+    try {
+      const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+      publicAudioContext = new AudioContextConstructor();
+      if (publicAudioContext.state === "suspended") publicAudioContext.resume().catch(() => {});
+      addPublicAudioSource("__host_audio__", localStream, true);
+      return true;
+    } catch (error) {
+      publicAudioContext = null;
+      console.warn("Unable to initialize public-class audio mix:", error);
+      return false;
+    }
+  }
+
+  function stopPublicAudioMix() {
+    publicAudioSources.forEach(({ node }) => {
+      try { node.disconnect(); } catch (_) { /* already disconnected */ }
+    });
+    publicAudioSources.clear();
+    publicMixDestinations.forEach((destination) => {
+      destination.stream.getTracks().forEach((track) => track.stop());
+    });
+    publicMixDestinations.clear();
+    const context = publicAudioContext;
+    publicAudioContext = null;
+    if (context && context.state !== "closed") context.close().catch(() => {});
+  }
+
   function attachHostOutgoingTracks(pc, targetGuestId) {
     if (localStream) {
-      localStream.getTracks().forEach((track) => {
+      localStream.getVideoTracks().forEach((track) => {
         if (!hasTrack(pc, track)) pc.addTrack(track, localStream);
       });
     }
+
+    if (publicAudioContext) {
+      ensurePublicMixSender(pc, targetGuestId);
+      return;
+    }
+
+    // Legacy fallback for a browser without Web Audio.
+    localStream?.getAudioTracks().forEach((track) => {
+      if (!hasTrack(pc, track)) pc.addTrack(track, localStream);
+    });
     guestAudioSources.forEach(({ track, stream }, sourceGuestId) => {
       if (sourceGuestId !== targetGuestId && track.readyState === "live" && !hasTrack(pc, track)) {
         pc.addTrack(track, stream);
@@ -277,6 +424,16 @@
   async function forwardGuestAudio(sourceGuestId, track, stream) {
     if (!isHost || track.kind !== "audio") return;
     guestAudioSources.set(sourceGuestId, { track, stream });
+
+    if (publicAudioContext) {
+      addPublicAudioSource(
+        sourceGuestId,
+        stream,
+        attendees.get(sourceGuestId)?.micOpen === true
+      );
+      return;
+    }
+
     const updates = [];
     peers.forEach((pc, targetGuestId) => {
       if (targetGuestId === sourceGuestId || hasTrack(pc, track)) return;
@@ -289,7 +446,8 @@
   function stopForwardingGuestAudio(sourceGuestId) {
     const source = guestAudioSources.get(sourceGuestId);
     guestAudioSources.delete(sourceGuestId);
-    if (!isHost || !source) return;
+    removePublicAudioSource(sourceGuestId);
+    if (!isHost || !source || publicAudioContext) return;
     peers.forEach((pc, targetGuestId) => {
       if (targetGuestId === sourceGuestId) return;
       const sender = pc.getSenders().find((candidate) => candidate.track === source.track);
@@ -313,6 +471,7 @@
     if (isHost) {
       removeHostAudioElement(peerId);
       stopForwardingGuestAudio(peerId);
+      removePublicMixDestination(peerId);
     }
   }
 
@@ -410,12 +569,14 @@
       localStream?.getTracks().forEach((track) => track.stop());
       localStream = combined;
       hostMicrophoneTracks = combined.getAudioTracks().filter((track) => !display.getAudioTracks().includes(track));
+      initialisePublicAudioMix();
       elements.video.srcObject = localStream;
       elements.video.muted = true;
       elements.video.play().catch(() => {});
       elements.placeholder.hidden = true;
       elements.startShare.textContent = "المشاركة جارية";
       elements.startShare.disabled = true;
+      elements.recordClass.disabled = false;
       setHostMicUi();
       setStatus("الحصة العامة بدأت. سيظهر زر الدخول في الصفحة الرئيسية للزوار.");
       display.getVideoTracks()[0]?.addEventListener("ended", () => {
@@ -427,8 +588,137 @@
     }
   }
 
+  function getPublicRecordingMimeType() {
+    if (typeof window.MediaRecorder !== "function" || typeof MediaRecorder.isTypeSupported !== "function") return "";
+    return [
+      "video/webm;codecs=vp9,opus",
+      "video/webm;codecs=vp8,opus",
+      "video/webm",
+    ].find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) || "";
+  }
+
+  function syncPublicRecordingAudioSources() {
+    if (!publicRecordingAudioContext || !publicRecordingAudioDestination) return;
+    const activeSources = new Map(
+      Array.from(publicAudioSources.entries())
+        .filter(([, source]) => source?.enabled !== false)
+        .map(([sourceKey, source]) => [sourceKey, source?.stream])
+        .filter(([, stream]) => stream?.getAudioTracks?.().some((track) => track.readyState === "live"))
+    );
+
+    publicRecordingSourceNodes.forEach(({ stream, node }, sourceKey) => {
+      if (activeSources.get(sourceKey) === stream) return;
+      try { node.disconnect(); } catch (_) { /* already disconnected */ }
+      publicRecordingSourceNodes.delete(sourceKey);
+    });
+
+    activeSources.forEach((stream, sourceKey) => {
+      if (publicRecordingSourceNodes.has(sourceKey)) return;
+      try {
+        const node = publicRecordingAudioContext.createMediaStreamSource(stream);
+        node.connect(publicRecordingAudioDestination);
+        publicRecordingSourceNodes.set(sourceKey, { stream, node });
+      } catch (error) {
+        console.warn("Unable to add public guest audio to recording:", error);
+      }
+    });
+  }
+
+  function disposePublicRecordingResources() {
+    if (publicRecordingSourceSyncTimer) {
+      window.clearInterval(publicRecordingSourceSyncTimer);
+      publicRecordingSourceSyncTimer = null;
+    }
+    publicRecordingSourceNodes.forEach(({ node }) => {
+      try { node.disconnect(); } catch (_) { /* already disconnected */ }
+    });
+    publicRecordingSourceNodes.clear();
+    publicRecordingMixedAudioTrack?.stop();
+    publicRecordingMixedAudioTrack = null;
+    publicRecordingAudioDestination = null;
+    publicRecordingStream = null;
+    const context = publicRecordingAudioContext;
+    publicRecordingAudioContext = null;
+    if (context && context.state !== "closed") context.close().catch(() => {});
+  }
+
+  function startPublicRecording() {
+    if (!isHost || ended || publicRecordingMediaRecorder || !localStream) return;
+    const videoTrack = localStream.getVideoTracks().find((track) => track.readyState === "live");
+    if (!videoTrack || typeof window.MediaRecorder !== "function") {
+      setStatus("تعذر بدء التسجيل المحلي في هذا المتصفح.", "error");
+      return;
+    }
+
+    try {
+      const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextConstructor) throw new Error("Web Audio unavailable");
+      const recordingStream = new MediaStream([videoTrack]);
+      const audioContext = new AudioContextConstructor();
+      const destination = audioContext.createMediaStreamDestination();
+      publicRecordingAudioContext = audioContext;
+      publicRecordingAudioDestination = destination;
+      publicRecordingSourceNodes.clear();
+      syncPublicRecordingAudioSources();
+      publicRecordingSourceSyncTimer = window.setInterval(syncPublicRecordingAudioSources, 500);
+      if (audioContext.state === "suspended") audioContext.resume().catch(() => {});
+      publicRecordingMixedAudioTrack = destination.stream.getAudioTracks()[0] || null;
+      if (publicRecordingMixedAudioTrack) recordingStream.addTrack(publicRecordingMixedAudioTrack);
+
+      const mimeType = getPublicRecordingMimeType();
+      const recorder = new MediaRecorder(
+        recordingStream,
+        mimeType ? { mimeType, videoBitsPerSecond: 2_500_000, audioBitsPerSecond: 128_000 } : undefined
+      );
+      publicRecordingStream = recordingStream;
+      publicRecordingChunks = [];
+      publicRecordingMediaRecorder = recorder;
+      recorder.ondataavailable = (event) => {
+        if (event.data?.size) publicRecordingChunks.push(event.data);
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(publicRecordingChunks, { type: recorder.mimeType || mimeType || "video/webm" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `حصة-عامة-${new Date().toISOString().replace(/[:.]/g, "-")}.webm`;
+        link.click();
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        publicRecordingMediaRecorder = null;
+        publicRecordingChunks = [];
+        disposePublicRecordingResources();
+        if (!ended) setStatus("تم حفظ تسجيل الحصة العامة على جهازك.");
+        if (elements.recordClass) {
+          elements.recordClass.textContent = "بدء تسجيل الحصة";
+          elements.recordClass.classList.remove("danger");
+        }
+      };
+      recorder.start(1_000);
+      elements.recordClass.textContent = "إيقاف التسجيل وحفظه";
+      elements.recordClass.classList.add("danger");
+      setStatus("جارٍ تسجيل الحصة العامة مع أصوات المضيف والضيوف.");
+    } catch (error) {
+      console.warn("Unable to start public class recording:", error);
+      publicRecordingMediaRecorder = null;
+      disposePublicRecordingResources();
+      setStatus("تعذر بدء التسجيل المحلي. استخدم Chrome أو متصفحًا حديثًا.", "error");
+    }
+  }
+
+  function stopPublicRecording() {
+    if (publicRecordingMediaRecorder?.state === "recording") {
+      publicRecordingMediaRecorder.stop();
+    }
+  }
+
+  function togglePublicRecording() {
+    if (publicRecordingMediaRecorder?.state === "recording") stopPublicRecording();
+    else startPublicRecording();
+  }
+
   function endClass() {
     if (!isHost || ended) return;
+    stopPublicRecording();
     socket.emit("public_host_end", {}, (result) => {
       if (!result?.ok) setStatus(result?.error || "تعذر إنهاء الحصة.", "error");
     });
@@ -439,6 +729,8 @@
     if (elements.inviteBox) elements.inviteBox.hidden = true;
     elements.attendance.hidden = false;
     elements.startShare.hidden = false;
+    elements.recordClass.hidden = false;
+    elements.recordClass.disabled = true;
     elements.toggleHostMic.hidden = false;
     elements.endClass.hidden = false;
     socket.emit("public_host_start", { roomId, hostToken }, async (result) => {
@@ -537,6 +829,7 @@
   socket.on("public_guest_mic_state", (guest) => {
     if (!isHost) return;
     upsertAttendee(guest);
+    setPublicAudioSourceEnabled(guest.socketId, guest.micOpen === true);
   });
 
   socket.on("public_mic_permission", ({ open }) => {
@@ -577,12 +870,16 @@
       }
 
       closePeer(fromSocketId);
+      remoteStream = new MediaStream();
+      elements.video.srcObject = remoteStream;
       const pc = new RTCPeerConnection(rtcConfig);
       peers.set(fromSocketId, pc);
       pc.onicecandidate = ({ candidate }) => sendIce(fromSocketId, candidate);
-      pc.ontrack = ({ streams, track }) => {
-        const stream = streams[0] || new MediaStream([track]);
-        showRemoteStream(stream);
+      pc.ontrack = ({ track }) => {
+        if (!remoteStream.getTracks().some((currentTrack) => currentTrack.id === track.id)) {
+          remoteStream.addTrack(track);
+        }
+        showRemoteStream(remoteStream);
         setStatus("أنت الآن تشاهد الحصة العامة.");
       };
       await pc.setRemoteDescription(sdp);
@@ -622,12 +919,15 @@
   socket.on("public_chat_message", ({ sender, message }) => addMessage(sender || "ضيف", message || ""));
   socket.on("public_room_ended", () => {
     ended = true;
+    stopPublicRecording();
+    stopPublicAudioMix();
     localStream?.getTracks().forEach((track) => track.stop());
     hostMicrophoneTracks = [];
     setHostMicUi();
     guestMicStream?.getTracks().forEach((track) => track.stop());
     peers.forEach((_, peerId) => closePeer(peerId));
     elements.startShare.disabled = true;
+    elements.recordClass.disabled = true;
     elements.endClass.disabled = true;
     elements.raiseHand.disabled = true;
     setStatus("أنهى الأستاذ الحصة العامة.", "error");
@@ -646,6 +946,7 @@
     }
   });
   elements.startShare?.addEventListener("click", () => { void startShare(); });
+  elements.recordClass?.addEventListener("click", togglePublicRecording);
   elements.toggleHostMic?.addEventListener("click", () => {
     const availableTracks = hostMicrophoneTracks.filter((track) => track.readyState === "live");
     if (!availableTracks.length || ended) return;
