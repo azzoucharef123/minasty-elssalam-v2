@@ -63,6 +63,9 @@ let isPageNavigatingAway = false;
 let localMediaRecorder = null;
 let localRecordingStream = null;
 let localRecordingAudioContext = null;
+let localRecordingAudioDestination = null;
+let localRecordingSourceNodes = new Map();
+let localRecordingSourceSyncTimer = null;
 let localRecordingMixedAudioTrack = null;
 let localRecordingChunks = [];
 let localRecordingMimeType = "video/webm";
@@ -662,16 +665,89 @@ function getLocalRecordingFileName() {
 }
 
 function disposeLocalRecordingResources() {
+  if (localRecordingSourceSyncTimer) {
+    window.clearInterval(localRecordingSourceSyncTimer);
+    localRecordingSourceSyncTimer = null;
+  }
+
+  localRecordingSourceNodes.forEach(({ node }) => {
+    try {
+      node.disconnect();
+    } catch {
+      // The node may already be disconnected during recorder cleanup.
+    }
+  });
+  localRecordingSourceNodes.clear();
+
   if (localRecordingMixedAudioTrack) {
     localRecordingMixedAudioTrack.stop();
   }
   localRecordingMixedAudioTrack = null;
+  localRecordingAudioDestination = null;
   localRecordingStream = null;
   const context = localRecordingAudioContext;
   localRecordingAudioContext = null;
   if (context && context.state !== "closed") {
     context.close().catch(() => {});
   }
+}
+
+function syncLocalRecordingAudioSources() {
+  if (!localRecordingAudioContext || !localRecordingAudioDestination) {
+    return;
+  }
+
+  const activeSources = new Map(
+    Array.from(classroomAudioSources.entries())
+      .filter(([, source]) => source?.enabled !== false)
+      .map(([sourceKey, source]) => [sourceKey, source?.stream])
+  );
+
+  // Keep recording resilient if it starts during the brief period before the
+  // classroom graph has registered the teacher or screen source.
+  const fallbackSources = new Map([
+    ["__teacher_microphone__", cameraStream],
+    ["__screen_audio__", screenStream],
+  ]);
+  fallbackSources.forEach((stream, sourceKey) => {
+    if (!activeSources.has(sourceKey)) {
+      activeSources.set(sourceKey, stream);
+    }
+  });
+
+  Array.from(activeSources.entries()).forEach(([sourceKey, stream]) => {
+    if (!stream?.getAudioTracks?.().some((track) => track.readyState === "live")) {
+      activeSources.delete(sourceKey);
+    }
+  });
+
+  localRecordingSourceNodes.forEach(({ stream, node }, sourceKey) => {
+    const currentStream = activeSources.get(sourceKey);
+    if (currentStream === stream) {
+      return;
+    }
+
+    try {
+      node.disconnect();
+    } catch {
+      // The source may already be disconnected during a stream replacement.
+    }
+    localRecordingSourceNodes.delete(sourceKey);
+  });
+
+  activeSources.forEach((stream, sourceKey) => {
+    if (localRecordingSourceNodes.has(sourceKey)) {
+      return;
+    }
+
+    try {
+      const node = localRecordingAudioContext.createMediaStreamSource(stream);
+      node.connect(localRecordingAudioDestination);
+      localRecordingSourceNodes.set(sourceKey, { stream, node });
+    } catch (error) {
+      console.warn("Unable to add an audio source to the local recording:", error);
+    }
+  });
 }
 
 function buildLocalRecordingStream() {
@@ -681,35 +757,57 @@ function buildLocalRecordingStream() {
   }
 
   const recordingStream = new MediaStream([videoTrack]);
-  const liveAudioTracks = [screenStream, cameraStream]
+
+  // Recording must use the live audio sources, not only the teacher's local
+  // streams. The classroom audio graph keeps each incoming student's stream in
+  // classroomAudioSources; approved student sources have enabled === true.
+  // Creating a separate recording graph leaves the WebRTC/Mix-Minus graph intact.
+  const recordingSourceStreams = Array.from(classroomAudioSources.values())
+    .filter((source) => source?.enabled !== false)
+    .map((source) => source?.stream)
+    .filter((stream) => stream?.getAudioTracks?.().some((track) => track.readyState === "live"));
+
+  const fallbackSourceStreams = [screenStream, cameraStream]
     .filter(Boolean)
+    .filter((stream) => stream.getAudioTracks().some((track) => track.readyState === "live"));
+
+  const uniqueAudioStreams = Array.from(new Set(
+    (recordingSourceStreams.length ? recordingSourceStreams : fallbackSourceStreams)
+  ));
+  const liveAudioTracks = uniqueAudioStreams
     .flatMap((stream) => stream.getAudioTracks())
     .filter((track) => track.readyState === "live");
 
-  if (liveAudioTracks.length === 1) {
+  if (!liveAudioTracks.length) {
+    return recordingStream;
+  }
+
+  const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextConstructor) {
+    // This is only a legacy fallback for browsers without Web Audio. Browsers
+    // supporting the live classroom should use the mixed recording path below.
     recordingStream.addTrack(liveAudioTracks[0]);
-  } else if (liveAudioTracks.length > 1) {
-    const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextConstructor) {
-      // Chrome provides Web Audio; this fallback preserves the teacher microphone
-      // if a browser does not expose an audio mixer.
-      recordingStream.addTrack(liveAudioTracks[liveAudioTracks.length - 1]);
-    } else {
-      const audioContext = new AudioContextConstructor();
-      const destination = audioContext.createMediaStreamDestination();
-      liveAudioTracks.forEach((track) => {
-        const source = audioContext.createMediaStreamSource(new MediaStream([track]));
-        source.connect(destination);
-      });
-      if (audioContext.state === "suspended") {
-        audioContext.resume().catch(() => {});
-      }
-      localRecordingAudioContext = audioContext;
-      localRecordingMixedAudioTrack = destination.stream.getAudioTracks()[0] || null;
-      if (localRecordingMixedAudioTrack) {
-        recordingStream.addTrack(localRecordingMixedAudioTrack);
-      }
-    }
+    return recordingStream;
+  }
+
+  const audioContext = new AudioContextConstructor();
+  const destination = audioContext.createMediaStreamDestination();
+  localRecordingAudioContext = audioContext;
+  localRecordingAudioDestination = destination;
+  localRecordingSourceNodes = new Map();
+  syncLocalRecordingAudioSources();
+
+  // A student can be approved after recording starts. This timer belongs only
+  // to the recorder and lets the recording graph add that student's source
+  // without changing any classroom WebRTC or Mix-Minus connections.
+  localRecordingSourceSyncTimer = window.setInterval(syncLocalRecordingAudioSources, 500);
+
+  if (audioContext.state === "suspended") {
+    audioContext.resume().catch(() => {});
+  }
+  localRecordingMixedAudioTrack = destination.stream.getAudioTracks()[0] || null;
+  if (localRecordingMixedAudioTrack) {
+    recordingStream.addTrack(localRecordingMixedAudioTrack);
   }
 
   return recordingStream;
