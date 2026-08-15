@@ -138,3 +138,23 @@
 .parent-schedule-join:not(:disabled):hover { color: #fff; background: var(--primary-blue); }
 .parent-schedule-join:disabled { color: #9ca3af; border-color: #e5e7eb; background: #f3f4f6; cursor: not-allowed; }
 @media (max-width: 520px) { .parent-schedule-item { grid-template-columns: 2rem minmax(0,1fr); } .parent-schedule-join { grid-column: 2; justify-self: start; } }
+
+/* Section navigation experiment: preserve all DOM/API hooks while showing one area at a time. */
+[data-parent-section-content].is-parent-section-hidden {
+  display: none !important;
+}
+
+[data-parent-section-content]:not(.is-parent-section-hidden) {
+  animation: parent-section-enter 0.22s ease both;
+}
+
+@keyframes parent-section-enter {
+  from { opacity: 0; transform: translateY(0.28rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-parent-section-content]:not(.is-parent-section-hidden) {
+    animation: none;
+  }
+}

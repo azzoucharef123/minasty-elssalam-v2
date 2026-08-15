@@ -62,6 +62,8 @@ const elements = {
   parentSidebarClose: document.getElementById("parent-sidebar-close"),
   parentSidebarLogout: document.getElementById("parent-sidebar-logout"),
   parentNavLinks: Array.from(document.querySelectorAll(".parent-nav-link")),
+  parentSectionContent: Array.from(document.querySelectorAll("[data-parent-section-content]")),
+  parentMain: document.querySelector(".parent-main"),
   documentFeedbackModal: document.getElementById("document-feedback-modal"),
   documentFeedbackTitle: document.getElementById("document-feedback-title"),
   documentFeedbackMessage: document.getElementById("document-feedback-message"),
@@ -80,6 +82,7 @@ let lessonVideoPreviousFocus = null;
 let parentScheduledClasses = [];
 let parentTeacherAbsent = false;
 let teacherAbsenceLevel = null;
+let activeParentSection = "dashboard";
 
 const LEVEL_DISPLAY_LABELS = Object.freeze({
   "السنة الأولى": "السنة الأولى متوسط",
@@ -797,6 +800,7 @@ async function loadDashboard({ backgroundRefresh = false } = {}) {
     const selectedStudent =
       currentStudents.find((student) => student.id === storedStudentId) || currentStudents[0];
     selectStudent(selectedStudent.id);
+    setParentSection(activeParentSection, { updateHash: false });
   } catch (error) {
     if (!/انتهت الجلسة/.test(error.message)) {
       console.error("Unable to load parent dashboard:", error);
@@ -1085,6 +1089,29 @@ function setParentActiveNav(link) {
   elements.parentNavLinks.forEach((item) => item.classList.toggle("is-active", item === link));
 }
 
+function setParentSection(section = "dashboard", { updateHash = true } = {}) {
+  const allowedSections = new Set(["dashboard", "children", "schedule", "billing"]);
+  activeParentSection = allowedSections.has(section) ? section : "dashboard";
+
+  elements.parentSectionContent.forEach((item) => {
+    item.classList.toggle(
+      "is-parent-section-hidden",
+      item.dataset.parentSectionContent !== activeParentSection
+    );
+  });
+
+  elements.parentMain?.setAttribute("data-parent-active-section", activeParentSection);
+  const activeLink = elements.parentNavLinks.find(
+    (link) => link.dataset.parentSection === activeParentSection
+  );
+  if (activeLink) setParentActiveNav(activeLink);
+
+  if (updateHash && window.history?.replaceState) {
+    const nextUrl = `${window.location.pathname}${window.location.search}#${activeParentSection}`;
+    window.history.replaceState(null, "", nextUrl);
+  }
+}
+
 function initializeLobbySocket() {
   // Socket.io is loaded by parent-dashboard.html before this script.
   if (typeof io !== "function") {
@@ -1201,7 +1228,14 @@ if (!getParentToken()) {
   elements.parentSidebarToggle?.addEventListener("click", () => setParentSidebarOpen(!elements.parentSidebar?.classList.contains("is-open")));
   elements.parentSidebarClose?.addEventListener("click", () => setParentSidebarOpen(false));
   elements.parentSidebarBackdrop?.addEventListener("click", () => setParentSidebarOpen(false));
-  elements.parentNavLinks.forEach((link) => link.addEventListener("click", () => { setParentActiveNav(link); setParentSidebarOpen(false); }));
+  elements.parentNavLinks.forEach((link) => link.addEventListener("click", (event) => {
+    const section = link.dataset.parentSection;
+    if (section) {
+      event.preventDefault();
+      setParentSection(section);
+    }
+    setParentSidebarOpen(false);
+  }));
   elements.documentFeedbackClose?.addEventListener("click", closeDocumentFeedback);
   elements.documentFeedbackModal?.addEventListener("click", (event) => {
     if (event.target === elements.documentFeedbackModal) closeDocumentFeedback();
@@ -1236,6 +1270,8 @@ if (!getParentToken()) {
       refreshAccessAfterReturningFromCall();
     }
   });
+  const initialSection = window.location.hash.replace(/^#/, "");
+  setParentSection(initialSection, { updateHash: false });
   initializeLobbySocket();
   loadDashboard();
 }
