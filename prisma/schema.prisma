@@ -168,6 +168,7 @@ model ScheduledClass {
   subject     String
   scheduledAt DateTime
   monthKey    String   @default("")
+  monthName   String   @default("")
   status      String   @default("PENDING")
   driveLink   String?
   notes       String?  @db.Text

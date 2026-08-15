@@ -121,13 +121,13 @@ function buildExpectedSessions() {
 
 async function backfillMonthKeys() {
   const existing = await prisma.scheduledClass.findMany({
-    where: { monthKey: "" },
+    where: { OR: [{ monthKey: "" }, { monthName: "" }] },
     select: { id: true, scheduledAt: true },
   });
   for (const item of existing) {
     await prisma.scheduledClass.update({
       where: { id: item.id },
-      data: { monthKey: monthKey(item.scheduledAt) },
+      data: { monthKey: monthKey(item.scheduledAt), monthName: monthNameFromDateString(item.scheduledAt.toISOString().slice(0, 10)) },
     });
   }
   return existing.length;
@@ -160,6 +160,7 @@ async function seedClassRegistry() {
         subject: session.subject,
         scheduledAt: session.scheduledAt,
         monthKey: session.monthKey,
+        monthName: session.monthName,
         status: session.status,
         driveLink: session.driveLink,
         notes: session.notes,

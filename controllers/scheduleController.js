@@ -15,6 +15,7 @@ const SECONDARY_TYPES = new Set(["MATH", "PHYSICS"]);
 const UNIVERSITY_TYPES = new Set(["PAID", "FREE"]);
 const REGISTRY_STATUSES = new Set(["PENDING", "COMPLETED", "TEACHER_ABSENT"]);
 const MONTH_KEY_PATTERN = /^20\d{2}-(0[1-9]|1[0-2])$/;
+const MONTH_NAMES = Object.freeze({ سبتمبر: "09", أكتوبر: "10", نوفمبر: "11" });
 const DRIVE_FILE_ID_PATTERN = /^[A-Za-z0-9_-]{20,200}$/;
 
 function normalizeText(value) {
@@ -45,9 +46,16 @@ function monthKeyFromDate(date) {
   return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-function parseMonthKey(value) {
-  const monthKey = normalizeText(value);
-  return MONTH_KEY_PATTERN.test(monthKey) ? monthKey : "";
+function monthNameFromDate(date) {
+  const value = date instanceof Date ? date : new Date(date);
+  return { 8: "سبتمبر", 9: "أكتوبر", 10: "نوفمبر" }[value.getUTCMonth()] || "";
+}
+
+function parseMonthFilter(value) {
+  const month = normalizeText(value);
+  if (MONTH_KEY_PATTERN.test(month)) return { monthKey: month, monthName: "" };
+  if (MONTH_NAMES[month]) return { monthKey: "", monthName: month };
+  return { monthKey: "", monthName: "" };
 }
 
 function extractGoogleDriveFileId(value) {
@@ -87,6 +95,7 @@ function serializeRegistryClass(item, { teacher = false, student = null } = {}) 
     subject: item.subject,
     scheduledAt: item.scheduledAt,
     monthKey: item.monthKey || monthKeyFromDate(item.scheduledAt),
+    monthName: item.monthName || monthNameFromDate(item.scheduledAt),
     status: item.status || "PENDING",
     notes: item.notes || null,
     canWatch: canRevealVideo,
@@ -176,7 +185,7 @@ async function createScheduledClass(req, res) {
     }
 
     const scheduledClass = await prisma.scheduledClass.create({
-      data: { level, subject, scheduledAt, monthKey: monthKeyFromDate(scheduledAt), status: "PENDING" },
+      data: { level, subject, scheduledAt, monthKey: monthKeyFromDate(scheduledAt), monthName: monthNameFromDate(scheduledAt), status: "PENDING" },
     });
     void notifyScheduleChange(req, level, "SCHEDULE_CREATED");
 
@@ -217,7 +226,7 @@ async function updateScheduledClass(req, res) {
 
     const scheduledClass = await prisma.scheduledClass.update({
       where: { id: existing.id },
-      data: { level, subject, scheduledAt, monthKey: monthKeyFromDate(scheduledAt) },
+      data: { level, subject, scheduledAt, monthKey: monthKeyFromDate(scheduledAt), monthName: monthNameFromDate(scheduledAt) },
     });
     void notifyScheduleChange(req, existing.level, "SCHEDULE_UPDATED");
     if (existing.level !== level) {
@@ -257,7 +266,7 @@ async function deleteScheduledClass(req, res) {
 async function getClassRegistry(req, res) {
   try {
     const level = normalizeText(req.params.level);
-    const monthKey = parseMonthKey(req.query?.month);
+    const monthFilter = parseMonthFilter(req.query?.month);
     const subject = normalizeText(req.query?.subject).toUpperCase();
     if (!isValidLevel(level)) return res.status(400).json({ error: "المستوى الدراسي غير صالح." });
     if (subject && !isValidClassType(level, subject)) return res.status(400).json({ error: "المادة أو نوع الاشتراك غير صالح." });
@@ -267,13 +276,13 @@ async function getClassRegistry(req, res) {
     if (req.user.role === "parent" && !student) return res.status(403).json({ error: "اختر تلميذًا مرتبطًا بحساب الولي لهذا المستوى." });
 
     const classes = await prisma.scheduledClass.findMany({
-      where: { level, ...(monthKey ? { monthKey } : {}), ...(subject ? { subject } : {}) },
+      where: { level, ...(monthFilter.monthKey ? { monthKey: monthFilter.monthKey } : {}), ...(monthFilter.monthName ? { monthName: monthFilter.monthName } : {}), ...(subject ? { subject } : {}) },
       orderBy: { scheduledAt: "asc" },
     });
     return res.status(200).json({
       status: "success",
       level,
-      month: monthKey || null,
+      month: monthFilter.monthKey || monthFilter.monthName || null,
       subject: subject || null,
       data: classes.map((item) => serializeRegistryClass(item, { teacher: req.user.role === "teacher", student })),
     });
