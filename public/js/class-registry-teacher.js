@@ -8,6 +8,9 @@
   const month = $("class-registry-month");
   const subject = $("class-registry-subject");
   const list = $("class-registry-list");
+  const registryToggle = $("class-registry-toggle");
+  const registryControls = $("class-registry-controls");
+  const registryToggleIcon = $("class-registry-toggle-icon");
   const modal = $("class-registry-action-modal");
   const form = $("class-registry-action-form");
   const title = $("class-registry-action-title");
@@ -26,6 +29,14 @@
   let currentLevel = document.querySelector(".level-btn.is-active")?.dataset.level || "السنة الأولى";
   let selectedClass = null;
   let youtubeConnected = false;
+  let registryOpen = false;
+
+  function setRegistryOpen(nextOpen) {
+    registryOpen = Boolean(nextOpen);
+    if (registryControls) registryControls.hidden = !registryOpen;
+    registryToggle?.setAttribute("aria-expanded", String(registryOpen));
+    if (registryToggleIcon) registryToggleIcon.textContent = registryOpen ? "⌃" : "⌄";
+  }
 
   const labels = {
     MATH: "الرياضيات",
@@ -254,6 +265,7 @@
     }
   }
 
+  registryToggle?.addEventListener("click", () => setRegistryOpen(!registryOpen));
   form?.addEventListener("submit", (event) => {
     event.preventDefault();
     if (!selectedClass) return;

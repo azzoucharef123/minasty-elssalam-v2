@@ -99,14 +99,20 @@
         </section>
 
         <section id="class-registry-manager" class="class-registry-manager" aria-labelledby="class-registry-title">
-          <header class="class-registry-head">
-            <div><span class="schedule-kicker">سجل الحصص</span><h3 id="class-registry-title">إدارة سجل الحصص والدروس المسجلة</h3><p>حدّد الشهر والمادة، ثم سجّل إنجاز الحصة واختر فيديو YouTube أو استخدم رابط Google Drive.</p></div><div class="youtube-connection-actions"><button id="youtube-connect-button" class="youtube-connect-button" type="button">ربط قناة YouTube</button><span id="youtube-connection-status" class="youtube-connection-status" aria-live="polite">جارٍ التحقق من الاتصال…</span></div>
-          </header>
-          <div class="class-registry-filters">
-            <label>الشهر<select id="class-registry-month"><option value="2026-09">سبتمبر 2026</option><option value="2026-10">أكتوبر 2026</option><option value="2026-11">نوفمبر 2026</option></select></label>
-            <label>المادة<select id="class-registry-subject"><option value="MATH">الرياضيات</option><option value="PHYSICS">الفيزياء</option></select></label>
+          <button id="class-registry-toggle" class="class-registry-toggle" type="button" aria-expanded="false" aria-controls="class-registry-controls">
+            <span class="class-registry-toggle-copy"><span>سجل الحصص</span><strong id="class-registry-title">إدارة سجل الحصص والدروس المسجلة</strong><small>اضغط لعرض الفلاتر وتسجيل إنجاز الحصص وربط فيديو YouTube.</small></span>
+            <span id="class-registry-toggle-icon" class="class-registry-toggle-icon" aria-hidden="true">⌄</span>
+          </button>
+          <div id="class-registry-controls" class="class-registry-controls" hidden>
+            <header class="class-registry-head">
+              <div><p>حدّد الشهر والمادة، ثم سجّل إنجاز الحصة واختر فيديو YouTube أو استخدم رابط Google Drive.</p></div><div class="youtube-connection-actions"><button id="youtube-connect-button" class="youtube-connect-button" type="button">ربط قناة YouTube</button><span id="youtube-connection-status" class="youtube-connection-status" aria-live="polite">جارٍ التحقق من الاتصال…</span></div>
+            </header>
+            <div class="class-registry-filters">
+              <label>الشهر<select id="class-registry-month"><option value="2026-09">سبتمبر 2026</option><option value="2026-10">أكتوبر 2026</option><option value="2026-11">نوفمبر 2026</option></select></label>
+              <label>المادة<select id="class-registry-subject"><option value="MATH">الرياضيات</option><option value="PHYSICS">الفيزياء</option></select></label>
+            </div>
+            <div id="class-registry-list" class="class-registry-list" aria-live="polite"></div>
           </div>
-          <div id="class-registry-list" class="class-registry-list" aria-live="polite"></div>
         </section>
 
         <section class="lesson-repository-manager" aria-labelledby="lesson-repository-title"><header class="lesson-repository-head"><div><span class="schedule-kicker">فيديوهات مكملة</span><h3 id="lesson-repository-title">إضافة فيديو مكمل</h3><p id="lesson-repository-caption">أضف رابط YouTube وعنوانًا واضحًا للفيديو المكمل للمستوى المختار.</p></div></header><form id="lesson-video-form" class="lesson-video-form" novalidate><label>تصنيف الفيديو المكمل<select id="lesson-video-type" required aria-describedby="lesson-video-type-help"></select><small id="lesson-video-type-help" class="lesson-video-type-help">سيظهر الفيديو فقط للطلاب المؤهلين لهذا التصنيف.</small></label><label>عنوان الفيديو المكمل<input id="lesson-video-title" type="text" maxlength="160" placeholder="مثال: مجموعة تمارين لاختبارات الفصل الأول" required /></label><label>رابط فيديو YouTube<input id="lesson-video-url" type="url" inputmode="url" placeholder="https://www.youtube.com/watch?v=..." required /></label><div class="lesson-video-form-actions"><button id="lesson-video-submit" class="lesson-video-submit" type="submit">نشر الفيديو المكمل</button></div></form><p class="lesson-repository-note">أدخل رابط YouTube والعنوان يدويًا. يرتبط كل فيديو بمستوى ومادة أو نوع اشتراك، ويظهر فقط للطلاب المؤهلين.</p><div id="teacher-lesson-video-list" class="teacher-lesson-video-list" aria-live="polite"></div></section>
@@ -149,6 +155,6 @@
   <script src="./js/session-storage.js"></script>
   <script src="./js/message-notifications.js"></script>
   <script src="./js/teacher-dashboard.js?v=schedule-collapse-1" defer></script>
-  <script src="./js/class-registry-teacher.js?v=timezone-algiers-1" defer></script>
+  <script src="./js/class-registry-teacher.js?v=registry-collapse-1" defer></script>
 </body>
 </html>
