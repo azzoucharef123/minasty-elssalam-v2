@@ -163,7 +163,15 @@ router.post("/upload", verifyToken, isTeacher, (req, res, next) => {
     const recordedAt = String(req.body?.recordedAt || "").trim();
     const title = String(req.body?.title || `حصة ${subject || "مباشرة"} - ${level || "الأكاديمية"} - ${new Date().toLocaleDateString("ar-DZ")}`).slice(0, 100);
     const description = String(req.body?.description || `تسجيل من أكاديمية التفوق للفيزياء والرياضيات\nالمستوى: ${level}\nالمادة: ${subject}`).slice(0, 5000);
-    const result = await uploadVideo({ stream: fs.createReadStream(req.file.path), mimeType: req.file.mimetype || "video/webm", title, description });
+    
+    // Force a video mime type even if the browser/multer misidentified it
+    let mimeType = req.file.mimetype;
+    if (!mimeType || !mimeType.startsWith("video/")) {
+      console.warn(`MimeType mismatch: Received ${mimeType}, forcing video/webm`);
+      mimeType = "video/webm";
+    }
+    
+    const result = await uploadVideo({ stream: fs.createReadStream(req.file.path), mimeType, title, description });
     const registryClass = await attachVideoToNearestScheduledClass({ req, level, subject, videoId: result.id, recordedAt }).catch((error) => {
       console.error("Unable to attach uploaded YouTube video to the class registry:", error);
       return null;

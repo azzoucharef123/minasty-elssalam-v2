@@ -911,10 +911,15 @@ async function uploadRecordingToYouTube(recording) {
   updateYoutubeUploadUi({ visible: true, text: "جارٍ رفع تسجيل الحصة إلى YouTube…", progress: 8 });
   updateControls();
   try {
-    // Direct append without extra wrapping, but ensure filename and size are logged
-    console.log(`Preparing YouTube upload. Blob size: ${recording.blob.size} bytes, Type: ${recording.blob.type}`);
+    // Ensure the blob has a video mime type to prevent YouTube from seeing it as text/plain
+    const videoBlob = recording.blob.type.startsWith("video/") 
+      ? recording.blob 
+      : new Blob([recording.blob], { type: "video/webm" });
+      
+    console.log(`Preparing YouTube upload. Original Type: ${recording.blob.type}, Final Type: ${videoBlob.type}, Size: ${videoBlob.size}`);
+    
     const formData = new FormData();
-    formData.append("video", recording.blob, recording.fileName || "recording.webm");
+    formData.append("video", videoBlob, recording.fileName || "recording.webm");
     formData.append("level", recording.registryLevel || recording.level || "");
     formData.append("subject", recording.registrySubject || "");
     formData.append("recordedAt", recording.recordedAt || new Date().toISOString());
