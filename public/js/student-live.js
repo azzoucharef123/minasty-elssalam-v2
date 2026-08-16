@@ -981,7 +981,10 @@ async function sendStudentChatMessage(event) {
 }
 
 function setButtonLabel(button, label) {
-  const labelElement = button.querySelector("span");
+  // Target the specific label span if it exists, otherwise fallback to the first non-icon span.
+  const labelElement = button.querySelector(".button-label") || 
+                       button.querySelector("span:not([aria-hidden])") || 
+                       button.querySelector("span");
   if (labelElement) {
     labelElement.textContent = label;
   }

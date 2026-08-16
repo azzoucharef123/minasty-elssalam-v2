@@ -1437,11 +1437,13 @@
 
           <div class="hand-request-controls" aria-label="طلب التحدث">
             <button id="raise-hand-btn" class="hand-request-button" type="button" hidden>
-              <span aria-hidden="true">✋</span><span>رفع اليد</span>
+              <span aria-hidden="true">✋</span><span class="button-label">رفع اليد</span>
             </button>
             <div id="hand-waiting-actions" class="hand-waiting-actions" hidden>
               <span class="hand-waiting-label">انتظار</span>
-              <button id="lower-hand-btn" class="lower-hand-button" type="button">تنزيل اليد</button>
+              <button id="lower-hand-btn" class="lower-hand-button" type="button">
+                <span class="button-label">تنزيل اليد</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1505,6 +1507,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=live-start-notice-1"></script>
+    <script src="./js/student-live.js?v=hand-btn-fix-1"></script>
   </body>
 </html>
