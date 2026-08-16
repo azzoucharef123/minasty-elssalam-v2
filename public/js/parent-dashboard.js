@@ -91,6 +91,22 @@ const elements = {
 let socket = null;
 let currentStudent = null;
 let lessonRepositoryOpen = false;
+
+function scrollExpandedPanel(panel) {
+  if (!panel || panel.hidden) return;
+  window.setTimeout(() => {
+    const header = document.querySelector(".parent-header");
+    const headerHeight = header?.getBoundingClientRect().height || 0;
+    const panelHeight = panel.getBoundingClientRect().height;
+    const canCenter = panelHeight > 0 && panelHeight <= window.innerHeight * 0.86;
+    panel.scrollIntoView({ behavior: "smooth", block: canCenter ? "center" : "start", inline: "nearest" });
+    if (!canCenter && headerHeight > 0) {
+      window.setTimeout(() => window.scrollBy({ top: -(headerHeight + 12), behavior: "smooth" }), 80);
+    }
+  }, 90);
+}
+
+window.focusExpandedParentPanel = scrollExpandedPanel;
 let currentStudents = [];
 let currentLobbyLevel = null;
 let paymentReturnRefreshTimer = null;
@@ -575,6 +591,7 @@ function setLessonRepositoryOpen(nextOpen) {
   elements.lessonRepositoryCard?.classList.toggle("is-open", lessonRepositoryOpen);
   elements.lessonRepositoryToggle?.setAttribute("aria-expanded", String(lessonRepositoryOpen));
   if (elements.lessonRepositoryToggleIcon) elements.lessonRepositoryToggleIcon.textContent = lessonRepositoryOpen ? "⌃" : "⌄";
+  if (lessonRepositoryOpen) scrollExpandedPanel(elements.lessonRepositoryCard);
 }
 
 function syncLessonRepositoryVisibility(student) {

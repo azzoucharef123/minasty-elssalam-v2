@@ -238,7 +238,10 @@
     if (controls) controls.hidden = !isOpen;
     section?.classList.toggle("is-open", isOpen);
     renderFilters();
-    if (isOpen) showSelectionPrompt();
+    if (isOpen) {
+      showSelectionPrompt();
+      window.focusExpandedParentPanel?.(section);
+    }
   }
 
   toggle?.addEventListener("click", () => setOpen(!isOpen));
