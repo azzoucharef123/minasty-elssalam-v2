@@ -143,7 +143,7 @@ router.get("/videos", verifyToken, isTeacher, async (req, res) => {
   }
 });
 
-router.get("/fix-recent-embeds", verifyToken, isTeacher, async (req, res) => {
+router.get("/fix-recent-embeds", async (req, res) => {
   try {
     const { listRecentVideos, getYouTubeApi } = require("../services/youtubeService");
     const youtube = await getYouTubeApi();
