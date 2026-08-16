@@ -1006,8 +1006,15 @@
       .lesson-video-player-topbar { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; padding: 0.62rem 0.78rem; color: #cbd5e1; background: #0f172a; font-size: 0.68rem; font-weight: 800; }
       .lesson-video-player-topbar span { display: inline-flex; align-items: center; gap: 0.35rem; }
       .lesson-video-player-topbar span::before { width: 0.42rem; height: 0.42rem; content: ""; background: #22c55e; border-radius: 50%; box-shadow: 0 0 0 0.22rem rgba(34, 197, 94, 0.16); }
+      .lesson-video-player-actions { display: inline-flex; align-items: center; gap: 0.4rem; }
+      .lesson-video-player-action { min-height: 2rem; padding: 0.3rem 0.55rem; color: #e2e8f0; background: rgba(51, 65, 85, 0.82); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 0.5rem; font-size: 0.64rem; font-weight: 800; cursor: pointer; transition: background 0.18s ease, transform 0.18s ease; }
+      .lesson-video-player-action:hover, .lesson-video-player-action:focus-visible { color: #ffffff; background: #2563eb; outline: none; transform: translateY(-1px); }
+      .lesson-video-player-action:active { transform: scale(0.97); }
       .lesson-video-player-topbar small { color: #94a3b8; font-size: 0.64rem; }
       .lesson-video-frame { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; background: #020617; }
+      .lesson-video-player-shell:fullscreen { display: grid; grid-template-rows: auto minmax(0, 1fr); width: 100vw; height: 100vh; border: 0; border-radius: 0; }
+      .lesson-video-player-shell:fullscreen .lesson-video-frame { height: 100%; aspect-ratio: auto; }
+      @media (max-width: 520px) { .lesson-video-player-topbar { align-items: stretch; flex-direction: column; } .lesson-video-player-actions { justify-content: flex-end; } }
       .lesson-video-sidebar { display: grid; gap: 0.75rem; padding: 0.9rem; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 1rem; }
       .lesson-video-sidebar-label { color: #16a34a; font-size: 0.68rem; font-weight: 900; }
       .lesson-video-sidebar h3 { margin: 0.28rem 0 0; color: #0f172a; font-size: 0.94rem; line-height: 1.6; }
@@ -1323,7 +1330,10 @@
         <div class="lesson-video-player-shell">
           <div class="lesson-video-player-topbar">
             <span>الفيديو يعمل داخل الأكاديمية</span>
-            <small>تشغيل آمن · YouTube أو Google Drive</small>
+            <div class="lesson-video-player-actions" role="group" aria-label="أدوات عرض الفيديو">
+              <button id="lesson-video-rotate" class="lesson-video-player-action" type="button" aria-label="تدوير الشاشة">تدوير الشاشة</button>
+              <button id="lesson-video-fullscreen" class="lesson-video-player-action" type="button" aria-label="فتح ملء الشاشة">ملء الشاشة</button>
+            </div>
           </div>
           <iframe id="lesson-video-frame" class="lesson-video-frame" title="فيديو الحصة المسجلة" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
         </div>
@@ -1362,7 +1372,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/parent-dashboard.js?v=error153-referrer-2"></script>
+    <script src="./js/parent-dashboard.js?v=fullscreen-rotate-1"></script>
     <script src="./js/class-registry-parent.js?v=error153-referrer-2"></script>
   </body>
 </html>

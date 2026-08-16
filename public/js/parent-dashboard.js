@@ -42,6 +42,9 @@ const elements = {
   lessonVideoSidebarTitle: document.getElementById("lesson-video-sidebar-title"),
   lessonVideoSidebarMeta: document.getElementById("lesson-video-sidebar-meta"),
   lessonVideoFrame: document.getElementById("lesson-video-frame"),
+  lessonVideoPlayerShell: document.querySelector(".lesson-video-player-shell"),
+  lessonVideoFullscreen: document.getElementById("lesson-video-fullscreen"),
+  lessonVideoRotate: document.getElementById("lesson-video-rotate"),
   lessonVideoClose: document.getElementById("lesson-video-close"),
   materialsList: document.getElementById("materials-list"),
   attendanceCount: document.getElementById("attendance-count"),
@@ -626,7 +629,54 @@ function isSafeLessonPreviewUrl(value) {
   return isDrive || isYouTube;
 }
 
+function updateLessonFullscreenLabel() {
+  if (!elements.lessonVideoFullscreen) return;
+  const isFullscreen = document.fullscreenElement === elements.lessonVideoPlayerShell;
+  elements.lessonVideoFullscreen.textContent = isFullscreen ? "إغلاق ملء الشاشة" : "ملء الشاشة";
+  elements.lessonVideoFullscreen.setAttribute("aria-label", isFullscreen ? "إغلاق ملء الشاشة" : "فتح ملء الشاشة");
+}
+
+async function toggleLessonFullscreen() {
+  const shell = elements.lessonVideoPlayerShell;
+  if (!shell) return;
+  try {
+    if (document.fullscreenElement === shell) {
+      await document.exitFullscreen?.();
+      screen.orientation?.unlock?.();
+    } else if (shell.requestFullscreen) {
+      await shell.requestFullscreen();
+    }
+  } catch (error) {
+    console.warn("Unable to toggle lesson fullscreen:", error);
+  } finally {
+    updateLessonFullscreenLabel();
+  }
+}
+
+async function rotateLessonScreen() {
+  const shell = elements.lessonVideoPlayerShell;
+  if (!shell) return;
+  try {
+    if (document.fullscreenElement !== shell && shell.requestFullscreen) {
+      await shell.requestFullscreen();
+    }
+    const currentType = screen.orientation?.type || "portrait-primary";
+    const targetType = currentType.startsWith("landscape") ? "portrait-primary" : "landscape-primary";
+    if (screen.orientation?.lock) {
+      await screen.orientation.lock(targetType);
+    }
+  } catch (error) {
+    console.warn("Unable to rotate lesson video:", error);
+  } finally {
+    updateLessonFullscreenLabel();
+  }
+}
+
 function closeLessonVideo() {
+  if (document.fullscreenElement === elements.lessonVideoPlayerShell) {
+    void document.exitFullscreen?.().catch?.(() => {});
+  }
+  screen.orientation?.unlock?.();
   if (elements.lessonVideoModal) elements.lessonVideoModal.hidden = true;
   if (elements.lessonVideoFrame) elements.lessonVideoFrame.removeAttribute("src");
   document.body.classList.remove("lesson-video-open");
@@ -1263,6 +1313,9 @@ if (!getParentToken()) {
     if (event.target === elements.documentFeedbackModal) closeDocumentFeedback();
   });
   elements.lessonVideoClose?.addEventListener("click", closeLessonVideo);
+  elements.lessonVideoFullscreen?.addEventListener("click", () => { void toggleLessonFullscreen(); });
+  elements.lessonVideoRotate?.addEventListener("click", () => { void rotateLessonScreen(); });
+  document.addEventListener("fullscreenchange", updateLessonFullscreenLabel);
   elements.lessonVideoModal?.addEventListener("click", (event) => {
     if (event.target === elements.lessonVideoModal) closeLessonVideo();
   });
