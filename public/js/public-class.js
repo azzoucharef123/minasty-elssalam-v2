@@ -9,7 +9,7 @@
   const roomId = hostRoomId || guestRoomId;
   const roomPattern = /^[a-zA-Z0-9_-]{16,128}$/;
   const rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-  const GOOGLE_DRIVE_CLIENT_ID = "938017291163-6uinh4868l66eo8887hsqkt7h3h1ss6e.apps.googleusercontent.com";
+  const GOOGLE_DRIVE_CLIENT_ID = "938017291163-a6dar2h6u2d5isf5h4nqtaccp7jpkk28.apps.googleusercontent.com";
   const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
   const GOOGLE_DRIVE_ROOT_FOLDER = "تسجيلات أكاديمية التفوق";
   const GOOGLE_DRIVE_UPLOAD_CHUNK_SIZE = 8 * 1024 * 1024;
