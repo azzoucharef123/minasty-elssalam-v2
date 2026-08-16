@@ -224,7 +224,7 @@ function applyHomeworkFileTransform() {
 function closeStudentHomeworkFile() {
   elements.studentHomeworkFileModal?.classList.remove("is-open");
   if (elements.studentHomeworkFileModal) elements.studentHomeworkFileModal.hidden = true;
-  if (homeworkFileObjectUrl) URL.revokeObjectURL(homeworkFileObjectUrl);
+  if (homeworkFileObjectUrl?.startsWith("blob:")) URL.revokeObjectURL(homeworkFileObjectUrl);
   homeworkFileObjectUrl = null;
   homeworkFilePointers.clear();
   resetHomeworkFileTransform();
@@ -287,6 +287,15 @@ function handleHomeworkFilePointerUp(event) {
   }
 }
 
+function readHomeworkBlobAsDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("تعذر تجهيز صورة الواجب للعرض."));
+    reader.readAsDataURL(blob);
+  });
+}
+
 function resolveHomeworkFileMimeType(assignment, response) {
   const responseType = String(response.headers.get("Content-Type") || "").split(";", 1)[0].trim().toLowerCase();
   const storedType = String(assignment?.attachmentMimeType || "").split(";", 1)[0].trim().toLowerCase();
@@ -318,9 +327,11 @@ async function openStudentHomeworkFile(assignment) {
     const mimeType = resolveHomeworkFileMimeType(assignment, response);
     const fileBytes = await response.arrayBuffer();
     const blob = new Blob([fileBytes], { type: mimeType });
-    homeworkFileObjectUrl = URL.createObjectURL(blob);
     const isImage = mimeType.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(assignment.attachmentOriginalName || "");
     const isPdf = mimeType.includes("pdf") || /\.pdf$/i.test(assignment.attachmentOriginalName || "");
+    // Data URLs avoid mobile Chromium treating an authenticated blob response
+    // as an external download or rendering it as a broken image.
+    homeworkFileObjectUrl = isImage ? await readHomeworkBlobAsDataUrl(blob) : URL.createObjectURL(blob);
     if (elements.studentHomeworkFileTitle) elements.studentHomeworkFileTitle.textContent = assignment.title || "معاينة الواجب";
     if (elements.studentHomeworkFileImage) {
       elements.studentHomeworkFileImage.hidden = !isImage;
