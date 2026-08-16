@@ -10,17 +10,201 @@ datasource db {
 model Student {
   id            String   @id @default(uuid()) @db.Uuid
   studentName   String
-  parentPhone   String   @unique
+  parentPhone   String
   level         String
   paymentStatus Boolean  @default(false)
+  paymentStage  String   @default("UNPAID")
+  amountDue     Int?
+  mathEnrollment    Boolean @default(true)
+  physicsEnrollment Boolean @default(true)
+  liveAccessEnabled Boolean @default(false)
   mathNote      String   @default("")
-  physicsNote   String       @default("")
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  attendances   Attendance[]
+  physicsNote   String   @default("")
+  cardPhotoUrl  String?
+  accountActive Boolean  @default(true)
+  cardReuploadRequested Boolean @default(false)
+  paymentReceiptUrl String?
+  paymentReceiptPending Boolean @default(false)
+  paymentReceiptSubmittedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // Matches the roster access pattern: equality by level, newest registrations
-  // first. parentPhone remains indexed through its @unique constraint.
+  attendances Attendance[]
+  questionImages LiveQuestionImage[]
+  messages Message[]
+  documents StudentDocument[]
+  sessions Session[]
+  auditLogs AuditLog[]
+  notifications Notification[]
+  paymentEvents PaymentEvent[]
+  grades Grade[]
+  assignmentSubmissions AssignmentSubmission[]
+  assessmentAttempts AssessmentAttempt[]
+  lessonProgress LessonProgress[]
+  learningPathItems LearningPathItem[]
+  badges StudentBadge[]
+  classParticipations ClassParticipation[]
+
+  @@index([level, createdAt(sort: Desc)])
+  @@index([parentPhone])
+  @@unique([studentName, parentPhone, level])
+}
+
+model StudentDocument {
+  id           String   @id @default(uuid()) @db.Uuid
+  studentId    String   @db.Uuid
+  kind         String
+  originalName String
+  mimeType     String
+  fileSize     Int
+  data         Bytes
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, kind])
+  @@index([studentId, createdAt(sort: Desc)])
+}
+
+model Message {
+  id           String   @id @default(uuid()) @db.Uuid
+  studentId    String   @db.Uuid
+  senderId     String
+  receiverId   String
+  senderRole   String
+  receiverRole String
+  content      String   @db.Text
+  createdAt    DateTime @default(now())
+  isRead       Boolean  @default(false) @map("is_read")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, createdAt(sort: Desc)])
+  @@index([receiverId, isRead, createdAt(sort: Desc)])
+  @@index([senderId, createdAt(sort: Desc)])
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  tokenId   String   @unique
+  role      String
+  subjectId String?
+  studentId String?  @db.Uuid
+  userAgent String?  @db.Text
+  ipAddress String?
+  createdAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  student Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([role, subjectId, revokedAt])
+  @@index([studentId, expiresAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorRole  String
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  studentId  String?  @db.Uuid
+  metadata   String?  @db.Text
+  ipAddress  String?
+  userAgent  String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  student Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([actorRole, actorId, createdAt(sort: Desc)])
+  @@index([entityType, entityId, createdAt(sort: Desc)])
+  @@index([studentId, createdAt(sort: Desc)])
+}
+
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  studentId String?  @db.Uuid
+  recipientRole String
+  recipientId String
+  type      String
+  title     String
+  body      String   @db.Text
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  readAt    DateTime?
+  dedupeKey String?  @unique
+
+  student Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([recipientRole, recipientId, isRead, createdAt(sort: Desc)])
+  @@index([studentId, createdAt(sort: Desc)])
+}
+
+model PaymentEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  studentId String   @db.Uuid
+  stage     String
+  amount    Int?
+  note      String?  @db.Text
+  receiptDocumentId String?
+  actorRole String
+  actorId   String?
+  createdAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, createdAt(sort: Desc)])
+  @@index([stage, createdAt(sort: Desc)])
+}
+
+model ScheduledClass {
+  id          String   @id @default(uuid()) @db.Uuid
+  level       String
+  subject     String
+  scheduledAt DateTime
+  monthKey    String   @default("")
+  monthName   String   @default("")
+  status      String   @default("PENDING")
+  driveLink   String?
+  youtubeVideoId String?
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([level, scheduledAt])
+  @@index([level, monthKey, subject, scheduledAt])
+  @@index([status, scheduledAt])
+}
+
+model TeacherAbsence {
+  level     String   @id
+  isAbsent  Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+model ParentCredential {
+  parentPhone String   @id
+  pinHash     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model LiveQuestionImage {
+  id        String   @id @default(uuid()) @db.Uuid
+  studentId String   @db.Uuid
+  level     String
+  fileName  String   @unique
+  mimeType  String
+  createdAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, createdAt(sort: Desc)])
   @@index([level, createdAt(sort: Desc)])
 }
 
@@ -32,7 +216,6 @@ model Attendance {
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  // Matches student-history retrieval: one student, newest joins first.
   @@index([studentId, joinedAt(sort: Desc)])
   @@index([level, joinedAt(sort: Desc)])
 }
@@ -44,6 +227,273 @@ model Material {
   level     String
   createdAt DateTime @default(now())
 
-  // Matches the authorized level-filtered, newest-first material listing query.
   @@index([level, createdAt(sort: Desc)])
+}
+
+model LessonVideo {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  level       String
+  driveFileId String
+  driveUrl    String
+  repositoryType String @default("UNCLASSIFIED")
+  createdAt   DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  progress LessonProgress[]
+
+  @@unique([level, driveFileId])
+  @@index([level, repositoryType, createdAt(sort: Desc)])
+  @@index([level, createdAt(sort: Desc)])
+}
+
+model LessonProgress {
+  id          String   @id @default(uuid()) @db.Uuid
+  studentId   String   @db.Uuid
+  lessonVideoId String @db.Uuid
+  watchedSeconds Int    @default(0)
+  durationSeconds Int?
+  completed   Boolean  @default(false)
+  lastWatchedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lessonVideo LessonVideo @relation(fields: [lessonVideoId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, lessonVideoId])
+  @@index([studentId, completed, updatedAt(sort: Desc)])
+}
+
+model Assignment {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  description String   @db.Text
+  level       String
+  subject     String
+  dueAt       DateTime?
+  attachmentUrl String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  submissions AssignmentSubmission[]
+
+  @@index([level, subject, dueAt])
+}
+
+model AssignmentSubmission {
+  id           String   @id @default(uuid()) @db.Uuid
+  assignmentId String   @db.Uuid
+  studentId    String   @db.Uuid
+  answerText   String?  @db.Text
+  attachmentUrl String?
+  status       String   @default("SUBMITTED")
+  grade        Float?
+  teacherNote  String?  @db.Text
+  submittedAt  DateTime @default(now())
+  gradedAt     DateTime?
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId, submittedAt(sort: Desc)])
+  @@index([assignmentId, status])
+}
+
+model Question {
+  id          String   @id @default(uuid()) @db.Uuid
+  prompt      String   @db.Text
+  explanation String?  @db.Text
+  level       String
+  subject     String
+  difficulty  String   @default("MEDIUM")
+  questionType String  @default("MCQ")
+  optionsJson String?  @db.Text
+  answerJson  String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assessmentQuestions AssessmentQuestion[]
+
+  @@index([level, subject, difficulty])
+}
+
+model Assessment {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  description String?  @db.Text
+  level       String
+  subject     String
+  timeLimitSeconds Int?
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  questions AssessmentQuestion[]
+  attempts AssessmentAttempt[]
+
+  @@index([level, subject, published, createdAt(sort: Desc)])
+}
+
+model AssessmentQuestion {
+  assessmentId String @db.Uuid
+  questionId  String @db.Uuid
+  position    Int    @default(0)
+  points      Int    @default(1)
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([assessmentId, questionId])
+  @@index([assessmentId, position])
+}
+
+model AssessmentAttempt {
+  id           String   @id @default(uuid()) @db.Uuid
+  assessmentId String   @db.Uuid
+  studentId    String   @db.Uuid
+  answersJson  String   @db.Text
+  score        Float?
+  submittedAt  DateTime?
+  startedAt    DateTime @default(now())
+  completed    Boolean  @default(false)
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, studentId])
+  @@index([studentId, startedAt(sort: Desc)])
+}
+
+model LearningPathItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  studentId   String   @db.Uuid
+  title       String
+  description String?  @db.Text
+  subject     String
+  position    Int      @default(0)
+  status      String   @default("TODO")
+  targetDate  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, status, position])
+}
+
+model StudentBadge {
+  id        String   @id @default(uuid()) @db.Uuid
+  studentId String   @db.Uuid
+  code      String
+  title     String
+  description String? @db.Text
+  awardedAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, code])
+  @@index([studentId, awardedAt(sort: Desc)])
+}
+
+model Grade {
+  id        String   @id @default(uuid()) @db.Uuid
+  studentId String   @db.Uuid
+  subject   String
+  category  String
+  title     String
+  score     Float
+  maxScore  Float    @default(100)
+  note      String?  @db.Text
+  gradedAt  DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, subject, gradedAt(sort: Desc)])
+}
+
+model ClassParticipation {
+  id                  String   @id @default(uuid()) @db.Uuid
+  studentId           String   @db.Uuid
+  level               String
+  subject             String
+  sessionKey          String
+  count               Int      @default(0)
+  lastParticipatedAt  DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, sessionKey])
+  @@index([studentId, createdAt(sort: Desc)])
+  @@index([level, sessionKey])
+}
+
+model PublicRoomArchive {
+  id          String   @id @default(uuid()) @db.Uuid
+  roomId      String   @unique
+  title       String?
+  startedAt   DateTime?
+  endedAt     DateTime?
+  recordingUrl String?
+  recordingDriveFileId String?
+  attendeeCount Int @default(0)
+  chatArchiveJson String? @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  attendees PublicRoomAttendance[]
+
+  @@index([startedAt(sort: Desc)])
+}
+
+model PublicRoomAttendance {
+  id        String   @id @default(uuid()) @db.Uuid
+  archiveId String   @db.Uuid
+  guestName String
+  socketId  String?
+  joinedAt  DateTime @default(now())
+  approvedAt DateTime?
+  leftAt    DateTime?
+
+  archive PublicRoomArchive @relation(fields: [archiveId], references: [id], onDelete: Cascade)
+
+  @@index([archiveId, joinedAt(sort: Desc)])
+}
+
+model PushSubscription {
+  id           String   @id @default(uuid()) @db.Uuid
+  endpoint     String   @unique @db.Text
+  p256dh       String   @db.Text
+  auth         String   @db.Text
+  recipientRole String
+  recipientId  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([recipientRole, recipientId])
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  eventType String
+  studentId String?  @db.Uuid
+  level     String?
+  subject   String?
+  valueJson String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([eventType, createdAt(sort: Desc)])
+  @@index([studentId, createdAt(sort: Desc)])
+  @@index([level, subject, createdAt(sort: Desc)])
+}
+
+model YouTubeCredential {
+  id           String   @id @default("singleton")
+  accessToken  String   @db.Text
+  refreshToken String   @db.Text
+  expiryDate   BigInt
+  updatedAt    DateTime @updatedAt
 }
