@@ -11,6 +11,12 @@ const LEVELS = new Set([
   "طالب جامعي",
 ]);
 const UNIVERSITY_LEVEL = "طالب جامعي";
+const LEVEL_ALIASES = Object.freeze({
+  "السنة الأولى متوسط": "السنة الأولى",
+  "السنة الثانية متوسط": "السنة الثانية",
+  "السنة الثالثة متوسط": "السنة الثالثة",
+  "السنة الرابعة متوسط": "السنة الرابعة",
+});
 const SECONDARY_TYPES = new Set(["MATH", "PHYSICS"]);
 const UNIVERSITY_TYPES = new Set(["PAID", "FREE"]);
 const REGISTRY_STATUSES = new Set(["PENDING", "COMPLETED", "TEACHER_ABSENT"]);
@@ -23,8 +29,13 @@ function normalizeText(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function canonicalLevel(value) {
+  const level = normalizeText(value);
+  return LEVEL_ALIASES[level] || level;
+}
+
 function isValidLevel(level) {
-  return LEVELS.has(level);
+  return LEVELS.has(canonicalLevel(level));
 }
 
 function isValidClassType(level, subject) {
@@ -132,6 +143,7 @@ function serializeRegistryClass(item, { teacher = false, student = null } = {}) 
 
 async function getParentRegistryStudent(req, level) {
   const studentId = normalizeText(req.query?.studentId);
+  level = canonicalLevel(level);
   if (req.user?.role !== "parent" || !req.user.phone || !studentId) return null;
   return prisma.student.findFirst({
     where: { id: studentId, parentPhone: req.user.phone, level },
@@ -163,7 +175,7 @@ async function notifyAbsenceChange(req, absence) {
 
 async function getLevelSchedule(req, res) {
   try {
-    const level = normalizeText(req.params.level);
+    const level = canonicalLevel(req.params.level);
     if (!isValidLevel(level)) {
       return res.status(400).json({ error: "المستوى الدراسي غير صالح." });
     }
@@ -191,7 +203,7 @@ async function getLevelSchedule(req, res) {
 
 async function createScheduledClass(req, res) {
   try {
-    const level = normalizeText(req.body?.level);
+    const level = canonicalLevel(req.body?.level);
     const subject = normalizeText(req.body?.subject);
     const scheduledAt = parseScheduledAt(req.body?.scheduledAt);
 
@@ -235,7 +247,7 @@ async function updateScheduledClass(req, res) {
       return res.status(404).json({ error: "الحصة المجدولة غير موجودة." });
     }
 
-    const level = normalizeText(req.body?.level || existing.level);
+    const level = canonicalLevel(req.body?.level || existing.level);
     const subject = normalizeText(req.body?.subject);
     const scheduledAt = parseScheduledAt(req.body?.scheduledAt);
 
