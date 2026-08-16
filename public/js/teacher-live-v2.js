@@ -2476,19 +2476,6 @@ async function startLiveClass() {
     return;
   }
 
-  if (!socket.connected) {
-    isStarting = true;
-    updateControls();
-    setStudioStatus("جارٍ الاتصال بخادم الحصة قبل البدء…", "neutral");
-    const connected = await waitForSocketConnection(12_000);
-    if (!connected || !socket.connected) {
-      isStarting = false;
-      updateControls();
-      setStudioStatus("تعذر الاتصال بالخادم حالياً. حاول مرة أخرى بعد لحظات.", "error");
-      return;
-    }
-  }
-
   const selectedLevel = elements.levelSelect.value;
   const selectedSubject = elements.subjectSelect.value;
   const selectedSubjectName = getClassTypeName(selectedLevel, selectedSubject);
@@ -2578,6 +2565,16 @@ async function startLiveClass() {
     activeSubject = selectedSubject;
     classResumeToken = pageRecovery?.resumeToken || createClassResumeToken();
     classActive = true;
+
+    // Request screen sharing before any network wait. Browsers require the
+    // getDisplayMedia call to remain within the user's button activation.
+    if (!socket.connected) {
+      setStudioStatus("تم اختيار الشاشة. جارٍ الاتصال بخادم الحصة…", "neutral");
+      const connected = await waitForSocketConnection(12_000);
+      if (!connected || !socket.connected) {
+        throw new Error("تعذر الاتصال بالخادم بعد اختيار الشاشة. حاول مرة أخرى.");
+      }
+    }
 
     const roomResponse = await emitWithAcknowledgement("teacher_start_room", {
       level: selectedLevel,
