@@ -215,6 +215,7 @@ module.exports = {
   getConnectionStatus,
   listRecentVideos,
   uploadVideo,
+  getYouTubeApi, // Added for maintenance tasks
 };
 
 module.exports._private = { encrypt, decrypt, getClientId, getClientSecret };
