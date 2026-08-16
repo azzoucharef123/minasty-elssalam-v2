@@ -294,31 +294,21 @@ function hideLiveStartNotice() {
   elements.liveStartNotice.hidden = true;
 }
 
-async function refreshAudioVideo() {
+function refreshAudioVideo() {
   if (!joinedClass || isJoining) return;
 
   const button = elements.refreshMediaButton;
-  if (button) {
-    button.classList.add("is-refreshing");
-    const label = button.querySelector("span");
-    const originalText = label ? label.textContent : "";
-    if (label) label.textContent = "جارٍ التحديث...";
-    
-    // Trigger a re-join request to force the teacher to send a new offer.
-    // This effectively resets both audio and video tracks.
-    try {
-      await joinClass({ rejoin: true });
-      showMobileControlToast("تم طلب تحديث الصوت والصورة");
-    } catch (error) {
-      console.error("Refresh media failed:", error);
-      showMobileControlToast("تعذر تحديث البث حالياً");
-    } finally {
-      window.setTimeout(() => {
-        button.classList.remove("is-refreshing");
-        if (label) label.textContent = originalText;
-      }, 1500);
-    }
-  }
+  if (!button || button.disabled) return;
+
+  button.disabled = true;
+  button.classList.add("is-refreshing");
+  const label = button.querySelector(".refresh-media-label");
+  if (label) label.textContent = "جارٍ تحديث الصفحة…";
+  showMobileControlToast("جارٍ تحديث الصوت والصورة…");
+
+  // A full page reload rebuilds the Socket.io/WebRTC session and runs the
+  // browser-scoped microphone pre-join flow without changing its permission.
+  window.setTimeout(() => window.location.reload(), 350);
 }
 
 const MOBILE_CONTROLS_POSITION_KEY = "studentMobileControlsPosition";
