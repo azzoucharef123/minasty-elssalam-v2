@@ -696,7 +696,7 @@ function selectStudent(studentId) {
   elements.dashboardContent.hidden = false;
   clearError();
   emitLobbyJoin(student.level);
-  void loadAttendanceCount(student.id);
+  void loadActivityStats(student.id);
   void loadStudentCertificates(student.id);
   void loadParentSchedule(student.level);
   if (canAccessLessonRepository(student)) {

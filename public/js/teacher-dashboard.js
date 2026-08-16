@@ -2220,6 +2220,7 @@ if (!getTeacherToken()) {
   });
   elements.scheduleForm?.addEventListener("submit", saveScheduledClass);
   elements.lessonVideoForm?.addEventListener("submit", saveLessonVideo);
+  elements.assignmentForm?.addEventListener("submit", submitAssignment);
   elements.scheduleCancelButton?.addEventListener("click", resetScheduleForm);
   elements.teacherAbsenceButton?.addEventListener("click", () => void toggleTeacherAbsence());
   elements.subscriptionForm?.addEventListener("submit", saveSubscription);
@@ -2282,4 +2283,5 @@ if (!getTeacherToken()) {
 
   updateDashboardDate();
   fetchStudents(currentLevel);
+  loadAssignments();
 }

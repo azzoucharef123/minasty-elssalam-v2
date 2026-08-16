@@ -1306,13 +1306,18 @@ io.on("connection", (socket) => {
         socket.data.roomLevel === level &&
         isInLevelRoom(socket, level);
 
+      const sessionKey = teacherSocket.data.classResumeToken;
       // A repeated join emit from the same socket must not inflate history.
-      // A genuinely new connection deliberately creates a new attendance entry.
+      // A genuinely new connection deliberately creates or updates an attendance entry.
       if (!isAlreadyJoined) {
-        await prisma.attendance.create({
-          data: { studentId: student.id, level },
+        const attendance = await prisma.attendance.upsert({
+          where: { studentId_sessionKey: { studentId: student.id, sessionKey } },
+          create: { studentId: student.id, level, sessionKey },
+          update: {},
         });
+        socket.data.attendanceId = attendance.id;
       }
+      socket.data.joinedAt = Date.now();
 
       await socket.join(level);
       socket.data.role = "student";
@@ -1630,20 +1635,23 @@ io.on("connection", (socket) => {
     const wasOpen = isStudentMicrophoneOpen(level, targetSocketId);
     setStudentMicrophoneOpen(level, targetSocketId, enabled);
 
-    let participationCount;
     const sessionKey = socket.data.classResumeToken;
-    if (enabled) {
-      const participation = wasOpen
-        ? await getClassParticipation(targetSocket.data.studentId, sessionKey)
-        : await recordClassParticipation({
-            studentId: targetSocket.data.studentId,
-            level,
-            subject: activeSubjectByLevel.get(level),
-            sessionKey,
-          });
-      participationCount = participation?.count || 0;
-      io.to(targetSocketId).emit("participation_count_updated", { level, count: participationCount });
-      io.to(socket.id).emit("student_participation_updated", { socketId: targetSocketId, count: participationCount });
+    if (enabled && !wasOpen) {
+      targetSocket.data.micStartedAt = Date.now();
+    } else if (!enabled && wasOpen && targetSocket.data.micStartedAt) {
+      const micDurationSeconds = Math.floor((Date.now() - targetSocket.data.micStartedAt) / 1000);
+      targetSocket.data.micStartedAt = null;
+      if (micDurationSeconds >= 10) {
+        const participation = await recordClassParticipation({
+          studentId: targetSocket.data.studentId,
+          level,
+          subject: activeSubjectByLevel.get(level),
+          sessionKey,
+        });
+        const participationCount = participation?.count || 0;
+        io.to(targetSocketId).emit("participation_count_updated", { level, count: participationCount });
+        io.to(socket.id).emit("student_participation_updated", { socketId: targetSocketId, count: participationCount });
+      }
     }
 
     io.to(targetSocketId).emit(
@@ -1997,6 +2005,38 @@ io.on("connection", (socket) => {
 
     if (role === "student") {
       setStudentMicrophoneOpen(level, socket.id, false);
+
+      // Record final attendance duration for this session
+      const attendanceId = socket.data.attendanceId;
+      const joinedAt = socket.data.joinedAt;
+      if (attendanceId && joinedAt) {
+        const durationMinutes = Math.floor((Date.now() - joinedAt) / 60000);
+        if (durationMinutes > 0) {
+          void prisma.attendance.update({
+            where: { id: attendanceId },
+            data: { durationMinutes: { increment: durationMinutes } }
+          }).catch(err => console.error("Failed to update attendance duration on disconnect:", err));
+        }
+      }
+
+      // Record final mic participation if still open
+      if (socket.data.micStartedAt) {
+        const micDurationSeconds = Math.floor((Date.now() - socket.data.micStartedAt) / 1000);
+        if (micDurationSeconds >= 10) {
+          const teacherSocketId = activeTeachersByLevel.get(level);
+          const teacherSocket = teacherSocketId ? io.sockets.sockets.get(teacherSocketId) : null;
+          const sessionKey = teacherSocket?.data?.classResumeToken;
+          if (sessionKey) {
+            void recordClassParticipation({
+              studentId: socket.data.studentId,
+              level,
+              subject: activeSubjectByLevel.get(level),
+              sessionKey,
+            }).catch(err => console.error("Failed to record final mic participation on disconnect:", err));
+          }
+        }
+      }
+
       const teacherSocketId = activeTeachersByLevel.get(level);
       const teacherSocket = teacherSocketId
         ? io.sockets.sockets.get(teacherSocketId)

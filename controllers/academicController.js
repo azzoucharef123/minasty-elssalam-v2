@@ -58,7 +58,21 @@ async function createAssignment(req, res) {
   const title = text(req.body?.title, 160);
   const description = text(req.body?.description, 10000);
   if (!LEVELS.has(level) || !SUBJECTS.has(subject) || !title || !description) return res.status(400).json({ error: "أدخل المستوى والمادة وعنوان الواجب ووصفه." });
-  const assignment = await prisma.assignment.create({ data: { level, subject, title, description, dueAt: req.body?.dueAt ? new Date(req.body.dueAt) : null, attachmentUrl: text(req.body?.attachmentUrl, 1000) || null } });
+
+  const file = req.file;
+  const assignment = await prisma.assignment.create({
+    data: {
+      level,
+      subject,
+      title,
+      description,
+      dueAt: req.body?.dueAt ? new Date(req.body.dueAt) : null,
+      attachmentUrl: text(req.body?.attachmentUrl, 1000) || null,
+      attachmentData: file ? file.buffer : null,
+      attachmentMimeType: file ? file.mimetype : null,
+      attachmentOriginalName: file ? file.originalname : null,
+    }
+  });
   void logAudit(req, { action: "ASSIGNMENT_CREATED", entityType: "Assignment", entityId: assignment.id, metadata: { level, subject } });
   return res.status(201).json({ status: "success", data: assignment });
 }
@@ -75,7 +89,29 @@ async function submitAssignment(req, res) {
   if (!student || isTeacher(req)) return res.status(403).json({ error: "هذه العملية متاحة للطالب أو الولي صاحب الحساب." });
   const assignment = await prisma.assignment.findUnique({ where: { id: text(req.params.assignmentId, 80) } });
   if (!assignment || assignment.level !== student.level) return res.status(404).json({ error: "الواجب غير موجود." });
-  const submission = await prisma.assignmentSubmission.upsert({ where: { assignmentId_studentId: { assignmentId: assignment.id, studentId: student.id } }, create: { assignmentId: assignment.id, studentId: student.id, answerText: text(req.body?.answerText, 10000) || null, attachmentUrl: text(req.body?.attachmentUrl, 1000) || null }, update: { answerText: text(req.body?.answerText, 10000) || null, attachmentUrl: text(req.body?.attachmentUrl, 1000) || null, status: "SUBMITTED", submittedAt: new Date() } });
+
+  const file = req.file;
+  const submission = await prisma.assignmentSubmission.upsert({
+    where: { assignmentId_studentId: { assignmentId: assignment.id, studentId: student.id } },
+    create: {
+      assignmentId: assignment.id,
+      studentId: student.id,
+      answerText: text(req.body?.answerText, 10000) || null,
+      attachmentUrl: text(req.body?.attachmentUrl, 1000) || null,
+      attachmentData: file ? file.buffer : null,
+      attachmentMimeType: file ? file.mimetype : null,
+      attachmentOriginalName: file ? file.originalname : null,
+    },
+    update: {
+      answerText: text(req.body?.answerText, 10000) || null,
+      attachmentUrl: text(req.body?.attachmentUrl, 1000) || null,
+      attachmentData: file ? file.buffer : null,
+      attachmentMimeType: file ? file.mimetype : null,
+      attachmentOriginalName: file ? file.originalname : null,
+      status: "SUBMITTED",
+      submittedAt: new Date()
+    }
+  });
   return res.status(201).json({ status: "success", data: submission });
 }
 
@@ -222,4 +258,53 @@ async function getTeacherAnalytics(req, res) {
   return res.json({ status: "success", data: { from, to, students, attendance, submissions, gradeCount: grades.length, averageGrade: average, events } });
 }
 
-module.exports = { listGrades, createGrade, createAssignment, listAssignments, submitAssignment, listSubmissions, gradeSubmission, createQuestion, createAssessment, listAssessments, submitAssessment, getProgress, updateLessonProgress, listNotifications, markNotificationRead, getTeacherAnalytics, listPaymentHistory, listAuditLogs, bulkUpdateStudents };
+async function getAssignmentFile(req, res) {
+  const assignment = await prisma.assignment.findUnique({ where: { id: text(req.params.assignmentId, 80) } });
+  if (!assignment || !assignment.attachmentData) return res.status(404).json({ error: "الملف غير موجود." });
+  res.setHeader("Content-Type", assignment.attachmentMimeType || "application/octet-stream");
+  res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(assignment.attachmentOriginalName || "attachment")}"`);
+  return res.send(assignment.attachmentData);
+}
+
+async function getSubmissionFile(req, res) {
+  const submission = await prisma.assignmentSubmission.findUnique({ where: { id: text(req.params.submissionId, 80) }, include: { assignment: true } });
+  if (!submission || !submission.attachmentData) return res.status(404).json({ error: "الملف غير موجود." });
+  const isOwner = req.user?.studentId === submission.studentId;
+  if (!isTeacher(req) && !isOwner) return res.status(403).json({ error: "لا تملك صلاحية عرض هذا الملف." });
+  res.setHeader("Content-Type", submission.attachmentMimeType || "application/octet-stream");
+  res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(submission.attachmentOriginalName || "attachment")}"`);
+  return res.send(submission.attachmentData);
+}
+
+async function deleteAssignment(req, res) {
+  if (!requireTeacher(req, res)) return;
+  const id = text(req.params.assignmentId, 80);
+  await prisma.assignment.delete({ where: { id } });
+  void logAudit(req, { action: "ASSIGNMENT_DELETED", entityType: "Assignment", entityId: id });
+  return res.json({ status: "success", message: "تم حذف الواجب بنجاح." });
+}
+
+module.exports = {
+  listGrades,
+  createGrade,
+  createAssignment,
+  listAssignments,
+  submitAssignment,
+  listSubmissions,
+  gradeSubmission,
+  createQuestion,
+  createAssessment,
+  listAssessments,
+  submitAssessment,
+  getProgress,
+  updateLessonProgress,
+  listNotifications,
+  markNotificationRead,
+  getTeacherAnalytics,
+  listPaymentHistory,
+  listAuditLogs,
+  bulkUpdateStudents,
+  getAssignmentFile,
+  getSubmissionFile,
+  deleteAssignment,
+};

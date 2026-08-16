@@ -45,6 +45,7 @@ async function getAttendanceForStudent(req, res) {
         id: true,
         level: true,
         joinedAt: true,
+        durationMinutes: true,
       },
     });
 

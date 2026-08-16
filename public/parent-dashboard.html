@@ -1143,7 +1143,7 @@
         }
       }
     </style>
-    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=unified-card-1" />
+    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=homework-1" />
   </head>
   <body class="parent-dashboard-page">
     <div id="parent-sidebar-backdrop" class="parent-sidebar-backdrop" hidden></div>
@@ -1311,11 +1311,23 @@
             </div>
           </article>
                 </div>
-        <section class="parent-kpi-grid" aria-label="مؤشرات التلميذ الحالي">
-          <article class="parent-kpi-card"><span class="parent-kpi-icon">✓</span><div><small>الحضور</small><strong id="attendance-count">—</strong><em>حصة مسجلة</em></div></article>
+        <section class="parent-kpi-grid activity-kpi-grid" aria-label="مؤشرات التلميذ الحالي">
+          <article class="parent-kpi-card"><span class="parent-kpi-icon">✓</span><div><small>الحضور</small><strong id="attendance-count">—</strong><em>حصص (> 1 ساعة)</em></div></article>
+          <article class="parent-kpi-card"><span class="parent-kpi-icon">🎙</span><div><small>المشاركات</small><strong id="participation-count">—</strong><em>تفاعل صوتي (> 10 ث)</em></div></article>
+          <article class="parent-kpi-card"><span class="parent-kpi-icon">📝</span><div><small>الواجبات</small><strong id="homework-count">—</strong><em>المنجزة / المطلوبة</em></div></article>
           <article class="parent-kpi-card"><span class="parent-kpi-icon">◷</span><div><small>الحصة القادمة</small><strong id="parent-kpi-next-class">—</strong><em>حسب برنامج المستوى</em></div></article>
           <article class="parent-kpi-card"><span class="parent-kpi-icon">★</span><div><small>التقييم العام</small><strong id="parent-kpi-rating">في انتظار التقييم</strong><em>لا يوجد تقييم مسجل بعد</em></div></article>
         </section>
+        <section id="student-homework-card" class="student-homework-card parent-feedback-card" aria-labelledby="student-homework-title">
+          <button id="student-homework-toggle" class="student-homework-toggle" type="button" aria-expanded="false" aria-controls="student-homework-content">
+            <span class="student-homework-toggle-copy"><span>النشاط الدراسي</span><strong id="student-homework-title">الواجبات المدرسية والحلول</strong><small>اضغط لعرض الواجبات المطلوبة ورفع الحلول</small></span>
+            <span id="student-homework-toggle-icon" class="student-homework-toggle-icon" aria-hidden="true">⌄</span>
+          </button>
+          <div id="student-homework-content" class="student-homework-content" hidden>
+            <div id="student-homework-list" class="student-homework-list"></div>
+          </div>
+        </section>
+
         <section id="student-certificates-card" class="student-certificates-card parent-feedback-card" aria-labelledby="student-certificates-title">
           <button id="student-certificates-toggle" class="student-certificates-toggle" type="button" aria-expanded="false" aria-controls="student-certificates-content">
             <span class="student-certificates-toggle-copy"><span>عامل تحفيزي</span><strong id="student-certificates-title">إنجازات التلميذ وشهاداته</strong><small>اضغط لعرض الشهادات التي حصل عليها التلميذ</small></span>
@@ -1474,7 +1486,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/parent-dashboard.js?v=unified-card-1"></script>
+    <script src="./js/parent-dashboard.js?v=homework-1"></script>
     <script src="./js/class-registry-parent.js?v=panel-scroll-1"></script>
   </body>
 </html>

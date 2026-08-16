@@ -74,7 +74,7 @@
 .payment-card { display: grid; align-content: center; gap: .2rem; }
 .payment-card > span { color: var(--text-muted); font-size: .72rem; font-weight: 700; }
 .payment-card > strong { color: var(--primary-blue); font-size: 1.1rem; }
-.parent-kpi-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 1rem; }
+.parent-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 1rem; }
 .parent-kpi-card { display: flex; min-height: 7rem; align-items: flex-start; gap: .75rem; padding: 1rem; }
 .parent-kpi-icon { display: grid; width: 2.35rem; height: 2.35rem; flex: 0 0 auto; place-items: center; color: var(--primary-blue); border-radius: .7rem; background: #eff6ff; font-size: 1.1rem; font-weight: 900; }
 .parent-kpi-card div { display: grid; min-width: 0; gap: .1rem; }
@@ -118,7 +118,7 @@
   .parent-header-actions { margin-right: auto; }
   .parent-header-actions .message-bell { display: inline-flex; }
   .student-overview, .parent-content-split { grid-template-columns: 1fr; }
-  .parent-kpi-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: .65rem; }
+  .parent-kpi-grid { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .65rem; }
   .parent-kpi-card { min-height: 6.2rem; padding: .75rem; }
 }
 @media (max-width: 440px) {
@@ -323,3 +323,33 @@
   .unified-subscription-summary { display: grid; grid-template-columns: 1fr; gap: .45rem; }
   .unified-subscription-item { flex-basis: auto; }
 }
+
+
+/* Homework Card Styles */
+.student-homework-card { margin-top: 1rem; }
+.student-homework-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 1.1rem 1.25rem; background: transparent; border: 0; cursor: pointer; text-align: right; }
+.student-homework-toggle-copy { display: grid; gap: .1rem; }
+.student-homework-toggle-copy span { color: var(--primary-blue); font-size: .7rem; font-weight: 800; text-transform: uppercase; }
+.student-homework-toggle-copy strong { color: var(--text-main); font-size: 1rem; }
+.student-homework-toggle-copy small { color: var(--text-muted); font-size: .72rem; }
+.student-homework-toggle-icon { font-size: 1.2rem; color: var(--text-muted); transition: transform .2s ease; }
+.student-homework-toggle[aria-expanded="true"] .student-homework-toggle-icon { transform: rotate(180deg); }
+.student-homework-content { padding: 0 1.25rem 1.25rem; border-top: 1px solid var(--border-color); }
+.student-homework-list { display: grid; gap: 1rem; padding-top: 1.25rem; }
+.student-homework-item { padding: 1rem; border: 1px solid var(--border-color); border-radius: .8rem; background: #f9fafb; }
+.student-homework-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: .5rem; }
+.student-homework-head h4 { margin: 0; color: var(--text-main); font-size: .95rem; }
+.student-homework-status { padding: .2rem .5rem; border-radius: 999px; font-size: .65rem; font-weight: 800; }
+.status-pending { background: #fee2e2; color: #b91c1c; }
+.status-submitted { background: #dbeafe; color: #1e40af; }
+.status-graded { background: #d1fae5; color: #047857; }
+.student-homework-desc { margin: .5rem 0; color: #4b5563; font-size: .82rem; line-height: 1.6; }
+.student-homework-footer { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: .75rem; padding-top: .75rem; border-top: 1px dashed #d1d5db; align-items: center; }
+.homework-due { color: var(--text-muted); font-size: .7rem; }
+.homework-action-btn { padding: .4rem .8rem; border-radius: 6px; font-size: .72rem; font-weight: 800; cursor: pointer; border: 1px solid transparent; }
+.btn-upload-solution { background: var(--primary-blue); color: #fff; }
+.btn-view-attachment { background: #f3f4f6; color: var(--text-main); border-color: #d1d5db !important; }
+.solution-form { margin-top: 1rem; padding: 1rem; background: #fff; border: 1px solid #dbeafe; border-radius: .6rem; }
+.solution-form label { display: block; margin-bottom: .5rem; font-size: .75rem; font-weight: 700; color: #374151; }
+.solution-form input[type="file"] { width: 100%; font-size: .75rem; }
+.solution-submit-btn { margin-top: .75rem; width: 100%; padding: .5rem; background: var(--success-green); color: #fff; border: 0; border-radius: 6px; font-weight: 800; cursor: pointer; }

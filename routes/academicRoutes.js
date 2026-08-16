@@ -1,5 +1,6 @@
 const express = require("express");
-const { verifyToken } = require("../middleware/authMiddleware");
+const multer = require("multer");
+const { verifyToken, isTeacher } = require("../middleware/authMiddleware");
 const {
   listGrades,
   createGrade,
@@ -20,23 +21,34 @@ const {
   listPaymentHistory,
   listAuditLogs,
   bulkUpdateStudents,
+  getAssignmentFile,
+  getSubmissionFile,
+  deleteAssignment,
 } = require("../controllers/academicController");
 
 const router = express.Router();
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB limit
+});
+
 router.use(verifyToken);
 
 router.get("/students/:studentId/grades", listGrades);
 router.post("/students/:studentId/grades", createGrade);
 router.get("/students/:studentId/assignments", listAssignments);
-router.post("/students/:studentId/assignments/:assignmentId/submissions", submitAssignment);
+router.post("/students/:studentId/assignments/:assignmentId/submissions", upload.single("file"), submitAssignment);
 router.get("/students/:studentId/progress", getProgress);
 router.get("/students/:studentId/payments", listPaymentHistory);
 router.put("/students/:studentId/progress/lessons/:lessonVideoId", updateLessonProgress);
 router.get("/students/:studentId/assessments", listAssessments);
 router.post("/students/:studentId/assessments/:assessmentId/submit", submitAssessment);
 
-router.post("/assignments", createAssignment);
+router.post("/assignments", isTeacher, upload.single("file"), createAssignment);
+router.get("/assignments/:assignmentId/file", getAssignmentFile);
+router.delete("/assignments/:assignmentId", isTeacher, deleteAssignment);
 router.get("/assignments/:assignmentId/submissions", listSubmissions);
+router.get("/submissions/:submissionId/file", getSubmissionFile);
 router.put("/submissions/:submissionId/grade", gradeSubmission);
 router.post("/questions", createQuestion);
 router.post("/assessments", createAssessment);

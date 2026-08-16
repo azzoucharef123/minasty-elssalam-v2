@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./css/style.css" />
+  <link rel="stylesheet" href="./css/style.css?v=homework-1" />
   <link rel="stylesheet" href="./css/app.css" />
   <link rel="stylesheet" href="./css/private-messages.css" />
   <link rel="stylesheet" href="./css/payment-feedback.css" />
@@ -98,6 +98,23 @@
 
         <section class="lesson-repository-manager" aria-labelledby="lesson-repository-title"><header class="lesson-repository-head"><div><span class="schedule-kicker">فيديوهات مكملة</span><h3 id="lesson-repository-title">إضافة فيديو مكمل</h3><p id="lesson-repository-caption">أضف رابط YouTube وعنوانًا واضحًا للفيديو المكمل للمستوى المختار.</p></div></header><form id="lesson-video-form" class="lesson-video-form" novalidate><label>تصنيف الفيديو المكمل<select id="lesson-video-type" required aria-describedby="lesson-video-type-help"></select><small id="lesson-video-type-help" class="lesson-video-type-help">سيظهر الفيديو فقط للطلاب المؤهلين لهذا التصنيف.</small></label><label>عنوان الفيديو المكمل<input id="lesson-video-title" type="text" maxlength="160" placeholder="مثال: مجموعة تمارين لاختبارات الفصل الأول" required /></label><label>رابط فيديو YouTube<input id="lesson-video-url" type="url" inputmode="url" placeholder="https://www.youtube.com/watch?v=..." required /></label><div class="lesson-video-form-actions"><button id="lesson-video-submit" class="lesson-video-submit" type="submit">نشر الفيديو المكمل</button></div></form><p class="lesson-repository-note">أدخل رابط YouTube والعنوان يدويًا. يرتبط كل فيديو بمستوى ومادة أو نوع اشتراك، ويظهر فقط للطلاب المؤهلين.</p><div id="teacher-lesson-video-list" class="teacher-lesson-video-list" aria-live="polite"></div></section>
 
+        <section class="assignment-manager" aria-labelledby="assignment-manager-title">
+          <header class="assignment-manager-head">
+            <div><span class="schedule-kicker">الواجبات المدرسية</span><h3 id="assignment-manager-title">إدارة الواجبات</h3><p id="assignment-level-caption">أضف واجبات جديدة للمستوى المختار وتابع حلول التلاميذ.</p></div>
+          </header>
+          <form id="assignment-form" class="assignment-form stack-form" novalidate>
+            <div class="form-row">
+              <label>المادة<select id="assignment-subject" required><option value="MATH">الرياضيات</option><option value="PHYSICS">الفيزياء</option></select></label>
+              <label>تاريخ التسليم<input id="assignment-due-at" type="date" /></label>
+            </div>
+            <label>عنوان الواجب<input id="assignment-title" type="text" maxlength="160" placeholder="مثال: واجب منزلي رقم 1 - الميكانيك" required /></label>
+            <label>وصف التعليمات<textarea id="assignment-description" rows="3" placeholder="اكتب تعليمات الواجب هنا..." required></textarea></label>
+            <label>ملف الواجب (PDF أو صورة)<input id="assignment-file" type="file" accept="application/pdf,image/png,image/jpeg" /></label>
+            <button id="assignment-submit" class="cta-button cta-primary" type="submit">نشر الواجب</button>
+          </form>
+          <div id="teacher-assignments-list" class="teacher-assignments-list" aria-live="polite"></div>
+        </section>
+
         <section class="roster-toolbar" aria-label="بحث وتصفية التلاميذ"><label class="teacher-search-field" for="student-search"><span>البحث</span><input id="student-search" placeholder="البحث باسم التلميذ..." /></label><label class="teacher-filter-field" for="payment-filter"><span>نوع الاشتراك</span><select id="payment-filter"><option value="all">كل الاشتراكات</option><option value="paid">اشتراك مدفوع</option><option value="unpaid">اشتراك غير مدفوع</option></select></label><span id="filtered-results-label" class="filtered-results-label">0 نتيجة معروضة</span></section>
         <section class="table-card teacher-table-card"><div class="table-title"><div><span class="table-kicker">المستوى المختار</span><h2 id="current-level-title">السنة الأولى متوسط</h2></div><span class="table-status"><i></i>تحديث مباشر</span></div><div class="table-wrap"><table><thead><tr><th>التلميذ</th><th>رقم الولي</th><th>نوع الاشتراك</th><th id="student-payment-heading">حالة الدفع</th><th>إجراءات</th></tr></thead><tbody id="students-table-body"></tbody></table></div><p id="table-empty-state" class="table-empty-state" hidden>لا يوجد تلاميذ مسجلون في هذا المستوى حالياً.</p></section>
       </section>
@@ -118,7 +135,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="./js/session-storage.js"></script>
   <script src="./js/message-notifications.js"></script>
-  <script src="./js/teacher-dashboard.js?v=certificates-1" defer></script>
+  <script src="./js/teacher-dashboard.js?v=homework-1" defer></script>
   <script src="./js/class-registry-teacher.js?v=timezone-algiers-1" defer></script>
 </body>
 </html>

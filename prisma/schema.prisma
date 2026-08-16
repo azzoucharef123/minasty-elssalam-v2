@@ -209,13 +209,16 @@ model LiveQuestionImage {
 }
 
 model Attendance {
-  id        String   @id @default(uuid()) @db.Uuid
-  studentId String   @db.Uuid
-  level     String
-  joinedAt  DateTime @default(now())
+  id              String   @id @default(uuid()) @db.Uuid
+  studentId       String   @db.Uuid
+  level           String
+  sessionKey      String   @default("")
+  joinedAt        DateTime @default(now())
+  durationMinutes Int      @default(0)
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
+  @@unique([studentId, sessionKey])
   @@index([studentId, joinedAt(sort: Desc)])
   @@index([level, joinedAt(sort: Desc)])
 }
@@ -273,6 +276,9 @@ model Assignment {
   subject     String
   dueAt       DateTime?
   attachmentUrl String?
+  attachmentData Bytes?
+  attachmentMimeType String?
+  attachmentOriginalName String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -287,6 +293,9 @@ model AssignmentSubmission {
   studentId    String   @db.Uuid
   answerText   String?  @db.Text
   attachmentUrl String?
+  attachmentData Bytes?
+  attachmentMimeType String?
+  attachmentOriginalName String?
   status       String   @default("SUBMITTED")
   grade        Float?
   teacherNote  String?  @db.Text
@@ -425,6 +434,7 @@ model ClassParticipation {
   subject             String
   sessionKey          String
   count               Int      @default(0)
+  micSeconds          Int      @default(0)
   lastParticipatedAt  DateTime @default(now())
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
