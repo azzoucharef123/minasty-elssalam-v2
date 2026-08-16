@@ -365,16 +365,14 @@ async function openStudentHomeworkFile(assignment, source = "attachment") {
 
 async function submitHomeworkSolution(assignmentId, form, submitButton) {
   if (!assignmentId || !currentStudent) return;
-  const answerText = form.querySelector("textarea")?.value.trim() || "";
   const file = form.querySelector('input[type="file"]')?.files?.[0];
-  if (!answerText && !file) {
-    openDocumentFeedback("اكتب حلاً أو ارفع ملف الحل قبل الإرسال.", "بيانات الحل ناقصة");
+  if (!file) {
+    openDocumentFeedback("صوّر الحل أو اختر صورة له قبل الإرسال.", "صورة الحل ناقصة");
     return;
   }
 
   const formData = new FormData();
-  if (answerText) formData.append("answerText", answerText);
-  if (file) formData.append("file", file);
+  formData.append("file", file);
   if (submitButton) submitButton.disabled = true;
   try {
     const response = await parentFetch(`/api/academic/students/${encodeURIComponent(currentStudent.id)}/assignments/${encodeURIComponent(assignmentId)}/submissions`, { method: "POST", body: formData });
@@ -414,80 +412,60 @@ function renderStudentHomework(assignments = []) {
     const subject = document.createElement("small");
     subject.className = "homework-subject";
     subject.textContent = homeworkSubjectLabel(assignment.subject);
-    const description = document.createElement("p");
-    description.className = "student-homework-desc";
-    description.textContent = assignment.description || "لا توجد تعليمات إضافية.";
+    const descriptionText = assignment.description && assignment.description !== "صورة الواجب مرفقة داخل التعليمات." ? assignment.description : "";
+    if (descriptionText) {
+      const description = document.createElement("p");
+      description.className = "student-homework-desc";
+      description.textContent = descriptionText;
+      item.append(description);
+    }
 
-    const footer = document.createElement("div");
-    footer.className = "student-homework-footer";
-    const due = document.createElement("span");
-    due.className = "homework-due";
-    due.textContent = formatHomeworkDueDate(assignment.dueAt);
-    footer.append(subject, due);
+    const zoomNote = document.createElement("div");
+    zoomNote.className = "homework-zoom-notice";
+    zoomNote.textContent = "كبّر الصورة بإصبعين";
+    item.append(subject, zoomNote);
 
-    let instructionPreview = null;
     if (assignment.instructionImageMimeType) {
-      instructionPreview = document.createElement("button");
-      instructionPreview.type = "button";
-      instructionPreview.className = "student-homework-instruction-preview";
-      instructionPreview.setAttribute("aria-label", "تكبير صورة الواجب");
+      const instructionPreview = document.createElement("div");
+      instructionPreview.className = "student-homework-instruction-image-wrap";
       const instructionImage = document.createElement("img");
-      instructionImage.alt = "صورة الواجب";
+      instructionImage.className = "student-homework-instruction-image";
+      instructionImage.alt = "صورة الواجب؛ كبّرها بإصبعين";
       instructionImage.loading = "lazy";
       instructionImage.decoding = "async";
+      instructionImage.draggable = false;
       instructionPreview.append(instructionImage);
-      instructionPreview.addEventListener("click", () => void openStudentHomeworkFile(assignment, "instruction"));
       void fetchHomeworkPreview(assignment, "instruction").then(({ url, isImage }) => {
         if (isImage) instructionImage.src = url;
       }).catch(() => {
         instructionPreview.hidden = true;
       });
+      item.append(instructionPreview);
     }
 
     if (!submission) {
-      const solutionButton = document.createElement("button");
-      solutionButton.type = "button";
-      solutionButton.className = "homework-action-btn btn-upload-solution";
-      solutionButton.textContent = "إرسال الحل";
       const solutionForm = document.createElement("form");
-      solutionForm.className = "solution-form";
-      solutionForm.hidden = true;
-      const label = document.createElement("label");
-      label.textContent = "اكتب الحل أو ارفع صورة/PDF للحل";
-      const textarea = document.createElement("textarea");
-      textarea.rows = 3;
-      textarea.placeholder = "اكتب حلك هنا…";
+      solutionForm.className = "solution-capture-form";
       const input = document.createElement("input");
       input.type = "file";
-      input.accept = "application/pdf,image/png,image/jpeg";
-      const submit = document.createElement("button");
-      submit.type = "submit";
-      submit.className = "solution-submit-btn";
-      submit.textContent = "إرسال الحل للأستاذ";
-      label.append(textarea);
-      solutionForm.append(label, input, submit);
-      solutionButton.addEventListener("click", () => {
-        solutionForm.hidden = !solutionForm.hidden;
-        solutionButton.textContent = solutionForm.hidden ? "إرسال الحل" : "إخفاء نموذج الحل";
+      input.accept = "image/*";
+      input.setAttribute("capture", "environment");
+      input.hidden = true;
+      const captureButton = document.createElement("button");
+      captureButton.type = "button";
+      captureButton.className = "solution-capture-btn";
+      captureButton.textContent = "تصوير الحل";
+      captureButton.addEventListener("click", () => input.click());
+      input.addEventListener("change", () => {
+        if (input.files?.[0]) void submitHomeworkSolution(assignment.id, solutionForm, captureButton);
       });
-      solutionForm.addEventListener("submit", (event) => {
-        event.preventDefault();
-        void submitHomeworkSolution(assignment.id, solutionForm, submit);
-      });
-      footer.append(solutionButton);
-      item.append(head, subject, description);
-      if (instructionPreview) item.append(instructionPreview);
-      item.append(footer, solutionForm);
-    } else {
-      if (submission.grade != null) {
-        const grade = document.createElement("strong");
-        grade.className = "homework-grade";
-        grade.textContent = `العلامة: ${submission.grade}`;
-        footer.append(grade);
-      }
-      item.append(head, subject, description);
-      if (instructionPreview) item.append(instructionPreview);
-      item.append(footer);
+      solutionForm.append(captureButton, input);
+      item.append(solutionForm);
+    } else if (submission.grade != null) {
+      const grade = document.createElement("strong");
+      grade.className = "homework-grade";
+      grade.textContent = `العلامة: ${submission.grade}`;
+      item.append(grade);
     }
     elements.studentHomeworkList.append(item);
   });

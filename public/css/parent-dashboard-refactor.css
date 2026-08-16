@@ -451,3 +451,60 @@
   .student-homework-file-image { max-width: 100%; max-height: 100%; }
   .student-homework-file-frame { min-height: 100%; height: 100%; }
 }
+
+/* Simple homework interaction: browser pinch-zoom + one capture button. */
+.homework-zoom-notice {
+  margin: .8rem 0 .65rem;
+  padding: .58rem .75rem;
+  color: #713f12;
+  background: #fef3c7;
+  border: 2px solid #dc2626;
+  border-radius: .55rem;
+  font-size: .86rem;
+  font-weight: 900;
+  line-height: 1.45;
+  text-align: center;
+}
+.student-homework-instruction-image-wrap {
+  width: 100%;
+  margin: 0 0 1rem;
+  overflow: visible;
+  border: 1px solid #e2e8f0;
+  border-radius: .8rem;
+  background: #fff;
+}
+.student-homework-instruction-image {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  touch-action: pinch-zoom;
+}
+.solution-capture-form { margin-top: .85rem; }
+.solution-capture-btn {
+  display: block;
+  width: 100%;
+  min-height: 3.15rem;
+  padding: .75rem 1rem;
+  color: #fff;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border: 0;
+  border-radius: .75rem;
+  box-shadow: 0 8px 18px rgba(37,99,235,.22);
+  font: inherit;
+  font-size: .95rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+.solution-capture-btn:active { transform: scale(.98); }
+.solution-capture-btn:hover { box-shadow: 0 12px 24px rgba(37,99,235,.3); }
+.solution-capture-btn:disabled { opacity: .65; cursor: wait; }
+@media (max-width: 640px) {
+  .homework-zoom-notice { margin-top: .65rem; font-size: .82rem; }
+  .student-homework-instruction-image-wrap { margin-bottom: .85rem; }
+  .student-homework-instruction-image { touch-action: pinch-zoom; }
+}
