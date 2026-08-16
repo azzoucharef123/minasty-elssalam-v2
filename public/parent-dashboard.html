@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./css/style.css?v=live-next-class-1" />
+    <link rel="stylesheet" href="./css/style.css?v=registry-terms-1" />
     <link rel="stylesheet" href="./css/private-messages.css" />
     <link rel="stylesheet" href="./css/payment-feedback.css" />
 
@@ -1315,10 +1315,25 @@
         </section>
 
         <section id="class-registry-student" class="class-registry-student" aria-labelledby="class-registry-student-title">
-          <header class="class-registry-student-head"><div><span>متابعة الحصص</span><h2 id="class-registry-student-title">سجل الحصص والدروس المسجلة</h2><p>اختر الشهر ثم المادة لمتابعة الحصص المنجزة والمواد المتاحة لك.</p></div></header>
-          <div class="class-registry-months" role="tablist" aria-label="اختيار شهر السجل"><button type="button" class="registry-month-tab is-active" data-registry-month="2026-09">سبتمبر 2026</button><button type="button" class="registry-month-tab" data-registry-month="2026-10">أكتوبر 2026</button><button type="button" class="registry-month-tab" data-registry-month="2026-11">نوفمبر 2026</button></div>
-          <div class="class-registry-subjects" role="tablist" aria-label="اختيار المادة"><button type="button" class="registry-subject-tab is-active" data-registry-subject="MATH">⌐ الرياضيات</button><button type="button" class="registry-subject-tab" data-registry-subject="PHYSICS">ϟ الفيزياء</button></div>
-          <div id="parent-class-registry-list" class="class-registry-list" aria-live="polite"></div>
+          <button id="class-registry-toggle" class="class-registry-toggle" type="button" aria-expanded="false" aria-controls="class-registry-controls">
+            <span class="class-registry-toggle-copy"><span>متابعة الحصص</span><strong id="class-registry-student-title">سجل الحصص والدروس المسجلة</strong><small>اضغط لعرض الفصول والأشهر والمواد والحصص</small></span>
+            <span id="class-registry-toggle-icon" class="class-registry-toggle-icon" aria-hidden="true">⌄</span>
+          </button>
+          <div id="class-registry-controls" class="class-registry-controls" hidden>
+            <div class="class-registry-filter-bar" aria-labelledby="registry-term-label">
+              <span id="registry-term-label" class="class-registry-filter-label">الفصل الدراسي</span>
+              <div id="registry-term-options" class="class-registry-options" role="tablist" aria-label="اختيار الفصل الدراسي"></div>
+            </div>
+            <div class="class-registry-filter-bar" aria-labelledby="registry-month-label">
+              <span id="registry-month-label" class="class-registry-filter-label">الشهر</span>
+              <div id="registry-month-options" class="class-registry-options" role="tablist" aria-label="اختيار شهر السجل"></div>
+            </div>
+            <div class="class-registry-filter-bar" aria-labelledby="registry-subject-label">
+              <span id="registry-subject-label" class="class-registry-filter-label">المادة</span>
+              <div id="registry-subject-options" class="class-registry-options" role="tablist" aria-label="اختيار المادة"></div>
+            </div>
+            <div id="parent-class-registry-list" class="class-registry-list" aria-live="polite"></div>
+          </div>
         </section>
 
         <section id="parent-payment-confirmed" class="parent-payment-confirmed" hidden aria-live="polite">لقد تم تأكيد الدفع. أصبح حساب الطالب مدفوعًا ويمكنه الدخول إلى جميع الحصص.</section>
@@ -1420,6 +1435,6 @@
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
     <script src="./js/parent-dashboard.js?v=live-next-class-1"></script>
-    <script src="./js/class-registry-parent.js?v=registry-toggle-1"></script>
+    <script src="./js/class-registry-parent.js?v=registry-terms-1"></script>
   </body>
 </html>
