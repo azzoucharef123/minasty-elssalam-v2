@@ -1002,7 +1002,7 @@
       .lesson-video-close { display: grid; width: 2.55rem; height: 2.55rem; flex: 0 0 auto; place-items: center; color: #475569; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 0.8rem; font-size: 1.35rem; line-height: 1; cursor: pointer; transition: color 0.18s ease, background 0.18s ease, transform 0.18s ease; }
       .lesson-video-close:hover { color: #b91c1c; background: #fef2f2; transform: rotate(4deg); }
       .lesson-video-modal-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem); gap: 1rem; align-items: start; }
-      .lesson-video-player-shell { min-width: 0; overflow: hidden; background: #020617; border: 1px solid #1e293b; border-radius: 1.05rem; box-shadow: 0 16px 36px rgba(15, 23, 42, 0.2); touch-action: pinch-zoom; }
+      .lesson-video-player-shell { position: relative; min-width: 0; overflow: hidden; background: #020617; border: 1px solid #1e293b; border-radius: 1.05rem; box-shadow: 0 16px 36px rgba(15, 23, 42, 0.2); }
       .lesson-video-player-topbar { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; padding: 0.62rem 0.78rem; color: #cbd5e1; background: #0f172a; font-size: 0.68rem; font-weight: 800; }
       .lesson-video-player-topbar span { display: inline-flex; align-items: center; gap: 0.35rem; }
       .lesson-video-player-topbar span::before { width: 0.42rem; height: 0.42rem; content: ""; background: #22c55e; border-radius: 50%; box-shadow: 0 0 0 0.22rem rgba(34, 197, 94, 0.16); }
@@ -1011,7 +1011,14 @@
       .lesson-video-player-action:hover, .lesson-video-player-action:focus-visible { color: #ffffff; background: #2563eb; outline: none; transform: translateY(-1px); }
       .lesson-video-player-action:active { transform: scale(0.97); }
       .lesson-video-player-topbar small { color: #94a3b8; font-size: 0.64rem; }
-      .lesson-video-frame { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; background: #020617; touch-action: pinch-zoom; user-select: none; -webkit-user-select: none; }
+      .lesson-video-frame { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; background: #020617; user-select: none; -webkit-user-select: none; transform-origin: center center; transition: transform 0.08s linear; }
+      .lesson-video-zoom-layer { position: absolute; z-index: 3; inset: 3.1rem 0 0; display: none; touch-action: none; cursor: grab; }
+      .lesson-video-zoom-layer.is-active { display: block; }
+      .lesson-video-zoom-layer:active { cursor: grabbing; }
+      .lesson-video-zoom-hint { position: absolute; z-index: 4; right: 0.7rem; bottom: 0.7rem; display: none; padding: 0.34rem 0.5rem; color: #ffffff; background: rgba(15, 23, 42, 0.72); border-radius: 0.45rem; font-size: 0.62rem; font-weight: 800; pointer-events: none; }
+      .lesson-video-zoom-hint.is-visible { display: block; }
+      .lesson-video-player-shell:fullscreen .lesson-video-zoom-layer { inset: 3.1rem 0 0; }
+      .lesson-video-player-shell:fullscreen .lesson-video-frame { transition: transform 0.08s linear; }
       .lesson-video-player-shell:fullscreen { display: grid; grid-template-rows: auto minmax(0, 1fr); width: 100vw; height: 100vh; border: 0; border-radius: 0; touch-action: pinch-zoom; }
       .lesson-video-player-shell:fullscreen .lesson-video-frame { height: 100%; aspect-ratio: auto; }
       @media (max-width: 520px) { .lesson-video-player-topbar { align-items: stretch; flex-direction: column; } .lesson-video-player-actions { justify-content: flex-end; } }
@@ -1336,6 +1343,8 @@
             </div>
           </div>
           <iframe id="lesson-video-frame" class="lesson-video-frame" title="فيديو الحصة المسجلة" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+          <div id="lesson-video-zoom-layer" class="lesson-video-zoom-layer" aria-label="منطقة تكبير الفيديو بإصبعين"></div>
+          <span id="lesson-video-zoom-hint" class="lesson-video-zoom-hint">استخدم إصبعين للتكبير والتحريك</span>
         </div>
 
         <aside class="lesson-video-sidebar" aria-label="معلومات الدرس">

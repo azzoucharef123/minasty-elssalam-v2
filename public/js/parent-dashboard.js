@@ -43,6 +43,8 @@ const elements = {
   lessonVideoSidebarMeta: document.getElementById("lesson-video-sidebar-meta"),
   lessonVideoFrame: document.getElementById("lesson-video-frame"),
   lessonVideoPlayerShell: document.querySelector(".lesson-video-player-shell"),
+  lessonVideoZoomLayer: document.getElementById("lesson-video-zoom-layer"),
+  lessonVideoZoomHint: document.getElementById("lesson-video-zoom-hint"),
   lessonVideoFullscreen: document.getElementById("lesson-video-fullscreen"),
   lessonVideoRotate: document.getElementById("lesson-video-rotate"),
   lessonVideoClose: document.getElementById("lesson-video-close"),
@@ -83,6 +85,13 @@ let activeLiveClassType = null;
 let universityPaymentTransferRequested = false;
 let secondaryPaymentTransferRequested = false;
 let lessonVideoPreviousFocus = null;
+let lessonZoomScale = 1;
+let lessonZoomX = 0;
+let lessonZoomY = 0;
+let lessonZoomPointers = new Map();
+let lessonZoomPinchStartDistance = 0;
+let lessonZoomPinchStartScale = 1;
+let lessonZoomPanStart = null;
 let parentScheduledClasses = [];
 let parentTeacherAbsent = false;
 let teacherAbsenceLevel = null;
@@ -629,6 +638,101 @@ function isSafeLessonPreviewUrl(value) {
   return isDrive || isYouTube;
 }
 
+function clampLessonZoomValue(value, minimum, maximum) {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function applyLessonZoom() {
+  if (!elements.lessonVideoFrame) return;
+  elements.lessonVideoFrame.style.transform = `translate3d(${lessonZoomX}px, ${lessonZoomY}px, 0) scale(${lessonZoomScale})`;
+  elements.lessonVideoZoomHint?.classList.toggle("is-visible", lessonZoomScale > 1.01);
+}
+
+function clampLessonZoomPan() {
+  const layer = elements.lessonVideoZoomLayer;
+  if (!layer) return;
+  const rect = layer.getBoundingClientRect();
+  const maxX = Math.max(0, (rect.width * (lessonZoomScale - 1)) / 2);
+  const maxY = Math.max(0, (rect.height * (lessonZoomScale - 1)) / 2);
+  lessonZoomX = clampLessonZoomValue(lessonZoomX, -maxX, maxX);
+  lessonZoomY = clampLessonZoomValue(lessonZoomY, -maxY, maxY);
+}
+
+function resetLessonZoom() {
+  lessonZoomScale = 1;
+  lessonZoomX = 0;
+  lessonZoomY = 0;
+  lessonZoomPointers.clear();
+  lessonZoomPinchStartDistance = 0;
+  lessonZoomPanStart = null;
+  elements.lessonVideoZoomLayer?.classList.remove("is-active");
+  elements.lessonVideoZoomHint?.classList.remove("is-visible");
+  if (elements.lessonVideoFrame) elements.lessonVideoFrame.style.transform = "";
+}
+
+function activateLessonZoomLayer() {
+  elements.lessonVideoZoomLayer?.classList.add("is-active");
+}
+
+function lessonZoomDistance(first, second) {
+  return Math.hypot(second.x - first.x, second.y - first.y);
+}
+
+function postLessonVideoPlayCommand() {
+  const frameWindow = elements.lessonVideoFrame?.contentWindow;
+  if (!frameWindow) return;
+  frameWindow.postMessage(JSON.stringify({ event: "command", func: "playVideo", args: [] }), "https://www.youtube.com");
+}
+
+function handleLessonZoomPointerDown(event) {
+  if (event.pointerType === "mouse" && event.button !== 0) return;
+  const layer = elements.lessonVideoZoomLayer;
+  if (!layer) return;
+  layer.setPointerCapture?.(event.pointerId);
+  lessonZoomPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  if (lessonZoomPointers.size === 2) {
+    const [first, second] = [...lessonZoomPointers.values()];
+    lessonZoomPinchStartDistance = Math.max(1, lessonZoomDistance(first, second));
+    lessonZoomPinchStartScale = lessonZoomScale;
+    lessonZoomPanStart = null;
+  } else if (lessonZoomScale > 1) {
+    lessonZoomPanStart = { x: event.clientX - lessonZoomX, y: event.clientY - lessonZoomY };
+  }
+  event.preventDefault();
+}
+
+function handleLessonZoomPointerMove(event) {
+  if (!lessonZoomPointers.has(event.pointerId)) return;
+  lessonZoomPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  if (lessonZoomPointers.size >= 2) {
+    const [first, second] = [...lessonZoomPointers.values()];
+    const distance = Math.max(1, lessonZoomDistance(first, second));
+    lessonZoomScale = clampLessonZoomValue(lessonZoomPinchStartScale * (distance / lessonZoomPinchStartDistance), 1, 4);
+    clampLessonZoomPan();
+    applyLessonZoom();
+  } else if (lessonZoomScale > 1 && lessonZoomPanStart) {
+    lessonZoomX = event.clientX - lessonZoomPanStart.x;
+    lessonZoomY = event.clientY - lessonZoomPanStart.y;
+    clampLessonZoomPan();
+    applyLessonZoom();
+  }
+  event.preventDefault();
+}
+
+function handleLessonZoomPointerUp(event) {
+  const wasSingleTap = lessonZoomPointers.size === 1 && lessonZoomScale <= 1.01;
+  lessonZoomPointers.delete(event.pointerId);
+  if (lessonZoomPointers.size < 2) lessonZoomPinchStartDistance = 0;
+  if (lessonZoomPointers.size === 1 && lessonZoomScale > 1) {
+    const [remaining] = [...lessonZoomPointers.values()];
+    lessonZoomPanStart = { x: remaining.x - lessonZoomX, y: remaining.y - lessonZoomY };
+  } else if (!lessonZoomPointers.size) {
+    lessonZoomPanStart = null;
+    if (wasSingleTap) postLessonVideoPlayCommand();
+  }
+  event.preventDefault();
+}
+
 function updateLessonFullscreenLabel() {
   if (!elements.lessonVideoFullscreen) return;
   const isFullscreen = document.fullscreenElement === elements.lessonVideoPlayerShell;
@@ -643,8 +747,10 @@ async function toggleLessonFullscreen() {
     if (document.fullscreenElement === shell) {
       await document.exitFullscreen?.();
       screen.orientation?.unlock?.();
+      resetLessonZoom();
     } else if (shell.requestFullscreen) {
       await shell.requestFullscreen();
+      activateLessonZoomLayer();
     }
   } catch (error) {
     console.warn("Unable to toggle lesson fullscreen:", error);
@@ -662,6 +768,7 @@ async function rotateLessonScreen() {
     }
     const currentType = screen.orientation?.type || "portrait-primary";
     const targetType = currentType.startsWith("landscape") ? "portrait-primary" : "landscape-primary";
+    activateLessonZoomLayer();
     if (screen.orientation?.lock) {
       await screen.orientation.lock(targetType);
     }
@@ -677,6 +784,7 @@ function closeLessonVideo() {
     void document.exitFullscreen?.().catch?.(() => {});
   }
   screen.orientation?.unlock?.();
+  resetLessonZoom();
   if (elements.lessonVideoModal) elements.lessonVideoModal.hidden = true;
   if (elements.lessonVideoFrame) elements.lessonVideoFrame.removeAttribute("src");
   document.body.classList.remove("lesson-video-open");
@@ -1315,6 +1423,10 @@ if (!getParentToken()) {
   elements.lessonVideoClose?.addEventListener("click", closeLessonVideo);
   elements.lessonVideoFullscreen?.addEventListener("click", () => { void toggleLessonFullscreen(); });
   elements.lessonVideoRotate?.addEventListener("click", () => { void rotateLessonScreen(); });
+  elements.lessonVideoZoomLayer?.addEventListener("pointerdown", handleLessonZoomPointerDown, { passive: false });
+  elements.lessonVideoZoomLayer?.addEventListener("pointermove", handleLessonZoomPointerMove, { passive: false });
+  elements.lessonVideoZoomLayer?.addEventListener("pointerup", handleLessonZoomPointerUp, { passive: false });
+  elements.lessonVideoZoomLayer?.addEventListener("pointercancel", handleLessonZoomPointerUp, { passive: false });
   document.addEventListener("fullscreenchange", updateLessonFullscreenLabel);
   elements.lessonVideoModal?.addEventListener("click", (event) => {
     if (event.target === elements.lessonVideoModal) closeLessonVideo();
