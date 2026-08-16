@@ -77,7 +77,7 @@ function serializeLessonVideo(video) {
       : repositoryTypeLabel(video.level, repositoryType),
     driveUrl: video.driveUrl,
     previewUrl: isYouTube 
-      ? video.driveUrl 
+      ? `${video.driveUrl}${video.driveUrl.includes('?') ? '&' : '?'}enablejsapi=1&origin=https://dr.africacold.fr`
       : `https://drive.google.com/file/d/${video.driveFileId}/preview`,
     createdAt: video.createdAt,
     updatedAt: video.updatedAt,
