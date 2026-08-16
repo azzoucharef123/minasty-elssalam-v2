@@ -353,3 +353,81 @@
 .solution-form label { display: block; margin-bottom: .5rem; font-size: .75rem; font-weight: 700; color: #374151; }
 .solution-form input[type="file"] { width: 100%; font-size: .75rem; }
 .solution-submit-btn { margin-top: .75rem; width: 100%; padding: .5rem; background: var(--success-green); color: #fff; border: 0; border-radius: 6px; font-weight: 800; cursor: pointer; }
+
+/* Homework attachment preview: keep the file inside the platform instead of triggering a mobile download. */
+.student-homework-file-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, .76);
+  overscroll-behavior: contain;
+}
+.student-homework-file-modal[hidden] { display: none; }
+.student-homework-file-dialog {
+  display: flex;
+  width: min(100%, 960px);
+  max-height: min(94vh, 900px);
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--text-main, #0f172a);
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, .35);
+  border-radius: 1rem;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .35);
+}
+.student-homework-file-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .8rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+.student-homework-file-head h2 { margin: .15rem 0 0; font-size: 1.05rem; }
+.student-homework-file-hint {
+  margin: 0;
+  padding: .65rem 1rem;
+  color: #475569;
+  background: #f8fafc;
+  font-size: .78rem;
+  text-align: center;
+}
+.student-homework-file-stage {
+  display: grid;
+  min-height: min(60vh, 620px);
+  place-items: center;
+  overflow: auto;
+  padding: 1rem;
+  background: #111827;
+  overscroll-behavior: contain;
+}
+.student-homework-file-image {
+  display: block;
+  max-width: 100%;
+  max-height: min(68vh, 650px);
+  object-fit: contain;
+  transform: translate3d(0, 0, 0) scale(1);
+  transform-origin: center center;
+  user-select: none;
+  -webkit-user-drag: none;
+  touch-action: none;
+  cursor: grab;
+  will-change: transform;
+}
+.student-homework-file-image:active { cursor: grabbing; }
+.student-homework-file-frame {
+  width: 100%;
+  min-height: min(68vh, 650px);
+  border: 0;
+  background: #fff;
+}
+@media (max-width: 640px) {
+  .student-homework-file-modal { padding: 0; }
+  .student-homework-file-dialog { width: 100%; max-height: 100dvh; border-radius: 0; }
+  .student-homework-file-stage { min-height: 0; flex: 1; padding: .5rem; }
+  .student-homework-file-image { max-width: none; max-height: 78dvh; }
+  .student-homework-file-frame { min-height: 78dvh; }
+}

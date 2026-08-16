@@ -26,6 +26,13 @@ const elements = {
   studentHomeworkContent: document.getElementById("student-homework-content"),
   studentHomeworkToggleIcon: document.getElementById("student-homework-toggle-icon"),
   studentHomeworkList: document.getElementById("student-homework-list"),
+  studentHomeworkFileModal: document.getElementById("student-homework-file-modal"),
+  studentHomeworkFileTitle: document.getElementById("student-homework-file-title"),
+  studentHomeworkFileClose: document.getElementById("student-homework-file-close"),
+  studentHomeworkFileHint: document.getElementById("student-homework-file-hint"),
+  studentHomeworkFileStage: document.getElementById("student-homework-file-stage"),
+  studentHomeworkFileImage: document.getElementById("student-homework-file-image"),
+  studentHomeworkFileFrame: document.getElementById("student-homework-file-frame"),
   studentAvatar: document.getElementById("student-avatar"),
   studentName: document.getElementById("student-name"),
   studentLevel: document.getElementById("student-level"),
@@ -110,6 +117,14 @@ let lessonRepositoryOpen = false;
 let studentCertificatesOpen = false;
 let studentHomeworkOpen = false;
 let certificateImageUrls = new Set();
+let homeworkFileObjectUrl = null;
+const homeworkFilePointers = new Map();
+let homeworkFileScale = 1;
+let homeworkFilePanX = 0;
+let homeworkFilePanY = 0;
+let homeworkFilePinchDistance = 0;
+let homeworkFilePinchScale = 1;
+let homeworkFilePanStart = null;
 
 function scrollExpandedPanel(panel) {
   if (!panel || panel.hidden) return;
@@ -189,20 +204,123 @@ function showHomeworkEmptyState(message) {
   return empty;
 }
 
+function resetHomeworkFileTransform() {
+  homeworkFileScale = 1;
+  homeworkFilePanX = 0;
+  homeworkFilePanY = 0;
+  homeworkFilePinchDistance = 0;
+  homeworkFilePinchScale = 1;
+  homeworkFilePanStart = null;
+  if (elements.studentHomeworkFileImage) {
+    elements.studentHomeworkFileImage.style.transform = "translate3d(0, 0, 0) scale(1)";
+  }
+}
+
+function applyHomeworkFileTransform() {
+  if (!elements.studentHomeworkFileImage) return;
+  elements.studentHomeworkFileImage.style.transform = `translate3d(${homeworkFilePanX}px, ${homeworkFilePanY}px, 0) scale(${homeworkFileScale})`;
+}
+
+function closeStudentHomeworkFile() {
+  elements.studentHomeworkFileModal?.classList.remove("is-open");
+  if (elements.studentHomeworkFileModal) elements.studentHomeworkFileModal.hidden = true;
+  if (homeworkFileObjectUrl) URL.revokeObjectURL(homeworkFileObjectUrl);
+  homeworkFileObjectUrl = null;
+  homeworkFilePointers.clear();
+  resetHomeworkFileTransform();
+  if (elements.studentHomeworkFileImage) {
+    elements.studentHomeworkFileImage.removeAttribute("src");
+    elements.studentHomeworkFileImage.hidden = true;
+  }
+  if (elements.studentHomeworkFileFrame) {
+    elements.studentHomeworkFileFrame.src = "about:blank";
+    elements.studentHomeworkFileFrame.hidden = true;
+  }
+  document.body.style.overflow = "";
+}
+
+function getHomeworkFilePointerDistance() {
+  const points = [...homeworkFilePointers.values()];
+  if (points.length < 2) return 0;
+  return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+}
+
+function handleHomeworkFilePointerDown(event) {
+  if (!elements.studentHomeworkFileImage || elements.studentHomeworkFileImage.hidden) return;
+  event.preventDefault();
+  homeworkFilePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  elements.studentHomeworkFileImage.setPointerCapture?.(event.pointerId);
+  if (homeworkFilePointers.size === 2) {
+    homeworkFilePinchDistance = getHomeworkFilePointerDistance();
+    homeworkFilePinchScale = homeworkFileScale;
+    homeworkFilePanStart = null;
+  } else if (homeworkFilePointers.size === 1) {
+    homeworkFilePanStart = { x: event.clientX, y: event.clientY, panX: homeworkFilePanX, panY: homeworkFilePanY };
+  }
+}
+
+function handleHomeworkFilePointerMove(event) {
+  if (!homeworkFilePointers.has(event.pointerId)) return;
+  event.preventDefault();
+  homeworkFilePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  if (homeworkFilePointers.size >= 2 && homeworkFilePinchDistance > 0) {
+    const distance = getHomeworkFilePointerDistance();
+    homeworkFileScale = Math.min(4, Math.max(1, homeworkFilePinchScale * (distance / homeworkFilePinchDistance)));
+    applyHomeworkFileTransform();
+    return;
+  }
+  if (homeworkFilePointers.size === 1 && homeworkFilePanStart && homeworkFileScale > 1) {
+    homeworkFilePanX = homeworkFilePanStart.panX + event.clientX - homeworkFilePanStart.x;
+    homeworkFilePanY = homeworkFilePanStart.panY + event.clientY - homeworkFilePanStart.y;
+    applyHomeworkFileTransform();
+  }
+}
+
+function handleHomeworkFilePointerUp(event) {
+  homeworkFilePointers.delete(event.pointerId);
+  if (homeworkFilePointers.size < 2) homeworkFilePinchDistance = 0;
+  if (homeworkFilePointers.size === 1) {
+    const point = [...homeworkFilePointers.values()][0];
+    homeworkFilePanStart = { x: point.x, y: point.y, panX: homeworkFilePanX, panY: homeworkFilePanY };
+  } else if (!homeworkFilePointers.size) {
+    homeworkFilePanStart = null;
+  }
+}
+
 async function openStudentHomeworkFile(assignment) {
-  if (!assignment?.id) return;
+  if (!assignment?.id || !elements.studentHomeworkFileModal) return;
   try {
+    closeStudentHomeworkFile();
     const response = assignment.attachmentUrl
       ? await parentFetch(assignment.attachmentUrl, { headers: { Accept: "*/*" } })
       : await parentFetch(`/api/academic/assignments/${encodeURIComponent(assignment.id)}/file`, { headers: { Accept: "*/*" } });
     if (!response.ok) throw new Error("تعذر فتح ملف الواجب.");
-    const url = URL.createObjectURL(await response.blob());
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = assignment.attachmentOriginalName || "assignment";
-    link.target = "_blank";
-    link.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    const blob = await response.blob();
+    homeworkFileObjectUrl = URL.createObjectURL(blob);
+    const mimeType = (response.headers.get("Content-Type") || assignment.attachmentMimeType || blob.type || "").toLowerCase();
+    const isImage = mimeType.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(assignment.attachmentOriginalName || "");
+    const isPdf = mimeType.includes("pdf") || /\.pdf$/i.test(assignment.attachmentOriginalName || "");
+    if (elements.studentHomeworkFileTitle) elements.studentHomeworkFileTitle.textContent = assignment.title || "معاينة الواجب";
+    if (elements.studentHomeworkFileImage) {
+      elements.studentHomeworkFileImage.hidden = !isImage;
+      if (isImage) elements.studentHomeworkFileImage.src = homeworkFileObjectUrl;
+    }
+    if (elements.studentHomeworkFileFrame) {
+      elements.studentHomeworkFileFrame.hidden = isImage;
+      if (!isImage) elements.studentHomeworkFileFrame.src = homeworkFileObjectUrl;
+    }
+    if (elements.studentHomeworkFileHint) {
+      elements.studentHomeworkFileHint.textContent = isImage
+        ? "يمكنك تكبير الصورة بإصبعين وتحريكها لرؤية التفاصيل."
+        : isPdf
+          ? "يُعرض ملف PDF داخل المنصة. استخدم أدوات العرض للتكبير والتمرير."
+          : "يُعرض الملف داخل المنصة حسب دعم المتصفح لهذا النوع من الملفات.";
+    }
+    resetHomeworkFileTransform();
+    elements.studentHomeworkFileModal.hidden = false;
+    elements.studentHomeworkFileModal.classList.add("is-open");
+    document.body.style.overflow = "hidden";
+    elements.studentHomeworkFileClose?.focus();
   } catch (error) {
     if (!/انتهت الجلسة/.test(error.message)) openDocumentFeedback(error.message || "تعذر فتح ملف الواجب.");
   }
@@ -2002,6 +2120,14 @@ if (!getParentToken()) {
   elements.parentSidebarBackdrop?.addEventListener("click", () => setParentSidebarOpen(false));
   elements.parentNavLinks.forEach((link) => link.addEventListener("click", () => { setParentActiveNav(link); setParentSidebarOpen(false); }));
   elements.documentFeedbackClose?.addEventListener("click", closeDocumentFeedback);
+  elements.studentHomeworkFileClose?.addEventListener("click", closeStudentHomeworkFile);
+  elements.studentHomeworkFileModal?.addEventListener("click", (event) => {
+    if (event.target === elements.studentHomeworkFileModal) closeStudentHomeworkFile();
+  });
+  elements.studentHomeworkFileImage?.addEventListener("pointerdown", handleHomeworkFilePointerDown, { passive: false });
+  elements.studentHomeworkFileImage?.addEventListener("pointermove", handleHomeworkFilePointerMove, { passive: false });
+  elements.studentHomeworkFileImage?.addEventListener("pointerup", handleHomeworkFilePointerUp, { passive: false });
+  elements.studentHomeworkFileImage?.addEventListener("pointercancel", handleHomeworkFilePointerUp, { passive: false });
   elements.documentFeedbackModal?.addEventListener("click", (event) => {
     if (event.target === elements.documentFeedbackModal) closeDocumentFeedback();
   });
@@ -2065,6 +2191,7 @@ if (!getParentToken()) {
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       setParentSidebarOpen(false);
+      closeStudentHomeworkFile();
       closeDocumentFeedback();
       closePaymentAccessModal();
       closeLessonVideo();
