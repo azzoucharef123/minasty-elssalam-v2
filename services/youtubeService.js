@@ -33,8 +33,11 @@ function getEncryptionKey() {
 }
 
 function ensureConfigured() {
-  if (!getClientId() || !getClientSecret()) {
-    const error = new Error("لم يتم إعداد بيانات YouTube OAuth في الخادم بعد.");
+  const cid = getClientId();
+  const csec = getClientSecret();
+  console.log(`YouTube Config Check: CID_LEN=${cid.length}, CSEC_LEN=${csec.length}`);
+  if (!cid || !csec) {
+    const error = new Error(`لم يتم إعداد بيانات YouTube OAuth في الخادم بعد. (CID:${cid.length}, SEC:${csec.length})`);
     error.code = "YOUTUBE_NOT_CONFIGURED";
     throw error;
   }
