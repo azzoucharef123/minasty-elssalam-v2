@@ -5,6 +5,39 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const LEVELS = new Set(["السنة الأولى", "السنة الثانية", "السنة الثالثة", "السنة الرابعة", "طالب جامعي"]);
 const SUBJECTS = new Set(["MATH", "PHYSICS", "FREE", "PAID", "GENERAL"]);
 
+// The teacher dashboard sends short labels, while Student.level stores the
+// full middle-school labels. Assignments use the full label canonically and
+// remain compatible with older records stored with short labels.
+const ASSIGNMENT_LEVEL_MAP = Object.freeze({
+  "السنة الأولى": "السنة الأولى متوسط",
+  "السنة الثانية": "السنة الثانية متوسط",
+  "السنة الثالثة": "السنة الثالثة متوسط",
+  "السنة الرابعة": "السنة الرابعة متوسط",
+  "السنة الأولى متوسط": "السنة الأولى متوسط",
+  "السنة الثانية متوسط": "السنة الثانية متوسط",
+  "السنة الثالثة متوسط": "السنة الثالثة متوسط",
+  "السنة الرابعة متوسط": "السنة الرابعة متوسط",
+  "طالب جامعي": "طالب جامعي",
+});
+const ASSIGNMENT_CANONICAL_LEVELS = new Set(Object.values(ASSIGNMENT_LEVEL_MAP));
+const ASSIGNMENT_LEGACY_LEVELS = Object.freeze({
+  "السنة الأولى متوسط": "السنة الأولى",
+  "السنة الثانية متوسط": "السنة الثانية",
+  "السنة الثالثة متوسط": "السنة الثالثة",
+  "السنة الرابعة متوسط": "السنة الرابعة",
+});
+
+function normalizeAssignmentLevel(value) {
+  const normalized = text(value, 100);
+  return ASSIGNMENT_LEVEL_MAP[normalized] || normalized;
+}
+
+function assignmentLevelCandidates(value) {
+  const canonical = normalizeAssignmentLevel(value);
+  const legacy = ASSIGNMENT_LEGACY_LEVELS[canonical];
+  return legacy ? [canonical, legacy] : [canonical];
+}
+
 function text(value, max = 5000) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
@@ -53,11 +86,12 @@ async function createGrade(req, res) {
 
 async function createAssignment(req, res) {
   if (!requireTeacher(req, res)) return;
-  const level = text(req.body?.level, 100);
+  const requestedLevel = text(req.body?.level, 100);
+  const level = normalizeAssignmentLevel(requestedLevel);
   const subject = text(req.body?.subject, 40).toUpperCase();
   const title = text(req.body?.title, 160);
   const description = text(req.body?.description, 10000);
-  if (!LEVELS.has(level) || !SUBJECTS.has(subject) || !title || !description) return res.status(400).json({ error: "أدخل المستوى والمادة وعنوان الواجب ووصفه." });
+  if (!ASSIGNMENT_CANONICAL_LEVELS.has(level) || !SUBJECTS.has(subject) || !title || !description) return res.status(400).json({ error: "أدخل المستوى والمادة وعنوان الواجب ووصفه." });
 
   const file = req.file;
   const assignment = await prisma.assignment.create({
@@ -73,17 +107,17 @@ async function createAssignment(req, res) {
       attachmentOriginalName: file ? file.originalname : null,
     }
   });
-  void logAudit(req, { action: "ASSIGNMENT_CREATED", entityType: "Assignment", entityId: assignment.id, metadata: { level, subject } });
+  void logAudit(req, { action: "ASSIGNMENT_CREATED", entityType: "Assignment", entityId: assignment.id, metadata: { requestedLevel, level, subject } });
   return res.status(201).json({ status: "success", data: assignment });
 }
 
 async function listTeacherAssignments(req, res) {
   if (!requireTeacher(req, res)) return;
-  const level = text(req.query?.level, 100);
-  if (!LEVELS.has(level)) return res.status(400).json({ error: "المستوى الدراسي غير صالح." });
+  const level = normalizeAssignmentLevel(req.query?.level);
+  if (!ASSIGNMENT_CANONICAL_LEVELS.has(level)) return res.status(400).json({ error: "المستوى الدراسي غير صالح." });
 
   const assignments = await prisma.assignment.findMany({
-    where: { level },
+    where: { level: { in: assignmentLevelCandidates(level) } },
     select: {
       id: true,
       title: true,
@@ -108,7 +142,7 @@ async function listAssignments(req, res) {
   const student = await getStudentForUser(req, text(req.params.studentId, 80));
   if (!student) return res.status(403).json({ error: "لا تملك صلاحية هذه البيانات." });
   const assignments = await prisma.assignment.findMany({
-    where: { level: student.level, ...(req.query.subject ? { subject: text(req.query.subject, 40).toUpperCase() } : {}) },
+    where: { level: { in: assignmentLevelCandidates(student.level) }, ...(req.query.subject ? { subject: text(req.query.subject, 40).toUpperCase() } : {}) },
     select: {
       id: true,
       title: true,
@@ -137,7 +171,7 @@ async function submitAssignment(req, res) {
   const student = await getStudentForUser(req, text(req.params.studentId, 80));
   if (!student || isTeacher(req)) return res.status(403).json({ error: "هذه العملية متاحة للطالب أو الولي صاحب الحساب." });
   const assignment = await prisma.assignment.findUnique({ where: { id: text(req.params.assignmentId, 80) } });
-  if (!assignment || assignment.level !== student.level) return res.status(404).json({ error: "الواجب غير موجود." });
+  if (!assignment || !assignmentLevelCandidates(student.level).includes(assignment.level)) return res.status(404).json({ error: "الواجب غير موجود." });
 
   const file = req.file;
   const submission = await prisma.assignmentSubmission.upsert({
