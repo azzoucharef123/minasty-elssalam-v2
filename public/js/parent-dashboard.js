@@ -287,6 +287,26 @@ function handleHomeworkFilePointerUp(event) {
   }
 }
 
+function resolveHomeworkFileMimeType(assignment, response) {
+  const responseType = String(response.headers.get("Content-Type") || "").split(";", 1)[0].trim().toLowerCase();
+  const storedType = String(assignment?.attachmentMimeType || "").split(";", 1)[0].trim().toLowerCase();
+  const filename = String(assignment?.attachmentOriginalName || "").toLowerCase();
+  const extensionTypes = {
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    webp: "image/webp",
+    gif: "image/gif",
+    bmp: "image/bmp",
+    avif: "image/avif",
+    pdf: "application/pdf",
+  };
+  const extension = filename.match(/\.([a-z0-9]+)$/i)?.[1];
+  return storedType && storedType !== "application/octet-stream"
+    ? storedType
+    : extensionTypes[extension] || (responseType && responseType !== "application/octet-stream" ? responseType : "application/octet-stream");
+}
+
 async function openStudentHomeworkFile(assignment) {
   if (!assignment?.id || !elements.studentHomeworkFileModal) return;
   try {
@@ -295,9 +315,10 @@ async function openStudentHomeworkFile(assignment) {
       ? await parentFetch(assignment.attachmentUrl, { headers: { Accept: "*/*" } })
       : await parentFetch(`/api/academic/assignments/${encodeURIComponent(assignment.id)}/file`, { headers: { Accept: "*/*" } });
     if (!response.ok) throw new Error("تعذر فتح ملف الواجب.");
-    const blob = await response.blob();
+    const mimeType = resolveHomeworkFileMimeType(assignment, response);
+    const fileBytes = await response.arrayBuffer();
+    const blob = new Blob([fileBytes], { type: mimeType });
     homeworkFileObjectUrl = URL.createObjectURL(blob);
-    const mimeType = (response.headers.get("Content-Type") || assignment.attachmentMimeType || blob.type || "").toLowerCase();
     const isImage = mimeType.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(assignment.attachmentOriginalName || "");
     const isPdf = mimeType.includes("pdf") || /\.pdf$/i.test(assignment.attachmentOriginalName || "");
     if (elements.studentHomeworkFileTitle) elements.studentHomeworkFileTitle.textContent = assignment.title || "معاينة الواجب";
