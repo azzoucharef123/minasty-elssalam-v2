@@ -103,6 +103,7 @@ const elements = {
   rotateButton: document.getElementById("student-rotate-btn"),
   unrotateButton: document.getElementById("student-unrotate-btn"),
   mobileControlToast: document.getElementById("student-mobile-control-toast"),
+  refreshMediaButton: document.getElementById("refresh-media-btn"),
 };
 
 function openSubscriptionUpgradeModal(reason = "university") {
@@ -287,6 +288,33 @@ function hideLiveStartNotice() {
   if (!elements.liveStartNotice) return;
   elements.liveStartNotice.classList.remove("is-visible");
   elements.liveStartNotice.hidden = true;
+}
+
+async function refreshAudioVideo() {
+  if (!joinedClass || isJoining) return;
+
+  const button = elements.refreshMediaButton;
+  if (button) {
+    button.classList.add("is-refreshing");
+    const label = button.querySelector("span");
+    const originalText = label ? label.textContent : "";
+    if (label) label.textContent = "جارٍ التحديث...";
+    
+    // Trigger a re-join request to force the teacher to send a new offer.
+    // This effectively resets both audio and video tracks.
+    try {
+      await joinClass({ rejoin: true });
+      showMobileControlToast("تم طلب تحديث الصوت والصورة");
+    } catch (error) {
+      console.error("Refresh media failed:", error);
+      showMobileControlToast("تعذر تحديث البث حالياً");
+    } finally {
+      window.setTimeout(() => {
+        button.classList.remove("is-refreshing");
+        if (label) label.textContent = originalText;
+      }, 1500);
+    }
+  }
 }
 
 const MOBILE_CONTROLS_POSITION_KEY = "studentMobileControlsPosition";
@@ -2015,6 +2043,7 @@ elements.questionImageInput?.addEventListener("change", () => {
   selectQuestionImage(elements.questionImageInput.files?.[0]);
 });
 elements.removeQuestionImageButton?.addEventListener("click", clearSelectedQuestionImage);
+elements.refreshMediaButton?.addEventListener("click", refreshAudioVideo);
 elements.subscriptionDeclineButton?.addEventListener("click", () => {
   closeSubscriptionUpgradeModal();
   window.location.assign("./index.html");
