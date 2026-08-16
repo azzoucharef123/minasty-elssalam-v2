@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=5, interactive-widget=overlays-content" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=5, viewport-fit=cover, interactive-widget=overlays-content" />
     <meta
       name="description"
       content="مشاهدة الحصة المباشرة في أكاديمية التفوق للفيزياء والرياضيات."
@@ -1096,6 +1096,248 @@
           transition-duration: 0.01ms !important;
         }
       }
+
+      /* Final mobile shell: visual-only overrides. The streaming DOM contract
+         and every existing functional element ID remain unchanged. */
+      @media screen and (max-width: 900px) {
+        html,
+        body {
+          width: 100%;
+          height: 100%;
+          min-height: 100%;
+          overflow: hidden;
+          overscroll-behavior: none;
+        }
+
+        .student-live-page {
+          position: fixed;
+          inset: 0;
+          width: 100vw;
+          height: 100svh;
+          min-height: 100svh;
+          overflow: hidden;
+          overscroll-behavior: none;
+          background: #090d18;
+        }
+
+        .viewer-shell {
+          width: 100%;
+          height: 100%;
+          min-height: 0;
+          overflow: hidden;
+          grid-template-rows: 3.65rem minmax(0, 1fr);
+        }
+
+        .viewer-header {
+          min-height: 3.65rem;
+          height: 3.65rem;
+          padding: 0.42rem 0.62rem;
+          gap: 0.45rem;
+          overflow: hidden;
+        }
+
+        .viewer-brand {
+          gap: 0.42rem;
+          min-width: 0;
+        }
+
+        .viewer-brand-mark {
+          width: 2.05rem;
+          height: 2.05rem;
+          border-radius: 0.62rem;
+        }
+
+        .viewer-brand-copy strong {
+          max-width: 8rem;
+          font-size: 0.75rem;
+        }
+
+        .viewer-brand-copy small {
+          display: none;
+        }
+
+        .viewer-level {
+          max-width: 42%;
+          padding: 0.32rem 0.46rem;
+          font-size: 0.62rem;
+        }
+
+        .student-participation-count {
+          flex: 0 0 auto;
+          font-size: 0.58rem;
+        }
+
+        .message-bell {
+          width: 2.1rem;
+          height: 2.1rem;
+          flex: 0 0 auto;
+          border-radius: 0.62rem;
+          font-size: 0.9rem;
+        }
+
+        .viewer-stage {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+          grid-template-areas:
+            "video"
+            "chat";
+          width: 100%;
+          height: 100%;
+          min-height: 0;
+          gap: 0;
+          padding: 0;
+          overflow: hidden;
+          background: #111827;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          border-radius: 0.85rem 0.85rem 0 0;
+          box-shadow: 0 10px 26px rgba(0, 0, 0, 0.26);
+        }
+
+        .video-frame {
+          width: 100%;
+          height: 100%;
+          min-height: 0;
+          max-height: none;
+          border: 0;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+          border-radius: 0;
+          box-shadow: none;
+          contain: layout paint;
+          touch-action: pinch-zoom;
+        }
+
+        #remote-video,
+        #student-canvas {
+          width: 100%;
+          height: 100%;
+        }
+
+        #remote-video {
+          touch-action: pinch-zoom;
+        }
+
+        .student-chat-panel,
+        .student-live-page .student-chat-panel {
+          width: 100%;
+          height: 100%;
+          min-height: 0;
+          max-height: none;
+          overflow: hidden;
+          background: #18181b;
+          border: 0;
+          border-radius: 0;
+          box-shadow: none;
+          backdrop-filter: none;
+        }
+
+        .student-chat-head {
+          min-height: 2.35rem;
+          padding: 0.42rem 0.62rem;
+        }
+
+        .student-chat-head h2 {
+          font-size: 0.67rem;
+        }
+
+        .student-chat-box {
+          min-height: 0;
+          padding: 0.45rem 0.55rem;
+          overflow-x: hidden;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
+          touch-action: pan-y;
+        }
+
+        .student-chat-form {
+          position: relative;
+          z-index: 6;
+          grid-template-columns: minmax(0, 1fr) auto auto;
+          gap: 0.3rem;
+          padding: 0.4rem 0.48rem calc(0.48rem + env(safe-area-inset-bottom));
+          transform: translateY(calc(-1 * var(--student-keyboard-offset, 0px)));
+          transform-origin: bottom center;
+          transition: none;
+          will-change: transform;
+        }
+
+        .student-live-page.student-keyboard-open .student-chat-form {
+          box-shadow: 0 -10px 22px rgba(2, 6, 23, 0.28);
+        }
+
+        #chat-input {
+          min-width: 0;
+          min-height: 2.3rem;
+          height: 4.2rem;
+          max-height: 6.2rem;
+          padding: 0.48rem 0.5rem;
+          font-size: 16px;
+          line-height: 1.45;
+          -webkit-text-size-adjust: 100%;
+          touch-action: manipulation;
+        }
+
+        .student-chat-send,
+        .student-chat-capture {
+          min-width: 3.4rem;
+          min-height: 2.3rem;
+          padding: 0.32rem 0.38rem;
+          font-size: 0.61rem;
+        }
+
+        .student-mobile-controls {
+          bottom: calc(0.7rem + env(safe-area-inset-bottom) + var(--student-keyboard-offset, 0px));
+        }
+
+        .student-mobile-control-toast {
+          bottom: calc(0.7rem + env(safe-area-inset-bottom) + var(--student-keyboard-offset, 0px));
+        }
+      }
+
+      @media screen and (max-width: 29rem) {
+        .viewer-brand-copy strong {
+          max-width: 6.2rem;
+        }
+
+        .viewer-level {
+          max-width: 35%;
+          font-size: 0.57rem;
+        }
+
+        .student-participation-count {
+          font-size: 0.54rem;
+        }
+      }
+
+      @media screen and (orientation: landscape) and (max-width: 900px) {
+        .viewer-shell {
+          grid-template-rows: minmax(0, 1fr);
+        }
+
+        .viewer-header {
+          display: none;
+        }
+
+        .viewer-stage {
+          height: 100%;
+          min-height: 100%;
+          border: 0;
+          border-radius: 0;
+        }
+
+        .video-frame {
+          grid-column: 1;
+          grid-row: 1 / -1;
+          height: 100%;
+          min-height: 100%;
+          border: 0;
+        }
+
+        .student-chat-panel {
+          display: none;
+        }
+      }
     </style>
   </head>
   <body class="student-live-page">
@@ -1204,6 +1446,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=mobile-controls-1"></script>
+    <script src="./js/student-live.js?v=keyboard-stable-1"></script>
   </body>
 </html>

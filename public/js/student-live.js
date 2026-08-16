@@ -424,6 +424,49 @@ function initializeMobileControls() {
   updateRotationControls();
 }
 
+// Visual-only keyboard compensation. It never changes a stream, peer
+// connection, socket event, or message payload; it only moves the composer
+// above the virtual keyboard while the video frame keeps its stable size.
+function updateStudentKeyboardOffset() {
+  const root = document.documentElement;
+  const page = document.body;
+  const isMobile = window.matchMedia?.("(max-width: 900px)").matches;
+  const viewport = window.visualViewport;
+  const inputFocused = document.activeElement === elements.chatInput;
+
+  let keyboardOffset = 0;
+  if (isMobile && viewport && inputFocused) {
+    const layoutHeight = Math.max(
+      document.documentElement?.clientHeight || 0,
+      window.innerHeight || 0,
+      viewport.height || 0,
+    );
+    const viewportHeight = viewport.height || layoutHeight;
+    const coveredHeight = layoutHeight - viewportHeight - (viewport.offsetTop || 0);
+    const keyboardLikelyOpen = viewportHeight < layoutHeight - 80;
+    if (keyboardLikelyOpen && coveredHeight > 0) {
+      keyboardOffset = Math.min(coveredHeight, Math.round(viewportHeight * 0.65));
+    }
+  }
+
+  root.style.setProperty("--student-keyboard-offset", `${Math.max(0, Math.round(keyboardOffset))}px`);
+  page?.classList.toggle("student-keyboard-open", keyboardOffset > 0);
+}
+
+function initializeStudentKeyboardLayout() {
+  const input = elements.chatInput;
+  if (!input) return;
+
+  const scheduleUpdate = () => window.requestAnimationFrame(updateStudentKeyboardOffset);
+  input.addEventListener("focus", scheduleUpdate, { passive: true });
+  input.addEventListener("blur", () => window.setTimeout(scheduleUpdate, 120), { passive: true });
+  window.visualViewport?.addEventListener("resize", scheduleUpdate, { passive: true });
+  window.visualViewport?.addEventListener("scroll", scheduleUpdate, { passive: true });
+  window.addEventListener("resize", scheduleUpdate, { passive: true });
+  window.addEventListener("orientationchange", scheduleUpdate, { passive: true });
+  scheduleUpdate();
+}
+
 function setParticipationCount(value) {
   participationCount = Math.max(0, Number.parseInt(value, 10) || 0);
   if (elements.participationCount) {
@@ -1927,6 +1970,7 @@ elements.subscriptionDeclineButton?.addEventListener("click", () => {
   window.location.assign("./index.html");
 });
 initializeMobileControls();
+initializeStudentKeyboardLayout();
 initializeStudentCanvas();
 
 window.addEventListener("pagehide", () => {
