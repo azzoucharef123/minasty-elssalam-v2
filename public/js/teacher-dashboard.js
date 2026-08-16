@@ -74,6 +74,10 @@ const elements = {
   cardPreviewImage: document.getElementById("student-card-preview-image"),
   cardPreviewSaveDriveButton: document.getElementById("save-student-card-to-drive"),
   closeCardPreviewButton: document.getElementById("close-student-card-preview"),
+  scheduleManager: document.getElementById("schedule-manager"),
+  scheduleManagerToggle: document.getElementById("schedule-manager-toggle"),
+  scheduleManagerContent: document.getElementById("schedule-manager-content"),
+  scheduleManagerToggleIcon: document.getElementById("schedule-manager-toggle-icon"),
   scheduleForm: document.getElementById("schedule-form"),
   scheduleSubject: document.getElementById("schedule-subject"),
   scheduleDateTime: document.getElementById("schedule-datetime"),
@@ -141,6 +145,7 @@ let toastTimer = null;
 let scheduledClasses = [];
 let teacherAbsent = false;
 let editingScheduledClassId = null;
+let scheduleManagerOpen = false;
 let paymentStatusStudentId = null;
 let lessonVideos = [];
 let googlePickerApiKey = null;
@@ -867,6 +872,14 @@ function renderScheduledClasses() {
     item.append(info, actions);
     elements.scheduledClassList.append(item);
   });
+}
+
+function setScheduleManagerOpen(nextOpen) {
+  scheduleManagerOpen = Boolean(nextOpen);
+  if (elements.scheduleManagerContent) elements.scheduleManagerContent.hidden = !scheduleManagerOpen;
+  elements.scheduleManager?.classList.toggle("is-open", scheduleManagerOpen);
+  elements.scheduleManagerToggle?.setAttribute("aria-expanded", String(scheduleManagerOpen));
+  if (elements.scheduleManagerToggleIcon) elements.scheduleManagerToggleIcon.textContent = scheduleManagerOpen ? "⌃" : "⌄";
 }
 
 function renderTeacherAbsence() {
@@ -1680,6 +1693,7 @@ function beginScheduleEdit(scheduledClassId) {
   elements.scheduleDateTime.value = toDateTimeLocalValue(scheduledClass.scheduledAt);
   elements.scheduleSubmitButton.textContent = "حفظ التعديل";
   elements.scheduleCancelButton.hidden = false;
+  setScheduleManagerOpen(true);
   elements.scheduleForm?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
@@ -2402,6 +2416,7 @@ if (!getTeacherToken()) {
   elements.scheduleForm?.addEventListener("submit", saveScheduledClass);
   elements.lessonVideoForm?.addEventListener("submit", saveLessonVideo);
   elements.assignmentForm?.addEventListener("submit", submitAssignment);
+  elements.scheduleManagerToggle?.addEventListener("click", () => setScheduleManagerOpen(!scheduleManagerOpen));
   elements.scheduleCancelButton?.addEventListener("click", resetScheduleForm);
   elements.teacherAbsenceButton?.addEventListener("click", () => void toggleTeacherAbsence());
   elements.subscriptionForm?.addEventListener("submit", saveSubscription);

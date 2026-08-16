@@ -1166,3 +1166,13 @@ body.public-class-modal-open { overflow: hidden; }
 .student-homework-empty { margin: 0; padding: 1rem; color: var(--text-muted); border: 1px dashed #d1d5db; border-radius: .8rem; background: #f9fafb; text-align: center; font-size: .82rem; }
 .student-homework-item .homework-subject { display: inline-block; color: var(--primary-blue); font-size: .72rem; font-weight: 800; }
 .homework-grade { color: #047857; font-size: .78rem; }
+
+.schedule-manager-head { gap: 1rem; }
+.schedule-manager-toggle { display: flex; flex: 1; align-items: center; justify-content: space-between; gap: 1rem; padding: .25rem 0; color: inherit; background: transparent; border: 0; cursor: pointer; text-align: right; }
+.schedule-manager-toggle-copy { display: grid; gap: .18rem; min-width: 0; }
+.schedule-manager-toggle-copy strong { color: #0f172a; font-size: 1.15rem; }
+.schedule-manager-toggle-copy small { color: #64748b; font-size: .78rem; font-weight: 600; }
+.schedule-manager-toggle-icon { flex: 0 0 auto; color: #2563eb; font-size: 1.35rem; transition: transform .2s ease; }
+.schedule-manager.is-open .schedule-manager-toggle-icon { transform: rotate(180deg); }
+.schedule-manager-toggle:focus-visible { outline: 3px solid rgba(37, 99, 235, .28); outline-offset: 4px; border-radius: 8px; }
+.schedule-manager-content { padding-top: 1rem; border-top: 1px solid #edf2f7; }

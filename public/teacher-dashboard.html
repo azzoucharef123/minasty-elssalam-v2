@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./css/style.css?v=homework-2" />
+  <link rel="stylesheet" href="./css/style.css?v=schedule-collapse-1" />
   <link rel="stylesheet" href="./css/app.css" />
   <link rel="stylesheet" href="./css/private-messages.css" />
   <link rel="stylesheet" href="./css/payment-feedback.css" />
@@ -83,7 +83,20 @@
         <div class="roster-heading"><div><p class="eyebrow">إدارة التلاميذ</p><h2 id="roster-title">قائمة التلاميذ</h2><p>اختر المستوى وابحث أو عدّل إعدادات التلميذ دون مغادرة الصفحة.</p></div><a class="roster-studio-link" href="./teacher-live.html">بدء حصة مباشرة</a></div>
         <section class="level-tabs teacher-level-tabs" aria-label="اختيار المستوى"><button class="level-btn is-active" data-level="السنة الأولى">السنة الأولى متوسط</button><button class="level-btn" data-level="السنة الثانية">السنة الثانية متوسط</button><button class="level-btn" data-level="السنة الثالثة">السنة الثالثة متوسط</button><button class="level-btn" data-level="السنة الرابعة">السنة الرابعة متوسط</button><button class="level-btn" data-level="طالب جامعي">طالب جامعي</button></section>
 
-        <section class="schedule-manager" aria-labelledby="schedule-manager-title"><header class="schedule-manager-head"><div><span class="schedule-kicker">برنامج المستوى</span><h3 id="schedule-manager-title">برمجة الحصص</h3><p id="schedule-level-caption">أضف وعدّل واحذف حصص المستوى المختار.</p></div><button id="teacher-absence-btn" class="teacher-absence-btn" type="button">الأستاذ غائب اليوم</button></header><p id="teacher-absence-status" class="teacher-absence-status" hidden></p><form id="schedule-form" class="schedule-form" novalidate><label>نوع الحصة<select id="schedule-subject" required></select></label><label>التاريخ والتوقيت<input id="schedule-datetime" type="datetime-local" required /></label><div class="schedule-form-actions"><button id="schedule-submit-btn" class="schedule-submit-btn" type="submit">إضافة حصة</button><button id="schedule-cancel-edit-btn" class="schedule-cancel-btn" type="button" hidden>إلغاء التعديل</button></div></form><div id="scheduled-class-list" class="scheduled-class-list" aria-live="polite"></div></section>
+        <section id="schedule-manager" class="schedule-manager" aria-labelledby="schedule-manager-title">
+          <header class="schedule-manager-head">
+            <button id="schedule-manager-toggle" class="schedule-manager-toggle" type="button" aria-expanded="false" aria-controls="schedule-manager-content">
+              <span class="schedule-manager-toggle-copy"><span class="schedule-kicker">برنامج المستوى</span><strong id="schedule-manager-title">برمجة الحصص</strong><small id="schedule-level-caption">أضف وعدّل واحذف حصص المستوى المختار.</small></span>
+              <span id="schedule-manager-toggle-icon" class="schedule-manager-toggle-icon" aria-hidden="true">⌄</span>
+            </button>
+            <button id="teacher-absence-btn" class="teacher-absence-btn" type="button">الأستاذ غائب اليوم</button>
+          </header>
+          <div id="schedule-manager-content" class="schedule-manager-content" hidden>
+            <p id="teacher-absence-status" class="teacher-absence-status" hidden></p>
+            <form id="schedule-form" class="schedule-form" novalidate><label>نوع الحصة<select id="schedule-subject" required></select></label><label>التاريخ والتوقيت<input id="schedule-datetime" type="datetime-local" required /></label><div class="schedule-form-actions"><button id="schedule-submit-btn" class="schedule-submit-btn" type="submit">إضافة حصة</button><button id="schedule-cancel-edit-btn" class="schedule-cancel-btn" type="button" hidden>إلغاء التعديل</button></div></form>
+            <div id="scheduled-class-list" class="scheduled-class-list" aria-live="polite"></div>
+          </div>
+        </section>
 
         <section id="class-registry-manager" class="class-registry-manager" aria-labelledby="class-registry-title">
           <header class="class-registry-head">
@@ -135,7 +148,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="./js/session-storage.js"></script>
   <script src="./js/message-notifications.js"></script>
-  <script src="./js/teacher-dashboard.js?v=homework-2" defer></script>
+  <script src="./js/teacher-dashboard.js?v=schedule-collapse-1" defer></script>
   <script src="./js/class-registry-teacher.js?v=timezone-algiers-1" defer></script>
 </body>
 </html>
