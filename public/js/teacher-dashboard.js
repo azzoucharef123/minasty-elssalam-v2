@@ -99,6 +99,10 @@ const elements = {
   driveVideoModal: document.getElementById("drive-video-modal"),
   closeDriveVideoModal: document.getElementById("close-drive-video-modal"),
   driveVideoList: document.getElementById("drive-video-list"),
+  lessonRepositoryManager: document.getElementById("lesson-repository-manager"),
+  lessonRepositoryToggle: document.getElementById("lesson-repository-toggle"),
+  lessonRepositoryControls: document.getElementById("lesson-repository-controls"),
+  lessonRepositoryToggleIcon: document.getElementById("lesson-repository-toggle-icon"),
   lessonRepositoryCaption: document.getElementById("lesson-repository-caption"),
   assignmentManager: document.querySelector(".assignment-manager"),
   assignmentLevelCaption: document.getElementById("assignment-level-caption"),
@@ -146,6 +150,7 @@ let scheduledClasses = [];
 let teacherAbsent = false;
 let editingScheduledClassId = null;
 let scheduleManagerOpen = false;
+let lessonRepositoryOpen = false;
 let paymentStatusStudentId = null;
 let lessonVideos = [];
 let googlePickerApiKey = null;
@@ -872,6 +877,14 @@ function renderScheduledClasses() {
     item.append(info, actions);
     elements.scheduledClassList.append(item);
   });
+}
+
+function setLessonRepositoryOpen(nextOpen) {
+  lessonRepositoryOpen = Boolean(nextOpen);
+  if (elements.lessonRepositoryControls) elements.lessonRepositoryControls.hidden = !lessonRepositoryOpen;
+  elements.lessonRepositoryManager?.classList.toggle("is-open", lessonRepositoryOpen);
+  elements.lessonRepositoryToggle?.setAttribute("aria-expanded", String(lessonRepositoryOpen));
+  if (elements.lessonRepositoryToggleIcon) elements.lessonRepositoryToggleIcon.textContent = lessonRepositoryOpen ? "⌃" : "⌄";
 }
 
 function setScheduleManagerOpen(nextOpen) {
@@ -2417,6 +2430,7 @@ if (!getTeacherToken()) {
   elements.lessonVideoForm?.addEventListener("submit", saveLessonVideo);
   elements.assignmentForm?.addEventListener("submit", submitAssignment);
   elements.scheduleManagerToggle?.addEventListener("click", () => setScheduleManagerOpen(!scheduleManagerOpen));
+  elements.lessonRepositoryToggle?.addEventListener("click", () => setLessonRepositoryOpen(!lessonRepositoryOpen));
   elements.scheduleCancelButton?.addEventListener("click", resetScheduleForm);
   elements.teacherAbsenceButton?.addEventListener("click", () => void toggleTeacherAbsence());
   elements.subscriptionForm?.addEventListener("submit", saveSubscription);
