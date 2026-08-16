@@ -1468,8 +1468,10 @@ function updateControls() {
 
 function updateAttendeeCount() {
   const count = attendeeElements.size;
-  elements.attendeeCount.textContent = String(count);
-  elements.attendeeCount.setAttribute("aria-label", `عدد الحضور: ${count}`);
+  if (elements.attendeeCount) {
+    elements.attendeeCount.textContent = String(count);
+    elements.attendeeCount.setAttribute("aria-label", `عدد الحضور: ${count}`);
+  }
   if (elements.sidebarAttendeeCount) elements.sidebarAttendeeCount.textContent = String(count);
   elements.attendeesEmpty.hidden = count > 0;
   filterAttendees();
@@ -2538,20 +2540,19 @@ async function startLiveClass() {
       : null;
   const isResumingAfterPageRefresh = Boolean(pageRecovery);
   isStarting = true;
-  updateControls();
-  setStudioStatus("جارٍ بدء الحصة — السبورة البيضاء جاهزة…", "neutral");
-
   let microphoneUnavailableMessage = "";
 
-  // Must occur before the first await below to retain the Start Class click as
-  // a browser-approved gesture for the Web Audio mixer on mobile devices.
-  primeClassroomAudioContext();
-
   try {
-    // Screen sharing is optional. The class starts on a clean whiteboard and
-    // the teacher can activate sharing later from the bottom toolbar.
+    updateControls();
+    setStudioStatus("جارٍ بدء الحصة — السبورة البيضاء جاهزة…", "neutral");
+    // Prepare the board before any network or device await so the teacher sees
+    // immediate feedback even when microphone or signaling setup takes time.
     clearTeacherChat();
     setStageMode("whiteboard");
+    ensureWhiteboardStream();
+    // This is still called from the Start Class gesture, but it is inside the
+    // guarded flow so an unsupported Web Audio API cannot leave the button stuck.
+    primeClassroomAudioContext();
 
     // Capture only the teacher microphone. The camera is deliberately never
     // requested, previewed, or sent so the teacher's face remains private.
@@ -3067,4 +3068,9 @@ if (pendingPageRecovery) {
 }
 
 updateAttendeeCount();
-updateControls();
+try {
+  updateControls();
+} catch (error) {
+  console.error("Unable to initialize studio controls:", error);
+  setStudioStatus("تعذر تهيئة عناصر الاستوديو. أعد تحميل الصفحة وحاول مرة أخرى.", "error");
+}
