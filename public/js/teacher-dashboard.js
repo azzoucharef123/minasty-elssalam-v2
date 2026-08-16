@@ -104,7 +104,10 @@ const elements = {
   lessonRepositoryControls: document.getElementById("lesson-repository-controls"),
   lessonRepositoryToggleIcon: document.getElementById("lesson-repository-toggle-icon"),
   lessonRepositoryCaption: document.getElementById("lesson-repository-caption"),
-  assignmentManager: document.querySelector(".assignment-manager"),
+  assignmentManager: document.getElementById("assignment-manager"),
+  assignmentManagerToggle: document.getElementById("assignment-manager-toggle"),
+  assignmentManagerControls: document.getElementById("assignment-manager-controls"),
+  assignmentManagerToggleIcon: document.getElementById("assignment-manager-toggle-icon"),
   assignmentLevelCaption: document.getElementById("assignment-level-caption"),
   assignmentForm: document.getElementById("assignment-form"),
   assignmentSubject: document.getElementById("assignment-subject"),
@@ -151,6 +154,7 @@ let teacherAbsent = false;
 let editingScheduledClassId = null;
 let scheduleManagerOpen = false;
 let lessonRepositoryOpen = false;
+let assignmentManagerOpen = false;
 let paymentStatusStudentId = null;
 let lessonVideos = [];
 let googlePickerApiKey = null;
@@ -877,6 +881,14 @@ function renderScheduledClasses() {
     item.append(info, actions);
     elements.scheduledClassList.append(item);
   });
+}
+
+function setAssignmentManagerOpen(nextOpen) {
+  assignmentManagerOpen = Boolean(nextOpen);
+  if (elements.assignmentManagerControls) elements.assignmentManagerControls.hidden = !assignmentManagerOpen;
+  elements.assignmentManager?.classList.toggle("is-open", assignmentManagerOpen);
+  elements.assignmentManagerToggle?.setAttribute("aria-expanded", String(assignmentManagerOpen));
+  if (elements.assignmentManagerToggleIcon) elements.assignmentManagerToggleIcon.textContent = assignmentManagerOpen ? "⌃" : "⌄";
 }
 
 function setLessonRepositoryOpen(nextOpen) {
@@ -2431,6 +2443,7 @@ if (!getTeacherToken()) {
   elements.assignmentForm?.addEventListener("submit", submitAssignment);
   elements.scheduleManagerToggle?.addEventListener("click", () => setScheduleManagerOpen(!scheduleManagerOpen));
   elements.lessonRepositoryToggle?.addEventListener("click", () => setLessonRepositoryOpen(!lessonRepositoryOpen));
+  elements.assignmentManagerToggle?.addEventListener("click", () => setAssignmentManagerOpen(!assignmentManagerOpen));
   elements.scheduleCancelButton?.addEventListener("click", resetScheduleForm);
   elements.teacherAbsenceButton?.addEventListener("click", () => void toggleTeacherAbsence());
   elements.subscriptionForm?.addEventListener("submit", saveSubscription);

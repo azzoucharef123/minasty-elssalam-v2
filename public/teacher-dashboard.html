@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./css/style.css?v=lesson-repository-collapse-1" />
+  <link rel="stylesheet" href="./css/style.css?v=homework-collapse-1" />
   <link rel="stylesheet" href="./css/app.css" />
   <link rel="stylesheet" href="./css/private-messages.css" />
   <link rel="stylesheet" href="./css/payment-feedback.css" />
@@ -126,9 +126,14 @@
           </div>
         </section>
 
-        <section class="assignment-manager" aria-labelledby="assignment-manager-title">
+        <section id="assignment-manager" class="assignment-manager" aria-labelledby="assignment-manager-title">
+          <button id="assignment-manager-toggle" class="class-registry-toggle" type="button" aria-expanded="false" aria-controls="assignment-manager-controls">
+            <span class="class-registry-toggle-copy"><span>الواجبات المدرسية</span><strong id="assignment-manager-title">إدارة الواجبات</strong><small>اضغط لإضافة واجبات جديدة ومتابعة الحلول المرسلة.</small></span>
+            <span id="assignment-manager-toggle-icon" class="class-registry-toggle-icon" aria-hidden="true">⌄</span>
+          </button>
+          <div id="assignment-manager-controls" class="class-registry-controls" hidden>
           <header class="assignment-manager-head">
-            <div><span class="schedule-kicker">الواجبات المدرسية</span><h3 id="assignment-manager-title">إدارة الواجبات</h3><p id="assignment-level-caption">أضف واجبات جديدة للمستوى المختار وتابع حلول التلاميذ.</p></div>
+            <div><p id="assignment-level-caption">أضف واجبات جديدة للمستوى المختار وتابع حلول التلاميذ.</p></div>
           </header>
           <form id="assignment-form" class="assignment-form stack-form" novalidate>
             <div class="form-row">
@@ -141,6 +146,7 @@
             <button id="assignment-submit" class="cta-button cta-primary" type="submit">نشر الواجب</button>
           </form>
           <div id="teacher-assignments-list" class="teacher-assignments-list" aria-live="polite"></div>
+          </div>
         </section>
 
         <section class="roster-toolbar" aria-label="بحث وتصفية التلاميذ"><label class="teacher-search-field" for="student-search"><span>البحث</span><input id="student-search" placeholder="البحث باسم التلميذ..." /></label><label class="teacher-filter-field" for="payment-filter"><span>نوع الاشتراك</span><select id="payment-filter"><option value="all">كل الاشتراكات</option><option value="paid">اشتراك مدفوع</option><option value="unpaid">اشتراك غير مدفوع</option></select></label><span id="filtered-results-label" class="filtered-results-label">0 نتيجة معروضة</span></section>
@@ -163,7 +169,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="./js/session-storage.js"></script>
   <script src="./js/message-notifications.js"></script>
-  <script src="./js/teacher-dashboard.js?v=lesson-repository-collapse-1" defer></script>
+  <script src="./js/teacher-dashboard.js?v=homework-collapse-1" defer></script>
   <script src="./js/class-registry-teacher.js?v=registry-collapse-1" defer></script>
 </body>
 </html>
