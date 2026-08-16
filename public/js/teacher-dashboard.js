@@ -74,6 +74,11 @@ const elements = {
   cardPreviewImage: document.getElementById("student-card-preview-image"),
   cardPreviewSaveDriveButton: document.getElementById("save-student-card-to-drive"),
   closeCardPreviewButton: document.getElementById("close-student-card-preview"),
+  paymentReceiptPreviewModal: document.getElementById("payment-receipt-preview-modal"),
+  paymentReceiptPreviewStatus: document.getElementById("payment-receipt-preview-status"),
+  paymentReceiptPreviewImage: document.getElementById("payment-receipt-preview-image"),
+  paymentReceiptSaveDriveButton: document.getElementById("save-payment-receipt-to-drive"),
+  closePaymentReceiptPreviewButton: document.getElementById("close-payment-receipt-preview"),
   scheduleManager: document.getElementById("schedule-manager"),
   scheduleManagerToggle: document.getElementById("schedule-manager-toggle"),
   scheduleManagerContent: document.getElementById("schedule-manager-content"),
@@ -179,6 +184,9 @@ let cardPreviewObjectUrl = null;
 let cardPreviewRequestId = 0;
 let cardPreviewPreviousFocus = null;
 let cardPreviewStudentId = null;
+let paymentReceiptPreviewObjectUrl = null;
+let paymentReceiptPreviewRequestId = 0;
+let paymentReceiptPreviewStudentId = null;
 let pendingDeleteStudentId = null;
 const driveFileUploadInProgress = new Set();
 
@@ -2309,35 +2317,92 @@ async function viewStudentCard(studentId) {
   }
 }
 
+function closePaymentReceiptPreview() {
+  if (paymentReceiptPreviewObjectUrl) {
+    URL.revokeObjectURL(paymentReceiptPreviewObjectUrl);
+    paymentReceiptPreviewObjectUrl = null;
+  }
+  paymentReceiptPreviewRequestId += 1;
+  paymentReceiptPreviewStudentId = null;
+  if (elements.paymentReceiptPreviewModal) {
+    elements.paymentReceiptPreviewModal.hidden = true;
+    elements.paymentReceiptPreviewModal.classList.remove("is-open");
+  }
+  if (elements.paymentReceiptPreviewImage) {
+    elements.paymentReceiptPreviewImage.hidden = true;
+    elements.paymentReceiptPreviewImage.removeAttribute("src");
+  }
+  if (elements.paymentReceiptPreviewStatus) {
+    elements.paymentReceiptPreviewStatus.textContent = "جارٍ تحميل الوصل…";
+    elements.paymentReceiptPreviewStatus.classList.remove("is-error");
+  }
+  if (elements.paymentReceiptSaveDriveButton) {
+    elements.paymentReceiptSaveDriveButton.disabled = true;
+    elements.paymentReceiptSaveDriveButton.textContent = "حفظ الوصل في Google Drive";
+  }
+  document.body.style.overflow = "";
+}
+
 async function viewStudentPaymentReceipt(studentId) {
   const student = currentStudents.find((item) => item.id === studentId);
   if (!student?.paymentReceiptUrl) {
     openDocumentFeedback("وصل الدفع غير متاح حالياً لهذا المستخدم.", "وصل الدفع غير متاح");
     return;
   }
-  const previewWindow = window.open("about:blank", "_blank");
-  if (!previewWindow) {
-    openDocumentFeedback("اسمح بالنوافذ المنبثقة من المتصفح حتى تتمكن من رؤية وصل الدفع.", "تعذر فتح الوثيقة");
+  if (!elements.paymentReceiptPreviewModal || !elements.paymentReceiptPreviewImage) {
+    openDocumentFeedback("عارض وصل الدفع غير متاح حالياً.", "تعذر عرض الوثيقة");
     return;
   }
+
+  const requestId = ++paymentReceiptPreviewRequestId;
+  paymentReceiptPreviewStudentId = studentId;
+  if (paymentReceiptPreviewObjectUrl) URL.revokeObjectURL(paymentReceiptPreviewObjectUrl);
+  paymentReceiptPreviewObjectUrl = null;
+  elements.paymentReceiptPreviewStatus.textContent = "جارٍ تحميل الوصل…";
+  elements.paymentReceiptPreviewStatus.classList.remove("is-error");
+  elements.paymentReceiptPreviewImage.hidden = true;
+  elements.paymentReceiptPreviewImage.removeAttribute("src");
+  elements.paymentReceiptSaveDriveButton.disabled = true;
+  elements.paymentReceiptPreviewModal.hidden = false;
+  elements.paymentReceiptPreviewModal.classList.add("is-open");
+  document.body.style.overflow = "hidden";
 
   try {
     const response = await teacherFetch(
       `/api/students/${encodeURIComponent(studentId)}/payment-receipt`,
       { headers: { Accept: "image/*" } }
     );
-
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
       throw new Error(payload.error || "تعذر عرض وصل الدفع.");
     }
+    const blob = await response.blob();
+    if (!blob.type.startsWith("image/")) throw new Error("الملف المحفوظ ليس صورة وصل دفع صالحة.");
+    if (requestId !== paymentReceiptPreviewRequestId || elements.paymentReceiptPreviewModal.hidden) return;
 
-    previewWindow.location.href = URL.createObjectURL(await response.blob());
+    const imageUrl = URL.createObjectURL(blob);
+    paymentReceiptPreviewObjectUrl = imageUrl;
+    elements.paymentReceiptPreviewImage.onload = () => {
+      if (requestId === paymentReceiptPreviewRequestId) {
+        elements.paymentReceiptPreviewStatus.textContent = "تم تحميل الوصل. يمكنك مراجعته ثم حفظه في Google Drive.";
+        elements.paymentReceiptPreviewImage.hidden = false;
+        elements.paymentReceiptSaveDriveButton.disabled = false;
+      }
+    };
+    elements.paymentReceiptPreviewImage.onerror = () => {
+      if (requestId === paymentReceiptPreviewRequestId) {
+        elements.paymentReceiptPreviewStatus.textContent = "تعذر فك صورة وصل الدفع.";
+        elements.paymentReceiptPreviewStatus.classList.add("is-error");
+        elements.paymentReceiptPreviewImage.hidden = true;
+      }
+    };
+    elements.paymentReceiptPreviewImage.src = imageUrl;
   } catch (error) {
-    previewWindow.close();
+    if (requestId !== paymentReceiptPreviewRequestId) return;
+    elements.paymentReceiptPreviewStatus.textContent = error.message || "تعذر عرض وصل الدفع.";
+    elements.paymentReceiptPreviewStatus.classList.add("is-error");
     if (!/انتهت الجلسة/.test(error.message)) {
       console.error("Unable to view payment receipt:", error);
-      openDocumentFeedback(error.message || "تعذر عرض وصل الدفع.", "تعذر عرض وصل الدفع");
     }
   }
 }
@@ -2699,6 +2764,15 @@ if (!getTeacherToken()) {
       void saveStudentDocumentToDrive(cardPreviewStudentId, "card", event.currentTarget);
     }
   });
+  elements.paymentReceiptSaveDriveButton?.addEventListener("click", (event) => {
+    if (paymentReceiptPreviewStudentId) {
+      void saveStudentDocumentToDrive(paymentReceiptPreviewStudentId, "receipt", event.currentTarget);
+    }
+  });
+  elements.closePaymentReceiptPreviewButton?.addEventListener("click", closePaymentReceiptPreview);
+  elements.paymentReceiptPreviewModal?.addEventListener("click", (event) => {
+    if (event.target === elements.paymentReceiptPreviewModal) closePaymentReceiptPreview();
+  });
   elements.cardPreviewModal?.addEventListener("click", (event) => {
     if (event.target === elements.cardPreviewModal) {
       closeStudentCardPreview();
@@ -2729,6 +2803,10 @@ if (!getTeacherToken()) {
     }
     if (event.key === "Escape" && elements.cardPreviewModal && !elements.cardPreviewModal.hidden) {
       closeStudentCardPreview();
+      return;
+    }
+    if (event.key === "Escape" && elements.paymentReceiptPreviewModal && !elements.paymentReceiptPreviewModal.hidden) {
+      closePaymentReceiptPreview();
     }
   });
   elements.searchInput?.addEventListener("input", applyFilters);

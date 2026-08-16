@@ -2036,3 +2036,55 @@ body.teacher-modal-open {
   background: var(--primary-hover);
   outline: none;
 }
+
+.payment-receipt-preview-card {
+  width: min(100%, 42rem);
+  max-height: 92vh;
+  overflow-y: auto;
+}
+
+.payment-receipt-preview-status {
+  margin: .5rem 0 .75rem;
+  color: #64748b;
+  font-size: .8rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.payment-receipt-preview-status.is-error {
+  color: #b91c1c;
+}
+
+.payment-receipt-preview-frame {
+  display: grid;
+  min-height: 12rem;
+  max-height: 62vh;
+  place-items: center;
+  overflow: auto;
+  padding: .65rem;
+  border: 1px solid #dbeafe;
+  border-radius: .8rem;
+  background: #f8fafc;
+}
+
+.payment-receipt-preview-frame img {
+  display: block;
+  max-width: 100%;
+  max-height: 58vh;
+  object-fit: contain;
+}
+
+@media (max-width: 700px) {
+  .payment-receipt-preview-card {
+    width: calc(100vw - 1rem);
+    padding: 1rem;
+  }
+
+  .payment-receipt-preview-frame {
+    max-height: 66dvh;
+  }
+
+  .payment-receipt-preview-frame img {
+    max-height: calc(66dvh - 1.5rem);
+  }
+}
