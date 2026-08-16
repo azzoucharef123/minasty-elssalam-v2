@@ -65,8 +65,13 @@ function extractGoogleDriveFileId(value) {
 
 function serializeLessonVideo(video) {
   const repositoryType = video.repositoryType || LEGACY_REPOSITORY_TYPE;
-  const isYouTube = String(video.driveUrl || "").includes("youtube.com/embed/");
-  
+  const youtubeMatch = String(video.driveUrl || "").match(/youtube\.com\/embed\/([A-Za-z0-9_-]{11})/);
+  const youtubeVideoId = youtubeMatch?.[1] || "";
+  const isYouTube = Boolean(youtubeVideoId);
+  const youtubePreviewUrl = isYouTube
+    ? `https://www.youtube.com/embed/${youtubeVideoId}?controls=0&disablekb=1&fs=0&iv_load_policy=3&rel=0&playsinline=1&enablejsapi=1&origin=https://dr.africacold.fr`
+    : "";
+
   return {
     id: video.id,
     title: video.title,
@@ -76,9 +81,7 @@ function serializeLessonVideo(video) {
       ? "قديم — غير مصنف"
       : repositoryTypeLabel(video.level, repositoryType),
     driveUrl: video.driveUrl,
-    previewUrl: isYouTube 
-      ? `${video.driveUrl}${video.driveUrl.includes('?') ? '&' : '?'}enablejsapi=1&origin=https://dr.africacold.fr`
-      : `https://drive.google.com/file/d/${video.driveFileId}/preview`,
+    previewUrl: youtubePreviewUrl || `https://drive.google.com/file/d/${video.driveFileId}/preview`,
     createdAt: video.createdAt,
     updatedAt: video.updatedAt,
   };

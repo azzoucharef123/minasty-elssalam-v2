@@ -124,7 +124,7 @@ function serializeRegistryClass(item, { teacher = false, student = null } = {}) 
     accessReason: access.reason,
     driveLink: teacher ? item.driveLink : canRevealVideo ? item.driveLink : null,
     youtubeVideoId: teacher ? youtubeVideoId || null : canRevealVideo ? youtubeVideoId || null : null,
-    youtubeEmbedUrl: canRevealVideo && youtubeVideoId ? `https://www.youtube.com/embed/${youtubeVideoId}?rel=0&modestbranding=1&playsinline=1&fs=1&enablejsapi=1&origin=https://dr.africacold.fr` : null,
+    youtubeEmbedUrl: canRevealVideo && youtubeVideoId ? `https://www.youtube.com/embed/${youtubeVideoId}?controls=0&disablekb=1&fs=0&iv_load_policy=3&rel=0&playsinline=1&enablejsapi=1&origin=https://dr.africacold.fr` : null,
     previewUrl: canRevealVideo && fileId ? `https://drive.google.com/file/d/${fileId}/preview` : null,
     videoProvider: canRevealVideo ? (youtubeVideoId ? "YOUTUBE" : fileId ? "GOOGLE_DRIVE" : null) : null,
   };
