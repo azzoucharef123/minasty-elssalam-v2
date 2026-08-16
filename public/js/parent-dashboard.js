@@ -620,7 +620,10 @@ function formatLessonVideoDate(value) {
 }
 
 function isSafeLessonPreviewUrl(value) {
-  return /^https:\/\/drive\.google\.com\/file\/d\/[A-Za-z0-9_-]{20,200}\/preview$/.test(String(value || ""));
+  const url = String(value || "");
+  const isDrive = /^https:\/\/drive\.google\.com\/file\/d\/[A-Za-z0-9_-]{20,200}\/preview$/.test(url);
+  const isYouTube = /^https:\/\/www\.youtube\.com\/embed\/[A-Za-z0-9_-]{11}.*$/.test(url);
+  return isDrive || isYouTube;
 }
 
 function closeLessonVideo() {

@@ -181,10 +181,33 @@ router.post("/upload", verifyToken, isTeacher, (req, res, next) => {
     }
     
     const result = await uploadVideo({ stream: fs.createReadStream(req.file.path), mimeType, title, description });
+    
+    // 1. Attach to registry
     const registryClass = await attachVideoToNearestScheduledClass({ req, level, subject, videoId: result.id, recordedAt }).catch((error) => {
       console.error("Unable to attach uploaded YouTube video to the class registry:", error);
       return null;
     });
+
+    // 2. Automatically add to Lesson Repository
+    try {
+      const subjectMap = { 'الرياضيات': 'MATH', 'الفيزياء': 'PHYSICS', 'MATH': 'MATH', 'PHYSICS': 'PHYSICS' };
+      const repositoryType = subjectMap[subject] || "UNCLASSIFIED";
+      
+      await prisma.lessonVideo.create({
+        data: {
+          title: title.slice(0, 160),
+          level: level,
+          driveFileId: result.id, // We use YouTube ID as the reference ID
+          driveUrl: result.embedUrl, // The YouTube embed URL
+          repositoryType: repositoryType
+        }
+      });
+      console.log(`YouTube video ${result.id} automatically added to Lesson Repository for ${level}`);
+    } catch (repoError) {
+      console.error("Failed to auto-add YouTube video to Lesson Repository:", repoError);
+      // We don't fail the whole request if this optional step fails
+    }
+
     return res.status(201).json({ status: "success", data: { ...result, registryClass } });
   } catch (error) {
     console.error("Unable to upload video to YouTube:", error);

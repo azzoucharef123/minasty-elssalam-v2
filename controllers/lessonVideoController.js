@@ -65,6 +65,8 @@ function extractGoogleDriveFileId(value) {
 
 function serializeLessonVideo(video) {
   const repositoryType = video.repositoryType || LEGACY_REPOSITORY_TYPE;
+  const isYouTube = String(video.driveUrl || "").includes("youtube.com/embed/");
+  
   return {
     id: video.id,
     title: video.title,
@@ -74,7 +76,9 @@ function serializeLessonVideo(video) {
       ? "قديم — غير مصنف"
       : repositoryTypeLabel(video.level, repositoryType),
     driveUrl: video.driveUrl,
-    previewUrl: `https://drive.google.com/file/d/${video.driveFileId}/preview`,
+    previewUrl: isYouTube 
+      ? video.driveUrl 
+      : `https://drive.google.com/file/d/${video.driveFileId}/preview`,
     createdAt: video.createdAt,
     updatedAt: video.updatedAt,
   };
@@ -105,15 +109,18 @@ async function getParentStudentForLevel(parentPhone, level, studentId) {
 function getStudentRepositoryTypes(student) {
   if (!student) return [];
   if (student.level === "طالب جامعي") {
-    return student.paymentStage === "PAID" || student.paymentStatus === true
+    const types = student.paymentStage === "PAID" || student.paymentStatus === true
       ? ["FREE", "PAID"]
       : ["FREE"];
+    return [...types, "UNCLASSIFIED"];
   }
 
-  return [
+  const types = [
     student.mathEnrollment ? "MATH" : null,
     student.physicsEnrollment ? "PHYSICS" : null,
   ].filter(Boolean);
+  
+  return [...types, "UNCLASSIFIED"];
 }
 
 /** Teacher-only: add a Google Drive video link to a study level. */
