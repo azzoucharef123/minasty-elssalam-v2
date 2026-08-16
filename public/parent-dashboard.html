@@ -279,11 +279,11 @@
         margin-bottom: 1.25rem;
         padding: 1rem 1.1rem;
         color: #ffffff;
-        background: linear-gradient(120deg, #2563eb, #1d4ed8 66%, #4338ca);
-        border: 1px solid rgba(191, 219, 254, 0.35);
+        background: linear-gradient(120deg, #166534, #15803d 66%, #16a34a);
+        border: 1px solid rgba(187, 247, 208, 0.52);
         border-radius: 1rem;
-        box-shadow: 0 14px 30px rgba(37, 99, 235, 0.24);
-        animation: banner-enter 0.35s ease both, banner-pulse 2.5s ease-in-out infinite;
+        box-shadow: 0 14px 30px rgba(22, 101, 52, 0.24);
+        animation: banner-enter 0.35s ease both, banner-pulse-green 2.5s ease-in-out infinite;
       }
 
       #live-class-banner.is-visible {
@@ -294,6 +294,27 @@
         display: flex;
         align-items: center;
         gap: 0.8rem;
+        min-width: 0;
+      }
+
+      .live-banner-copy > span:last-child {
+        display: grid;
+        min-width: 0;
+        gap: 0.2rem;
+      }
+
+      #live-class-banner-details {
+        overflow: hidden;
+        color: #dcfce7;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      @keyframes banner-pulse-green {
+        0%, 100% { box-shadow: 0 14px 30px rgba(22, 101, 52, 0.24); }
+        50% { box-shadow: 0 16px 36px rgba(34, 197, 94, 0.34); }
       }
 
       .live-banner-icon {
@@ -1186,7 +1207,7 @@
           </span>
           <span>
             <strong>الأستاذ بدأ الحصة المباشرة الآن!</strong>
-            <small>يمكن لابنك الانضمام إلى البث الخاص بمستواه الدراسي.</small>
+            <small id="live-class-banner-details">يمكن لابنك الانضمام إلى البث الخاص بمستواه الدراسي.</small>
           </span>
         </div>
         <button id="join-live-class-btn" class="join-live-class-button" type="button">الدخول للحصة</button>
@@ -1499,7 +1520,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/parent-dashboard.js?v=homework-capture-1"></script>
+    <script src="./js/parent-dashboard.js?v=live-start-notice-1"></script>
     <script src="./js/class-registry-parent.js?v=panel-scroll-1"></script>
   </body>
 </html>

@@ -75,6 +75,8 @@ const elements = {
   placeholderTitle: document.getElementById("placeholder-title"),
   placeholderDescription: document.getElementById("placeholder-description"),
   classLevelLabel: document.getElementById("class-level-label"),
+  liveStartNotice: document.getElementById("live-start-notice"),
+  liveStartNoticeCopy: document.getElementById("live-start-notice-copy"),
   participationCount: document.getElementById("student-participation-count"),
   joinButton: document.getElementById("join-class-btn"),
   raiseHandButton: document.getElementById("raise-hand-btn"),
@@ -244,6 +246,47 @@ function joinClassAutomaticallyFromLobby() {
 function setViewerStatus() {
   // The visual status tray was removed to keep the learner interface compact.
   // Connection and classroom operations continue without rendering a bottom notice.
+}
+
+const LIVE_LEVEL_DISPLAY_LABELS = Object.freeze({
+  "السنة الأولى": "السنة الأولى متوسط",
+  "السنة الثانية": "السنة الثانية متوسط",
+  "السنة الثالثة": "السنة الثالثة متوسط",
+  "السنة الرابعة": "السنة الرابعة متوسط",
+  "السنة الأولى متوسط": "السنة الأولى متوسط",
+  "السنة الثانية متوسط": "السنة الثانية متوسط",
+  "السنة الثالثة متوسط": "السنة الثالثة متوسط",
+  "السنة الرابعة متوسط": "السنة الرابعة متوسط",
+  "طالب جامعي": "طالب جامعي",
+});
+
+function getLiveLevelLabel(value) {
+  return LIVE_LEVEL_DISPLAY_LABELS[value] || value || LIVE_LEVEL_DISPLAY_LABELS[level] || level || "مستواك الدراسي";
+}
+
+function getLiveSubjectLabel(value) {
+  if (value === "PHYSICS") return "الفيزياء";
+  if (value === "FREE") return "حصة مجانية";
+  return value === "MATH" ? "الرياضيات" : value || "الحصة المباشرة";
+}
+
+function showLiveStartNotice(data = {}, resumed = false) {
+  if (!elements.liveStartNotice || !elements.liveStartNoticeCopy) return;
+
+  const levelLabel = getLiveLevelLabel(data.level);
+  const subjectLabel = data.subjectLabel || getLiveSubjectLabel(data.subject);
+  elements.liveStartNoticeCopy.textContent = resumed
+    ? `استؤنفت الحصة الآن — ${levelLabel} — ${subjectLabel}`
+    : `بدأت الحصة الآن — ${levelLabel} — ${subjectLabel}`;
+  elements.liveStartNotice.hidden = false;
+  elements.liveStartNotice.classList.remove("is-visible");
+  window.requestAnimationFrame(() => elements.liveStartNotice.classList.add("is-visible"));
+}
+
+function hideLiveStartNotice() {
+  if (!elements.liveStartNotice) return;
+  elements.liveStartNotice.classList.remove("is-visible");
+  elements.liveStartNotice.hidden = true;
 }
 
 const MOBILE_CONTROLS_POSITION_KEY = "studentMobileControlsPosition";
@@ -1680,12 +1723,14 @@ socket.on("room_joined", (data = {}) => {
 // starts the next class. Rejoin occurs inside the current page with no button.
 socket.on("live_class_started", (data = {}) => {
   if (data.level === level) {
+    showLiveStartNotice(data);
     joinClassAutomaticallyFromLobby();
   }
 });
 
 socket.on("live_class_resumed", (data = {}) => {
   if (data.level === level) {
+    showLiveStartNotice(data, true);
     joinClassAutomaticallyFromLobby();
   }
 });
@@ -1731,6 +1776,7 @@ socket.on("teacher_message_received", (data = {}) => {
 });
 
 socket.on("room_unavailable", (data = {}) => {
+  hideLiveStartNotice();
   resetViewerState({
     message: data.message || "لا توجد حصة مباشرة نشطة لهذا المستوى حالياً.",
     mode: "neutral",
@@ -1903,6 +1949,7 @@ socket.on("teacher_disconnected", () => {
 });
 
 socket.on("class_ended", (data = {}) => {
+  hideLiveStartNotice();
   const teacherDisconnected = data.reason === "teacher_disconnected";
 
   resetViewerState({

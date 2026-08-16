@@ -4,6 +4,7 @@ const PARENT_TOKEN_KEY = "parentToken";
 
 const elements = {
   liveBanner: document.getElementById("live-class-banner"),
+  liveBannerDetails: document.getElementById("live-class-banner-details"),
   joinLiveClassButton: document.getElementById("join-live-class-btn"),
   dashboardError: document.getElementById("dashboard-error"),
   loadingState: document.getElementById("loading-state"),
@@ -770,8 +771,20 @@ function closePaymentAccessModal() {
   document.body.style.overflow = "";
 }
 
-function setLiveClassVisible(isVisible) {
-  elements.liveBanner?.classList.toggle("is-visible", Boolean(isVisible));
+function setLiveClassVisible(isVisible, liveData = {}) {
+  const visible = Boolean(isVisible);
+  elements.liveBanner?.classList.toggle("is-visible", visible);
+
+  if (visible && elements.liveBannerDetails) {
+    const levelLabel = displayLevelLabel(liveData.level || currentStudent?.level);
+    const subjectLabel = homeworkSubjectLabel(
+      liveData.subject || activeLiveClassType || ""
+    );
+    elements.liveBannerDetails.textContent = `${levelLabel} — ${subjectLabel} — يمكنك الدخول الآن`;
+  } else if (!visible && elements.liveBannerDetails) {
+    elements.liveBannerDetails.textContent = "يمكن لابنك الانضمام إلى البث الخاص بمستواه الدراسي.";
+  }
+
   renderParentSchedule();
 }
 
@@ -1683,7 +1696,7 @@ function emitLobbyJoin(level) {
     // The acknowledgement restores the existing state; subsequent events keep
     // it current while the parent remains on this dashboard.
     activeLiveClassType = response.isClassLive ? response.subject || null : null;
-    setLiveClassVisible(Boolean(response.isClassLive));
+    setLiveClassVisible(Boolean(response.isClassLive), response);
   });
 }
 
@@ -2049,7 +2062,16 @@ function initializeLobbySocket() {
     }
 
     activeLiveClassType = data.subject || null;
-    setLiveClassVisible(true);
+    setLiveClassVisible(true, data);
+  });
+
+  socket.on("live_class_resumed", (data = {}) => {
+    if (!currentStudent || (data.level && data.level !== currentStudent.level)) {
+      return;
+    }
+
+    activeLiveClassType = data.subject || null;
+    setLiveClassVisible(true, data);
   });
 
   socket.on("live_class_ended", (data = {}) => {

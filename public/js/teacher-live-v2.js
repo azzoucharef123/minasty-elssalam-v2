@@ -1436,6 +1436,7 @@ function updateControls() {
     elements.studioTopbarTitle.textContent = titleLevel && titleSubject
       ? `${getClassTypeName(titleLevel, titleSubject)} - ${titleLevel}`
       : "استوديو البث المباشر";
+    elements.studioTopbarTitle.classList.toggle("is-live", Boolean(classActive));
   }
 
   elements.startButton.disabled = isStarting || isEnding || classActive;

@@ -400,6 +400,12 @@ function normalizeText(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function getLiveSubjectLabel(subject) {
+  if (subject === "PHYSICS") return "الفيزياء";
+  if (subject === "FREE") return "حصة مجانية";
+  return "الرياضيات";
+}
+
 function isValidLevel(level) {
   return level.length > 0 && level.length <= MAX_LEVEL_LENGTH;
 }
@@ -1000,10 +1006,16 @@ io.on("connection", (socket) => {
       // A parent who opens the dashboard after the teacher starts must still
       // see the banner; they should not have to wait for another start event.
       const subject = activeSubjectByLevel.get(level) || null;
+      const lobbyClassPayload = {
+        level,
+        subject,
+        subjectLabel: getLiveSubjectLabel(subject),
+        startedAt: new Date().toISOString(),
+      };
       if (isClassLive) {
-        socket.emit("live_class_started", { level, subject });
+        socket.emit("live_class_started", lobbyClassPayload);
       } else if (isClassRecovering) {
-        socket.emit("live_class_recovering", { level, subject });
+        socket.emit("live_class_recovering", lobbyClassPayload);
       } else if (teacherSocketId) {
         activeTeachersByLevel.delete(level);
         activeSubjectByLevel.delete(level);
@@ -1153,13 +1165,21 @@ io.on("connection", (socket) => {
             }))
         : [];
 
+      const liveClassPayload = {
+        level,
+        subject,
+        subjectLabel: getLiveSubjectLabel(subject),
+        startedAt: new Date().toISOString(),
+      };
+
       if (isResuming) {
         io.to(level).emit("teacher_reconnected", { level, subject });
-        io.to(`${level}_lobby`).emit("live_class_resumed", { level, subject });
+        io.to(`${level}_lobby`).emit("live_class_resumed", liveClassPayload);
         socket.emit("recovery_students", { level, students: recoveryStudents });
       } else {
-        // Notify only passive parent dashboards that observe this exact level.
-        io.to(`${level}_lobby`).emit("live_class_started", { level, subject });
+        // Notify only passive dashboards/viewers observing this exact level.
+        // Socket.io delivers this immediately without requiring a page refresh.
+        io.to(`${level}_lobby`).emit("live_class_started", liveClassPayload);
       }
 
       socket.emit("room_ready", { level, subject, role: "teacher", resumed: isResuming });
