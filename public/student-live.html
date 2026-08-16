@@ -742,6 +742,91 @@
         }
       }
 
+      /* Mobile polish: keep the question panel dark and compact without
+         changing its HTML or any live-stream behavior. */
+      .student-chat-panel {
+        color: #f8fafc;
+        background: #1e1e24;
+        border-color: rgba(148, 163, 184, 0.22);
+      }
+
+      .student-chat-head,
+      .student-chat-form {
+        background: #18181b;
+      }
+
+      .student-chat-box {
+        background: #1e1e24;
+      }
+
+      .student-chat-form {
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 0.32rem;
+        padding: 0.42rem 0.48rem calc(0.46rem + env(safe-area-inset-bottom));
+      }
+
+      .student-chat-form input {
+        min-height: 2.05rem;
+        padding: 0.34rem 0.5rem;
+        color: #f8fafc;
+        background: #27272a;
+        border-color: rgba(161, 161, 170, 0.42);
+        font-size: 0.67rem;
+      }
+
+      .student-chat-send,
+      .student-chat-capture {
+        min-height: 2.05rem;
+        padding: 0.3rem 0.44rem;
+      }
+
+      /* Live WebRTC has no useful seek position. Keep volume/fullscreen native
+         controls while removing the misleading timeline and time labels. */
+      #remote-video::-webkit-media-controls-timeline,
+      #remote-video::-webkit-media-controls-current-time-display,
+      #remote-video::-webkit-media-controls-time-remaining-display {
+        display: none !important;
+      }
+
+      .hand-request-button.hand-raised {
+        color: #451a03;
+        background: #f59e0b;
+        border-color: #fcd34d;
+        box-shadow: 0 8px 18px rgba(245, 158, 11, 0.34);
+      }
+
+      @media screen and (orientation: landscape) and (max-width: 900px) {
+        .student-live-page,
+        .viewer-shell {
+          min-height: 100dvh;
+        }
+
+        .viewer-header {
+          display: none;
+        }
+
+        .viewer-stage {
+          display: block;
+          width: 100vw;
+          height: 100dvh;
+          min-height: 100dvh;
+          padding: 0;
+        }
+
+        .video-frame {
+          width: 100vw;
+          height: 100dvh;
+          min-height: 100dvh;
+          border: 0;
+          border-radius: 0;
+          box-shadow: none;
+        }
+
+        .student-chat-panel {
+          display: none;
+        }
+      }
+
       @media (prefers-reduced-motion: reduce) {
         .student-live-page *,
         .student-live-page *::before,
@@ -852,6 +937,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=studio-rebuild-1"></script>
+    <script src="./js/student-live.js?v=mobile-ui-1"></script>
   </body>
 </html>

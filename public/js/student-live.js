@@ -723,7 +723,12 @@ function setRaisedHandState({ waiting = false } = {}) {
   const canRequest = joinedClass && !microphonePermissionGranted;
   elements.raiseHandButton.hidden = !canRequest || waiting;
   elements.raiseHandButton.disabled = !canRequest;
+  elements.raiseHandButton.classList.toggle("hand-raised", waiting);
+  setButtonLabel(elements.raiseHandButton, waiting ? "مرفوعة ✋" : "رفع اليد");
   elements.handWaitingActions.hidden = !waiting;
+  elements.handWaitingActions.classList.toggle("hand-raised", waiting);
+  const waitingLabel = elements.handWaitingActions.querySelector(".hand-waiting-label");
+  if (waitingLabel) waitingLabel.textContent = waiting ? "مرفوعة ✋" : "انتظار";
 }
 
 function updateMicControl() {
