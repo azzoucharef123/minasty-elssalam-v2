@@ -348,7 +348,7 @@ async function openStudentHomeworkFile(assignment, source = "attachment") {
     }
     if (elements.studentHomeworkFileHint) {
       elements.studentHomeworkFileHint.textContent = isImage
-        ? "يمكنك تكبير الصورة بإصبعين وتحريكها لرؤية التفاصيل."
+        ? "اضغط بإصبعين للتكبير والتحريك."
         : isPdf
           ? "يُعرض ملف PDF داخل المنصة. استخدم أدوات العرض للتكبير والتمرير."
           : "يُعرض الملف داخل المنصة حسب دعم المتصفح لهذا النوع من الملفات.";
