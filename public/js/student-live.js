@@ -64,19 +64,13 @@ let participationCount = 0;
 let prejoinCompleted = false;
 let prejoinCameraReady = false;
 
-// The viewer stores synchronized segments and can draw only while the teacher
-// has opened this student's microphone and the server has granted the board.
-const receivedAnnotationSegments = [];
-let studentWhiteboardAllowed = false;
-let isStudentDrawing = false;
-let previousStudentPoint = null;
-
 const elements = {
   remoteVideo: document.getElementById("remote-video"),
   enableAudioButton: document.getElementById("enable-audio-btn"),
   placeholder: document.getElementById("video-placeholder"),
   placeholderTitle: document.getElementById("placeholder-title"),
   placeholderDescription: document.getElementById("placeholder-description"),
+  levelWelcomeImage: document.getElementById("level-welcome-image"),
   classLevelLabel: document.getElementById("class-level-label"),
   liveStartNotice: document.getElementById("live-start-notice"),
   liveStartNoticeCopy: document.getElementById("live-start-notice-copy"),
@@ -86,7 +80,6 @@ const elements = {
   handWaitingActions: document.getElementById("hand-waiting-actions"),
   lowerHandButton: document.getElementById("lower-hand-btn"),
   toggleMicButton: document.getElementById("toggle-mic-btn"),
-  studentCanvas: document.getElementById("student-canvas"),
   chatBox: document.getElementById("chat-box"),
   chatEmpty: document.getElementById("chat-empty"),
   chatForm: document.getElementById("chat-form"),
@@ -555,6 +548,20 @@ function setParticipationCount(value) {
   }
 }
 
+const LEVEL_WELCOME_IMAGES = {
+  "السنة الأولى": "/assets/level-welcome/year-1.webp",
+  "السنة الثانية": "/assets/level-welcome/year-2.webp",
+  "السنة الثالثة": "/assets/level-welcome/year-3.webp",
+  "السنة الرابعة": "/assets/level-welcome/year-4.jpg",
+};
+
+function setLevelWelcomeImage() {
+  const imageUrl = LEVEL_WELCOME_IMAGES[level];
+  if (!elements.levelWelcomeImage || !imageUrl) return;
+  elements.levelWelcomeImage.src = imageUrl;
+  elements.levelWelcomeImage.alt = `صورة انتظار ${level} متوسط`;
+}
+
 function setPlaceholder(title, description) {
   elements.placeholderTitle.textContent = title;
   elements.placeholderDescription.textContent = description;
@@ -606,156 +613,6 @@ function hideConnectionOverlay() {
   if (overlay) {
     overlay.hidden = true;
   }
-}
-
-function clampUnit(value) {
-  return Math.min(1, Math.max(0, Number(value)));
-}
-
-function getStudentAnnotationContext() {
-  return elements.studentCanvas?.getContext("2d") || null;
-}
-
-function getStudentCanvasCssSize() {
-  return {
-    width: Math.round(elements.remoteVideo?.clientWidth || 0),
-    height: Math.round(elements.remoteVideo?.clientHeight || 0),
-  };
-}
-
-function drawStudentSegment(segment) {
-  const context = getStudentAnnotationContext();
-  const { width, height } = getStudentCanvasCssSize();
-  if (!context || width < 1 || height < 1) {
-    return;
-  }
-
-  context.save();
-  context.beginPath();
-  context.lineCap = "round";
-  context.lineJoin = "round";
-  context.strokeStyle = segment.color;
-  context.lineWidth = Number(segment.lineWidth);
-  context.moveTo(clampUnit(segment.x0) * width, clampUnit(segment.y0) * height);
-  context.lineTo(clampUnit(segment.x1) * width, clampUnit(segment.y1) * height);
-  context.stroke();
-  context.restore();
-}
-
-function redrawStudentBoard() {
-  const context = getStudentAnnotationContext();
-  const { width, height } = getStudentCanvasCssSize();
-  if (!context || width < 1 || height < 1) {
-    return;
-  }
-
-  context.clearRect(0, 0, width, height);
-  receivedAnnotationSegments.forEach(drawStudentSegment);
-}
-
-function resizeStudentCanvas() {
-  const canvas = elements.studentCanvas;
-  const { width, height } = getStudentCanvasCssSize();
-  if (!canvas || width < 1 || height < 1) {
-    return;
-  }
-
-  const pixelRatio = Math.max(1, window.devicePixelRatio || 1);
-  const backingWidth = Math.round(width * pixelRatio);
-  const backingHeight = Math.round(height * pixelRatio);
-
-  if (canvas.width !== backingWidth || canvas.height !== backingHeight) {
-    canvas.width = backingWidth;
-    canvas.height = backingHeight;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    getStudentAnnotationContext()?.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-  }
-
-  redrawStudentBoard();
-}
-
-function clearStudentBoard() {
-  receivedAnnotationSegments.length = 0;
-  const context = getStudentAnnotationContext();
-  const { width, height } = getStudentCanvasCssSize();
-  context?.clearRect(0, 0, width, height);
-}
-
-function isValidAnnotationSegment(data) {
-  return (
-    data &&
-    typeof data.color === "string" &&
-    /^#[0-9a-fA-F]{6}$/.test(data.color) &&
-    [data.x0, data.y0, data.x1, data.y1].every(
-      (value) => Number.isFinite(Number(value)) && Number(value) >= 0 && Number(value) <= 1
-    ) &&
-    Number.isFinite(Number(data.lineWidth)) &&
-    Number(data.lineWidth) >= 1 &&
-    Number(data.lineWidth) <= 12
-  );
-}
-
-function getStudentNormalizedPoint(event) {
-  const rect = elements.studentCanvas?.getBoundingClientRect();
-  if (!rect?.width || !rect?.height) return null;
-  return {
-    x: clampUnit((event.clientX - rect.left) / rect.width),
-    y: clampUnit((event.clientY - rect.top) / rect.height),
-  };
-}
-
-function stopStudentDrawing() {
-  isStudentDrawing = false;
-  previousStudentPoint = null;
-}
-
-function handleStudentCanvasPointerDown(event) {
-  if (!studentWhiteboardAllowed || !joinedClass || event.pointerType === "touch") return;
-  const point = getStudentNormalizedPoint(event);
-  if (!point) return;
-  isStudentDrawing = true;
-  previousStudentPoint = point;
-  elements.studentCanvas?.setPointerCapture?.(event.pointerId);
-  event.preventDefault();
-}
-
-function handleStudentCanvasPointerMove(event) {
-  if (!studentWhiteboardAllowed || !isStudentDrawing || !previousStudentPoint) return;
-  const point = getStudentNormalizedPoint(event);
-  if (!point) return;
-  const segment = {
-    x0: previousStudentPoint.x,
-    y0: previousStudentPoint.y,
-    x1: point.x,
-    y1: point.y,
-    color: "#3b82f6",
-    lineWidth: 4,
-  };
-  receivedAnnotationSegments.push(segment);
-  drawStudentSegment(segment);
-  socket.emit("draw_line", segment);
-  previousStudentPoint = point;
-  event.preventDefault();
-}
-
-function setStudentWhiteboardAccess(enabled) {
-  studentWhiteboardAllowed = Boolean(enabled);
-  stopStudentDrawing();
-  elements.studentCanvas?.classList.toggle("is-draw-enabled", studentWhiteboardAllowed);
-  const permissionBanner = document.getElementById("student-whiteboard-permission");
-  if (permissionBanner) permissionBanner.hidden = !studentWhiteboardAllowed;
-}
-
-function initializeStudentCanvas() {
-  elements.remoteVideo?.addEventListener("loadedmetadata", resizeStudentCanvas);
-  elements.studentCanvas?.addEventListener("pointerdown", handleStudentCanvasPointerDown);
-  elements.studentCanvas?.addEventListener("pointermove", handleStudentCanvasPointerMove);
-  elements.studentCanvas?.addEventListener("pointerup", stopStudentDrawing);
-  elements.studentCanvas?.addEventListener("pointercancel", stopStudentDrawing);
-  elements.studentCanvas?.addEventListener("pointerleave", stopStudentDrawing);
-  window.addEventListener("resize", resizeStudentCanvas);
-  resizeStudentCanvas();
 }
 
 const MAX_CHAT_MESSAGE_LENGTH = 800;
@@ -1318,6 +1175,7 @@ function resetRemoteMedia() {
   pendingRemoteAudioTracks.length = 0;
   elements.remoteVideo.srcObject = null;
   elements.remoteVideo.muted = true;
+  elements.placeholder.hidden = false;
   isAttemptingTeacherAudio = false;
   updateRemoteAudioControl();
 }
@@ -1331,37 +1189,16 @@ function addUniqueTrack(stream, track) {
 
 function attachTeacherTrack(event) {
   const track = event.track;
-  if (!track) {
-    return;
-  }
+  if (!track) return;
 
-  // The teacher sends exactly one display-video track. Do not assign an audio
-  // only MediaStream to the video element first: some browsers then leave the
-  // element in a permanent loading state when the video track arrives later.
-  if (track.kind === "audio" && !remoteMediaStream) {
-    pendingRemoteAudioTracks.push(track);
-    track.addEventListener("ended", updateRemoteAudioControl, { once: true });
-    track.addEventListener("unmute", updateRemoteAudioControl);
-    return;
-  }
-
-  if (track.kind === "video" && !remoteMediaStream) {
-    remoteMediaStream = new MediaStream([track]);
-    pendingRemoteAudioTracks.splice(0).forEach((audioTrack) => {
-      if (audioTrack.readyState === "live") {
-        addUniqueTrack(remoteMediaStream, audioTrack);
-      }
-    });
+  if (!remoteMediaStream) {
+    remoteMediaStream = new MediaStream();
     elements.remoteVideo.srcObject = remoteMediaStream;
-    // Attempt audible playback first. When a browser allows it, the learner
-    // hears the teacher without discovering a separate audio button.
     elements.remoteVideo.muted = false;
-  } else if (remoteMediaStream) {
-    addUniqueTrack(remoteMediaStream, track);
   }
+  addUniqueTrack(remoteMediaStream, track);
 
   if (track.kind === "video") {
-    requestAnimationFrame(resizeStudentCanvas);
     clearRecoveryTimer();
     recoveryAttempts = 0;
     isRecoveringStream = false;
@@ -1369,17 +1206,21 @@ function attachTeacherTrack(event) {
     hideConnectionOverlay();
     updateChatControls();
     setViewerStatus("صورة الحصة المباشرة متصلة.", "live");
+  } else {
+    setViewerStatus("صوت الأستاذ متصل. بانتظار مشاركة الشاشة…", "live");
   }
 
   track.addEventListener("ended", () => {
     remoteMediaStream?.removeTrack(track);
+    if (track.kind === "video" && !remoteMediaStream?.getVideoTracks().some((item) => item.readyState === "live")) {
+      elements.placeholder.hidden = false;
+      setViewerStatus("توقفت مشاركة الشاشة. صوت الأستاذ ما زال متاحًا.", "live");
+    }
     updateRemoteAudioControl();
   }, { once: true });
   track.addEventListener("unmute", updateRemoteAudioControl);
-  updateRemoteAudioControl();
 
-  // First try the teacher's voice automatically. A single, highly visible
-  // fallback is kept only for browsers that enforce an audible-autoplay block.
+  updateRemoteAudioControl();
   void startTeacherAudio();
 }
 
@@ -1456,7 +1297,6 @@ function resetViewerState({ message, mode = "neutral", showJoin = true } = {}) {
   recoveryAttempts = 0;
   closePeerConnection();
   stopLocalAudio();
-  clearStudentBoard();
   joinedClass = false;
   isJoining = false;
   setParticipationCount(0);
@@ -1918,8 +1758,6 @@ socket.on("room_joined", (data = {}) => {
     waitingForNextClass = false;
     teacherSocketId = data.teacherSocketId || teacherSocketId;
     setParticipationCount(data.participationCount);
-    clearStudentBoard();
-    requestAnimationFrame(resizeStudentCanvas);
   }
 });
 
@@ -1937,28 +1775,6 @@ socket.on("live_class_resumed", (data = {}) => {
     showLiveStartNotice(data, true);
     joinClassAutomaticallyFromLobby();
   }
-});
-
-socket.on("receive_draw_data", (data = {}) => {
-  if (!joinedClass || data.authorSocketId === socket.id || !isValidAnnotationSegment(data)) {
-    return;
-  }
-
-  const segment = {
-    x0: clampUnit(data.x0),
-    y0: clampUnit(data.y0),
-    x1: clampUnit(data.x1),
-    y1: clampUnit(data.y1),
-    color: data.color,
-    lineWidth: Number(data.lineWidth),
-  };
-
-  receivedAnnotationSegments.push(segment);
-  drawStudentSegment(segment);
-});
-
-socket.on("board_cleared", () => {
-  clearStudentBoard();
 });
 
 socket.on("participation_count_updated", (data = {}) => {
@@ -2096,14 +1912,6 @@ socket.on("webrtc_renegotiation_answer", async (data = {}) => {
   }
 });
 
-socket.on("whiteboard_access_granted", () => {
-  if (joinedClass) setStudentWhiteboardAccess(true);
-});
-
-socket.on("whiteboard_access_revoked", () => {
-  setStudentWhiteboardAccess(false);
-});
-
 socket.on("permission_granted", async () => {
   if (!joinedClass) {
     return;
@@ -2121,7 +1929,6 @@ socket.on("permission_granted", async () => {
 });
 
 socket.on("microphone_revoked", () => {
-  setStudentWhiteboardAccess(false);
   clearHandResetTimer();
   microphonePermissionGranted = false;
 
@@ -2231,7 +2038,6 @@ elements.subscriptionDeclineButton?.addEventListener("click", () => {
 });
 initializeMobileControls();
 initializeStudentKeyboardLayout();
-initializeStudentCanvas();
 
 window.addEventListener("pagehide", () => {
   clearHandResetTimer();
@@ -2240,7 +2046,6 @@ window.addEventListener("pagehide", () => {
   closeSubscriptionUpgradeModal();
   closePeerConnection();
   stopLocalAudio();
-  clearStudentBoard();
 });
 
 if (!studentId || !studentName || !level) {
@@ -2256,7 +2061,8 @@ if (!studentId || !studentName || !level) {
     "طالب جامعي": "طالب جامعي",
   };
   elements.classLevelLabel.textContent = levelDisplayLabels[level] || level;
-  setPlaceholder("جاري تجهيز الدخول إلى الحصة", "سيظهر بث الأستاذ بعد إكمال فحص الميكروفون.");
+  setLevelWelcomeImage();
+  setPlaceholder("جاري تجهيز الدخول إلى الحصة", "ستظهر صورة مستواك وصوت الأستاذ بعد إكمال فحص الميكروفون.");
   updateMicControl();
   updateChatControls();
   setViewerStatus("بانتظار تجهيز الميكروفون…", "neutral");

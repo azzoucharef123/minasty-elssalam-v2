@@ -40,7 +40,8 @@ const rtcConfig = {
 // Required broadcaster state requested for this phase.
 const peerConnections = Object.create(null);
 let screenStream;
-let whiteboardStream;
+let welcomeStream;
+let welcomeCanvas;
 let cameraStream;
 
 // Extra state used to make negotiation and cleanup predictable.
@@ -102,6 +103,7 @@ let studioDurationStartedAt = 0;
 const elements = {
   localVideo: document.getElementById("local-video"),
   teacherCanvas: document.getElementById("teacher-canvas"),
+  teacherWelcomeImage: document.getElementById("teacher-welcome-image"),
   annotationColor: document.getElementById("annotation-color"),
   annotationLineWidth: document.getElementById("annotation-line-width"),
   clearBoardButton: document.getElementById("clear-board-btn"),
@@ -211,14 +213,15 @@ function setStudioStatus(message, mode = "neutral") {
 function setStageMode(mode = "idle") {
   const stage = elements.videoStage;
   if (!stage) return;
-  const isWhiteboard = mode === "whiteboard";
+  const isWelcome = mode === "welcome";
   const isScreen = mode === "screen";
-  stage.classList.toggle("whiteboard-mode", isWhiteboard);
+  stage.classList.toggle("welcome-mode", isWelcome);
   stage.classList.toggle("screen-mode", isScreen);
   stage.classList.toggle("idle-mode", mode === "idle");
-  elements.stageEmptyState.hidden = mode !== "idle";
-  elements.localVideo.hidden = !isScreen;
-  elements.teacherCanvas.hidden = mode === "idle";
+  if (elements.stageEmptyState) elements.stageEmptyState.hidden = mode !== "idle";
+  if (elements.localVideo) elements.localVideo.hidden = !isScreen;
+  if (elements.teacherWelcomeImage) elements.teacherWelcomeImage.hidden = !isWelcome;
+  if (elements.teacherCanvas) elements.teacherCanvas.hidden = true;
 }
 
 function openQuestionImageModal(imageUrl) {
@@ -563,7 +566,7 @@ function redrawTeacherBoard() {
   }
 
   context.clearRect(0, 0, width, height);
-  if (elements.videoStage?.classList.contains("whiteboard-mode")) {
+  if (elements.videoStage?.classList.contains("welcome-mode")) {
     context.fillStyle = "#ffffff";
     context.fillRect(0, 0, width, height);
   }
@@ -1808,17 +1811,55 @@ function getLiveScreenAudioTrack() {
 
 function getActiveTeacherVideoTrack() {
   return screenStream?.getVideoTracks?.().find((track) => track.readyState === "live")
-    || whiteboardStream?.getVideoTracks?.().find((track) => track.readyState === "live")
+    || welcomeStream?.getVideoTracks?.().find((track) => track.readyState === "live")
     || null;
 }
 
-function ensureWhiteboardStream() {
-  if (!elements.teacherCanvas?.captureStream) return null;
-  resizeTeacherCanvas();
-  if (!whiteboardStream) {
-    whiteboardStream = elements.teacherCanvas.captureStream(20);
+const LEVEL_WELCOME_IMAGES = {
+  "السنة الأولى": "/assets/level-welcome/year-1.webp",
+  "السنة الثانية": "/assets/level-welcome/year-2.webp",
+  "السنة الثالثة": "/assets/level-welcome/year-3.webp",
+  "السنة الرابعة": "/assets/level-welcome/year-4.jpg",
+};
+
+function setTeacherWelcomeImage(levelName) {
+  const imageUrl = LEVEL_WELCOME_IMAGES[levelName];
+  if (!elements.teacherWelcomeImage || !imageUrl) return;
+  elements.teacherWelcomeImage.src = imageUrl;
+  elements.teacherWelcomeImage.alt = `صورة انتظار ${levelName} متوسط`;
+}
+
+function drawWelcomeCanvas() {
+  if (!welcomeCanvas) return;
+  const context = welcomeCanvas.getContext("2d");
+  if (!context) return;
+  const width = welcomeCanvas.width;
+  const height = welcomeCanvas.height;
+  context.fillStyle = "#050a13";
+  context.fillRect(0, 0, width, height);
+
+  const image = elements.teacherWelcomeImage;
+  if (!image?.complete || !image.naturalWidth || !image.naturalHeight) return;
+  const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
+  const drawWidth = image.naturalWidth * scale;
+  const drawHeight = image.naturalHeight * scale;
+  context.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+}
+
+function ensureWelcomeStream(levelName = activeLevel) {
+  if (!elements.teacherWelcomeImage) return null;
+  if (levelName) setTeacherWelcomeImage(levelName);
+  if (!welcomeCanvas) {
+    welcomeCanvas = document.createElement("canvas");
+    welcomeCanvas.width = 1280;
+    welcomeCanvas.height = 720;
   }
-  return whiteboardStream;
+  drawWelcomeCanvas();
+  if (!welcomeStream) {
+    welcomeStream = welcomeCanvas.captureStream?.(20);
+  }
+  elements.teacherWelcomeImage.onload = drawWelcomeCanvas;
+  return welcomeStream;
 }
 
 function syncTeacherVideoTrackToAllPeers() {
@@ -1830,7 +1871,7 @@ function syncTeacherVideoTrackToAllPeers() {
       if (sender.track !== track) sender.replaceTrack(track).catch(() => {});
       return;
     }
-    const stream = screenStream || whiteboardStream;
+    const stream = screenStream || welcomeStream;
     if (!stream) return;
     const nextSender = peerConnection.addTrack(track, stream);
     nextSender.__classroomVideoTrack = true;
@@ -2105,7 +2146,7 @@ async function tuneOutboundSender(sender, kind) {
  * with the same audio channel as all current attendees.
  */
 function addTeacherTracks(peerConnection, studentSocketId) {
-  const videoStream = screenStream || ensureWhiteboardStream();
+  const videoStream = screenStream || ensureWelcomeStream();
   const videoTrack = videoStream?.getVideoTracks?.().find((track) => track.readyState === "live");
   if (videoTrack) {
     videoTrack.contentHint = "detail";
@@ -2334,9 +2375,9 @@ function stopLocalStreams() {
   screenStream = undefined;
   cameraStream = undefined;
   elements.localVideo.srcObject = null;
-  if (whiteboardStream) {
-    whiteboardStream.getTracks().forEach((track) => track.stop());
-    whiteboardStream = undefined;
+  if (welcomeStream) {
+    welcomeStream.getTracks().forEach((track) => track.stop());
+    welcomeStream = undefined;
   }
   setStageMode("idle");
 }
@@ -2482,13 +2523,13 @@ async function stopScreenShare() {
   screenStream = undefined;
   streamToStop?.getTracks?.().forEach((track) => track.stop());
   if (elements.localVideo)   elements.localVideo.srcObject = null;
-  setStageMode(classActive ? "whiteboard" : "idle");
+  setStageMode(classActive ? "welcome" : "idle");
   removeClassroomAudioSource("__screen_audio__");
   if (classActive) {
-    ensureWhiteboardStream();
+    ensureWelcomeStream(activeLevel);
     syncTeacherVideoTrackToAllPeers();
   }
-  setStudioStatus(classActive ? "عادت السبورة البيضاء؛ بقيت الحصة والصوت مفتوحين." : "تم إيقاف مشاركة الشاشة.", classActive ? "live" : "neutral");
+  setStudioStatus(classActive ? "عادت صورة المستوى؛ بقيت الحصة والصوت مفتوحين." : "تم إيقاف مشاركة الشاشة.", classActive ? "live" : "neutral");
   updateControls();
 }
 
@@ -2549,12 +2590,14 @@ async function startLiveClass() {
 
   try {
     updateControls();
-    setStudioStatus("جارٍ بدء الحصة — السبورة البيضاء جاهزة…", "neutral");
-    // Prepare the board before any network or device await so the teacher sees
-    // immediate feedback even when microphone or signaling setup takes time.
+    setStudioStatus("جارٍ بدء الحصة — صورة المستوى والصوت جاهزان…", "neutral");
+    // Prepare the level image before any network or device await so students
+    // receive a stable visual immediately, even before screen sharing begins.
     clearTeacherChat();
-    setStageMode("whiteboard");
-    ensureWhiteboardStream();
+    activeLevel = selectedLevel;
+    setTeacherWelcomeImage(selectedLevel);
+    setStageMode("welcome");
+    ensureWelcomeStream(selectedLevel);
     // This is still called from the Start Class gesture, but it is inside the
     // guarded flow so an unsupported Web Audio API cannot leave the button stuck.
     primeClassroomAudioContext();
@@ -2750,24 +2793,6 @@ socket.on("room_ready", (data) => {
     setStudioStatus(`الحصة مباشرة الآن — ${data.level} | ${classTypeName}`, "live");
   }
 });
-
-socket.on("receive_draw_data", (data = {}) => {
-  if (!classActive || data.authorSocketId === socket.id || !isValidTeacherAnnotationSegment(data)) return;
-  const segment = {
-    x0: clampUnit(data.x0),
-    y0: clampUnit(data.y0),
-    x1: clampUnit(data.x1),
-    y1: clampUnit(data.y1),
-    color: data.color,
-    lineWidth: Number(data.lineWidth),
-  };
-  annotationSegments.push(segment);
-  drawTeacherSegment(segment);
-});
-
-function isValidTeacherAnnotationSegment(data) {
-  return isValidAnnotationSegment(data);
-}
 
 socket.on("student_joined", async (data = {}) => {
   const { socketId, studentName, participationCount } = data;

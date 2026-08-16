@@ -281,6 +281,18 @@
         max-height: 70vh;
       }
 
+      .teacher-welcome-image {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        background: #050a13;
+      }
+
+      .teacher-welcome-image[hidden] {
+        display: none;
+      }
+
       #local-video {
         display: block;
         width: 100%;
@@ -1200,7 +1212,7 @@
         }
       }
     </style>
-    <link rel="stylesheet" href="./css/studio-modern.css?v=live-start-notice-1" />
+    <link rel="stylesheet" href="./css/studio-modern.css?v=level-welcome-1" />
     <link rel="stylesheet" href="./css/participation.css?v=participation-1" />
   </head>
   <body class="teacher-live-page">
@@ -1243,7 +1255,7 @@
           <header class="stage-head">
             <div>
               <h1 id="studio-title">ما يراه الطلاب الآن</h1>
-              <p>هذه شاشة مراقبة لمحتوى السبورة أو مشاركة الشاشة كما يظهر للتلاميذ.</p>
+              <p>هذه شاشة مراقبة لصورة المستوى أو مشاركة الشاشة كما يظهر للتلاميذ.</p>
             </div>
             <div class="stage-head-status">
               <span class="stage-label">
@@ -1257,20 +1269,15 @@
           <div class="video-stage">
             <div class="teacher-video-frame">
               <video id="local-video" autoplay muted playsinline aria-label="معاينة مشاركة شاشة الأستاذ"></video>
-            </div>
-            <canvas id="teacher-canvas" class="annotation-canvas" aria-label="السبورة التفاعلية"></canvas>
-            <div class="annotation-toolbar" aria-label="أدوات السبورة">
-              <label for="annotation-color">اللون <input id="annotation-color" type="color" value="#3b82f6" /></label>
-              <label for="annotation-line-width">السماكة <input id="annotation-line-width" type="range" min="1" max="12" value="4" /></label>
-              <button id="clear-board-btn" class="clear-board-button" type="button">مسح السبورة</button>
+              <img id="teacher-welcome-image" class="teacher-welcome-image" alt="صورة انتظار المستوى الدراسي" hidden />
             </div>
 
             <div id="stage-empty-state" class="stage-empty-state">
               <span class="stage-empty-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M4.75 5.75A1.75 1.75 0 0 1 6.5 4h11A1.75 1.75 0 0 1 19.25 5.75v9.5A1.75 1.75 0 0 1 17.5 17h-11a1.75 1.75 0 0 1-1.75-1.75v-9.5ZM8.5 20h7M12 17v3" /><path d="m10 8 5 3.5-5 3.5V8Z" /></svg>
               </span>
-              <strong>لم تبدأ الحصة بعد</strong>
-              <p>اختر المستوى الدراسي والمادة، ثم اضغط «بدء الحصة». ستظهر السبورة البيضاء تلقائيًا، ويمكنك مشاركة الشاشة لاحقًا.</p>
+              <strong>الحصة جاهزة للبدء</strong>
+              <p>اختر المستوى والمادة ثم اضغط «بدء الحصة». ستظهر صورة المستوى وصوت الأستاذ فورًا، ويمكنك مشاركة الشاشة لاحقًا.</p>
             </div>
 
           </div>
@@ -1365,6 +1372,6 @@
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
     <script id="google-identity-services" src="https://accounts.google.com/gsi/client" defer></script>
-    <script src="./js/teacher-live-v2.js?v=live-start-notice-1" defer></script>
+    <script src="./js/teacher-live-v2.js?v=level-welcome-1" defer></script>
   </body>
 </html>
