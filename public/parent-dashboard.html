@@ -1143,7 +1143,7 @@
         }
       }
     </style>
-    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=certificates-1" />
+    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=unified-card-1" />
   </head>
   <body class="parent-dashboard-page">
     <div id="parent-sidebar-backdrop" class="parent-sidebar-backdrop" hidden></div>
@@ -1290,23 +1290,29 @@
 
       <section id="dashboard-content" hidden>
         <div class="student-overview">
-          <article class="overview-card student-card">
+          <article class="overview-card student-card unified-student-card">
             <span id="student-avatar" class="student-avatar" aria-hidden="true">ت</span>
-            <div>
-              <h2><span id="student-name">—</span><span id="account-status" class="account-status-chip">—</span></h2>
-              <p>المستوى الدراسي: <span id="student-level">—</span></p>
+            <div class="unified-student-copy">
+              <div class="unified-student-heading">
+                <h2><span id="student-name">—</span><span id="account-status" class="account-status-chip">—</span></h2>
+                <span class="unified-student-kicker">بطاقة التلميذ والاشتراك</span>
+              </div>
+              <p class="unified-student-level">المستوى الدراسي: <span id="student-level">—</span></p>
+              <div class="unified-subscription-summary" aria-label="ملخص الاشتراك والدفع">
+                <div class="unified-subscription-item">
+                  <span>نوع الاشتراك</span>
+                  <strong id="payment-status">—</strong>
+                </div>
+                <div id="secondary-payment-state" class="unified-subscription-item unified-payment-state" hidden>
+                  <span>حالة الدفع</span>
+                  <strong>—</strong>
+                </div>
+              </div>
             </div>
-          </article>
-
-          <article class="overview-card payment-card">
-            <span>نوع الاشتراك</span>
-            <strong id="payment-status">—</strong>
-            <small id="secondary-payment-state" hidden></small>
           </article>
                 </div>
         <section class="parent-kpi-grid" aria-label="مؤشرات التلميذ الحالي">
           <article class="parent-kpi-card"><span class="parent-kpi-icon">✓</span><div><small>الحضور</small><strong id="attendance-count">—</strong><em>حصة مسجلة</em></div></article>
-          <article class="parent-kpi-card"><span class="parent-kpi-icon">▣</span><div><small>حالة الاشتراك</small><strong id="parent-kpi-subscription">—</strong><em>تتحدث حسب حالة الدفع</em></div></article>
           <article class="parent-kpi-card"><span class="parent-kpi-icon">◷</span><div><small>الحصة القادمة</small><strong id="parent-kpi-next-class">—</strong><em>حسب برنامج المستوى</em></div></article>
           <article class="parent-kpi-card"><span class="parent-kpi-icon">★</span><div><small>التقييم العام</small><strong id="parent-kpi-rating">في انتظار التقييم</strong><em>لا يوجد تقييم مسجل بعد</em></div></article>
         </section>
@@ -1468,7 +1474,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/parent-dashboard.js?v=certificates-1"></script>
+    <script src="./js/parent-dashboard.js?v=unified-card-1"></script>
     <script src="./js/class-registry-parent.js?v=panel-scroll-1"></script>
   </body>
 </html>

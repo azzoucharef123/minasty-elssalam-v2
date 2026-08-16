@@ -297,3 +297,29 @@
   .student-certificate-toggle { padding-inline: .9rem; }
   .student-certificates-content { padding-inline: .9rem; }
 }
+
+
+/* Unified student identity and subscription card */
+.student-overview { grid-template-columns: minmax(0, 1fr); }
+.unified-student-card { position: relative; display: flex; align-items: flex-start; gap: 1rem; min-height: 0; padding: 1.25rem 1.4rem; overflow: hidden; background: linear-gradient(135deg, #ffffff 0%, #f8fbff 62%, #eff6ff 100%); border-color: #bfdbfe; box-shadow: 0 .8rem 2rem rgba(37, 99, 235, .1); }
+.unified-student-card::before { position: absolute; top: 0; right: 0; width: .35rem; height: 100%; content: ""; background: linear-gradient(180deg, #2563eb, #60a5fa); }
+.unified-student-copy { display: grid; flex: 1; min-width: 0; gap: .45rem; }
+.unified-student-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
+.unified-student-heading h2 { display: flex; align-items: center; flex-wrap: wrap; gap: .45rem; margin: 0; color: var(--text-main); font-size: clamp(1.05rem, 3.6vw, 1.35rem); }
+.unified-student-kicker { flex: 0 0 auto; padding: .28rem .55rem; color: #1d4ed8; background: #dbeafe; border: 1px solid #bfdbfe; border-radius: 999px; font-size: .64rem; font-weight: 900; }
+.unified-student-level { margin: 0; color: var(--text-muted); font-size: .78rem; font-weight: 700; }
+.unified-subscription-summary { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: .25rem; padding-top: .75rem; border-top: 1px solid #dbeafe; }
+.unified-subscription-item { display: grid; flex: 1 1 11rem; gap: .15rem; min-width: 0; padding: .55rem .7rem; border: 1px solid #dbeafe; border-radius: .7rem; background: rgba(255, 255, 255, .8); }
+.unified-subscription-item > span { color: var(--text-muted); font-size: .67rem; font-weight: 800; }
+.unified-subscription-item > strong { overflow: hidden; color: var(--primary-blue); font-size: .9rem; text-overflow: ellipsis; white-space: nowrap; }
+.unified-subscription-item > strong.is-paid { color: #047857; }
+.unified-subscription-item > strong.is-free, .unified-subscription-item > strong.is-unpaid { color: #b45309; }
+.unified-payment-state > strong { color: #334155; }
+.unified-payment-state > strong.is-paid { color: #047857; }
+@media (max-width: 560px) {
+  .unified-student-card { gap: .75rem; padding: 1rem; }
+  .unified-student-heading { align-items: flex-start; flex-direction: column; gap: .4rem; }
+  .unified-student-kicker { order: -1; }
+  .unified-subscription-summary { display: grid; grid-template-columns: 1fr; gap: .45rem; }
+  .unified-subscription-item { flex-basis: auto; }
+}

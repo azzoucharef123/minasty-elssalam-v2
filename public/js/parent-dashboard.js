@@ -862,18 +862,19 @@ function renderStudent(student) {
   elements.paymentStatus.classList.toggle("is-paid", isUniversityStudent && isPaid);
   elements.paymentStatus.classList.toggle("is-free", isUniversityStudent && !isPaid);
   elements.paymentStatus.classList.toggle("is-subject", !isUniversityStudent);
-  if (elements.parentKpiSubscription) {
-    elements.parentKpiSubscription.textContent = isUniversityStudent
-      ? isPaid ? "مدفوع" : "مجاني"
-      : secondarySubscriptionLabel(student);
-    elements.parentKpiSubscription.classList.toggle("is-paid", isPaid || (!isUniversityStudent && paymentStage !== "UNPAID"));
-    elements.parentKpiSubscription.classList.toggle("is-unpaid", !isPaid && (isUniversityStudent || paymentStage === "UNPAID"));
-  }
+  // The subscription KPI was intentionally removed from the markup because its information is now part of the unified card.
   if (elements.secondaryPaymentState) {
+    const paymentStateValue = elements.secondaryPaymentState.querySelector("strong");
     elements.secondaryPaymentState.hidden = isUniversityStudent;
-    elements.secondaryPaymentState.textContent = isUniversityStudent
-      ? ""
-      : `حالة الدفع: ${secondaryPaymentStateLabel(student)}`;
+    if (paymentStateValue) {
+      paymentStateValue.textContent = isUniversityStudent ? "" : secondaryPaymentStateLabel(student);
+      paymentStateValue.classList.toggle("is-paid", paymentStage === "PAID");
+      paymentStateValue.classList.toggle("is-unpaid", paymentStage === "UNPAID");
+    } else {
+      elements.secondaryPaymentState.textContent = isUniversityStudent
+        ? ""
+        : `حالة الدفع: ${secondaryPaymentStateLabel(student)}`;
+    }
   }
   renderUniversityPaymentUpgrade(student, isPaid);
   renderSecondaryPaymentUpgrade(student);
