@@ -3,6 +3,7 @@
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
@@ -17,14 +18,17 @@ const {
 } = require("../services/youtubeService");
 
 const router = express.Router();
-const uploadDirectory = String(process.env.YOUTUBE_UPLOAD_DIR || "/tmp/minasaty-youtube");
-fs.mkdirSync(uploadDirectory, { recursive: true });
+
+// Use a guaranteed writable system temp directory
+const uploadDirectory = path.join(os.tmpdir(), "minasaty-uploads");
+if (!fs.existsSync(uploadDirectory)) {
+  fs.mkdirSync(uploadDirectory, { recursive: true });
+}
+
 const upload = multer({
   dest: uploadDirectory,
-  limits: { fileSize: 1_500 * 1024 * 1024 },
-  fileFilter(_req, file, callback) {
-    callback(null, /^video\//i.test(file.mimetype) || file.mimetype === "application/octet-stream");
-  },
+  limits: { fileSize: 2_000 * 1024 * 1024 }, // Increased to 2GB
+  // Removed fileFilter to prevent silent rejections
 });
 
 function getJwtSecret() {
@@ -130,17 +134,29 @@ router.get("/videos", verifyToken, isTeacher, async (req, res) => {
   }
 });
 
-router.post("/upload", verifyToken, isTeacher, upload.single("video"), async (req, res) => {
+router.post("/upload", verifyToken, isTeacher, (req, res, next) => {
+  // Use manual invocation to catch Multer errors specifically
+  upload.single("video")(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      console.error("Multer Error during upload:", err);
+      return res.status(400).json({ error: `خطأ في رفع الملف: ${err.message}` });
+    } else if (err) {
+      console.error("Unknown error during upload:", err);
+      return res.status(500).json({ error: "حدث خطأ غير متوقع أثناء معالجة الملف." });
+    }
+    next();
+  });
+}, async (req, res) => {
   console.log("YouTube Upload Request Received:", {
     hasFile: !!req.file,
-    fileInfo: req.file ? { size: req.file.size, mimetype: req.file.mimetype, filename: req.file.filename } : null,
+    fileInfo: req.file ? { size: req.file.size, mimetype: req.file.mimetype, originalname: req.file.originalname } : null,
     body: req.body
   });
   const uploadedPath = req.file?.path;
   try {
     if (!req.file) {
-      console.error("Upload Error: No file found in request. Multer failed to parse the video.");
-      return res.status(400).json({ error: "أرسل ملف تسجيل فيديو صالحاً." });
+      console.error("Upload Error: No file found in request after Multer processing.");
+      return res.status(400).json({ error: "تعذر العثور على ملف الفيديو في الطلب. يرجى التحقق من المتصفح." });
     }
     const level = String(req.body?.level || "").trim();
     const subject = String(req.body?.subject || "").trim();

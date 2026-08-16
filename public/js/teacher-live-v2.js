@@ -911,10 +911,10 @@ async function uploadRecordingToYouTube(recording) {
   updateYoutubeUploadUi({ visible: true, text: "جارٍ رفع تسجيل الحصة إلى YouTube…", progress: 8 });
   updateControls();
   try {
-    // Re-wrap blob to ensure mimeType is set correctly for Multer
-    const videoBlob = new Blob([recording.blob], { type: recording.mimeType || "video/webm" });
+    // Direct append without extra wrapping, but ensure filename and size are logged
+    console.log(`Preparing YouTube upload. Blob size: ${recording.blob.size} bytes, Type: ${recording.blob.type}`);
     const formData = new FormData();
-    formData.append("video", videoBlob, recording.fileName || "recording.webm");
+    formData.append("video", recording.blob, recording.fileName || "recording.webm");
     formData.append("level", recording.registryLevel || recording.level || "");
     formData.append("subject", recording.registrySubject || "");
     formData.append("recordedAt", recording.recordedAt || new Date().toISOString());
