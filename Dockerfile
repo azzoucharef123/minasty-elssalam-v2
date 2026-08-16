@@ -16,7 +16,6 @@ RUN npx prisma generate
 # Environment variables
 ENV PORT=3000
 ENV NODE_ENV=production
-ENV DATABASE_URL="file:/data/dev.db"
 ENV UPLOAD_DIR="/data/uploads"
 
 EXPOSE 3000
