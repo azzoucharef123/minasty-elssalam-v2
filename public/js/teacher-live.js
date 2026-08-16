@@ -677,13 +677,8 @@ function getLocalRecordingMimeType() {
 }
 
 function getLocalRecordingFileName() {
-  const safeLabel = (value, fallback) => String(value || fallback)
-    .trim()
-    .replace(/[\\/:*?\"<>|]+/g, "-")
-    .replace(/\s+/g, "-")
-    .slice(0, 48) || fallback;
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  return `حصة-${safeLabel(activeLevel, "مباشرة")}-${safeLabel(getClassTypeName(activeLevel, activeSubject), "مسجلة")}-${stamp}.webm`;
+  return `recording-${stamp}.webm`;
 }
 
 function disposeLocalRecordingResources() {
