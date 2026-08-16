@@ -92,6 +92,7 @@ let lessonZoomPointers = new Map();
 let lessonZoomPinchStartDistance = 0;
 let lessonZoomPinchStartScale = 1;
 let lessonZoomPanStart = null;
+let lessonUpgradeContext = null;
 let parentScheduledClasses = [];
 let parentTeacherAbsent = false;
 let teacherAbsenceLevel = null;
@@ -179,37 +180,73 @@ function openPaymentAccessModal(reason = "access") {
 
   const subscriptionUpgrade = reason === "subscription-upgrade";
   const subjectUpgrade = reason === "subject-upgrade";
+  const lessonUpgrade = reason.startsWith("lesson-");
+  const lessonFreeOnly = reason === "lesson-free-only";
+  if (!lessonUpgrade) lessonUpgradeContext = null;
+  const lessonSubject = reason === "lesson-math-only" ? "الفيزياء" : "الرياضيات";
   const requiredSubject = activeLiveClassType === "PHYSICS" ? "الفيزياء" : "الرياضيات";
   const currentSubject = activeLiveClassType === "PHYSICS" ? "الرياضيات" : "الفيزياء";
   if (elements.paymentAccessTitle) {
-    elements.paymentAccessTitle.textContent = subscriptionUpgrade
-      ? "هذه الحصة مخصصة للاشتراك المدفوع"
-      : subjectUpgrade
-        ? `حصة اليوم ${requiredSubject}`
-        : "الدخول للحصة يحتاج إلى تفعيل";
+    elements.paymentAccessTitle.textContent = lessonUpgrade
+      ? reason === "lesson-unpaid"
+        ? "أنت غير مشترك حالياً"
+        : lessonFreeOnly
+          ? "هذا الدرس مخصص للاشتراك المدفوع"
+          : `هذا الدرس في ${lessonSubject}`
+      : subscriptionUpgrade
+        ? "هذه الحصة مخصصة للاشتراك المدفوع"
+        : subjectUpgrade
+          ? `حصة اليوم ${requiredSubject}`
+          : "الدخول للحصة يحتاج إلى تفعيل";
   }
   if (elements.paymentAccessHeadMessage) {
-    elements.paymentAccessHeadMessage.textContent = subscriptionUpgrade
-      ? "أنت مشترك في المجاني فقط وهذه الحصة المدفوعة الآن للطلبة ذوي الاشتراك المدفوع."
-      : subjectUpgrade
-        ? `حصة اليوم ${requiredSubject} وأنت مشترك في ${currentSubject} فقط.`
-        : "لم يتم تأكيد الدفع أو إبلاغ الأستاذ بموعد الدفع.";
+    elements.paymentAccessHeadMessage.textContent = lessonUpgrade
+      ? reason === "lesson-unpaid"
+        ? "أنت لست مشتركاً حالياً، وحسابك مجاني. اضغط على الزر للترقية والوصول إلى الدروس."
+        : lessonFreeOnly
+          ? "أنت مشترك في الحساب المجاني فقط، وهذا الدرس مخصص للاشتراك المدفوع."
+          : `أنت مشترك في ${lessonSubject === "الفيزياء" ? "الرياضيات" : "الفيزياء"} فقط، ولا يشمل اشتراكك هذا الدرس.`
+      : subscriptionUpgrade
+        ? "أنت مشترك في المجاني فقط وهذه الحصة المدفوعة الآن للطلبة ذوي الاشتراك المدفوع."
+        : subjectUpgrade
+          ? `حصة اليوم ${requiredSubject} وأنت مشترك في ${currentSubject} فقط.`
+          : "لم يتم تأكيد الدفع أو إبلاغ الأستاذ بموعد الدفع.";
   }
   if (elements.paymentAccessMessage) {
-    elements.paymentAccessMessage.textContent = subscriptionUpgrade
-      ? "للترقية إلى الاشتراك المدفوع، اضغط على الزر الأخضر واتصل بالأستاذ مباشرة على الرقم 0556960950."
-      : subjectUpgrade
-        ? `إذا كنت تريد الاشتراك في ${requiredSubject}، اتصل بالأستاذ مباشرة على الرقم 0556960950.`
-        : "إذا كنت تريد الدفع، اضغط على الزر الأخضر واتصل بالأستاذ مباشرة على الرقم 0556960950.";
+    elements.paymentAccessMessage.textContent = lessonUpgrade
+      ? "للوصول إلى هذا الدرس، اضغط على زر «ترقية حسابي الآن» واختر المادة أو الاشتراك المناسب."
+      : subscriptionUpgrade
+        ? "للترقية إلى الاشتراك المدفوع، اضغط على الزر الأخضر واتصل بالأستاذ مباشرة على الرقم 0556960950."
+        : subjectUpgrade
+          ? `إذا كنت تريد الاشتراك في ${requiredSubject}، اتصل بالأستاذ مباشرة على الرقم 0556960950.`
+          : "إذا كنت تريد الدفع، اضغط على الزر الأخضر واتصل بالأستاذ مباشرة على الرقم 0556960950.";
+  }
+  if (elements.callTeacherNowButton) {
+    elements.callTeacherNowButton.textContent = lessonUpgrade ? "ترقية حسابي الآن" : "اتصل بالأستاذ الآن";
+    elements.callTeacherNowButton.href = lessonUpgrade ? "#" : "tel:0556960950";
   }
   if (elements.declineRegistrationButton) {
-    elements.declineRegistrationButton.textContent = subjectUpgrade
-      ? `لا أريد الاشتراك في ${requiredSubject}`
-      : "لا أريد التسجيل";
+    elements.declineRegistrationButton.textContent = lessonUpgrade
+      ? "إغلاق"
+      : subjectUpgrade
+        ? `لا أريد الاشتراك في ${requiredSubject}`
+        : "لا أريد التسجيل";
   }
 
   elements.paymentAccessModal.hidden = false;
   document.body.style.overflow = "hidden";
+}
+
+function openLessonUpgradeModal(video) {
+  lessonUpgradeContext = video || null;
+  const reason = video?.accessReason === "UNPAID"
+    ? "lesson-unpaid"
+    : video?.accessReason === "MATH_ONLY"
+      ? "lesson-math-only"
+      : video?.accessReason === "PHYSICS_ONLY"
+        ? "lesson-physics-only"
+        : "lesson-free-only";
+  openPaymentAccessModal(reason);
 }
 
 function closePaymentAccessModal() {
@@ -432,13 +469,13 @@ function selectStudent(studentId) {
 }
 
 function canAccessLessonRepository(student) {
-  if (!student || student.level === "طالب جامعي") return true;
-  const stage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
-  return stage !== "UNPAID";
+  // The repository remains visible for every selected student so locked lesson
+  // cards can explain the required upgrade instead of appearing to be missing.
+  return Boolean(student);
 }
 
 function syncLessonRepositoryVisibility(student) {
-  const shouldShow = canAccessLessonRepository(student);
+  const shouldShow = Boolean(student);
   if (elements.lessonRepositoryCard) {
     elements.lessonRepositoryCard.hidden = !shouldShow;
   }
@@ -845,15 +882,17 @@ function renderLessonVideos(videos) {
   }
 
   videos.forEach((video, index) => {
-    if (!isSafeLessonPreviewUrl(video?.previewUrl)) return;
+    if (!video?.title) return;
     const item = document.createElement("article");
-    item.className = "lesson-video-item";
+    item.className = `lesson-video-item${video.locked ? " is-locked" : ""}`;
     item.setAttribute("aria-label", `الدرس ${index + 1}: ${video.title || "حصة مسجلة"}`);
 
     const art = document.createElement("div");
     art.className = "lesson-video-art";
     art.setAttribute("aria-hidden", "true");
-    art.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4.75 5.75A1.75 1.75 0 0 1 6.5 4h11a1.75 1.75 0 0 1 1.75 1.75v9.5A1.75 1.75 0 0 1 17.5 17h-11a1.75 1.75 0 0 1-1.75-1.75v-9.5Z"/><path d="m10 8 5 3.5-5 3.5V8Z"/><path d="M9 20h6M12 17v3"/></svg>';
+    art.innerHTML = video.locked
+      ? '<svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v3"/></svg>'
+      : '<svg viewBox="0 0 24 24"><path d="M4.75 5.75A1.75 1.75 0 0 1 6.5 4h11a1.75 1.75 0 0 1 1.75 1.75v9.5A1.75 1.75 0 0 1 17.5 17h-11a1.75 1.75 0 0 1-1.75-1.75v-9.5Z"/><path d="m10 8 5 3.5-5 3.5V8Z"/><path d="M9 20h6M12 17v3"/></svg>';
 
     const copy = document.createElement("div");
     copy.className = "lesson-video-copy";
@@ -866,10 +905,16 @@ function renderLessonVideos(videos) {
     date.textContent = `أضيفت في ${formatLessonVideoDate(video.createdAt)}`;
     const watch = document.createElement("button");
     watch.type = "button";
-    watch.className = "watch-lesson-video-btn";
-    watch.textContent = "مشاهدة الدرس";
-    watch.setAttribute("aria-label", `مشاهدة ${video.title || "الحصة المسجلة"}`);
-    watch.addEventListener("click", () => openLessonVideo(video));
+    watch.className = `watch-lesson-video-btn${video.locked ? " is-locked" : ""}`;
+    watch.textContent = video.locked ? "ترقية الحساب" : "مشاهدة الدرس";
+    watch.setAttribute("aria-label", video.locked ? `ترقية الحساب للوصول إلى ${video.title}` : `مشاهدة ${video.title || "الحصة المسجلة"}`);
+    watch.addEventListener("click", () => {
+      if (video.locked) {
+        openLessonUpgradeModal(video);
+      } else {
+        openLessonVideo(video);
+      }
+    });
     copy.append(title, type, date, watch);
     item.append(art, copy);
     elements.lessonVideoList.append(item);
@@ -1433,12 +1478,24 @@ if (!getParentToken()) {
   elements.lessonVideoModal?.addEventListener("click", (event) => {
     if (event.target === elements.lessonVideoModal) closeLessonVideo();
   });
-  elements.callTeacherNowButton?.addEventListener("click", () => {
+  elements.callTeacherNowButton?.addEventListener("click", (event) => {
+    if (lessonUpgradeContext) {
+      event.preventDefault();
+      const upgradeHandler = currentStudent?.level === "طالب جامعي"
+        ? openUniversityPaymentTransfer
+        : openSecondaryPaymentTransfer;
+      lessonUpgradeContext = null;
+      closePaymentAccessModal();
+      upgradeHandler?.();
+      return;
+    }
     closePaymentAccessModal();
   });
   elements.declineRegistrationButton?.addEventListener("click", () => {
+    const isLessonUpgrade = Boolean(lessonUpgradeContext);
+    lessonUpgradeContext = null;
     closePaymentAccessModal();
-    window.location.assign("./index.html");
+    if (!isLessonUpgrade) window.location.assign("./index.html");
   });
   elements.paymentAccessModal?.addEventListener("click", (event) => {
     if (event.target === elements.paymentAccessModal) {

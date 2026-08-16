@@ -88,7 +88,7 @@ function youtubeEmbedUrl(videoId) {
   return `https://www.youtube.com/embed/${videoId}?controls=1&fs=1&rel=0&playsinline=1&enablejsapi=1&origin=https://dr.africacold.fr`;
 }
 
-function serializeLessonVideo(video) {
+function serializeLessonVideo(video, access = { canWatch: true, accessReason: null }) {
   const repositoryType = video.repositoryType || LEGACY_REPOSITORY_TYPE;
   const youtubeMatch = String(video.driveUrl || "").match(/youtube\.com\/embed\/([A-Za-z0-9_-]{11})/);
   const youtubeVideoId = youtubeMatch?.[1] || "";
@@ -105,8 +105,12 @@ function serializeLessonVideo(video) {
     repositoryTypeLabel: repositoryType === LEGACY_REPOSITORY_TYPE
       ? "قديم — غير مصنف"
       : repositoryTypeLabel(video.level, repositoryType),
-    driveUrl: video.driveUrl,
-    previewUrl: youtubePreviewUrl || `https://drive.google.com/file/d/${video.driveFileId}/preview`,
+    driveUrl: access.canWatch ? video.driveUrl : null,
+    previewUrl: access.canWatch ? (youtubePreviewUrl || `https://drive.google.com/file/d/${video.driveFileId}/preview`) : null,
+    canWatch: Boolean(access.canWatch),
+    locked: !access.canWatch,
+    accessReason: access.accessReason || null,
+    upgradeRequired: !access.canWatch,
     createdAt: video.createdAt,
     updatedAt: video.updatedAt,
   };
@@ -147,8 +151,34 @@ function getStudentRepositoryTypes(student) {
     student.mathEnrollment ? "MATH" : null,
     student.physicsEnrollment ? "PHYSICS" : null,
   ].filter(Boolean);
-  
+
   return [...types, "UNCLASSIFIED"];
+}
+
+function getLessonAccess(student, video) {
+  const repositoryType = video.repositoryType || LEGACY_REPOSITORY_TYPE;
+  const paymentStage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
+
+  if (student.level !== "طالب جامعي" && paymentStage === "UNPAID") {
+    return { canWatch: false, accessReason: "UNPAID" };
+  }
+
+  if (student.level === "طالب جامعي") {
+    const paid = paymentStage === "PAID" || student.paymentStatus === true;
+    if (repositoryType === "PAID" && !paid) {
+      return { canWatch: false, accessReason: "FREE_ONLY" };
+    }
+    return { canWatch: true, accessReason: null };
+  }
+
+  if (repositoryType === "MATH" && !student.mathEnrollment) {
+    return { canWatch: false, accessReason: "PHYSICS_ONLY" };
+  }
+  if (repositoryType === "PHYSICS" && !student.physicsEnrollment) {
+    return { canWatch: false, accessReason: "MATH_ONLY" };
+  }
+
+  return { canWatch: true, accessReason: null };
 }
 
 /** Teacher-only: add a YouTube video link to a study level. */
@@ -205,17 +235,15 @@ async function getLessonVideosByLevel(req, res) {
       ...(requestedRepositoryType ? { repositoryType: requestedRepositoryType } : {}),
       ...(createdFrom || createdTo ? { createdAt: { ...(createdFrom ? { gte: createdFrom } : {}), ...(createdTo ? { lte: createdTo } : {}) } } : {}),
     };
+    let parentStudent = null;
     if (req.user?.role === "parent") {
-      const student = await getParentStudentForLevel(req.user.phone, level, normalizeText(req.query?.studentId));
-      if (!student) {
+      parentStudent = await getParentStudentForLevel(req.user.phone, level, normalizeText(req.query?.studentId));
+      if (!parentStudent) {
         return res.status(403).json({ error: "لا تملك صلاحية الاطلاع على مستودع هذا المستوى." });
       }
-      const studentPaymentStage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
-      if (level !== "طالب جامعي" && studentPaymentStage === "UNPAID") {
-        return res.status(403).json({ error: "مستودع الدروس متاح بعد تأكيد الدفع أو تسجيل الوعد بالدفع." });
-      }
-      const accessibleTypes = getStudentRepositoryTypes(student);
-      where = { ...where, repositoryType: requestedRepositoryType && accessibleTypes.includes(requestedRepositoryType) ? requestedRepositoryType : { in: accessibleTypes } };
+      // Return all lesson cards for this level. The per-video serializer below
+      // removes the playback URL for locked lessons and includes the reason.
+      where = { ...where };
     } else if (req.user?.role !== "teacher") {
       return res.status(403).json({ error: "لا تملك صلاحية الاطلاع على مستودع الدروس." });
     }
@@ -227,7 +255,10 @@ async function getLessonVideosByLevel(req, res) {
 
     return res.status(200).json({
       status: "success",
-      data: videos.map(serializeLessonVideo),
+      data: videos.map((video) => serializeLessonVideo(
+        video,
+        parentStudent ? getLessonAccess(parentStudent, video) : { canWatch: true, accessReason: null },
+      )),
     });
   } catch (error) {
     console.error("Unable to list lesson videos:", error);
