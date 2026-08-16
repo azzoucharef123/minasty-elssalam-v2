@@ -1041,3 +1041,23 @@ body.public-class-modal-open { overflow: hidden; }
 .level-schedule-image-dialog img { display: block; width: 100%; height: auto; object-fit: contain; border-radius: 0.65rem; }
 .level-schedule-image-close { position: absolute; top: 0.65rem; left: 0.65rem; z-index: 2; display: grid; width: 2rem; height: 2rem; place-items: center; color: #991b1b; background: #fff1f2; border: 1px solid #fecaca; border-radius: 0.55rem; font-size: 1.2rem; cursor: pointer; }
 @media (max-width: 38rem) { .level-schedule-heading { flex-direction: column; } .level-schedule-badge { align-self: flex-start; } .level-schedule-card { margin-inline: 0; } }
+
+/* Parent dashboard: prominent next-class card */
+.parent-next-class-card { margin: 0 0 1rem; padding: clamp(1.15rem, 3vw, 1.65rem); border: 1px solid #bfdbfe; border-radius: 1.25rem; background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%); box-shadow: 0 1rem 2.6rem rgba(37, 99, 235, 0.13); }
+.parent-next-class-card[hidden] { display: none; }
+.parent-next-class-card .parent-schedule-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: .9rem; border-bottom: 1px solid #dbeafe; }
+.parent-next-class-card .parent-schedule-head span:first-child { color: #2563eb; font-size: .72rem; font-weight: 900; }
+.parent-next-class-card .parent-schedule-head h2 { margin: .2rem 0 0; color: #0f172a; font-size: clamp(1.15rem, 3vw, 1.55rem); }
+.parent-next-class-status { display: inline-flex; align-items: center; min-height: 2rem; padding: .35rem .7rem; color: #1d4ed8; background: #dbeafe; border: 1px solid #93c5fd; border-radius: 999px; font-size: .68rem; font-weight: 900; white-space: nowrap; }
+.parent-next-class-status.is-live { color: #ffffff; background: #2563eb; border-color: #2563eb; box-shadow: 0 .35rem .9rem rgba(37, 99, 235, .25); }
+.parent-next-class-card .parent-schedule-list { margin-top: 1rem; }
+.parent-next-class-card .parent-schedule-item { grid-template-columns: 3rem minmax(0, 1fr) minmax(14rem, auto); gap: 1rem; min-height: 7rem; padding: 1rem 1.1rem; border: 1px solid #bfdbfe; border-radius: 1rem; background: rgba(255, 255, 255, .86); box-shadow: 0 .45rem 1.2rem rgba(15, 23, 42, .06); }
+.parent-next-class-card .parent-schedule-item strong { color: #0f172a; font-size: clamp(1rem, 2.2vw, 1.3rem); }
+.parent-next-class-card .parent-schedule-item span { margin-top: .45rem; color: #475569; font-size: clamp(.78rem, 1.8vw, .95rem); }
+.parent-next-class-card .parent-schedule-subject-icon { width: 3rem; height: 3rem; color: #1d4ed8; background: #dbeafe; border-radius: .9rem; font-size: 1.55rem; }
+.parent-next-class-card .parent-schedule-join { justify-self: stretch; min-height: 3.35rem; padding: .75rem 1rem; border-radius: .8rem; font-size: .88rem; font-weight: 900; }
+.parent-next-class-card .parent-schedule-join.is-live { color: #ffffff; background: #2563eb; border-color: #2563eb; box-shadow: 0 .55rem 1.2rem rgba(37, 99, 235, .28); animation: next-class-live-pulse 1.8s ease-in-out infinite; }
+.parent-next-class-card .parent-schedule-join.is-live:hover { background: #1d4ed8; }
+@keyframes next-class-live-pulse { 0%, 100% { box-shadow: 0 .55rem 1.2rem rgba(37, 99, 235, .22); } 50% { box-shadow: 0 .55rem 1.7rem rgba(37, 99, 235, .44); } }
+@media (max-width: 650px) { .parent-next-class-card .parent-schedule-item { grid-template-columns: 2.5rem minmax(0, 1fr); min-height: 0; } .parent-next-class-card .parent-schedule-subject-icon { width: 2.5rem; height: 2.5rem; } .parent-next-class-card .parent-schedule-join { grid-column: 2; justify-self: stretch; width: 100%; } .parent-next-class-card .parent-schedule-head { align-items: flex-start; flex-direction: column; } }
+@media (prefers-reduced-motion: reduce) { .parent-next-class-card .parent-schedule-join.is-live { animation: none; } }

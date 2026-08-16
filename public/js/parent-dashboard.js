@@ -32,6 +32,8 @@ const elements = {
   secondaryPaymentReceiptInput: document.getElementById("secondary-payment-receipt-input"),
   secondaryPaymentSubmit: document.getElementById("secondary-payment-submit"),
   secondaryPaymentPending: document.getElementById("secondary-payment-pending"),
+  parentScheduleCard: document.getElementById("parent-schedule-card"),
+  parentNextClassStatus: document.getElementById("parent-next-class-status"),
   parentScheduleList: document.getElementById("parent-schedule-list"),
   teacherAbsenceNotice: document.getElementById("teacher-absence-notice"),
   logoutButton: document.getElementById("logout-btn"),
@@ -275,6 +277,7 @@ function closePaymentAccessModal() {
 
 function setLiveClassVisible(isVisible) {
   elements.liveBanner?.classList.toggle("is-visible", Boolean(isVisible));
+  renderParentSchedule();
 }
 
 function getInitials(name) {
@@ -343,7 +346,7 @@ function renderStudentSwitcher(students) {
 function scheduleTypeLabel(level, subject) {
   const labels = level === "طالب جامعي"
     ? { PAID: "اشتراك مدفوع", FREE: "اشتراك مجاني" }
-    : { MATH: "الرياضيات", PHYSICS: "الفيزياء" };
+    : { MATH: "الرياضيات", PHYSICS: "الفيزياء", FREE: "حصة مجانية" };
   return labels[subject] || "حصة مبرمجة";
 }
 
@@ -363,6 +366,17 @@ function formatParentScheduleDate(value) {
 
 function getNextParentScheduledClass() {
   const now = Date.now();
+  if (activeLiveClassType) {
+    const liveScheduledClass = parentScheduledClasses
+      .filter((scheduledClass) => scheduledClass?.subject === activeLiveClassType)
+      .map((scheduledClass) => ({ scheduledClass, timestamp: new Date(scheduledClass.scheduledAt).getTime() }))
+      .filter(({ timestamp }) => Number.isFinite(timestamp) && Math.abs(timestamp - now) <= 3 * 60 * 60 * 1000)
+      .sort((left, right) => Math.abs(left.timestamp - now) - Math.abs(right.timestamp - now))[0]?.scheduledClass;
+    return liveScheduledClass
+      ? { ...liveScheduledClass, isLiveNow: true }
+      : { id: `live-${currentStudent?.level || "level"}-${activeLiveClassType}`, subject: activeLiveClassType, scheduledAt: null, isLiveNow: true };
+  }
+
   return parentScheduledClasses
     .filter((scheduledClass) => {
       const timestamp = new Date(scheduledClass?.scheduledAt).getTime();
@@ -387,6 +401,13 @@ function scheduleParentScheduleAdvance(nextClass) {
 function renderParentSchedule() {
   const nextClass = getNextParentScheduledClass();
   scheduleParentScheduleAdvance(nextClass);
+  if (elements.parentScheduleCard) elements.parentScheduleCard.hidden = !currentStudent;
+  if (elements.parentNextClassStatus) {
+    elements.parentNextClassStatus.textContent = activeLiveClassType
+      ? "الحصة مفتوحة الآن"
+      : "حسب برنامج المستوى";
+    elements.parentNextClassStatus.classList.toggle("is-live", Boolean(activeLiveClassType));
+  }
   const isAbsenceForCurrentStudent = Boolean(
     parentTeacherAbsent && currentStudent && teacherAbsenceLevel === currentStudent.level
   );
@@ -416,7 +437,7 @@ function renderParentSchedule() {
     const title = document.createElement("strong");
     title.textContent = scheduleTypeLabel(currentStudent?.level, scheduledClass.subject);
     const date = document.createElement("span");
-    date.textContent = formatParentScheduleDate(scheduledClass.scheduledAt);
+    date.textContent = scheduledClass.isLiveNow ? "مفتوحة الآن" : formatParentScheduleDate(scheduledClass.scheduledAt);
     content.append(title, date);
     const subjectIcon = document.createElement("i");
     subjectIcon.className = "parent-schedule-subject-icon";
@@ -424,10 +445,11 @@ function renderParentSchedule() {
     subjectIcon.textContent = scheduledClass.subject === "PHYSICS" ? "ϟ" : scheduledClass.subject === "MATH" ? "∠" : "★";
     const join = document.createElement("button");
     join.type = "button";
-    join.className = "parent-schedule-join";
-    join.textContent = "دخول الحصة";
-    join.disabled = !activeLiveClassType;
-    join.title = join.disabled ? "يتفعل الزر عند بدء الحصة" : "الدخول إلى الحصة المباشرة";
+    const isLiveNow = Boolean(activeLiveClassType);
+    join.className = `parent-schedule-join${isLiveNow ? " is-live" : ""}`;
+    join.textContent = isLiveNow ? "ادخل الآن — الحصة مفتوحة الآن بسرعة" : "الدخول للحصة";
+    join.disabled = !isLiveNow;
+    join.title = join.disabled ? "سيتفعل الزر عند بدء حصة هذا المستوى" : "الدخول إلى الحصة المباشرة الآن";
     if (!join.disabled) join.addEventListener("click", () => void enterLiveClass());
     item.append(subjectIcon, content, join);
     elements.parentScheduleList.append(item);

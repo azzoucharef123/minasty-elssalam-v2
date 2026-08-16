@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./css/style.css" />
+    <link rel="stylesheet" href="./css/style.css?v=live-next-class-1" />
     <link rel="stylesheet" href="./css/private-messages.css" />
     <link rel="stylesheet" href="./css/payment-feedback.css" />
 
@@ -1191,6 +1191,17 @@
         <button id="change-student-button" class="change-student-button" type="button">تغيير التلميذ</button>
       </section>
 
+      <section id="parent-schedule-card" class="parent-schedule-card parent-next-class-card" hidden aria-labelledby="parent-schedule-title">
+        <header class="parent-schedule-head">
+          <div>
+            <span>برنامج الحصص</span>
+            <h2 id="parent-schedule-title">الحصة القادمة</h2>
+          </div>
+          <span id="parent-next-class-status" class="parent-next-class-status">حسب برنامج المستوى</span>
+        </header>
+        <div id="parent-schedule-list" class="parent-schedule-list" aria-live="polite"></div>
+      </section>
+
       <section id="secondary-payment-upgrade" class="university-payment-upgrade secondary-payment-upgrade" hidden aria-live="polite">
         <h2>ترقية حسابي</h2>
         <p>اختر المواد التي تريد الاشتراك فيها، ثم ارفع وصل الدفع للتمتع بالحصص المباشرة ومقاطع الدروس المسجلة.</p>
@@ -1290,15 +1301,6 @@
           <article class="parent-kpi-card"><span class="parent-kpi-icon">★</span><div><small>التقييم العام</small><strong id="parent-kpi-rating">في انتظار التقييم</strong><em>لا يوجد تقييم مسجل بعد</em></div></article>
         </section>
         <div class="parent-content-split">
-        <section id="parent-schedule-card" class="parent-schedule-card" aria-labelledby="parent-schedule-title">
-          <header class="parent-schedule-head">
-            <div>
-              <span>برنامج الحصص</span>
-              <h2 id="parent-schedule-title">الحصص القادمة</h2>
-            </div>
-          </header>
-                    <div id="parent-schedule-list" class="parent-schedule-list" aria-live="polite"></div>
-        </section>
         <aside class="parent-feedback-card" aria-labelledby="parent-feedback-title"><div class="parent-panel-kicker">متابعة الأستاذ</div><h2 id="parent-feedback-title">ملاحظات الأستاذ</h2><blockquote>لا توجد ملاحظات جديدة من الأستاذ حول تقدّم هذا التلميذ حالياً.</blockquote><small>ستظهر هنا الملاحظات بعد إضافتها من المركز الأكاديمي.</small></aside>
         </div>
         <section id="lesson-repository-card" class="lesson-repository-card" aria-labelledby="lesson-repository-parent-title">
@@ -1417,7 +1419,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/parent-dashboard.js?v=next-class-1"></script>
+    <script src="./js/parent-dashboard.js?v=live-next-class-1"></script>
     <script src="./js/class-registry-parent.js?v=registry-toggle-1"></script>
   </body>
 </html>
