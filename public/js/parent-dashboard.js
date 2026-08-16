@@ -250,6 +250,8 @@ let lessonZoomPanStart = null;
 let lessonUpgradeContext = null;
 let parentScheduledClasses = [];
 let parentScheduleAdvanceTimer = null;
+let parentScheduleLoading = false;
+let parentScheduleError = "";
 let parentTeacherAbsent = false;
 let teacherAbsenceLevel = null;
 
@@ -568,6 +570,22 @@ function renderParentSchedule() {
   if (!elements.parentScheduleList) return;
   elements.parentScheduleList.replaceChildren();
 
+  if (parentScheduleLoading) {
+    const loading = document.createElement("p");
+    loading.className = "parent-schedule-empty is-loading";
+    loading.textContent = "جارٍ تحميل الحصة القادمة…";
+    elements.parentScheduleList.append(loading);
+    return;
+  }
+
+  if (parentScheduleError) {
+    const error = document.createElement("p");
+    error.className = "parent-schedule-empty is-error";
+    error.textContent = "تعذر تحميل برنامج الحصص حاليًا. حاول تحديث الصفحة.";
+    elements.parentScheduleList.append(error);
+    return;
+  }
+
   if (!nextClass) {
     const empty = document.createElement("p");
     empty.className = "parent-schedule-empty";
@@ -603,6 +621,9 @@ function renderParentSchedule() {
 }
 
 async function loadParentSchedule(level) {
+  parentScheduleLoading = true;
+  parentScheduleError = "";
+  renderParentSchedule();
   try {
     const response = await parentFetch(`/api/schedules/${encodeURIComponent(level)}`, {
       headers: { Accept: "application/json" },
@@ -614,9 +635,16 @@ async function loadParentSchedule(level) {
     parentScheduledClasses = Array.isArray(payload.scheduledClasses) ? payload.scheduledClasses : [];
     parentTeacherAbsent = payload.teacherAbsent === true;
     teacherAbsenceLevel = parentTeacherAbsent ? level : null;
+    parentScheduleLoading = false;
+    parentScheduleError = "";
     renderParentSchedule();
   } catch (error) {
     console.error("Unable to load parent schedule:", error);
+    if (currentStudent && currentStudent.level === level) {
+      parentScheduleLoading = false;
+      parentScheduleError = "تعذر تحميل برنامج الحصص.";
+      renderParentSchedule();
+    }
   }
 }
 
@@ -680,6 +708,8 @@ function selectStudent(studentId) {
   // Clear level-specific state before loading the selected student's data so
   // the previous student's schedule or live class cannot flash in the UI.
   parentScheduledClasses = [];
+  parentScheduleLoading = true;
+  parentScheduleError = "";
   activeLiveClassType = null;
   setLiveClassVisible(false);
   parentTeacherAbsent = false;
