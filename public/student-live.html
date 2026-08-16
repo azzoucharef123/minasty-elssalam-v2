@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=5" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=5, interactive-widget=overlays-content" />
     <meta
       name="description"
       content="مشاهدة الحصة المباشرة في أكاديمية التفوق للفيزياء والرياضيات."
@@ -917,6 +917,29 @@
           width: 100vw;
           height: 100dvh;
           min-height: 100dvh;
+        }
+      }
+
+      /* Keep the app shell on the small viewport when the virtual keyboard
+         opens. This prevents dynamic viewport recalculation from lifting the
+         entire page while preserving pinch zoom on the video. */
+      @media screen and (max-width: 900px) {
+        .student-live-page,
+        .viewer-shell {
+          height: 100svh;
+          min-height: 100svh;
+        }
+
+        .viewer-stage {
+          height: calc(100svh - 4.35rem);
+        }
+      }
+
+      @media screen and (orientation: landscape) and (max-width: 900px) {
+        .viewer-stage,
+        .video-frame {
+          height: 100svh;
+          min-height: 100svh;
         }
       }
 
