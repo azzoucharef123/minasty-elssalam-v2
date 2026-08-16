@@ -67,10 +67,19 @@ async function attachVideoToNearestScheduledClass({ req, level, subject, videoId
   const timestamp = Number.isFinite(recordedDate.getTime()) ? recordedDate : new Date();
   const windowStart = new Date(timestamp.getTime() - 36 * 60 * 60 * 1000);
   const windowEnd = new Date(timestamp.getTime() + 36 * 60 * 60 * 1000);
+  // Normalize subject for mapping if necessary (e.g. 'MATH' vs 'رياضيات')
+  const subjectMap = {
+    'الرياضيات': 'MATH',
+    'الفيزياء': 'PHYSICS',
+    'MATH': 'MATH',
+    'PHYSICS': 'PHYSICS'
+  };
+  const targetSubject = subjectMap[normalizedSubject] || normalizedSubject;
+
   const candidates = await prisma.scheduledClass.findMany({
     where: {
-      level: normalizedLevel,
-      subject: normalizedSubject,
+      level: { contains: normalizedLevel },
+      subject: { equals: targetSubject },
       status: "PENDING",
       scheduledAt: { gte: windowStart, lte: windowEnd },
     },
