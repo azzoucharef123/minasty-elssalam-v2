@@ -46,6 +46,7 @@ let isRecoveringStream = false;
 let recoveryAttempts = 0;
 let recoveryTimer = null;
 const MAX_RECOVERY_ATTEMPTS = 8;
+const STUDENT_MIC_PERMISSION_STORAGE_KEY = "studentLiveMicPermission:v1";
 const pendingIceCandidates = [];
 const MAX_QUESTION_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const ACCEPTED_QUESTION_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -1095,12 +1096,14 @@ async function prepareStudentMicrophone() {
       track.enabled = false;
     });
     microphonePrepared = true;
+    rememberStudentMicrophonePermission();
     setViewerStatus("تم تجهيز المايك للحصة. لن يعمل إلا عند سماح الأستاذ.", "live");
     updatePrejoinControls();
     return true;
   } catch (error) {
     microphonePrepared = false;
     if (error?.name === "NotAllowedError") {
+      clearRememberedStudentMicrophonePermission();
       setViewerStatus("يمكنك متابعة الحصة بصوت الأستاذ. لن يعمل مايكك إلا بعد السماح للمتصفح.", "warning");
     } else if (error?.name === "NotFoundError") {
       setViewerStatus("لم يتم العثور على مايك متاح. ستتابع الحصة بصوت الأستاذ.", "warning");
@@ -1111,6 +1114,43 @@ async function prepareStudentMicrophone() {
     isPreparingMicrophone = false;
     updateMicControl();
     updatePrejoinControls();
+  }
+}
+
+function rememberStudentMicrophonePermission() {
+  try {
+    localStorage.setItem(STUDENT_MIC_PERMISSION_STORAGE_KEY, "granted");
+  } catch (error) {
+    console.info("Unable to remember student microphone permission locally:", error);
+  }
+}
+
+function hasRememberedStudentMicrophonePermission() {
+  try {
+    return localStorage.getItem(STUDENT_MIC_PERMISSION_STORAGE_KEY) === "granted";
+  } catch (error) {
+    return false;
+  }
+}
+
+function clearRememberedStudentMicrophonePermission() {
+  try {
+    localStorage.removeItem(STUDENT_MIC_PERMISSION_STORAGE_KEY);
+  } catch (error) {
+    console.info("Unable to clear remembered microphone permission:", error);
+  }
+}
+
+async function readBrowserMicrophonePermission() {
+  if (!navigator.permissions?.query) {
+    return null;
+  }
+
+  try {
+    const permissionStatus = await navigator.permissions.query({ name: "microphone" });
+    return permissionStatus.state;
+  } catch (error) {
+    return null;
   }
 }
 
@@ -1177,6 +1217,10 @@ async function continueFromStudentPrejoin() {
     }
   }
 
+  await completeStudentPrejoinAndJoin();
+}
+
+async function completeStudentPrejoinAndJoin() {
   prejoinCompleted = true;
   initialAutoJoinPending = true;
   if (elements.prejoinOverlay) elements.prejoinOverlay.hidden = true;
@@ -1192,9 +1236,24 @@ async function initializeStudentPrejoin() {
 
   prejoinCompleted = false;
   initialAutoJoinPending = false;
-  elements.prejoinOverlay.hidden = false;
+
+  const rememberedPermission = hasRememberedStudentMicrophonePermission();
+  elements.prejoinOverlay.hidden = rememberedPermission;
   updatePrejoinControls("يجب تفعيل الميكروفون أولاً قبل دخول الحصة.");
 
+  const browserPermission = await readBrowserMicrophonePermission();
+  const canReusePermission = rememberedPermission && browserPermission !== "prompt" && browserPermission !== "denied";
+
+  if (canReusePermission) {
+    const ready = await prepareStudentMicrophone();
+    if (ready) {
+      await completeStudentPrejoinAndJoin();
+      return;
+    }
+    clearRememberedStudentMicrophonePermission();
+  }
+
+  elements.prejoinOverlay.hidden = false;
   const micWasPreparedDuringEntry = sessionStorage.getItem("studentMicPreflight") === "granted";
   sessionStorage.removeItem("studentMicPreflight");
   if (micWasPreparedDuringEntry) {
