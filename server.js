@@ -1306,14 +1306,12 @@ io.on("connection", (socket) => {
         socket.data.roomLevel === level &&
         isInLevelRoom(socket, level);
 
-      const sessionKey = teacherSocket.data.classResumeToken;
+      const sessionKey = teacherSocket.data.classResumeToken || null;
       // A repeated join emit from the same socket must not inflate history.
-      // A genuinely new connection deliberately creates or updates an attendance entry.
+      // A genuinely new connection creates a separate attendance visit.
       if (!isAlreadyJoined) {
-        const attendance = await prisma.attendance.upsert({
-          where: { studentId_sessionKey: { studentId: student.id, sessionKey } },
-          create: { studentId: student.id, level, sessionKey },
-          update: {},
+        const attendance = await prisma.attendance.create({
+          data: { studentId: student.id, level, sessionKey },
         });
         socket.data.attendanceId = attendance.id;
       }

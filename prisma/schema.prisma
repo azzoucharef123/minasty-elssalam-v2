@@ -212,13 +212,13 @@ model Attendance {
   id              String   @id @default(uuid()) @db.Uuid
   studentId       String   @db.Uuid
   level           String
-  sessionKey      String   @default("")
+  sessionKey      String?
   joinedAt        DateTime @default(now())
   durationMinutes Int      @default(0)
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  @@unique([studentId, sessionKey])
+  @@index([studentId, sessionKey])
   @@index([studentId, joinedAt(sort: Desc)])
   @@index([level, joinedAt(sort: Desc)])
 }
