@@ -886,7 +886,7 @@ async function loadLevelSchedule() {
 
 function renderLessonVideos() {
   if (elements.lessonRepositoryCaption) {
-    elements.lessonRepositoryCaption.textContent = `أضف رابط فيديو Google Drive لحصص ${displayLevelLabel(currentLevel)} ليشاهده التلاميذ داخل حساباتهم.`;
+    elements.lessonRepositoryCaption.textContent = `أضف رابط YouTube يدوياً لحصص ${displayLevelLabel(currentLevel)} ليشاهده التلاميذ داخل حساباتهم.`;
   }
   if (!elements.lessonVideoList) return;
 
@@ -916,7 +916,7 @@ function renderLessonVideos() {
     const actions = document.createElement("div");
     actions.className = "teacher-lesson-video-actions";
     const open = document.createElement("a");
-    open.href = video.driveUrl;
+    open.href = video.previewUrl || video.driveUrl;
     open.target = "_blank";
     open.rel = "noopener noreferrer";
     open.textContent = "فتح الرابط";
@@ -946,13 +946,39 @@ async function loadLessonVideos() {
   }
 }
 
+function extractYouTubeVideoId(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const parsed = new URL(raw);
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    if (host === "youtu.be") {
+      const id = parsed.pathname.split("/").filter(Boolean)[0] || "";
+      return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : "";
+    }
+    if (!["youtube.com", "m.youtube.com"].includes(host)) return "";
+    const queryId = parsed.searchParams.get("v") || "";
+    const pathId = parsed.pathname.match(/\/(?:embed|shorts)\/([A-Za-z0-9_-]{11})/)?.[1] || "";
+    const id = queryId || pathId;
+    return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : "";
+  } catch {
+    return "";
+  }
+}
+
 async function saveLessonVideo(event, selectedVideo = null) {
   event?.preventDefault();
   const title = selectedVideo?.title || elements.lessonVideoTitle?.value.trim() || "";
-  const driveUrl = selectedVideo?.driveUrl || elements.lessonVideoUrl?.value.trim() || "";
+  const youtubeUrl = selectedVideo?.previewUrl || elements.lessonVideoUrl?.value.trim() || "";
+  const youtubeVideoId = extractYouTubeVideoId(youtubeUrl);
   const repositoryType = selectedVideo?.repositoryType || elements.lessonVideoType?.value || "";
-  if (!title || !driveUrl) {
-    showDashboardError("أدخل عنوان الحصة ورابط Google Drive أولاً.");
+  if (!title || !youtubeUrl) {
+    showDashboardError("أدخل عنوان الحصة ورابط YouTube أولاً.");
+    return;
+  }
+  if (!youtubeVideoId) {
+    showDashboardError("أدخل رابط YouTube صحيحاً من نوع youtube.com أو youtu.be.");
+    elements.lessonVideoUrl?.focus();
     return;
   }
   if (!repositoryType) {
@@ -966,7 +992,7 @@ async function saveLessonVideo(event, selectedVideo = null) {
     const response = await teacherFetch("/api/lesson-videos", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ level: currentLevel, title, driveUrl, repositoryType }),
+      body: JSON.stringify({ level: currentLevel, title, youtubeUrl, youtubeVideoId, repositoryType }),
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || "تعذر حفظ رابط الحصة.");
@@ -984,7 +1010,7 @@ async function saveLessonVideo(event, selectedVideo = null) {
 }
 
 async function deleteLessonVideo(videoId) {
-  if (!window.confirm("هل تريد حذف رابط هذه الحصة من المستودع؟ لن يُحذف الفيديو من Google Drive.")) {
+  if (!window.confirm("هل تريد حذف رابط هذه الحصة من المستودع؟ لن يُحذف الفيديو من YouTube.")) {
     return;
   }
 
@@ -2035,14 +2061,7 @@ if (!getTeacherToken()) {
     if (event.target === elements.paymentStatusModal) closePaymentStatusModal();
   });
   elements.scheduleForm?.addEventListener("submit", saveScheduledClass);
-elements.lessonVideoForm?.addEventListener("submit", saveLessonVideo);
-elements.lessonVideoPicker?.addEventListener("click", () => {
-  void openGoogleDriveVideoPicker();
-});
-elements.closeDriveVideoModal?.addEventListener("click", closeDriveVideoModal);
-elements.driveVideoModal?.addEventListener("click", (e) => {
-  if (e.target === elements.driveVideoModal) closeDriveVideoModal();
-});
+  elements.lessonVideoForm?.addEventListener("submit", saveLessonVideo);
   elements.scheduleCancelButton?.addEventListener("click", resetScheduleForm);
   elements.teacherAbsenceButton?.addEventListener("click", () => void toggleTeacherAbsence());
   elements.subscriptionForm?.addEventListener("submit", saveSubscription);

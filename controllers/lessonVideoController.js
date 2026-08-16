@@ -11,6 +11,7 @@ const VALID_LEVELS = new Set([
   "طالب جامعي",
 ]);
 const DRIVE_FILE_ID_PATTERN = /^[A-Za-z0-9_-]{20,200}$/;
+const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 const SECONDARY_REPOSITORY_TYPES = new Set(["MATH", "PHYSICS"]);
 const UNIVERSITY_REPOSITORY_TYPES = new Set(["FREE", "PAID"]);
 const LEGACY_REPOSITORY_TYPE = "UNCLASSIFIED";
@@ -61,6 +62,30 @@ function extractGoogleDriveFileId(value) {
   } catch {
     return "";
   }
+}
+
+function extractYouTubeVideoId(value) {
+  const rawUrl = normalizeText(value);
+  if (!rawUrl) return "";
+  try {
+    const parsed = new URL(rawUrl);
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    if (host === "youtu.be") {
+      const id = parsed.pathname.split("/").filter(Boolean)[0] || "";
+      return YOUTUBE_VIDEO_ID_PATTERN.test(id) ? id : "";
+    }
+    if (!["youtube.com", "m.youtube.com"].includes(host)) return "";
+    const queryId = parsed.searchParams.get("v") || "";
+    const pathId = parsed.pathname.match(/\/(?:embed|shorts)\/([A-Za-z0-9_-]{11})/)?.[1] || "";
+    const id = queryId || pathId;
+    return YOUTUBE_VIDEO_ID_PATTERN.test(id) ? id : "";
+  } catch {
+    return "";
+  }
+}
+
+function youtubeEmbedUrl(videoId) {
+  return `https://www.youtube.com/embed/${videoId}?controls=1&fs=1&rel=0&playsinline=1&enablejsapi=1&origin=https://dr.africacold.fr`;
 }
 
 function serializeLessonVideo(video) {
@@ -126,18 +151,18 @@ function getStudentRepositoryTypes(student) {
   return [...types, "UNCLASSIFIED"];
 }
 
-/** Teacher-only: add a Google Drive video link to a study level. */
+/** Teacher-only: add a YouTube video link to a study level. */
 async function createLessonVideo(req, res) {
   const level = normalizeLevel(req.body?.level);
   const title = normalizeText(req.body?.title);
   const repositoryType = normalizeRepositoryType(req.body?.repositoryType);
-  const driveFileId = extractGoogleDriveFileId(req.body?.driveUrl);
+  const youtubeVideoId = extractYouTubeVideoId(req.body?.youtubeUrl || req.body?.driveUrl);
 
-  if (!level || !title || title.length > MAX_TITLE_LENGTH || !driveFileId || !isValidRepositoryType(level, repositoryType)) {
+  if (!level || !title || title.length > MAX_TITLE_LENGTH || !youtubeVideoId || !isValidRepositoryType(level, repositoryType)) {
     return res.status(400).json({
       error: level === "طالب جامعي"
-        ? "اختر نوع المستودع: اشتراك مجاني أو اشتراك مدفوع، ثم أدخل عنوان الحصة والرابط الصحيح."
-        : "اختر مادة الحصة: الرياضيات أو الفيزياء، ثم أدخل العنوان والرابط الصحيح.",
+        ? "اختر نوع المستودع: اشتراك مجاني أو اشتراك مدفوع، ثم أدخل عنوان الحصة ورابط YouTube الصحيح."
+        : "اختر مادة الحصة: الرياضيات أو الفيزياء، ثم أدخل العنوان ورابط YouTube الصحيح.",
     });
   }
 
@@ -146,8 +171,8 @@ async function createLessonVideo(req, res) {
       data: {
         title,
         level,
-        driveFileId,
-        driveUrl: `https://drive.google.com/file/d/${driveFileId}/view`,
+        driveFileId: youtubeVideoId,
+        driveUrl: youtubeEmbedUrl(youtubeVideoId),
         repositoryType,
       },
     });
