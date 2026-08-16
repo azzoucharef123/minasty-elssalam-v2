@@ -101,6 +101,7 @@ let lessonZoomPinchStartScale = 1;
 let lessonZoomPanStart = null;
 let lessonUpgradeContext = null;
 let parentScheduledClasses = [];
+let parentScheduleAdvanceTimer = null;
 let parentTeacherAbsent = false;
 let teacherAbsenceLevel = null;
 
@@ -360,7 +361,32 @@ function formatParentScheduleDate(value) {
   }).format(date);
 }
 
+function getNextParentScheduledClass() {
+  const now = Date.now();
+  return parentScheduledClasses
+    .filter((scheduledClass) => {
+      const timestamp = new Date(scheduledClass?.scheduledAt).getTime();
+      return Number.isFinite(timestamp) && timestamp > now;
+    })
+    .sort((left, right) => new Date(left.scheduledAt).getTime() - new Date(right.scheduledAt).getTime())[0] || null;
+}
+
+function scheduleParentScheduleAdvance(nextClass) {
+  window.clearTimeout(parentScheduleAdvanceTimer);
+  parentScheduleAdvanceTimer = null;
+  if (!nextClass) return;
+  const timestamp = new Date(nextClass.scheduledAt).getTime();
+  const delay = timestamp - Date.now();
+  if (!Number.isFinite(delay) || delay <= 0) return;
+  parentScheduleAdvanceTimer = window.setTimeout(() => {
+    parentScheduleAdvanceTimer = null;
+    renderParentSchedule();
+  }, delay + 100);
+}
+
 function renderParentSchedule() {
+  const nextClass = getNextParentScheduledClass();
+  scheduleParentScheduleAdvance(nextClass);
   const isAbsenceForCurrentStudent = Boolean(
     parentTeacherAbsent && currentStudent && teacherAbsenceLevel === currentStudent.level
   );
@@ -368,22 +394,22 @@ function renderParentSchedule() {
     elements.teacherAbsenceNotice.hidden = !isAbsenceForCurrentStudent;
   }
   if (elements.parentKpiNextClass) {
-    elements.parentKpiNextClass.textContent = parentScheduledClasses.length
-      ? scheduleTypeLabel(currentStudent?.level, parentScheduledClasses[0].subject)
+    elements.parentKpiNextClass.textContent = nextClass
+      ? scheduleTypeLabel(currentStudent?.level, nextClass.subject)
       : "لا توجد";
   }
   if (!elements.parentScheduleList) return;
   elements.parentScheduleList.replaceChildren();
 
-  if (!parentScheduledClasses.length) {
+  if (!nextClass) {
     const empty = document.createElement("p");
     empty.className = "parent-schedule-empty";
-    empty.textContent = "لا توجد حصص مبرمجة لهذا المستوى حالياً.";
+    empty.textContent = "لا توجد حصص قادمة مبرمجة حاليًا.";
     elements.parentScheduleList.append(empty);
     return;
   }
 
-  parentScheduledClasses.forEach((scheduledClass) => {
+  [nextClass].forEach((scheduledClass) => {
     const item = document.createElement("article");
     item.className = "parent-schedule-item";
     const content = document.createElement("div");
