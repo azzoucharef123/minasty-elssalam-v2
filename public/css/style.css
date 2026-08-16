@@ -1051,6 +1051,26 @@ body.public-class-modal-open { overflow: hidden; }
 .parent-next-class-status { display: inline-flex; align-items: center; min-height: 2rem; padding: .35rem .7rem; color: #1d4ed8; background: #dbeafe; border: 1px solid #93c5fd; border-radius: 999px; font-size: .68rem; font-weight: 900; white-space: nowrap; }
 .parent-next-class-status.is-live { color: #ffffff; background: #2563eb; border-color: #2563eb; box-shadow: 0 .35rem .9rem rgba(37, 99, 235, .25); }
 .parent-next-class-card .parent-schedule-list { margin-top: 1rem; }
+.parent-next-class-state {
+  display: grid;
+  min-height: 6.2rem;
+  align-content: center;
+  gap: .35rem;
+  margin-top: 1rem;
+  padding: 1rem 1.15rem;
+  color: #991b1b;
+  background: linear-gradient(135deg, #fff1f2, #fee2e2);
+  border: 3px solid #ef4444;
+  border-radius: 1rem;
+  box-shadow: 0 .55rem 1.25rem rgba(220, 38, 38, .16);
+  text-align: center;
+}
+.parent-next-class-state[hidden] { display: none; }
+.parent-next-class-state strong { font-size: clamp(1rem, 2.5vw, 1.25rem); font-weight: 950; }
+.parent-next-class-state span { color: #b91c1c; font-size: .78rem; font-weight: 800; line-height: 1.7; }
+.parent-next-class-state.is-live { color: #fff; background: linear-gradient(135deg, #2563eb, #1d4ed8); border-color: #60a5fa; box-shadow: 0 .55rem 1.25rem rgba(37, 99, 235, .25); }
+.parent-next-class-state.is-live span { color: #dbeafe; }
+.parent-next-class-card .teacher-absence-notice { margin: .9rem 0 0; }
 .parent-next-class-card .parent-schedule-item { grid-template-columns: 3rem minmax(0, 1fr); gap: 1rem; min-height: 7rem; padding: 1rem 1.1rem; border: 1px solid #bfdbfe; border-radius: 1rem; background: rgba(255, 255, 255, .86); box-shadow: 0 .45rem 1.2rem rgba(15, 23, 42, .06); }
 .parent-next-class-card .parent-schedule-item strong { color: #0f172a; font-size: clamp(1rem, 2.2vw, 1.3rem); }
 .parent-next-class-card .parent-schedule-item span { margin-top: .45rem; color: #475569; font-size: clamp(.78rem, 1.8vw, .95rem); }
@@ -1059,7 +1079,7 @@ body.public-class-modal-open { overflow: hidden; }
 .parent-next-class-card .parent-schedule-join.is-live { color: #ffffff; background: #2563eb; border-color: #2563eb; box-shadow: 0 .55rem 1.2rem rgba(37, 99, 235, .28); animation: next-class-live-pulse 1.8s ease-in-out infinite; }
 .parent-next-class-card .parent-schedule-join.is-live:hover { background: #1d4ed8; }
 @keyframes next-class-live-pulse { 0%, 100% { box-shadow: 0 .55rem 1.2rem rgba(37, 99, 235, .22); } 50% { box-shadow: 0 .55rem 1.7rem rgba(37, 99, 235, .44); } }
-@media (max-width: 650px) { .parent-next-class-card .parent-schedule-item { grid-template-columns: 2.5rem minmax(0, 1fr); min-height: 0; } .parent-next-class-card .parent-schedule-subject-icon { width: 2.5rem; height: 2.5rem; } .parent-next-class-card .parent-schedule-join { grid-column: 1 / -1; justify-self: stretch; width: 100%; } .parent-next-class-card .parent-schedule-head { align-items: flex-start; flex-direction: column; } }
+@media (max-width: 650px) { .parent-next-class-state { min-height: 5.7rem; padding: .85rem .75rem; } .parent-next-class-card .parent-schedule-item { grid-template-columns: 2.5rem minmax(0, 1fr); min-height: 0; } .parent-next-class-card .parent-schedule-subject-icon { width: 2.5rem; height: 2.5rem; } .parent-next-class-card .parent-schedule-join { grid-column: 1 / -1; justify-self: stretch; width: 100%; } .parent-next-class-card .parent-schedule-head { align-items: flex-start; flex-direction: column; } }
 @media (prefers-reduced-motion: reduce) { .parent-next-class-card .parent-schedule-join.is-live { animation: none; } }
 
 /* Parent class registry: collapsible three-bar navigation */

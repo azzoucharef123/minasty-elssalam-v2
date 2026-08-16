@@ -59,6 +59,9 @@ const elements = {
   secondaryPaymentPending: document.getElementById("secondary-payment-pending"),
   parentScheduleCard: document.getElementById("parent-schedule-card"),
   parentNextClassStatus: document.getElementById("parent-next-class-status"),
+  parentNextClassState: document.getElementById("parent-next-class-state"),
+  parentNextClassStateTitle: document.getElementById("parent-next-class-state-title"),
+  parentNextClassStateCopy: document.getElementById("parent-next-class-state-copy"),
   parentScheduleList: document.getElementById("parent-schedule-list"),
   teacherAbsenceNotice: document.getElementById("teacher-absence-notice"),
   logoutButton: document.getElementById("logout-btn"),
@@ -598,6 +601,7 @@ let lessonZoomPanStart = null;
 let lessonUpgradeContext = null;
 let parentScheduledClasses = [];
 let parentScheduleAdvanceTimer = null;
+let parentNextClassStateTimer = null;
 let parentScheduleLoading = false;
 let parentScheduleError = "";
 let parentTeacherAbsent = false;
@@ -910,11 +914,32 @@ function renderParentSchedule() {
   const nextClass = getNextParentScheduledClass();
   scheduleParentScheduleAdvance(nextClass);
   if (elements.parentScheduleCard) elements.parentScheduleCard.hidden = !currentStudent;
+  const isLiveNow = Boolean(activeLiveClassType);
   if (elements.parentNextClassStatus) {
-    elements.parentNextClassStatus.textContent = activeLiveClassType
+    elements.parentNextClassStatus.textContent = isLiveNow
       ? "الحصة مفتوحة الآن"
       : "حسب برنامج المستوى";
-    elements.parentNextClassStatus.classList.toggle("is-live", Boolean(activeLiveClassType));
+    elements.parentNextClassStatus.classList.toggle("is-live", isLiveNow);
+  }
+  if (elements.parentNextClassState) {
+    window.clearTimeout(parentNextClassStateTimer);
+    parentNextClassStateTimer = null;
+    const showClosedState = Boolean(nextClass) && !isLiveNow;
+    const showLiveTransition = Boolean(nextClass) && isLiveNow;
+    elements.parentNextClassState.hidden = !(showClosedState || showLiveTransition);
+    elements.parentNextClassState.classList.toggle("is-closed", showClosedState);
+    elements.parentNextClassState.classList.toggle("is-live", showLiveTransition);
+    if (showClosedState) {
+      elements.parentNextClassStateTitle.textContent = "الحصة غير مفتوحة بعد";
+      elements.parentNextClassStateCopy.textContent = "سيبقى المؤشر أحمر حتى يفتح الأستاذ الحصة، ثم تصبح حالة الدخول زرقاء ومفعلة.";
+    } else if (showLiveTransition) {
+      elements.parentNextClassStateTitle.textContent = "الحصة مفتوحة الآن";
+      elements.parentNextClassStateCopy.textContent = "تحول المؤشر إلى الأزرق. يمكنك الدخول من الزر أدناه.";
+      parentNextClassStateTimer = window.setTimeout(() => {
+        elements.parentNextClassState.hidden = true;
+        elements.parentNextClassState.classList.remove("is-live");
+      }, 1600);
+    }
   }
   const isAbsenceForCurrentStudent = Boolean(
     parentTeacherAbsent && currentStudent && teacherAbsenceLevel === currentStudent.level
@@ -969,7 +994,6 @@ function renderParentSchedule() {
     subjectIcon.textContent = scheduledClass.subject === "PHYSICS" ? "ϟ" : scheduledClass.subject === "MATH" ? "∠" : "★";
     const join = document.createElement("button");
     join.type = "button";
-    const isLiveNow = Boolean(activeLiveClassType);
     join.className = `parent-schedule-join${isLiveNow ? " is-live" : ""}`;
     join.textContent = isLiveNow ? "ادخل الآن — الحصة مفتوحة الآن بسرعة" : "الدخول للحصة";
     join.disabled = !isLiveNow;
