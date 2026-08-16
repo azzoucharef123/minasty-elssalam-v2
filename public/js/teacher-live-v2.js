@@ -1306,6 +1306,10 @@ function stopLocalRecording({ download = true } = {}) {
     }
     try {
       recorder.stop();
+      // Small delay to ensure all dataavailable events have fired
+      setTimeout(() => {
+        if (!localRecordingFinalized) finalizeLocalRecording();
+      }, 500);
     } catch (error) {
       console.warn("Unable to stop local class recorder:", error);
       finalizeLocalRecording();

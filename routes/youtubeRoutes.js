@@ -131,9 +131,17 @@ router.get("/videos", verifyToken, isTeacher, async (req, res) => {
 });
 
 router.post("/upload", verifyToken, isTeacher, upload.single("video"), async (req, res) => {
+  console.log("YouTube Upload Request Received:", {
+    hasFile: !!req.file,
+    fileInfo: req.file ? { size: req.file.size, mimetype: req.file.mimetype, filename: req.file.filename } : null,
+    body: req.body
+  });
   const uploadedPath = req.file?.path;
   try {
-    if (!req.file) return res.status(400).json({ error: "أرسل ملف تسجيل فيديو صالحاً." });
+    if (!req.file) {
+      console.error("Upload Error: No file found in request. Multer failed to parse the video.");
+      return res.status(400).json({ error: "أرسل ملف تسجيل فيديو صالحاً." });
+    }
     const level = String(req.body?.level || "").trim();
     const subject = String(req.body?.subject || "").trim();
     const recordedAt = String(req.body?.recordedAt || "").trim();
