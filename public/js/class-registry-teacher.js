@@ -15,8 +15,17 @@
   const driveInput = $("class-registry-drive-link");
   const notesField = $("class-registry-notes-field");
   const notesInput = $("class-registry-notes");
+  const youtubeField = $("class-registry-youtube-field");
+  const youtubePickerButton = $("class-registry-youtube-picker");
+  const youtubeVideoIdInput = $("class-registry-youtube-video-id");
+  const youtubeSelectedLabel = $("class-registry-youtube-selected");
+  const youtubeConnectButton = $("youtube-connect-button");
+  const youtubeConnectionStatus = $("youtube-connection-status");
+  const youtubePickerModal = $("youtube-video-picker-modal");
+  const youtubePickerList = $("youtube-video-picker-list");
   let currentLevel = document.querySelector(".level-btn.is-active")?.dataset.level || "السنة الأولى";
   let selectedClass = null;
+  let youtubeConnected = false;
 
   const labels = {
     MATH: "الرياضيات",
@@ -60,16 +69,102 @@
     }
   }
 
+  function setYoutubeStatus(text, connected = youtubeConnected) {
+    if (youtubeConnectionStatus) youtubeConnectionStatus.textContent = text;
+    youtubeConnectButton?.classList.toggle("is-connected", connected);
+    if (youtubeConnectButton) youtubeConnectButton.textContent = connected ? "إدارة قناة YouTube" : "ربط قناة YouTube";
+  }
+
+  async function loadYoutubeStatus() {
+    try {
+      const payload = await api("/api/youtube/status");
+      youtubeConnected = Boolean(payload.data?.connected);
+      setYoutubeStatus(youtubeConnected ? "قناة YouTube مرتبطة" : "لم تُربط قناة YouTube بعد");
+    } catch (error) {
+      youtubeConnected = false;
+      setYoutubeStatus("تعذر التحقق من قناة YouTube", false);
+      console.warn("Unable to read YouTube status:", error);
+    }
+  }
+
+  async function connectYoutube() {
+    try {
+      const payload = await api("/api/youtube/connect");
+      const popup = window.open(payload.authorizationUrl, "youtube-oauth", "popup,width=560,height=760");
+      if (!popup) showError("اسمح بالنوافذ المنبثقة لإكمال ربط قناة YouTube.");
+    } catch (error) {
+      showError(error.message);
+    }
+  }
+
+  function closeYoutubePicker() {
+    if (youtubePickerModal) youtubePickerModal.hidden = true;
+  }
+
+  function selectYoutubeVideo(video) {
+    youtubeVideoIdInput.value = video.id;
+    youtubeSelectedLabel.textContent = `تم اختيار: ${video.title}`;
+    youtubeSelectedLabel.title = video.title;
+    closeYoutubePicker();
+  }
+
+  function renderYoutubeVideos(videos) {
+    youtubePickerList.replaceChildren();
+    if (!videos.length) {
+      const empty = document.createElement("p");
+      empty.className = "class-registry-empty";
+      empty.textContent = "لا توجد فيديوهات متاحة في القناة.";
+      youtubePickerList.append(empty);
+      return;
+    }
+    videos.forEach((video) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "youtube-video-picker-item";
+      const image = document.createElement("img");
+      image.src = video.thumbnail || "";
+      image.alt = "";
+      image.loading = "lazy";
+      const copy = document.createElement("span");
+      const titleElement = document.createElement("strong");
+      titleElement.textContent = video.title;
+      const meta = document.createElement("small");
+      meta.textContent = video.publishedAt ? new Intl.DateTimeFormat("ar-DZ", { dateStyle: "medium" }).format(new Date(video.publishedAt)) : "فيديو من القناة";
+      copy.append(titleElement, meta);
+      button.append(image, copy);
+      button.addEventListener("click", () => selectYoutubeVideo(video));
+      youtubePickerList.append(button);
+    });
+  }
+
+  async function openYoutubePicker() {
+    if (!youtubeConnected) {
+      await connectYoutube();
+      return;
+    }
+    youtubePickerModal.hidden = false;
+    youtubePickerList.innerHTML = '<p class="class-registry-loading">جارٍ تحميل فيديوهات القناة…</p>';
+    try {
+      const payload = await api("/api/youtube/videos?limit=20");
+      renderYoutubeVideos(Array.isArray(payload.data) ? payload.data : []);
+    } catch (error) {
+      youtubePickerList.innerHTML = `<p class="class-registry-empty">${error.message}</p>`;
+    }
+  }
+
   function openAction(item, nextStatus) {
     selectedClass = item;
     form.dataset.status = nextStatus;
     title.textContent = nextStatus === "COMPLETED" ? "تسجيل الحصة كمكتملة" : "تسجيل غياب الأستاذ";
     driveField.hidden = nextStatus !== "COMPLETED";
+    youtubeField.hidden = nextStatus !== "COMPLETED";
     notesField.hidden = nextStatus === "PENDING";
     driveInput.value = item.driveLink || "";
+    youtubeVideoIdInput.value = item.youtubeVideoId || "";
+    youtubeSelectedLabel.textContent = item.youtubeVideoId ? "يوجد فيديو YouTube مرتبط بهذه الحصة" : "لم يتم اختيار فيديو YouTube";
     notesInput.value = item.notes || "";
     modal.hidden = false;
-    driveField.hidden ? notesInput.focus() : driveInput.focus();
+    driveField.hidden && youtubeField.hidden ? notesInput.focus() : (item.youtubeVideoId ? notesInput.focus() : youtubePickerButton.focus());
   }
 
   function closeAction() {
@@ -162,13 +257,26 @@
   form?.addEventListener("submit", (event) => {
     event.preventDefault();
     if (!selectedClass) return;
-    void update(selectedClass, form.dataset.status, { driveLink: driveInput.value.trim(), notes: notesInput.value.trim() });
+    void update(selectedClass, form.dataset.status, { driveLink: driveInput.value.trim(), youtubeVideoId: youtubeVideoIdInput.value.trim(), notes: notesInput.value.trim() });
   });
   $("class-registry-action-close")?.addEventListener("click", closeAction);
   modal?.addEventListener("click", (event) => { if (event.target === modal) closeAction(); });
+  $("youtube-video-picker-close")?.addEventListener("click", closeYoutubePicker);
+  youtubePickerModal?.addEventListener("click", (event) => { if (event.target === youtubePickerModal) closeYoutubePicker(); });
+  youtubePickerButton?.addEventListener("click", () => void openYoutubePicker());
+  youtubeConnectButton?.addEventListener("click", () => void connectYoutube());
+  window.addEventListener("message", (event) => {
+    if (event.origin !== window.location.origin) return;
+    if (event.data?.type === "youtube-connected") {
+      youtubeConnected = true;
+      setYoutubeStatus("قناة YouTube مرتبطة", true);
+    }
+    if (event.data?.type === "youtube-connect-failed") setYoutubeStatus("فشل ربط قناة YouTube", false);
+  });
   month?.addEventListener("change", () => void load());
   subject?.addEventListener("change", () => void load());
   document.querySelectorAll(".level-btn[data-level]").forEach((button) => button.addEventListener("click", () => { currentLevel = button.dataset.level; window.setTimeout(() => void load(), 0); }));
   window.addEventListener("class-registry-refresh", () => void load());
+  void loadYoutubeStatus();
   void load();
 })();

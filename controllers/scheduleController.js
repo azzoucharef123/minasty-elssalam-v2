@@ -17,6 +17,7 @@ const REGISTRY_STATUSES = new Set(["PENDING", "COMPLETED", "TEACHER_ABSENT"]);
 const MONTH_KEY_PATTERN = /^20\d{2}-(0[1-9]|1[0-2])$/;
 const MONTH_NAMES = Object.freeze({ سبتمبر: "09", أكتوبر: "10", نوفمبر: "11" });
 const DRIVE_FILE_ID_PATTERN = /^[A-Za-z0-9_-]{20,200}$/;
+const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 
 function normalizeText(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -74,6 +75,26 @@ function extractGoogleDriveFileId(value) {
   }
 }
 
+function extractYouTubeVideoId(value) {
+  const raw = normalizeText(value);
+  if (YOUTUBE_VIDEO_ID_PATTERN.test(raw)) return raw;
+  try {
+    const parsed = new URL(raw);
+    if (parsed.hostname.toLowerCase().replace(/^www\./, "") === "youtu.be") {
+      const id = parsed.pathname.split("/").filter(Boolean)[0] || "";
+      return YOUTUBE_VIDEO_ID_PATTERN.test(id) ? id : "";
+    }
+    if (["youtube.com", "m.youtube.com", "www.youtube.com"].includes(parsed.hostname.toLowerCase())) {
+      const embedMatch = parsed.pathname.match(/\/embed\/([A-Za-z0-9_-]{11})/);
+      const watchId = parsed.searchParams.get("v") || embedMatch?.[1] || "";
+      return YOUTUBE_VIDEO_ID_PATTERN.test(watchId) ? watchId : "";
+    }
+  } catch {
+    // Invalid URLs are rejected as empty values.
+  }
+  return "";
+}
+
 function getRegistryAccess(student, subject) {
   if (!student) return { canWatch: false, reason: "NO_STUDENT" };
   if (student.level === UNIVERSITY_LEVEL) {
@@ -88,7 +109,8 @@ function getRegistryAccess(student, subject) {
 function serializeRegistryClass(item, { teacher = false, student = null } = {}) {
   const access = teacher ? { canWatch: true, reason: "TEACHER" } : getRegistryAccess(student, item.subject);
   const fileId = extractGoogleDriveFileId(item.driveLink);
-  const canRevealVideo = item.status === "COMPLETED" && access.canWatch && Boolean(fileId);
+  const youtubeVideoId = extractYouTubeVideoId(item.youtubeVideoId);
+  const canRevealVideo = item.status === "COMPLETED" && access.canWatch && Boolean(fileId || youtubeVideoId);
   return {
     id: item.id,
     level: item.level,
@@ -101,7 +123,10 @@ function serializeRegistryClass(item, { teacher = false, student = null } = {}) 
     canWatch: canRevealVideo,
     accessReason: access.reason,
     driveLink: teacher ? item.driveLink : canRevealVideo ? item.driveLink : null,
-    previewUrl: canRevealVideo ? `https://drive.google.com/file/d/${fileId}/preview` : null,
+    youtubeVideoId: teacher ? youtubeVideoId || null : canRevealVideo ? youtubeVideoId || null : null,
+    youtubeEmbedUrl: canRevealVideo && youtubeVideoId ? `https://www.youtube.com/embed/${youtubeVideoId}?rel=0&modestbranding=1&playsinline=1&fs=1` : null,
+    previewUrl: canRevealVideo && fileId ? `https://drive.google.com/file/d/${fileId}/preview` : null,
+    videoProvider: canRevealVideo ? (youtubeVideoId ? "YOUTUBE" : fileId ? "GOOGLE_DRIVE" : null) : null,
   };
 }
 
@@ -300,15 +325,17 @@ async function updateClassRegistry(req, res) {
     if (!REGISTRY_STATUSES.has(status)) return res.status(400).json({ error: "حالة الحصة غير صالحة." });
 
     const notes = normalizeText(req.body?.notes).slice(0, 2000);
-    const driveFileId = extractGoogleDriveFileId(req.body?.driveLink);
-    if (status === "COMPLETED" && !driveFileId) return res.status(400).json({ error: "أدخل رابط Google Drive صحيحًا للحصة المسجلة." });
+    const driveFileId = extractGoogleDriveFileId(req.body?.driveLink) || (status === "COMPLETED" ? extractGoogleDriveFileId(existing.driveLink) : "");
+    const youtubeVideoId = extractYouTubeVideoId(req.body?.youtubeVideoId) || (status === "COMPLETED" ? extractYouTubeVideoId(existing.youtubeVideoId) : "");
+    if (status === "COMPLETED" && !driveFileId && !youtubeVideoId) return res.status(400).json({ error: "اختر فيديو YouTube أو أدخل رابط Google Drive صحيحًا للحصة المسجلة." });
     if (status === "TEACHER_ABSENT" && !notes) return res.status(400).json({ error: "اكتب سبب غياب الأستاذ أو ملاحظة الحصة." });
 
     const updated = await prisma.scheduledClass.update({
       where: { id: existing.id },
       data: {
         status,
-        driveLink: status === "COMPLETED" ? `https://drive.google.com/file/d/${driveFileId}/view` : null,
+        driveLink: status === "COMPLETED" && driveFileId ? `https://drive.google.com/file/d/${driveFileId}/view` : null,
+        youtubeVideoId: status === "COMPLETED" ? youtubeVideoId || null : null,
         notes: status === "PENDING" ? null : notes || null,
       },
     });

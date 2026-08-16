@@ -614,6 +614,16 @@
         accent-color: #22c55e;
       }
 
+      .youtube-upload-state {
+        color: #fee2e2;
+        background: rgba(127, 29, 29, 0.38);
+        border-color: rgba(248, 113, 113, 0.35);
+      }
+
+      .youtube-upload-state progress {
+        accent-color: #ef4444;
+      }
+
       .studio-sidebar {
         grid-area: sidebar;
         display: flex;
@@ -1263,6 +1273,10 @@
               <span id="drive-upload-text">سيظهر تقدّم حفظ التسجيل في Google Drive هنا.</span>
               <progress id="drive-upload-progress" max="100" value="0"></progress>
             </div>
+            <div id="youtube-upload-state" class="drive-upload-state youtube-upload-state" role="status" aria-live="polite" hidden>
+              <span id="youtube-upload-text">سيظهر تقدّم الرفع التلقائي إلى YouTube هنا.</span>
+              <progress id="youtube-upload-progress" max="100" value="0"></progress>
+            </div>
           </div>
         </section>
 
@@ -1317,6 +1331,6 @@
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
     <script id="google-identity-services" src="https://accounts.google.com/gsi/client" defer></script>
-    <script src="./js/teacher-live.js?v=studio-modern-1" defer></script>
+    <script src="./js/teacher-live.js?v=studio-youtube-v2" defer></script>
   </body>
 </html>

@@ -1585,3 +1585,158 @@ body.parent-login-modal-open {
 .class-registry-filters label { display: grid; gap: .3rem; color: #475569; font-size: .7rem; font-weight: 800; }
 .class-registry-filters select { min-height: 2.55rem; padding: .45rem .6rem; color: #0f172a; background: #fff; border: 1px solid #c7d2fe; border-radius: .6rem; font: inherit; font-size: .75rem; }
 @media (max-width: 520px) { .class-registry-filters { grid-template-columns: 1fr; } }
+
+
+/* YouTube integration for the teacher class registry */
+.youtube-connection-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: .55rem;
+  margin-top: .8rem;
+}
+.youtube-connect-button,
+.youtube-picker-button {
+  min-height: 2.45rem;
+  padding: .45rem .78rem;
+  color: #fff;
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  border: 1px solid #b91c1c;
+  border-radius: .65rem;
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.youtube-connect-button:hover,
+.youtube-connect-button:focus-visible,
+.youtube-picker-button:hover,
+.youtube-picker-button:focus-visible {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 8px 16px rgba(185, 28, 28, .18);
+  outline: none;
+  transform: translateY(-1px);
+}
+.youtube-connect-button.is-connected {
+  color: #166534;
+  background: #dcfce7;
+  border-color: #86efac;
+}
+.youtube-connect-button.is-connected:hover,
+.youtube-connect-button.is-connected:focus-visible {
+  background: #bbf7d0;
+  box-shadow: 0 8px 16px rgba(22, 101, 52, .13);
+}
+.youtube-connection-status {
+  color: #64748b;
+  font-size: .7rem;
+  font-weight: 800;
+}
+.youtube-connection-status::before {
+  display: inline-block;
+  width: .48rem;
+  height: .48rem;
+  margin-left: .34rem;
+  content: "";
+  vertical-align: middle;
+  background: #94a3b8;
+  border-radius: 50%;
+}
+.youtube-connect-button.is-connected + .youtube-connection-status::before {
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, .13);
+}
+.class-registry-youtube-field {
+  display: grid;
+  gap: .48rem;
+  padding: .72rem;
+  border: 1px solid #fecaca;
+  border-radius: .75rem;
+  background: linear-gradient(145deg, #fff7f7, #fff);
+}
+.class-registry-youtube-field[hidden] { display: none; }
+.youtube-picker-button { width: 100%; }
+.youtube-selected-video {
+  overflow: hidden;
+  color: #7f1d1d;
+  font-size: .7rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.youtube-video-picker-card {
+  width: min(42rem, calc(100vw - 2rem));
+  max-height: min(80vh, 44rem);
+  overflow: hidden;
+}
+.youtube-picker-note {
+  margin: .35rem 0 .85rem;
+  color: #64748b;
+  font-size: .72rem;
+  line-height: 1.8;
+}
+.youtube-video-picker-list {
+  display: grid;
+  gap: .55rem;
+  max-height: 55vh;
+  overflow-y: auto;
+  padding: .15rem .25rem .25rem .1rem;
+}
+.youtube-video-picker-item {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  width: 100%;
+  min-height: 4.1rem;
+  padding: .6rem;
+  color: #0f172a;
+  text-align: right;
+  background: #f8fafc;
+  border: 1px solid #fee2e2;
+  border-radius: .72rem;
+  font: inherit;
+  cursor: pointer;
+  transition: transform .2s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease;
+}
+.youtube-video-picker-item:hover,
+.youtube-video-picker-item:focus-visible {
+  background: #fff1f2;
+  border-color: #fca5a5;
+  box-shadow: 0 7px 16px rgba(185, 28, 28, .1);
+  outline: none;
+  transform: translateY(-1px);
+}
+.youtube-video-picker-item img {
+  width: 7.3rem;
+  height: 4.1rem;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: .48rem;
+  background: #e2e8f0;
+}
+.youtube-video-picker-item > span {
+  display: grid;
+  gap: .25rem;
+  min-width: 0;
+}
+.youtube-video-picker-item strong {
+  overflow: hidden;
+  color: #7f1d1d;
+  font-size: .75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.youtube-video-picker-item small {
+  color: #64748b;
+  font-size: .65rem;
+}
+@media (max-width: 620px) {
+  .class-registry-head { display: grid; gap: .2rem; }
+  .youtube-connection-actions { justify-content: flex-start; }
+  .youtube-video-picker-card { width: calc(100vw - 1rem); }
+  .youtube-video-picker-item { align-items: flex-start; }
+  .youtube-video-picker-item img { width: 6.2rem; height: 3.5rem; }
+  .youtube-video-picker-item strong { white-space: normal; }
+}

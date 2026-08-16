@@ -171,6 +171,7 @@ model ScheduledClass {
   monthName   String   @default("")
   status      String   @default("PENDING")
   driveLink   String?
+  youtubeVideoId String?
   notes       String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -487,4 +488,12 @@ model AnalyticsEvent {
   @@index([eventType, createdAt(sort: Desc)])
   @@index([studentId, createdAt(sort: Desc)])
   @@index([level, subject, createdAt(sort: Desc)])
+}
+
+model YouTubeCredential {
+  id           String   @id @default("singleton")
+  accessToken  String   @db.Text
+  refreshToken String   @db.Text
+  expiryDate   BigInt
+  updatedAt    DateTime @updatedAt
 }

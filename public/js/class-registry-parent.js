@@ -42,14 +42,20 @@
     document.body.style.overflow = "";
   }
 
+  function isSafeYouTubeEmbedUrl(value) {
+    return /^https:\/\/www\.youtube\.com\/embed\/[A-Za-z0-9_-]{11}\?rel=0&modestbranding=1&playsinline=1&fs=1$/.test(String(value || ""));
+  }
+
   function openVideo(item) {
-    const modal = $("lesson-video-modal");
-    const frame = $("lesson-video-frame");
-    if (!modal || !frame || !item.previewUrl) return;
-    $("lesson-video-modal-title").textContent = `${subjectLabels[item.subject] || "الحصة"} · ${formatDate(item.scheduledAt)}`;
-    $("lesson-video-sidebar-title").textContent = subjectLabels[item.subject] || "مشاهدة الحصة";
-    $("lesson-video-sidebar-meta").textContent = `${formatDate(item.scheduledAt)} · مشاهدة داخل المنصة`;
-    frame.src = item.previewUrl;
+    const modal = $("#lesson-video-modal");
+    const frame = $("#lesson-video-frame");
+    const videoUrl = isSafeYouTubeEmbedUrl(item.youtubeEmbedUrl) ? item.youtubeEmbedUrl : item.previewUrl;
+    if (!modal || !frame || !videoUrl) return;
+    $("#lesson-video-modal-title").textContent = `${subjectLabels[item.subject] || "الحصة"} · ${formatDate(item.scheduledAt)}`;
+    $("#lesson-video-sidebar-title").textContent = subjectLabels[item.subject] || "مشاهدة الحصة";
+    $("#lesson-video-sidebar-meta").textContent = `${formatDate(item.scheduledAt)} · مشاهدة داخل المنصة`;
+    frame.src = videoUrl;
+    frame.setAttribute("title", item.youtubeVideoId ? "فيديو YouTube داخل الأكاديمية" : "فيديو الحصة المسجلة");
     modal.hidden = false;
     document.body.classList.add("lesson-video-open");
   }
@@ -78,7 +84,7 @@
       const action = document.createElement("button");
       action.type = "button";
       action.className = item.canWatch ? "registry-watch-button" : "registry-lock-button";
-      action.textContent = item.status === "COMPLETED" ? (item.canWatch ? "▶ مشاهدة التسجيل" : "🔒 ترقية للمشاهدة") : item.status === "TEACHER_ABSENT" ? "عرض ملاحظة الغياب" : "في انتظار إنجاز الحصة";
+      action.textContent = item.status === "COMPLETED" ? (item.canWatch ? "▶ مشاهدة التسجيل داخل الأكاديمية" : "🔒 ترقية للمشاهدة") : item.status === "TEACHER_ABSENT" ? "عرض ملاحظة الغياب" : "في انتظار إنجاز الحصة";
       action.disabled = item.status === "PENDING";
       action.addEventListener("click", () => {
         if (item.status === "TEACHER_ABSENT") return;

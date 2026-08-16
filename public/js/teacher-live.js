@@ -91,6 +91,7 @@ let lastLocalRecording = null;
 let googleDriveAccessToken = null;
 let googleDriveTokenExpiresAt = 0;
 let googleDriveUploadInProgress = false;
+let youtubeUploadInProgress = false;
 let googleIdentityLoadPromise = null;
 let studioDurationStartedAt = 0;
 
@@ -111,6 +112,9 @@ const elements = {
   driveUploadState: document.getElementById("drive-upload-state"),
   driveUploadText: document.getElementById("drive-upload-text"),
   driveUploadProgress: document.getElementById("drive-upload-progress"),
+  youtubeUploadState: document.getElementById("youtube-upload-state"),
+  youtubeUploadText: document.getElementById("youtube-upload-text"),
+  youtubeUploadProgress: document.getElementById("youtube-upload-progress"),
   leaveStudioButton: document.getElementById("leave-studio-btn"),
   endClassButton: document.getElementById("end-class-btn"),
   liveStatus: document.getElementById("live-status"),
@@ -873,6 +877,9 @@ function getLocalRecordingMetadata() {
     mimeType: localRecordingMimeType || "video/webm",
     level: safeLabel(activeLevel, "حصص مباشرة"),
     classType: safeLabel(getClassTypeName(activeLevel, activeSubject), "تسجيل"),
+    registryLevel: activeLevel || "",
+    registrySubject: activeSubject || "",
+    recordedAt: localRecordingStartedAt ? new Date(localRecordingStartedAt).toISOString() : new Date().toISOString(),
   };
 }
 
@@ -880,6 +887,59 @@ function updateDriveUploadUi({ visible = false, text = "", progress = 0 } = {}) 
   elements.driveUploadState.hidden = !visible;
   elements.driveUploadText.textContent = text;
   elements.driveUploadProgress.value = Math.max(0, Math.min(100, Number(progress) || 0));
+}
+
+function updateYoutubeUploadUi({ visible = false, text = "", progress = 0 } = {}) {
+  if (!elements.youtubeUploadState) return;
+  elements.youtubeUploadState.hidden = !visible;
+  elements.youtubeUploadText.textContent = text;
+  elements.youtubeUploadProgress.value = Math.max(0, Math.min(100, Number(progress) || 0));
+}
+
+async function uploadRecordingToYouTube(recording) {
+  if (!recording?.blob || youtubeUploadInProgress) return null;
+  const token = sessionStorage.getItem("teacherToken");
+  if (!token) {
+    updateYoutubeUploadUi({ visible: true, text: "تعذر رفع التسجيل: انتهت جلسة الأستاذ. احفظه يدوياً في Google Drive.", progress: 0 });
+    return null;
+  }
+
+  youtubeUploadInProgress = true;
+  updateYoutubeUploadUi({ visible: true, text: "جارٍ رفع تسجيل الحصة إلى YouTube…", progress: 8 });
+  updateControls();
+  try {
+    const formData = new FormData();
+    formData.append("video", recording.blob, recording.fileName);
+    formData.append("level", recording.registryLevel || recording.level || "");
+    formData.append("subject", recording.registrySubject || "");
+    formData.append("recordedAt", recording.recordedAt || new Date().toISOString());
+    formData.append("title", `حصة ${recording.classType || "مباشرة"} — ${recording.registryLevel || recording.level || "الأكاديمية"}`.slice(0, 100));
+    formData.append("description", `تسجيل تلقائي من أكاديمية التفوق للفيزياء والرياضيات\nالمستوى: ${recording.registryLevel || recording.level}\nنوع الحصة: ${recording.classType || recording.registrySubject}`);
+
+    const response = await fetch("/api/youtube/upload", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر رفع التسجيل إلى YouTube.");
+
+    const registryMessage = payload.data?.registryClass
+      ? " وتم ربطه تلقائياً بسجل الحصة."
+      : " ويمكن ربطه من سجل الحصص إذا لم توجد حصة مجدولة مطابقة.";
+    updateYoutubeUploadUi({ visible: true, text: `✅ تم الرفع لـ YouTube كفيديو غير مدرج${registryMessage}`, progress: 100 });
+    setStudioStatus("✅ تم رفع الحصة لـ YouTube وربطها بالسجل تلقائياً.", "live");
+    window.dispatchEvent(new CustomEvent("class-registry-refresh"));
+    return payload.data || null;
+  } catch (error) {
+    console.error("Unable to upload the class recording to YouTube:", error);
+    updateYoutubeUploadUi({ visible: true, text: error.message || "تعذر رفع التسجيل إلى YouTube. يمكنك حفظه يدوياً في Google Drive.", progress: 0 });
+    if (classActive && !isEnding) setStudioStatus(error.message || "تعذر رفع التسجيل إلى YouTube.", "error");
+    return null;
+  } finally {
+    youtubeUploadInProgress = false;
+    updateControls();
+  }
 }
 
 function isGoogleDriveTokenUsable() {
@@ -1184,6 +1244,7 @@ function finalizeLocalRecording() {
   }
   updateControls();
   resolver?.(Boolean(recording));
+  if (recording) void uploadRecordingToYouTube(recording);
 }
 
 function startLocalRecording() {
@@ -1217,7 +1278,7 @@ function startLocalRecording() {
     recorder.start(1_000);
     elements.localRecordingState.hidden = false;
     elements.recordLocalButton.classList.add("is-recording");
-    setButtonLabel(elements.recordLocalButton, "إيقاف التسجيل وحفظه");
+    setButtonLabel(elements.recordLocalButton, "إيقاف التسجيل والرفع تلقائياً");
     updateControls();
     setStudioStatus("جارٍ تسجيل الحصة محليًا على جهازك.", "live");
   } catch (error) {
@@ -1259,7 +1320,7 @@ function stopLocalRecording({ download = true } = {}) {
 
 function toggleLocalRecording() {
   if (isLocalRecording()) {
-    void stopRecordingAndSaveToGoogleDrive();
+    void stopLocalRecording({ download: false });
   } else {
     startLocalRecording();
   }
@@ -2187,7 +2248,7 @@ async function leaveLiveStudio() {
     // through the disconnect handler, so preserving the local recovery token is enough.
     console.warn("Unable to confirm studio departure; preserving class for recovery:", error);
   } finally {
-    await stopLocalRecording({ download: true });
+    await stopLocalRecording({ download: false });
     classActive = false;
     closeAllPeerConnections();
     clearAttendees();
@@ -2224,7 +2285,7 @@ async function endLiveClass({ notifyServer = true, statusMessage } = {}) {
       }
     }
   } finally {
-    await stopLocalRecording({ download: true });
+    await stopLocalRecording({ download: false });
     closeAllPeerConnections();
     clearAttendees();
     clearTeacherChat();

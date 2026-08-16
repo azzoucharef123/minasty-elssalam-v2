@@ -66,6 +66,7 @@ app.use(
           "https://accounts.google.com",
           "https://docs.google.com",
           "https://drive.google.com",
+          "https://www.youtube.com",
           "https://www.google.com",
           "https://recaptcha.google.com",
           "https://www.recaptcha.net",
@@ -129,6 +130,7 @@ const attendanceRoutes = require("./routes/attendanceRoutes");
 const liveChatRoutes = require("./routes/liveChatRoutes");
 const scheduleRoutes = require("./routes/scheduleRoutes");
 const lessonVideoRoutes = require("./routes/lessonVideoRoutes");
+const youtubeRoutes = require("./routes/youtubeRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const academicRoutes = require("./routes/academicRoutes");
 const materialRoutes = require("./routes/materialRoutes");
@@ -139,6 +141,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/live-chat", liveChatRoutes);
 app.use("/api/schedules", scheduleRoutes);
 app.use("/api/lesson-videos", lessonVideoRoutes);
+app.use("/api/youtube", youtubeRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/academic", academicRoutes);
 app.use("/api/materials", materialRoutes);
