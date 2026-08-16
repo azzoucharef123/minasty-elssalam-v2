@@ -69,7 +69,7 @@ function serializeLessonVideo(video) {
   const youtubeVideoId = youtubeMatch?.[1] || "";
   const isYouTube = Boolean(youtubeVideoId);
   const youtubePreviewUrl = isYouTube
-    ? `https://www.youtube.com/embed/${youtubeVideoId}?controls=0&disablekb=1&fs=1&iv_load_policy=3&rel=0&playsinline=1&enablejsapi=1&origin=https://dr.africacold.fr`
+    ? `https://www.youtube.com/embed/${youtubeVideoId}?controls=0&disablekb=1&fs=1&iv_load_policy=3&cc_load_policy=0&rel=0&playsinline=1&enablejsapi=1&origin=https://dr.africacold.fr`
     : "";
 
   return {
