@@ -114,9 +114,26 @@
     });
   }
 
+  function showSelectionPrompt() {
+    if (!list) return;
+    list.replaceChildren();
+    const prompt = document.createElement("p");
+    prompt.className = "class-registry-empty";
+    prompt.textContent = !month && !subject
+      ? "اختر الشهر والمادة لعرض الحصص."
+      : !month
+        ? "اختر الشهر لعرض حصص المادة المحددة."
+        : "اختر المادة لعرض حصص الشهر المحدد.";
+    list.append(prompt);
+  }
+
   async function load() {
     activeStudent = activeStudent || getStoredStudent();
     if (!activeStudent?.id || !activeStudent.level || !list) return;
+    if (!month || !subject) {
+      showSelectionPrompt();
+      return;
+    }
     list.innerHTML = '<p class="class-registry-loading">جارٍ تحميل سجل الحصص…</p>';
     try {
       const payload = await api(`/api/schedules/registry/${encodeURIComponent(activeStudent.level)}?month=${encodeURIComponent(month)}&subject=${encodeURIComponent(subject)}&studentId=${encodeURIComponent(activeStudent.id)}`);
@@ -126,15 +143,24 @@
     }
   }
 
-  document.querySelectorAll("[data-registry-month]").forEach((button) => button.addEventListener("click", () => {
-    month = button.dataset.registryMonth;
-    document.querySelectorAll("[data-registry-month]").forEach((item) => item.classList.toggle("is-active", item === button));
+  function toggleFilter(button, selector, key) {
+    const value = button.dataset[key];
+    const isSelected = (key === "registryMonth" ? month : subject) === value;
+    if (key === "registryMonth") month = isSelected ? "" : value;
+    else subject = isSelected ? "" : value;
+
+    document.querySelectorAll(selector).forEach((item) => {
+      item.classList.toggle("is-active", item === button && !isSelected);
+      item.setAttribute("aria-selected", String(item === button && !isSelected));
+    });
     void load();
+  }
+
+  document.querySelectorAll("[data-registry-month]").forEach((button) => button.addEventListener("click", () => {
+    toggleFilter(button, "[data-registry-month]", "registryMonth");
   }));
   document.querySelectorAll("[data-registry-subject]").forEach((button) => button.addEventListener("click", () => {
-    subject = button.dataset.registrySubject;
-    document.querySelectorAll("[data-registry-subject]").forEach((item) => item.classList.toggle("is-active", item === button));
-    void load();
+    toggleFilter(button, "[data-registry-subject]", "registrySubject");
   }));
   window.addEventListener("active-student-changed", (event) => { activeStudent = event.detail || null; void load(); });
   window.addEventListener("class-registry-updated", () => void load());

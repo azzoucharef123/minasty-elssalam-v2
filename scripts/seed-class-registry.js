@@ -12,7 +12,7 @@ const EXPLICIT_SESSIONS = [
     dates: [
       "2026-09-06", "2026-09-13", "2026-09-20", "2026-09-27",
       "2026-10-04", "2026-10-11", "2026-10-18", "2026-10-25",
-      "2026-11-01", "2026-11-08", "2026-11-15", "2026-11-22", "2026-11-29",
+      "2026-11-01", "2026-11-08", "2026-11-15", "2026-11-22",
     ],
   },
   {
@@ -21,7 +21,7 @@ const EXPLICIT_SESSIONS = [
     hour: 18,
     dates: [
       "2026-09-03", "2026-09-10", "2026-09-17", "2026-09-24",
-      "2026-10-01", "2026-10-08", "2026-10-15", "2026-10-22", "2026-10-29",
+      "2026-10-01", "2026-10-08", "2026-10-15", "2026-10-22",
       "2026-11-05", "2026-11-12", "2026-11-19", "2026-11-26",
     ],
   },
@@ -32,7 +32,7 @@ const EXPLICIT_SESSIONS = [
     dates: [
       "2026-09-07", "2026-09-14", "2026-09-21", "2026-09-28",
       "2026-10-05", "2026-10-12", "2026-10-19", "2026-10-26",
-      "2026-11-02", "2026-11-09", "2026-11-16", "2026-11-23", "2026-11-30",
+      "2026-11-02", "2026-11-09", "2026-11-16", "2026-11-23",
     ],
   },
   {
@@ -41,7 +41,7 @@ const EXPLICIT_SESSIONS = [
     hour: 18,
     dates: [
       "2026-09-04", "2026-09-11", "2026-09-18", "2026-09-25",
-      "2026-10-02", "2026-10-09", "2026-10-16", "2026-10-23", "2026-10-30",
+      "2026-10-02", "2026-10-09", "2026-10-16", "2026-10-23",
       "2026-11-06", "2026-11-13", "2026-11-20", "2026-11-27",
     ],
   },
@@ -50,7 +50,7 @@ const EXPLICIT_SESSIONS = [
     subject: "PHYSICS",
     hour: 18,
     dates: [
-      "2026-09-01", "2026-09-08", "2026-09-15", "2026-09-22", "2026-09-29",
+      "2026-09-01", "2026-09-08", "2026-09-15", "2026-09-22",
       "2026-10-06", "2026-10-13", "2026-10-20", "2026-10-27",
       "2026-11-03", "2026-11-10", "2026-11-17", "2026-11-24",
     ],
@@ -61,7 +61,7 @@ const EXPLICIT_SESSIONS = [
     hour: 10,
     dates: [
       "2026-09-05", "2026-09-12", "2026-09-19", "2026-09-26",
-      "2026-10-03", "2026-10-10", "2026-10-17", "2026-10-24", "2026-10-31",
+      "2026-10-03", "2026-10-10", "2026-10-17", "2026-10-24",
       "2026-11-07", "2026-11-14", "2026-11-21", "2026-11-28",
     ],
   },
@@ -70,7 +70,7 @@ const EXPLICIT_SESSIONS = [
     subject: "PHYSICS",
     hour: 18,
     dates: [
-      "2026-09-02", "2026-09-09", "2026-09-16", "2026-09-23", "2026-09-30",
+      "2026-09-02", "2026-09-09", "2026-09-16", "2026-09-23",
       "2026-10-07", "2026-10-14", "2026-10-21", "2026-10-28",
       "2026-11-04", "2026-11-11", "2026-11-18", "2026-11-25",
     ],
@@ -81,7 +81,7 @@ const EXPLICIT_SESSIONS = [
     hour: 18,
     dates: [
       "2026-09-05", "2026-09-12", "2026-09-19", "2026-09-26",
-      "2026-10-03", "2026-10-10", "2026-10-17", "2026-10-24", "2026-10-31",
+      "2026-10-03", "2026-10-10", "2026-10-17", "2026-10-24",
       "2026-11-07", "2026-11-14", "2026-11-21", "2026-11-28",
     ],
   },
@@ -133,9 +133,32 @@ async function backfillMonthKeys() {
   return existing.length;
 }
 
+async function cleanupOutOfPolicySessions(expected) {
+  const expectedKeys = new Set(expected.map((item) => `${item.level}|${item.subject}|${item.scheduledAt.toISOString()}`));
+  const candidates = await prisma.scheduledClass.findMany({
+    where: {
+      level: { in: [...new Set(expected.map((item) => item.level))] },
+      scheduledAt: { gte: new Date("2026-09-01T00:00:00.000Z"), lt: new Date("2026-12-01T00:00:00.000Z") },
+    },
+    select: { id: true, level: true, subject: true, scheduledAt: true, status: true, driveLink: true, youtubeVideoId: true, notes: true },
+  });
+
+  let deleted = 0;
+  for (const item of candidates) {
+    const key = `${item.level}|${item.subject}|${item.scheduledAt.toISOString()}`;
+    const isSafeToDelete = item.status === "PENDING" && !item.driveLink && !item.youtubeVideoId && !item.notes;
+    if (!expectedKeys.has(key) && isSafeToDelete) {
+      await prisma.scheduledClass.delete({ where: { id: item.id } });
+      deleted += 1;
+    }
+  }
+  return deleted;
+}
+
 async function seedClassRegistry() {
   const backfilled = await backfillMonthKeys();
   const expected = buildExpectedSessions();
+  const deleted = await cleanupOutOfPolicySessions(expected);
   let created = 0;
   let skipped = 0;
 
@@ -169,7 +192,7 @@ async function seedClassRegistry() {
     created += 1;
   }
 
-  return { expected: expected.length, created, skipped, backfilled };
+  return { expected: expected.length, created, skipped, backfilled, deleted };
 }
 
 if (require.main === module) {
@@ -197,4 +220,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { buildExpectedSessions, seedClassRegistry };
+module.exports = { buildExpectedSessions, seedClassRegistry, cleanupOutOfPolicySessions };
