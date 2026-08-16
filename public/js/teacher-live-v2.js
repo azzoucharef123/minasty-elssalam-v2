@@ -45,6 +45,9 @@ let cameraStream;
 
 // Extra state used to make negotiation and cleanup predictable.
 const pendingIceCandidates = Object.create(null);
+const annotationSegments = [];
+let isDrawingAnnotation = false;
+let previousAnnotationPoint = null;
 const attendeeElements = new Map();
 const studentAudioElements = new Map();
 // This is the local authoritative mirror of the server's current teacher
