@@ -189,6 +189,7 @@ async function uploadVideo({ stream, mimeType = "video/webm", title, description
       },
       status: {
         privacyStatus: "unlisted",
+        embeddable: true,
         selfDeclaredMadeForKids: false,
       },
     },
@@ -201,7 +202,7 @@ async function uploadVideo({ stream, mimeType = "video/webm", title, description
   if (!id) throw new Error("لم تُرجع YouTube معرّف الفيديو بعد الرفع.");
   return {
     id,
-    embedUrl: `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&playsinline=1&fs=1`,
+    embedUrl: `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&playsinline=1&fs=1&enablejsapi=1&origin=https://dr.africacold.fr`,
     privacyStatus: "unlisted",
   };
 }

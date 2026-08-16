@@ -649,6 +649,16 @@ function openLessonVideo(video) {
   if (elements.lessonVideoSidebarTitle) elements.lessonVideoSidebarTitle.textContent = title;
   if (elements.lessonVideoSidebarMeta) elements.lessonVideoSidebarMeta.textContent = `${date} · مشاهدة داخل المنصة`;
   elements.lessonVideoFrame.title = title;
+  
+  // Ensure YouTube embeds have full permissions
+  if (String(video.previewUrl).includes("youtube.com")) {
+    elements.lessonVideoFrame.setAttribute("allow", "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share");
+    elements.lessonVideoFrame.setAttribute("allowfullscreen", "true");
+  } else {
+    elements.lessonVideoFrame.removeAttribute("allow");
+    elements.lessonVideoFrame.removeAttribute("allowfullscreen");
+  }
+  
   elements.lessonVideoFrame.src = video.previewUrl;
   elements.lessonVideoModal.hidden = false;
   document.body.classList.add("lesson-video-open");

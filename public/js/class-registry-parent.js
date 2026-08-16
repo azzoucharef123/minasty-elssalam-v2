@@ -43,7 +43,8 @@
   }
 
   function isSafeYouTubeEmbedUrl(value) {
-    return /^https:\/\/www\.youtube\.com\/embed\/[A-Za-z0-9_-]{11}\?rel=0&modestbranding=1&playsinline=1&fs=1$/.test(String(value || ""));
+    const url = String(value || "");
+    return /^https:\/\/www\.youtube\.com\/embed\/[A-Za-z0-9_-]{11}.*$/.test(url);
   }
 
   function openVideo(item) {
@@ -54,6 +55,15 @@
     $("#lesson-video-modal-title").textContent = `${subjectLabels[item.subject] || "الحصة"} · ${formatDate(item.scheduledAt)}`;
     $("#lesson-video-sidebar-title").textContent = subjectLabels[item.subject] || "مشاهدة الحصة";
     $("#lesson-video-sidebar-meta").textContent = `${formatDate(item.scheduledAt)} · مشاهدة داخل المنصة`;
+    // Ensure YouTube embeds have full permissions
+    if (videoUrl.includes("youtube.com")) {
+      frame.setAttribute("allow", "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share");
+      frame.setAttribute("allowfullscreen", "true");
+    } else {
+      frame.removeAttribute("allow");
+      frame.removeAttribute("allowfullscreen");
+    }
+    
     frame.src = videoUrl;
     frame.setAttribute("title", item.youtubeVideoId ? "فيديو YouTube داخل الأكاديمية" : "فيديو الحصة المسجلة");
     modal.hidden = false;
