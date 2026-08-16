@@ -96,6 +96,9 @@ const elements = {
   lessonVideoSubmit: document.getElementById("lesson-video-submit"),
   lessonVideoPicker: document.getElementById("lesson-video-picker"),
   lessonVideoList: document.getElementById("teacher-lesson-video-list"),
+  lessonVideoModal: document.getElementById("lesson-video-modal"),
+  lessonVideoModalOpen: document.getElementById("lesson-video-modal-open"),
+  lessonVideoModalClose: document.getElementById("lesson-video-modal-close"),
   driveVideoModal: document.getElementById("drive-video-modal"),
   closeDriveVideoModal: document.getElementById("close-drive-video-modal"),
   driveVideoList: document.getElementById("drive-video-list"),
@@ -2360,6 +2363,79 @@ async function confirmPaymentReceipt(studentId) {
   }
 }
 
+const DASHBOARD_TAB_HASHES = {
+  overview: "#overview",
+  students: "#students-panel",
+  schedule: "#schedule-manager",
+  registry: "#class-registry-manager",
+  assignments: "#assignment-manager",
+  lessons: "#lesson-repository-manager",
+};
+
+function tabFromHash(hash = window.location.hash) {
+  const entry = Object.entries(DASHBOARD_TAB_HASHES).find(([, value]) => value === hash);
+  return entry?.[0] || "overview";
+}
+
+function setDashboardTab(tabName, { updateHash = true, focusSearch = false } = {}) {
+  const tab = DASHBOARD_TAB_HASHES[tabName] ? tabName : "overview";
+  document.querySelectorAll("[data-dashboard-panel]").forEach((panel) => {
+    const active = panel.dataset.dashboardPanel === tab;
+    panel.classList.toggle("is-active", active);
+    panel.hidden = !active;
+  });
+  document.querySelectorAll(".teacher-tab-button[data-dashboard-tab]").forEach((button) => {
+    const active = button.dataset.dashboardTab === tab;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+  const sidebarLink = document.querySelector(`.teacher-nav-link[data-dashboard-tab="${tab}"]`);
+  updateSidebarActive(sidebarLink);
+  document.querySelectorAll(".teacher-nav-link[data-dashboard-tab]").forEach((link) => {
+    link.classList.toggle("is-active", link === sidebarLink);
+  });
+  if (updateHash && window.location.hash !== DASHBOARD_TAB_HASHES[tab]) {
+    window.history.replaceState(null, "", DASHBOARD_TAB_HASHES[tab]);
+  }
+  if (focusSearch) {
+    window.setTimeout(() => elements.searchInput?.focus(), 0);
+  }
+}
+
+function initializeDashboardTabs() {
+  document.querySelectorAll(".teacher-tab-button[data-dashboard-tab]").forEach((button) => {
+    button.addEventListener("click", () => setDashboardTab(button.dataset.dashboardTab));
+  });
+  document.querySelectorAll("[data-dashboard-tab].teacher-nav-link").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      setDashboardTab(link.dataset.dashboardTab);
+      setSidebarOpen(false);
+    });
+  });
+  document.querySelectorAll('a[href="#students-panel"]').forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      setDashboardTab("students");
+    });
+  });
+  window.addEventListener("hashchange", () => setDashboardTab(tabFromHash(), { updateHash: false }));
+  setDashboardTab(tabFromHash(), { updateHash: false });
+}
+
+function openLessonVideoModal() {
+  if (!elements.lessonVideoModal) return;
+  elements.lessonVideoModal.hidden = false;
+  document.body.classList.add("teacher-modal-open");
+  elements.lessonVideoTitle?.focus();
+}
+
+function closeLessonVideoModal() {
+  if (!elements.lessonVideoModal) return;
+  elements.lessonVideoModal.hidden = true;
+  document.body.classList.remove("teacher-modal-open");
+}
+
 function setSidebarOpen(isOpen) {
   elements.sidebar?.classList.toggle("is-open", isOpen);
   if (elements.sidebarBackdrop) elements.sidebarBackdrop.hidden = !isOpen;
@@ -2530,12 +2606,10 @@ function updateDashboardDate() {
 }
 
 function focusStudentSearch() {
-  elements.studentsPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
-  window.setTimeout(() => elements.searchInput?.focus(), 320);
+  setDashboardTab("students", { focusSearch: true });
 }
-
 function jumpToRoster() {
-  elements.studentsPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+  setDashboardTab("students");
 }
 
 function logoutTeacher() {
@@ -2590,6 +2664,11 @@ if (!getTeacherToken()) {
   });
   elements.scheduleForm?.addEventListener("submit", saveScheduledClass);
   elements.lessonVideoForm?.addEventListener("submit", saveLessonVideo);
+  elements.lessonVideoModalOpen?.addEventListener("click", openLessonVideoModal);
+  elements.lessonVideoModalClose?.addEventListener("click", closeLessonVideoModal);
+  elements.lessonVideoModal?.addEventListener("click", (event) => {
+    if (event.target === elements.lessonVideoModal) closeLessonVideoModal();
+  });
   elements.assignmentForm?.addEventListener("submit", submitAssignment);
   elements.assignmentDescription?.addEventListener("paste", handleAssignmentDescriptionPaste);
   elements.scheduleManagerToggle?.addEventListener("click", () => setScheduleManagerOpen(!scheduleManagerOpen));
@@ -2657,6 +2736,7 @@ if (!getTeacherToken()) {
   elements.focusStudentSearchButton?.addEventListener("click", focusStudentSearch);
   elements.jumpToRosterButton?.addEventListener("click", jumpToRoster);
 
+  initializeDashboardTabs();
   updateDashboardDate();
   fetchStudents(currentLevel);
 }
