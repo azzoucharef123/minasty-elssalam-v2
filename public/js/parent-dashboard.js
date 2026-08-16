@@ -64,6 +64,8 @@ const elements = {
   lessonVideoClose: document.getElementById("lesson-video-close"),
   materialsList: document.getElementById("materials-list"),
   attendanceCount: document.getElementById("attendance-count"),
+  participationCount: document.getElementById("participation-count"),
+  homeworkCount: document.getElementById("homework-count"),
   studentSwitcher: document.getElementById("student-switcher"),
   studentSwitcherList: document.getElementById("student-switcher-list"),
   activeStudentBar: document.getElementById("active-student-bar"),
@@ -1259,6 +1261,60 @@ async function loadAttendanceCount(studentId) {
 
     console.error("Unable to load attendance count:", error);
     updateAttendanceCount(0);
+  }
+}
+
+function setActivityStat(element, value) {
+  if (element) element.textContent = String(value);
+}
+
+async function loadActivityStats(studentId) {
+  if (!studentId) {
+    setActivityStat(elements.attendanceCount, 0);
+    setActivityStat(elements.participationCount, 0);
+    setActivityStat(elements.homeworkCount, "0 / 0");
+    return;
+  }
+
+  setActivityStat(elements.attendanceCount, "…");
+  setActivityStat(elements.participationCount, "…");
+  setActivityStat(elements.homeworkCount, "…");
+
+  try {
+    const encodedStudentId = encodeURIComponent(studentId);
+    const [attendanceResponse, progressResponse, assignmentsResponse] = await Promise.all([
+      parentFetch(`/api/attendance/student/${encodedStudentId}`, { headers: { Accept: "application/json" } }),
+      parentFetch(`/api/academic/students/${encodedStudentId}/progress`, { headers: { Accept: "application/json" } }),
+      parentFetch(`/api/academic/students/${encodedStudentId}/assignments`, { headers: { Accept: "application/json" } }),
+    ]);
+
+    const [attendancePayload, progressPayload, assignmentsPayload] = await Promise.all([
+      attendanceResponse.json().catch(() => ({})),
+      progressResponse.json().catch(() => ({})),
+      assignmentsResponse.json().catch(() => ({})),
+    ]);
+
+    if (!attendanceResponse.ok) throw new Error(attendancePayload.error || "تعذر تحميل الحضور.");
+    if (!progressResponse.ok) throw new Error(progressPayload.error || "تعذر تحميل المشاركات.");
+    if (!assignmentsResponse.ok) throw new Error(assignmentsPayload.error || "تعذر تحميل الواجبات.");
+    if (!currentStudent || currentStudent.id !== studentId) return;
+
+    const attendanceRows = Array.isArray(attendancePayload.data) ? attendancePayload.data : [];
+    const qualifyingAttendance = attendanceRows.filter((entry) => Number(entry?.durationMinutes) >= 60).length;
+    const participationTotal = Number(progressPayload?.data?.participationTotal) || 0;
+    const assignments = Array.isArray(assignmentsPayload.data) ? assignmentsPayload.data : [];
+    const submittedAssignments = assignments.filter((assignment) => Array.isArray(assignment?.submissions) && assignment.submissions.length > 0).length;
+
+    setActivityStat(elements.attendanceCount, qualifyingAttendance);
+    setActivityStat(elements.participationCount, participationTotal);
+    setActivityStat(elements.homeworkCount, `${submittedAssignments} / ${assignments.length}`);
+  } catch (error) {
+    if (/انتهت الجلسة/.test(error.message)) return;
+    console.error("Unable to load activity stats:", error);
+    if (!currentStudent || currentStudent.id !== studentId) return;
+    setActivityStat(elements.attendanceCount, "—");
+    setActivityStat(elements.participationCount, "—");
+    setActivityStat(elements.homeworkCount, "—");
   }
 }
 
