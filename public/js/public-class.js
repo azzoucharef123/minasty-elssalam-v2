@@ -887,6 +887,7 @@
       const tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_DRIVE_CLIENT_ID,
         scope: GOOGLE_DRIVE_SCOPE,
+        include_granted_scopes: false,
         callback: (response) => {
           if (response?.error || !response?.access_token) {
             reject(new Error(response?.error_description || "لم يتم منح إذن الحفظ في Google Drive."));
@@ -898,7 +899,7 @@
         },
         error_callback: (error) => reject(new Error(error?.message || "تم إغلاق نافذة تسجيل الدخول إلى Google.")),
       });
-      tokenClient.requestAccessToken({ prompt: "consent" });
+      tokenClient.requestAccessToken({ prompt: "consent", include_granted_scopes: false });
     })).finally(() => {
       publicRecordingDriveTokenPromise = null;
     });

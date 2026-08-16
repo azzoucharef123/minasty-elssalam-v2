@@ -419,6 +419,7 @@ async function requestGooglePickerToken() {
     const tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_DRIVE_CLIENT_ID,
       scope: GOOGLE_DRIVE_FILE_SCOPE,
+      include_granted_scopes: false,
       callback: (response) => {
         if (response?.error || !response?.access_token) {
           reject(new Error(response?.error_description || "لم يتم منح إذن اختيار فيديو من Google Drive."));
@@ -432,7 +433,7 @@ async function requestGooglePickerToken() {
         reject(new Error(error?.message || "تم إغلاق نافذة تسجيل الدخول إلى Google."));
       },
     });
-    tokenClient.requestAccessToken({ prompt: "" });
+    tokenClient.requestAccessToken({ prompt: "", include_granted_scopes: false });
   });
 }
 
@@ -446,6 +447,7 @@ async function requestGoogleDriveUploadToken() {
     const tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_DRIVE_CLIENT_ID,
       scope: GOOGLE_DRIVE_UPLOAD_SCOPE,
+      include_granted_scopes: false,
       callback: (response) => {
         if (response?.error || !response?.access_token) {
           reject(new Error(response?.error_description || "لم يتم منح صلاحية رفع المستند إلى Google Drive."));
@@ -459,7 +461,7 @@ async function requestGoogleDriveUploadToken() {
         reject(new Error(error?.message || "تم إغلاق نافذة صلاحية Google Drive."));
       },
     });
-    tokenClient.requestAccessToken({ prompt: "consent" });
+    tokenClient.requestAccessToken({ prompt: "consent", include_granted_scopes: false });
   });
 }
 
