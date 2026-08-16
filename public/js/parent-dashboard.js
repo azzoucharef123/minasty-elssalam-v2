@@ -55,6 +55,13 @@ const elements = {
   activeStudentBar: document.getElementById("active-student-bar"),
   activeStudentName: document.getElementById("active-student-name"),
   changeStudentButton: document.getElementById("change-student-button"),
+  levelScheduleCard: document.getElementById("level-schedule-card"),
+  levelScheduleLevel: document.getElementById("level-schedule-level"),
+  levelScheduleImageButton: document.getElementById("level-schedule-image-button"),
+  levelScheduleImage: document.getElementById("level-schedule-image"),
+  levelScheduleImageModal: document.getElementById("level-schedule-image-modal"),
+  levelScheduleImageLarge: document.getElementById("level-schedule-image-large"),
+  levelScheduleImageClose: document.getElementById("level-schedule-image-close"),
   paymentAccessModal: document.getElementById("payment-access-modal"),
   paymentAccessTitle: document.getElementById("payment-access-title"),
   paymentAccessHeadMessage: document.getElementById("payment-access-head-message"),
@@ -103,6 +110,13 @@ const LEVEL_DISPLAY_LABELS = Object.freeze({
   "السنة الثالثة": "السنة الثالثة متوسط",
   "السنة الرابعة": "السنة الرابعة متوسط",
   "طالب جامعي": "طالب جامعي",
+});
+
+const LEVEL_SCHEDULE_IMAGES = Object.freeze({
+  "السنة الأولى": "./assets/level-schedules/year-1.png",
+  "السنة الثانية": "./assets/level-schedules/year-2.png",
+  "السنة الثالثة": "./assets/level-schedules/year-3.png",
+  "السنة الرابعة": "./assets/level-schedules/year-4.png",
 });
 
 function displayLevelLabel(level) {
@@ -433,6 +447,33 @@ function updateActiveStudentBar(student) {
   }
 }
 
+function renderLevelScheduleCard(student) {
+  const imageUrl = LEVEL_SCHEDULE_IMAGES[student?.level] || "";
+  const hasScheduleImage = Boolean(imageUrl);
+  if (elements.levelScheduleCard) elements.levelScheduleCard.hidden = !hasScheduleImage;
+  if (!hasScheduleImage) {
+    if (elements.levelScheduleImage) elements.levelScheduleImage.removeAttribute("src");
+    if (elements.levelScheduleImageLarge) elements.levelScheduleImageLarge.removeAttribute("src");
+    return;
+  }
+
+  const levelLabel = displayLevelLabel(student.level);
+  if (elements.levelScheduleLevel) elements.levelScheduleLevel.textContent = levelLabel;
+  if (elements.levelScheduleImage) {
+    elements.levelScheduleImage.src = imageUrl;
+    elements.levelScheduleImage.alt = `جدول حصص ${levelLabel}`;
+  }
+  if (elements.levelScheduleImageLarge) {
+    elements.levelScheduleImageLarge.src = imageUrl;
+    elements.levelScheduleImageLarge.alt = `جدول حصص ${levelLabel} مكبراً`;
+  }
+  if (elements.levelScheduleImageModal) elements.levelScheduleImageModal.hidden = true;
+}
+
+function closeLevelScheduleImageModal() {
+  if (elements.levelScheduleImageModal) elements.levelScheduleImageModal.hidden = true;
+}
+
 function selectStudent(studentId) {
   const student = currentStudents.find((item) => item.id === studentId);
   if (!student) {
@@ -454,6 +495,7 @@ function selectStudent(studentId) {
   persistStudentSession(student);
   renderStudentSwitcher(currentStudents);
   updateActiveStudentBar(student);
+  renderLevelScheduleCard(student);
   if (elements.studentSwitcher) elements.studentSwitcher.hidden = true;
   renderStudent(student);
   elements.dashboardContent.hidden = false;
@@ -1478,6 +1520,16 @@ if (!getParentToken()) {
   elements.lessonVideoModal?.addEventListener("click", (event) => {
     if (event.target === elements.lessonVideoModal) closeLessonVideo();
   });
+  elements.levelScheduleImageButton?.addEventListener("click", () => {
+    if (elements.levelScheduleImageModal) elements.levelScheduleImageModal.hidden = false;
+    elements.levelScheduleImageClose?.focus();
+  });
+  elements.levelScheduleImageClose?.addEventListener("click", closeLevelScheduleImageModal);
+  elements.levelScheduleImageModal?.addEventListener("click", (event) => {
+    if (event.target === elements.levelScheduleImageModal || event.target.matches("[data-close-level-schedule]")) {
+      closeLevelScheduleImageModal();
+    }
+  });
   elements.callTeacherNowButton?.addEventListener("click", (event) => {
     if (lessonUpgradeContext) {
       event.preventDefault();
@@ -1508,6 +1560,7 @@ if (!getParentToken()) {
       closeDocumentFeedback();
       closePaymentAccessModal();
       closeLessonVideo();
+      closeLevelScheduleImageModal();
     }
   });
   window.addEventListener("focus", refreshAccessAfterReturningFromCall);

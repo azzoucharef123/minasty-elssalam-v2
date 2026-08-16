@@ -1222,6 +1222,31 @@
         </div>
       </section>
 
+      <section id="level-schedule-card" class="level-schedule-card" hidden aria-labelledby="level-schedule-title">
+        <div class="level-schedule-heading">
+          <div>
+            <span class="level-schedule-kicker">دليل المستوى الدراسي</span>
+            <h2 id="level-schedule-title">جدول حصص <span id="level-schedule-level">—</span></h2>
+            <p>مرجع سريع لمواعيد حصص الفيزياء والرياضيات الخاصة بالتلميذ المختار.</p>
+          </div>
+          <span class="level-schedule-badge" aria-hidden="true">جدولي</span>
+        </div>
+        <button id="level-schedule-image-button" class="level-schedule-image-button" type="button" aria-label="تكبير جدول حصص المستوى">
+          <img id="level-schedule-image" src="" alt="جدول حصص المستوى الدراسي" decoding="async" />
+          <span>اضغط على الجدول لتكبيره</span>
+        </button>
+      </section>
+
+      <div id="level-schedule-image-modal" class="level-schedule-image-modal" hidden>
+        <div class="level-schedule-image-backdrop" data-close-level-schedule></div>
+        <section class="level-schedule-image-dialog" role="dialog" aria-modal="true" aria-labelledby="level-schedule-modal-title">
+          <button id="level-schedule-image-close" class="level-schedule-image-close" type="button" aria-label="إغلاق جدول الحصص">×</button>
+          <p class="level-schedule-kicker">معاينة الجدول</p>
+          <h2 id="level-schedule-modal-title">جدول الحصص</h2>
+          <img id="level-schedule-image-large" src="" alt="جدول حصص المستوى مكبراً" decoding="async" />
+        </section>
+      </div>
+
       <section class="dashboard-welcome" aria-labelledby="dashboard-title">
         <h1 id="dashboard-title">متابعة تقدّم التلميذ</h1>
         <p>اطلع على نوع اشتراك التلميذ وحالة الحصة المباشرة.</p>
@@ -1392,7 +1417,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/parent-dashboard.js?v=lesson-access-1"></script>
+    <script src="./js/parent-dashboard.js?v=level-schedule-1"></script>
     <script src="./js/class-registry-parent.js?v=error153-referrer-2"></script>
   </body>
 </html>
