@@ -96,6 +96,16 @@ const elements = {
   closeDriveVideoModal: document.getElementById("close-drive-video-modal"),
   driveVideoList: document.getElementById("drive-video-list"),
   lessonRepositoryCaption: document.getElementById("lesson-repository-caption"),
+  studentCertificatesModal: document.getElementById("student-certificates-modal"),
+  studentCertificatesModalClose: document.getElementById("student-certificates-modal-close"),
+  studentCertificatesStudentName: document.getElementById("student-certificates-student-name"),
+  studentCertificateForm: document.getElementById("student-certificate-form"),
+  studentCertificateTitle: document.getElementById("student-certificate-title"),
+  studentCertificateAwardedAt: document.getElementById("student-certificate-awarded-at"),
+  studentCertificateDescription: document.getElementById("student-certificate-description"),
+  studentCertificateImage: document.getElementById("student-certificate-image"),
+  studentCertificateSubmit: document.getElementById("student-certificate-submit"),
+  teacherStudentCertificatesList: document.getElementById("teacher-student-certificates-list"),
 };
 
 let currentLevel =
@@ -1055,6 +1065,140 @@ function createCell(content, className = "") {
   return cell;
 }
 
+let certificateStudentId = null;
+let teacherCertificateImageUrls = new Set();
+
+function revokeTeacherCertificateImageUrls() {
+  teacherCertificateImageUrls.forEach((url) => URL.revokeObjectURL(url));
+  teacherCertificateImageUrls = new Set();
+}
+
+function renderTeacherCertificates(certificates) {
+  if (!elements.teacherStudentCertificatesList) return;
+  elements.teacherStudentCertificatesList.replaceChildren();
+  if (!certificates.length) {
+    const empty = document.createElement("p");
+    empty.className = "teacher-certificates-empty";
+    empty.textContent = "لا توجد شهادات مضافة لهذا التلميذ بعد.";
+    elements.teacherStudentCertificatesList.append(empty);
+    return;
+  }
+
+  certificates.forEach((certificate) => {
+    const item = document.createElement("article");
+    item.className = "teacher-certificate-item";
+    const copy = document.createElement("div");
+    copy.className = "teacher-certificate-copy";
+    const title = document.createElement("strong");
+    title.textContent = certificate.title;
+    const date = document.createElement("small");
+    date.textContent = certificate.awardedAt ? new Intl.DateTimeFormat("ar-DZ", { dateStyle: "medium" }).format(new Date(certificate.awardedAt)) : "دون تاريخ";
+    copy.append(title, date);
+    if (certificate.description) {
+      const description = document.createElement("p");
+      description.textContent = certificate.description;
+      copy.append(description);
+    }
+    const actions = document.createElement("div");
+    actions.className = "teacher-certificate-actions";
+    const preview = createButton("معاينة", "certificate-preview-btn", () => window.open(certificate.imageUrl, "_blank", "noopener,noreferrer"));
+    const remove = createButton("حذف", "delete", () => void deleteStudentCertificate(certificate.id));
+    actions.append(preview, remove);
+    item.append(copy, actions);
+    elements.teacherStudentCertificatesList.append(item);
+  });
+}
+
+async function loadTeacherCertificates(studentId) {
+  if (!studentId || !elements.teacherStudentCertificatesList) return;
+  revokeTeacherCertificateImageUrls();
+  elements.teacherStudentCertificatesList.replaceChildren(Object.assign(document.createElement("p"), { className: "teacher-certificates-empty", textContent: "جارٍ تحميل الشهادات…" }));
+  try {
+    const response = await teacherFetch(`/api/certificates/student/${encodeURIComponent(studentId)}`, { headers: { Accept: "application/json" } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر تحميل الشهادات.");
+    if (certificateStudentId !== studentId) return;
+    const certificates = Array.isArray(payload.data) ? payload.data : [];
+    for (const certificate of certificates) {
+      try {
+        const imageResponse = await teacherFetch(certificate.imageUrl, { headers: { Accept: "image/*" } });
+        if (!imageResponse.ok) continue;
+        const imageUrl = URL.createObjectURL(await imageResponse.blob());
+        certificate.imageUrl = imageUrl;
+        teacherCertificateImageUrls.add(imageUrl);
+      } catch (error) {
+        console.warn("Unable to load teacher certificate image:", error);
+      }
+    }
+    renderTeacherCertificates(certificates.filter((certificate) => certificate.imageUrl?.startsWith("blob:")));
+  } catch (error) {
+    console.error("Unable to load teacher certificates:", error);
+    elements.teacherStudentCertificatesList.replaceChildren(Object.assign(document.createElement("p"), { className: "teacher-certificates-empty", textContent: error.message || "تعذر تحميل الشهادات." }));
+  }
+}
+
+function openStudentCertificatesModal(student) {
+  certificateStudentId = student.id;
+  elements.studentCertificatesStudentName.textContent = `${student.studentName} — ${displayLevelLabel(student.level)}`;
+  elements.studentCertificateForm?.reset();
+  if (elements.studentCertificateAwardedAt) elements.studentCertificateAwardedAt.value = new Date().toISOString().slice(0, 10);
+  elements.studentCertificatesModal.hidden = false;
+  elements.studentCertificateTitle?.focus();
+  void loadTeacherCertificates(student.id);
+}
+
+function closeStudentCertificatesModal() {
+  certificateStudentId = null;
+  revokeTeacherCertificateImageUrls();
+  if (elements.studentCertificatesModal) elements.studentCertificatesModal.hidden = true;
+  elements.studentCertificateForm?.reset();
+}
+
+async function submitStudentCertificate(event) {
+  event.preventDefault();
+  const studentId = certificateStudentId;
+  const title = elements.studentCertificateTitle?.value.trim() || "";
+  const image = elements.studentCertificateImage?.files?.[0];
+  if (!studentId || !title || !image) {
+    showDashboardError("أدخل عنوان الشهادة وارفع صورتها أولًا.");
+    return;
+  }
+  const formData = new FormData();
+  formData.append("title", title);
+  formData.append("awardedAt", elements.studentCertificateAwardedAt?.value || "");
+  formData.append("description", elements.studentCertificateDescription?.value.trim() || "");
+  formData.append("image", image);
+  elements.studentCertificateSubmit.disabled = true;
+  try {
+    const response = await teacherFetch(`/api/certificates/student/${encodeURIComponent(studentId)}`, { method: "POST", body: formData, headers: { Accept: "application/json" } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر حفظ الشهادة.");
+    elements.studentCertificateForm.reset();
+    elements.studentCertificateAwardedAt.value = new Date().toISOString().slice(0, 10);
+    showToast("تم رفع الشهادة ونشرها للتلميذ.");
+    await loadTeacherCertificates(studentId);
+  } catch (error) {
+    console.error("Unable to submit student certificate:", error);
+    showDashboardError(error.message || "تعذر حفظ الشهادة.");
+  } finally {
+    elements.studentCertificateSubmit.disabled = false;
+  }
+}
+
+async function deleteStudentCertificate(certificateId) {
+  if (!certificateId) return;
+  try {
+    const response = await teacherFetch(`/api/certificates/${encodeURIComponent(certificateId)}`, { method: "DELETE", headers: { Accept: "application/json" } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر حذف الشهادة.");
+    showToast("تم حذف الشهادة.");
+    if (certificateStudentId) await loadTeacherCertificates(certificateStudentId);
+  } catch (error) {
+    console.error("Unable to delete student certificate:", error);
+    showDashboardError(error.message || "تعذر حذف الشهادة.");
+  }
+}
+
 function renderTable(studentsArray) {
   const students = studentsArray;
 
@@ -1117,10 +1261,17 @@ function renderTable(studentsArray) {
     );
     const actionGroup = document.createElement("div");
     actionGroup.className = "table-action-group";
+    const certificatesButton = createButton(
+      "الشهادات",
+      "student-certificates-btn",
+      () => openStudentCertificatesModal(student)
+    );
+    certificatesButton.title = "إضافة أو إدارة شهادات هذا التلميذ";
     actionGroup.append(
       liveAccessButton,
       subscriptionButton,
       attendanceButton,
+      certificatesButton,
       deleteButton
     );
 
@@ -2055,6 +2206,11 @@ if (!getTeacherToken()) {
   elements.deleteModal?.addEventListener("click", (event) => { if (event.target === elements.deleteModal) closeDeleteConfirmation(); });
   elements.documentFeedbackClose?.addEventListener("click", closeDocumentFeedback);
   elements.documentFeedbackModal?.addEventListener("click", (event) => { if (event.target === elements.documentFeedbackModal) closeDocumentFeedback(); });
+  elements.studentCertificatesModalClose?.addEventListener("click", closeStudentCertificatesModal);
+  elements.studentCertificatesModal?.addEventListener("click", (event) => {
+    if (event.target === elements.studentCertificatesModal) closeStudentCertificatesModal();
+  });
+  elements.studentCertificateForm?.addEventListener("submit", submitStudentCertificate);
 
   elements.paymentStatusForm?.addEventListener("submit", savePaymentStatus);
   elements.paymentStatusStage?.addEventListener("change", syncPaymentAmountField);
@@ -2099,6 +2255,10 @@ if (!getTeacherToken()) {
   });
 
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && elements.studentCertificatesModal && !elements.studentCertificatesModal.hidden) {
+      closeStudentCertificatesModal();
+      return;
+    }
     if (event.key === "Escape" && elements.documentFeedbackModal && !elements.documentFeedbackModal.hidden) {
       closeDocumentFeedback();
       return;

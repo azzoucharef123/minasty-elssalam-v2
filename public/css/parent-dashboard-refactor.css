@@ -263,3 +263,37 @@
 .registry-upsell-kicker { margin-bottom: .3rem !important; color: #dc2626; font-size: .7rem; font-weight: 900; }
 .registry-upsell-call { display: flex; align-items: center; justify-content: center; min-height: 2.9rem; margin-top: 1rem; color: #fff; background: linear-gradient(135deg,#059669,#16a34a); border-radius: .7rem; font-size: .8rem; font-weight: 900; text-decoration: none; }
 @media (max-width: 520px) { .class-registry-item { align-items: stretch; flex-direction: column; } .class-registry-item-actions { justify-content: stretch; } .class-registry-item-actions > * { flex: 1 1 auto; } }
+
+/* Student certificates / motivational achievements */
+.student-certificates-card { display: grid; gap: 0; overflow: hidden; }
+.student-certificates-toggle { display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: 100%; padding: 1.1rem 1.25rem; color: inherit; background: transparent; border: 0; text-align: right; cursor: pointer; }
+.student-certificates-toggle-copy { display: grid; gap: .18rem; min-width: 0; }
+.student-certificates-toggle-copy > span { color: var(--primary-blue); font-size: .7rem; font-weight: 900; }
+.student-certificates-toggle-copy strong { color: var(--text-main); font-size: clamp(1.02rem, 2vw, 1.2rem); }
+.student-certificates-toggle-copy small { color: var(--text-muted); font-size: .72rem; line-height: 1.7; }
+.student-certificates-toggle-icon { display: grid; width: 2.45rem; height: 2.45rem; flex: 0 0 auto; place-items: center; color: var(--primary-blue); background: #eff6ff; border: 1px solid #bfdbfe; border-radius: .75rem; font-size: 1.2rem; transition: transform .2s ease, background .2s ease; }
+.student-certificates-card.is-open .student-certificates-toggle-icon { transform: rotate(180deg); background: #dbeafe; }
+.student-certificates-toggle:focus-visible { outline: 3px solid rgba(37, 99, 235, .2); outline-offset: -3px; border-radius: .7rem; }
+.student-certificates-content { display: grid; gap: .8rem; padding: 0 1.25rem 1.25rem; }
+.student-certificates-content[hidden] { display: none; }
+.student-certificates-caption { margin: 0; color: var(--text-muted); font-size: .74rem; line-height: 1.8; }
+.student-certificates-list { display: grid; gap: .8rem; }
+.student-certificates-empty { display: grid; min-height: 7rem; place-items: center; margin: 0; padding: 1.1rem; color: var(--text-muted); border: 1px dashed #bfdbfe; border-radius: .85rem; background: #f8fbff; text-align: center; font-size: .78rem; }
+.student-certificate-card { display: grid; grid-template-columns: minmax(7rem, 12rem) minmax(0, 1fr); gap: 1rem; align-items: center; padding: .8rem; border: 1px solid #dbeafe; border-radius: .95rem; background: linear-gradient(145deg, #ffffff, #f8fbff); box-shadow: 0 6px 18px rgba(30, 64, 175, .06); }
+.student-certificate-image-button { display: block; width: 100%; padding: 0; overflow: hidden; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: .7rem; cursor: zoom-in; }
+.student-certificate-image-button img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; transition: transform .2s ease; }
+.student-certificate-image-button:hover img { transform: scale(1.035); }
+.student-certificate-copy { display: grid; gap: .35rem; min-width: 0; }
+.student-certificate-copy strong { color: var(--text-main); font-size: .9rem; line-height: 1.6; }
+.student-certificate-copy p { margin: 0; color: var(--text-muted); font-size: .73rem; line-height: 1.8; }
+.student-certificate-copy time { color: #2563eb; font-size: .68rem; font-weight: 800; }
+.student-certificate-modal { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgba(15, 23, 42, .82); backdrop-filter: blur(8px); }
+.student-certificate-modal[hidden] { display: none; }
+.student-certificate-modal-card { position: relative; width: min(100%, 62rem); max-height: 92vh; padding: .8rem; overflow: auto; background: #fff; border-radius: 1rem; box-shadow: 0 25px 80px rgba(2, 6, 23, .38); }
+.student-certificate-modal-card img { display: block; width: 100%; height: auto; max-height: 82vh; object-fit: contain; }
+.student-certificate-modal-close { position: absolute; z-index: 1; top: .6rem; left: .6rem; display: grid; width: 2.3rem; height: 2.3rem; place-items: center; color: #334155; background: rgba(255, 255, 255, .94); border: 1px solid #cbd5e1; border-radius: 50%; font-size: 1.2rem; cursor: pointer; }
+@media (max-width: 560px) {
+  .student-certificate-card { grid-template-columns: 1fr; }
+  .student-certificate-toggle { padding-inline: .9rem; }
+  .student-certificates-content { padding-inline: .9rem; }
+}

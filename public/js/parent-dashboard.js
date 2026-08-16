@@ -12,6 +12,15 @@ const elements = {
   lessonRepositoryToggle: document.getElementById("lesson-repository-toggle"),
   lessonRepositoryControls: document.getElementById("lesson-repository-controls"),
   lessonRepositoryToggleIcon: document.getElementById("lesson-repository-toggle-icon"),
+  studentCertificatesCard: document.getElementById("student-certificates-card"),
+  studentCertificatesToggle: document.getElementById("student-certificates-toggle"),
+  studentCertificatesContent: document.getElementById("student-certificates-content"),
+  studentCertificatesToggleIcon: document.getElementById("student-certificates-toggle-icon"),
+  studentCertificatesList: document.getElementById("student-certificates-list"),
+  studentCertificatesCaption: document.getElementById("student-certificates-caption"),
+  studentCertificateModal: document.getElementById("student-certificate-modal"),
+  studentCertificateModalImage: document.getElementById("student-certificate-modal-image"),
+  studentCertificateModalClose: document.getElementById("student-certificate-modal-close"),
   studentAvatar: document.getElementById("student-avatar"),
   studentName: document.getElementById("student-name"),
   studentLevel: document.getElementById("student-level"),
@@ -91,6 +100,8 @@ const elements = {
 let socket = null;
 let currentStudent = null;
 let lessonRepositoryOpen = false;
+let studentCertificatesOpen = false;
+let certificateImageUrls = new Set();
 
 function scrollExpandedPanel(panel) {
   if (!panel || panel.hidden) return;
@@ -107,6 +118,121 @@ function scrollExpandedPanel(panel) {
 }
 
 window.focusExpandedParentPanel = scrollExpandedPanel;
+
+function revokeCertificateImageUrls() {
+  certificateImageUrls.forEach((url) => URL.revokeObjectURL(url));
+  certificateImageUrls = new Set();
+}
+
+function setStudentCertificatesOpen(nextOpen) {
+  studentCertificatesOpen = Boolean(nextOpen);
+  if (elements.studentCertificatesContent) elements.studentCertificatesContent.hidden = !studentCertificatesOpen;
+  elements.studentCertificatesCard?.classList.toggle("is-open", studentCertificatesOpen);
+  elements.studentCertificatesToggle?.setAttribute("aria-expanded", String(studentCertificatesOpen));
+  if (elements.studentCertificatesToggleIcon) elements.studentCertificatesToggleIcon.textContent = studentCertificatesOpen ? "⌃" : "⌄";
+  if (studentCertificatesOpen) scrollExpandedPanel(elements.studentCertificatesCard);
+}
+
+function syncStudentCertificatesVisibility(student) {
+  const shouldShow = Boolean(student);
+  if (elements.studentCertificatesCard) elements.studentCertificatesCard.hidden = !shouldShow;
+  if (!shouldShow) elements.studentCertificatesList?.replaceChildren();
+  setStudentCertificatesOpen(false);
+}
+
+function showCertificateEmptyState(message) {
+  const empty = document.createElement("p");
+  empty.className = "student-certificates-empty";
+  empty.textContent = message;
+  return empty;
+}
+
+function openCertificateImage(url, title) {
+  if (!elements.studentCertificateModal || !elements.studentCertificateModalImage || !url) return;
+  elements.studentCertificateModalImage.src = url;
+  elements.studentCertificateModalImage.alt = title || "شهادة التلميذ";
+  elements.studentCertificateModal.hidden = false;
+  document.body.style.overflow = "hidden";
+  elements.studentCertificateModalClose?.focus();
+}
+
+function closeCertificateImage() {
+  if (elements.studentCertificateModal) elements.studentCertificateModal.hidden = true;
+  if (elements.studentCertificateModalImage) elements.studentCertificateModalImage.removeAttribute("src");
+  document.body.style.overflow = "";
+}
+
+function renderStudentCertificates(certificates) {
+  if (!elements.studentCertificatesList) return;
+  elements.studentCertificatesList.replaceChildren();
+  if (!certificates.length) {
+    elements.studentCertificatesList.append(showCertificateEmptyState("لم يحصل التلميذ على شهادات مضافة بعد. استمر في التقدم، وستظهر إنجازاتك هنا."));
+    return;
+  }
+
+  certificates.forEach((certificate) => {
+    const card = document.createElement("article");
+    card.className = "student-certificate-card";
+    const imageButton = document.createElement("button");
+    imageButton.type = "button";
+    imageButton.className = "student-certificate-image-button";
+    imageButton.setAttribute("aria-label", `تكبير شهادة ${certificate.title}`);
+    const image = document.createElement("img");
+    image.src = certificate.imageObjectUrl || "";
+    image.alt = certificate.title || "شهادة التلميذ";
+    image.loading = "lazy";
+    image.decoding = "async";
+    imageButton.append(image);
+    imageButton.addEventListener("click", () => openCertificateImage(certificate.imageObjectUrl, certificate.title));
+
+    const copy = document.createElement("div");
+    copy.className = "student-certificate-copy";
+    const title = document.createElement("strong");
+    title.textContent = certificate.title || "شهادة إنجاز";
+    const date = document.createElement("time");
+    date.dateTime = certificate.awardedAt || "";
+    date.textContent = certificate.awardedAt
+      ? `تاريخ الحصول عليها: ${new Intl.DateTimeFormat("ar-DZ", { dateStyle: "medium" }).format(new Date(certificate.awardedAt))}`
+      : "شهادة إنجاز";
+    copy.append(title, date);
+    if (certificate.description) {
+      const description = document.createElement("p");
+      description.textContent = certificate.description;
+      copy.append(description);
+    }
+    card.append(imageButton, copy);
+    elements.studentCertificatesList.append(card);
+  });
+}
+
+async function loadStudentCertificates(studentId) {
+  if (!elements.studentCertificatesList || !studentId) return;
+  revokeCertificateImageUrls();
+  elements.studentCertificatesList.replaceChildren(showCertificateEmptyState("جارٍ تحميل شهادات التلميذ…"));
+  try {
+    const response = await parentFetch(`/api/certificates/student/${encodeURIComponent(studentId)}`, { headers: { Accept: "application/json" } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر تحميل شهادات التلميذ.");
+    if (!currentStudent || currentStudent.id !== studentId) return;
+    const certificates = Array.isArray(payload.data) ? payload.data : [];
+    for (const certificate of certificates) {
+      try {
+        const imageResponse = await parentFetch(certificate.imageUrl, { headers: { Accept: "image/*" } });
+        if (!imageResponse.ok) continue;
+        const imageUrl = URL.createObjectURL(await imageResponse.blob());
+        certificate.imageObjectUrl = imageUrl;
+        certificateImageUrls.add(imageUrl);
+      } catch (error) {
+        console.warn("Unable to load certificate image:", error);
+      }
+    }
+    renderStudentCertificates(certificates.filter((certificate) => certificate.imageObjectUrl));
+  } catch (error) {
+    if (/انتهت الجلسة/.test(error.message)) return;
+    console.error("Unable to load student certificates:", error);
+    elements.studentCertificatesList.replaceChildren(showCertificateEmptyState("تعذر تحميل الشهادات حاليًا."));
+  }
+}
 let currentStudents = [];
 let currentLobbyLevel = null;
 let paymentReturnRefreshTimer = null;
@@ -571,6 +697,7 @@ function selectStudent(studentId) {
   clearError();
   emitLobbyJoin(student.level);
   void loadAttendanceCount(student.id);
+  void loadStudentCertificates(student.id);
   void loadParentSchedule(student.level);
   if (canAccessLessonRepository(student)) {
     void loadLessonVideos(student.level);
@@ -694,6 +821,7 @@ function renderSecondaryPaymentUpgrade(student) {
 }
 
 function renderStudent(student) {
+  syncStudentCertificatesVisibility(student);
   elements.studentAvatar.textContent = getInitials(student.studentName);
   elements.studentName.textContent = student.studentName;
   elements.studentLevel.textContent = displayLevelLabel(student.level);
@@ -1589,6 +1717,11 @@ if (!getParentToken()) {
     if (event.target === elements.documentFeedbackModal) closeDocumentFeedback();
   });
   elements.lessonRepositoryToggle?.addEventListener("click", () => setLessonRepositoryOpen(!lessonRepositoryOpen));
+  elements.studentCertificatesToggle?.addEventListener("click", () => setStudentCertificatesOpen(!studentCertificatesOpen));
+  elements.studentCertificateModalClose?.addEventListener("click", closeCertificateImage);
+  elements.studentCertificateModal?.addEventListener("click", (event) => {
+    if (event.target === elements.studentCertificateModal) closeCertificateImage();
+  });
   elements.lessonVideoClose?.addEventListener("click", closeLessonVideo);
   elements.lessonVideoFullscreen?.addEventListener("click", () => { void toggleLessonFullscreen(); });
   elements.lessonVideoRotate?.addEventListener("click", () => { void rotateLessonScreen(); });
@@ -1608,6 +1741,11 @@ if (!getParentToken()) {
   elements.levelScheduleImageModal?.addEventListener("click", (event) => {
     if (event.target === elements.levelScheduleImageModal || event.target.matches("[data-close-level-schedule]")) {
       closeLevelScheduleImageModal();
+    }
+  });
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeCertificateImage();
     }
   });
   elements.callTeacherNowButton?.addEventListener("click", (event) => {

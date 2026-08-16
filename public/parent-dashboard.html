@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./css/style.css?v=registry-selects-1" />
+    <link rel="stylesheet" href="./css/style.css?v=certificates-1" />
     <link rel="stylesheet" href="./css/private-messages.css" />
     <link rel="stylesheet" href="./css/payment-feedback.css" />
 
@@ -1143,7 +1143,7 @@
         }
       }
     </style>
-    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=parent-dashboard-1" />
+    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=certificates-1" />
   </head>
   <body class="parent-dashboard-page">
     <div id="parent-sidebar-backdrop" class="parent-sidebar-backdrop" hidden></div>
@@ -1310,9 +1310,16 @@
           <article class="parent-kpi-card"><span class="parent-kpi-icon">◷</span><div><small>الحصة القادمة</small><strong id="parent-kpi-next-class">—</strong><em>حسب برنامج المستوى</em></div></article>
           <article class="parent-kpi-card"><span class="parent-kpi-icon">★</span><div><small>التقييم العام</small><strong id="parent-kpi-rating">في انتظار التقييم</strong><em>لا يوجد تقييم مسجل بعد</em></div></article>
         </section>
-        <div class="parent-content-split">
-        <aside class="parent-feedback-card" aria-labelledby="parent-feedback-title"><div class="parent-panel-kicker">متابعة الأستاذ</div><h2 id="parent-feedback-title">ملاحظات الأستاذ</h2><blockquote>لا توجد ملاحظات جديدة من الأستاذ حول تقدّم هذا التلميذ حالياً.</blockquote><small>ستظهر هنا الملاحظات بعد إضافتها من المركز الأكاديمي.</small></aside>
-        </div>
+        <section id="student-certificates-card" class="student-certificates-card parent-feedback-card" aria-labelledby="student-certificates-title">
+          <button id="student-certificates-toggle" class="student-certificates-toggle" type="button" aria-expanded="false" aria-controls="student-certificates-content">
+            <span class="student-certificates-toggle-copy"><span>عامل تحفيزي</span><strong id="student-certificates-title">إنجازات التلميذ وشهاداته</strong><small>اضغط لعرض الشهادات التي حصل عليها التلميذ</small></span>
+            <span id="student-certificates-toggle-icon" class="student-certificates-toggle-icon" aria-hidden="true">⌄</span>
+          </button>
+          <div id="student-certificates-content" class="student-certificates-content" hidden>
+            <p id="student-certificates-caption" class="student-certificates-caption">ستظهر هنا الشهادات والإنجازات التي أضافها الأستاذ لهذا التلميذ.</p>
+            <div id="student-certificates-list" class="student-certificates-list" aria-live="polite"></div>
+          </div>
+        </section>
         <section id="lesson-repository-card" class="lesson-repository-card" aria-labelledby="lesson-repository-parent-title">
           <header class="lesson-repository-head">
             <button id="lesson-repository-toggle" class="lesson-repository-toggle" type="button" aria-expanded="false" aria-controls="lesson-repository-controls">
@@ -1437,6 +1444,8 @@
     </section>
   </div>
 
+  <div id="student-certificate-modal" class="student-certificate-modal" role="dialog" aria-modal="true" aria-labelledby="student-certificate-modal-title" hidden><section class="student-certificate-modal-card"><button id="student-certificate-modal-close" class="student-certificate-modal-close" type="button" aria-label="إغلاق الشهادة">×</button><h2 id="student-certificate-modal-title" class="sr-only">معاينة شهادة التلميذ</h2><img id="student-certificate-modal-image" src="" alt="شهادة التلميذ" decoding="async" /></section></div>
+
   <div id="document-feedback-modal" class="document-feedback-modal" role="dialog" aria-modal="true" aria-labelledby="document-feedback-title" hidden><section class="document-feedback-dialog"><div class="document-feedback-head"><span class="document-feedback-icon" aria-hidden="true">!</span><div><h2 id="document-feedback-title">تعذر إتمام العملية</h2><p>راجع البيانات والوثيقة ثم حاول مرة أخرى.</p></div></div><div id="document-feedback-message" class="document-feedback-body"></div><button id="document-feedback-close" class="document-feedback-close" type="button">إغلاق</button></section></div>
 
   <div id="payment-access-modal" class="payment-access-modal" role="dialog" aria-modal="true" aria-labelledby="payment-access-title" hidden>
@@ -1459,7 +1468,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/parent-dashboard.js?v=panel-scroll-1"></script>
+    <script src="./js/parent-dashboard.js?v=certificates-1"></script>
     <script src="./js/class-registry-parent.js?v=panel-scroll-1"></script>
   </body>
 </html>
