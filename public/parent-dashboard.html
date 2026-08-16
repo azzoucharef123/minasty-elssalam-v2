@@ -1012,12 +1012,12 @@
       .lesson-video-player-action:active { transform: scale(0.97); }
       .lesson-video-player-topbar small { color: #94a3b8; font-size: 0.64rem; }
       .lesson-video-frame { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; background: #020617; user-select: none; -webkit-user-select: none; transform-origin: center center; transition: transform 0.08s linear; }
-      .lesson-video-zoom-layer { position: absolute; z-index: 3; inset: 3.1rem 0 0; display: none; touch-action: none; cursor: grab; }
+      .lesson-video-zoom-layer { position: absolute; z-index: 3; inset: 3.1rem 0 4.6rem; display: none; touch-action: none; cursor: grab; }
       .lesson-video-zoom-layer.is-active { display: block; }
       .lesson-video-zoom-layer:active { cursor: grabbing; }
       .lesson-video-zoom-hint { position: absolute; z-index: 4; right: 0.7rem; bottom: 0.7rem; display: none; padding: 0.34rem 0.5rem; color: #ffffff; background: rgba(15, 23, 42, 0.72); border-radius: 0.45rem; font-size: 0.62rem; font-weight: 800; pointer-events: none; }
       .lesson-video-zoom-hint.is-visible { display: block; }
-      .lesson-video-player-shell:fullscreen .lesson-video-zoom-layer { inset: 3.1rem 0 0; }
+      .lesson-video-player-shell:fullscreen .lesson-video-zoom-layer { inset: 3.1rem 0 4.6rem; }
       .lesson-video-player-shell:fullscreen .lesson-video-frame { transition: transform 0.08s linear; }
       .lesson-video-player-shell:fullscreen { display: grid; grid-template-rows: auto minmax(0, 1fr); width: 100vw; height: 100vh; border: 0; border-radius: 0; touch-action: pinch-zoom; }
       .lesson-video-player-shell:fullscreen .lesson-video-frame { height: 100%; aspect-ratio: auto; }
@@ -1384,7 +1384,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/parent-dashboard.js?v=youtube-native-controls-1"></script>
+    <script src="./js/parent-dashboard.js?v=pinch-zoom-native-1"></script>
     <script src="./js/class-registry-parent.js?v=error153-referrer-2"></script>
   </body>
 </html>

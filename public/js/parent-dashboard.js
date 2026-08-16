@@ -671,9 +671,9 @@ function resetLessonZoom() {
 }
 
 function activateLessonZoomLayer() {
-  // Keep the native YouTube player fully interactive: CC, quality, settings,
-  // fullscreen, and the rest of its controls remain available to the learner.
-  elements.lessonVideoZoomLayer?.classList.remove("is-active");
+  // Capture pinch gestures only over the video image area. The native YouTube
+  // control bar remains uncovered so CC, quality, settings, and fullscreen work.
+  elements.lessonVideoZoomLayer?.classList.add("is-active");
 }
 
 function lessonZoomDistance(first, second) {
