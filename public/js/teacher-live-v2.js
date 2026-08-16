@@ -40,8 +40,6 @@ const rtcConfig = {
 // Required broadcaster state requested for this phase.
 const peerConnections = Object.create(null);
 let screenStream;
-let welcomeStream;
-let welcomeCanvas;
 let cameraStream;
 
 // Extra state used to make negotiation and cleanup predictable.
@@ -1810,9 +1808,7 @@ function getLiveScreenAudioTrack() {
 }
 
 function getActiveTeacherVideoTrack() {
-  return screenStream?.getVideoTracks?.().find((track) => track.readyState === "live")
-    || welcomeStream?.getVideoTracks?.().find((track) => track.readyState === "live")
-    || null;
+  return screenStream?.getVideoTracks?.().find((track) => track.readyState === "live") || null;
 }
 
 const LEVEL_WELCOME_IMAGES = {
@@ -1829,39 +1825,6 @@ function setTeacherWelcomeImage(levelName) {
   elements.teacherWelcomeImage.alt = `صورة انتظار ${levelName} متوسط`;
 }
 
-function drawWelcomeCanvas() {
-  if (!welcomeCanvas) return;
-  const context = welcomeCanvas.getContext("2d");
-  if (!context) return;
-  const width = welcomeCanvas.width;
-  const height = welcomeCanvas.height;
-  context.fillStyle = "#050a13";
-  context.fillRect(0, 0, width, height);
-
-  const image = elements.teacherWelcomeImage;
-  if (!image?.complete || !image.naturalWidth || !image.naturalHeight) return;
-  const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
-  const drawWidth = image.naturalWidth * scale;
-  const drawHeight = image.naturalHeight * scale;
-  context.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
-}
-
-function ensureWelcomeStream(levelName = activeLevel) {
-  if (!elements.teacherWelcomeImage) return null;
-  if (levelName) setTeacherWelcomeImage(levelName);
-  if (!welcomeCanvas) {
-    welcomeCanvas = document.createElement("canvas");
-    welcomeCanvas.width = 1280;
-    welcomeCanvas.height = 720;
-  }
-  drawWelcomeCanvas();
-  if (!welcomeStream) {
-    welcomeStream = welcomeCanvas.captureStream?.(20);
-  }
-  elements.teacherWelcomeImage.onload = drawWelcomeCanvas;
-  return welcomeStream;
-}
-
 function syncTeacherVideoTrackToAllPeers() {
   const track = getActiveTeacherVideoTrack();
   if (!track) return;
@@ -1871,9 +1834,8 @@ function syncTeacherVideoTrackToAllPeers() {
       if (sender.track !== track) sender.replaceTrack(track).catch(() => {});
       return;
     }
-    const stream = screenStream || welcomeStream;
-    if (!stream) return;
-    const nextSender = peerConnection.addTrack(track, stream);
+    if (!screenStream) return;
+    const nextSender = peerConnection.addTrack(track, screenStream);
     nextSender.__classroomVideoTrack = true;
     void tuneOutboundSender(nextSender, "video");
     if (peerConnection.remoteDescription && peerConnection.signalingState === "stable") {
@@ -2146,7 +2108,7 @@ async function tuneOutboundSender(sender, kind) {
  * with the same audio channel as all current attendees.
  */
 function addTeacherTracks(peerConnection, studentSocketId) {
-  const videoStream = screenStream || ensureWelcomeStream();
+  const videoStream = screenStream;
   const videoTrack = videoStream?.getVideoTracks?.().find((track) => track.readyState === "live");
   if (videoTrack) {
     videoTrack.contentHint = "detail";
@@ -2375,10 +2337,6 @@ function stopLocalStreams() {
   screenStream = undefined;
   cameraStream = undefined;
   elements.localVideo.srcObject = null;
-  if (welcomeStream) {
-    welcomeStream.getTracks().forEach((track) => track.stop());
-    welcomeStream = undefined;
-  }
   setStageMode("idle");
 }
 
@@ -2518,6 +2476,18 @@ function getMediaErrorMessage(error, source) {
  * The class can safely continue with only the screen stream when camera access
  * is denied or a camera device is unavailable.
  */
+async function publishScreenShareState(active) {
+  if (!activeLevel || !socket.connected) return;
+  try {
+    await emitWithAcknowledgement("teacher_screen_share_state", {
+      level: activeLevel,
+      active: Boolean(active),
+    }, 5_000);
+  } catch (error) {
+    console.warn("Unable to publish screen-share state:", error);
+  }
+}
+
 async function stopScreenShare() {
   const streamToStop = screenStream;
   screenStream = undefined;
@@ -2526,8 +2496,8 @@ async function stopScreenShare() {
   setStageMode(classActive ? "welcome" : "idle");
   removeClassroomAudioSource("__screen_audio__");
   if (classActive) {
-    ensureWelcomeStream(activeLevel);
     syncTeacherVideoTrackToAllPeers();
+    void publishScreenShareState(false);
   }
   setStudioStatus(classActive ? "عادت صورة المستوى؛ بقيت الحصة والصوت مفتوحين." : "تم إيقاف مشاركة الشاشة.", classActive ? "live" : "neutral");
   updateControls();
@@ -2548,6 +2518,7 @@ async function replaceScreenShareStream() {
     elements.localVideo.srcObject = replacement;
     setStageMode("screen");
     syncTeacherVideoTrackToAllPeers();
+    void publishScreenShareState(true);
     addClassroomAudioSource("__screen_audio__", replacement, { enabled: true });
     syncMixMinusAudioToAllPeers();
     nextVideoTrack.onended = () => void stopScreenShare();
@@ -2597,7 +2568,6 @@ async function startLiveClass() {
     activeLevel = selectedLevel;
     setTeacherWelcomeImage(selectedLevel);
     setStageMode("welcome");
-    ensureWelcomeStream(selectedLevel);
     // This is still called from the Start Class gesture, but it is inside the
     // guarded flow so an unsupported Web Audio API cannot leave the button stuck.
     primeClassroomAudioContext();
@@ -2657,6 +2627,7 @@ async function startLiveClass() {
       microphoneUnavailableMessage ? `${baseMessage} (بدون مايك)` : baseMessage,
       "live"
     );
+    void publishScreenShareState(false);
   } catch (error) {
     console.error("Unable to start live class:", error);
     classActive = false;

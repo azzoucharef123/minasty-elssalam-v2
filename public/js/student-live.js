@@ -25,6 +25,7 @@ const rtcConfig = {
 let pc;
 let localAudioStream;
 let remoteMediaStream;
+let screenShareActive = false;
 const pendingRemoteAudioTracks = [];
 
 let teacherSocketId = null;
@@ -1170,11 +1171,31 @@ async function enableTeacherAudio() {
   await startTeacherAudio({ userInitiated: true });
 }
 
+function updateRemoteVideoPresentation() {
+  const hasLiveVideo = Boolean(
+    remoteMediaStream?.getVideoTracks?.().some((track) => track.readyState === "live")
+  );
+  const showScreenShare = screenShareActive && hasLiveVideo;
+  elements.remoteVideo.controls = showScreenShare;
+  elements.remoteVideo.classList.toggle("is-screen-share", showScreenShare);
+  elements.placeholder.hidden = showScreenShare;
+
+  if (showScreenShare) {
+    hideConnectionOverlay();
+    void elements.remoteVideo.play().catch(() => {});
+  }
+  // Do not pause the media element while waiting: the same element carries
+  // the teacher's audio, which must remain audible before screen sharing.
+}
+
 function resetRemoteMedia() {
   remoteMediaStream = undefined;
+  screenShareActive = false;
   pendingRemoteAudioTracks.length = 0;
   elements.remoteVideo.srcObject = null;
   elements.remoteVideo.muted = true;
+  elements.remoteVideo.controls = false;
+  elements.remoteVideo.classList.remove("is-screen-share");
   elements.placeholder.hidden = false;
   isAttemptingTeacherAudio = false;
   updateRemoteAudioControl();
@@ -1202,19 +1223,23 @@ function attachTeacherTrack(event) {
     clearRecoveryTimer();
     recoveryAttempts = 0;
     isRecoveringStream = false;
-    elements.placeholder.hidden = true;
-    hideConnectionOverlay();
     updateChatControls();
-    setViewerStatus("صورة الحصة المباشرة متصلة.", "live");
+    setViewerStatus(
+      screenShareActive ? "مشاركة شاشة الأستاذ متصلة." : "صوت الأستاذ متصل. بانتظار مشاركة الشاشة…",
+      "live"
+    );
   } else {
     setViewerStatus("صوت الأستاذ متصل. بانتظار مشاركة الشاشة…", "live");
   }
 
+  updateRemoteVideoPresentation();
+
   track.addEventListener("ended", () => {
     remoteMediaStream?.removeTrack(track);
-    if (track.kind === "video" && !remoteMediaStream?.getVideoTracks().some((item) => item.readyState === "live")) {
-      elements.placeholder.hidden = false;
+    if (track.kind === "video") {
+      screenShareActive = false;
       setViewerStatus("توقفت مشاركة الشاشة. صوت الأستاذ ما زال متاحًا.", "live");
+      updateRemoteVideoPresentation();
     }
     updateRemoteAudioControl();
   }, { once: true });
@@ -1757,7 +1782,20 @@ socket.on("room_joined", (data = {}) => {
   if (data.role === "student") {
     waitingForNextClass = false;
     teacherSocketId = data.teacherSocketId || teacherSocketId;
+    screenShareActive = Boolean(data.screenShareActive);
     setParticipationCount(data.participationCount);
+    updateRemoteVideoPresentation();
+  }
+});
+
+socket.on("screen_share_state", (data = {}) => {
+  if (data.level !== level) return;
+  screenShareActive = Boolean(data.active);
+  updateRemoteVideoPresentation();
+  if (screenShareActive) {
+    setViewerStatus("جارٍ عرض شاشة الأستاذ…", "live");
+  } else if (joinedClass) {
+    setViewerStatus("صوت الأستاذ متصل. بانتظار مشاركة الشاشة…", "live");
   }
 });
 

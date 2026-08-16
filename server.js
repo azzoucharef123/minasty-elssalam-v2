@@ -296,6 +296,9 @@ const activeTeachersByLevel = new Map();
 // Stores the selected class type for each active level: a subject for school levels
 // or a subscription type for university students.
 const activeSubjectByLevel = new Map();
+// Explicit screen-share state lets students distinguish a real shared screen
+// from the static level welcome image that remains local to their page.
+const screenShareActiveByLevel = new Map();
 // A brief signaling outage must not end an otherwise healthy direct WebRTC
 // stream. This map reserves a room only for its original teacher while the
 // teacher's browser reconnects with its per-class recovery token.
@@ -587,10 +590,24 @@ function holdClassroomForTeacherReturn(level, resumeToken) {
     });
   }, TEACHER_RECOVERY_GRACE_MS);
   pendingTeacherRecoveryByLevel.set(level, recovery);
+  setScreenShareActive(level, false);
+  io.to(level).emit("screen_share_state", { level, active: false });
   io.to(level).emit("teacher_reconnecting", { level });
   io.to(`${level}_lobby`).emit("live_class_recovering", { level });
   console.info(`[Socket.io] Holding room ${level} for ${TEACHER_RECOVERY_GRACE_MS / 1000}s until the teacher returns or ends it.`);
   return true;
+}
+
+function isScreenShareActive(level) {
+  return screenShareActiveByLevel.get(level) === true;
+}
+
+function setScreenShareActive(level, active) {
+  if (active) {
+    screenShareActiveByLevel.set(level, true);
+  } else {
+    screenShareActiveByLevel.delete(level);
+  }
 }
 
 function isStudentMicrophoneOpen(level, socketId) {
@@ -675,7 +692,8 @@ async function closeClassroom(level, reason) {
   clearPendingTeacherRecovery(level);
   activeTeachersByLevel.delete(level);
   activeSubjectByLevel.delete(level);
-    openStudentMicsByLevel.delete(level);
+  setScreenShareActive(level, false);
+  openStudentMicsByLevel.delete(level);
   whiteboardAccessByLevel.delete(level);
   io.to(level).emit("class_ended", { level, reason });
   // Parent dashboards join a separate passive lobby. They receive only the
@@ -1149,6 +1167,9 @@ io.on("connection", (socket) => {
       socket.data.classResumeToken = resumeToken;
       activeTeachersByLevel.set(level, socket.id);
       activeSubjectByLevel.set(level, subject);
+      // A new teacher page has no active display stream until it explicitly
+      // publishes screen-share state after the room handshake.
+      setScreenShareActive(level, false);
       users.set(socket.id, { role: "teacher", level, name: "الأستاذ" });
 
       const recoveryStudents = isResuming
@@ -1370,6 +1391,7 @@ io.on("connection", (socket) => {
         role: "student",
         teacherSocketId,
         participationCount,
+        screenShareActive: isScreenShareActive(level),
       });
       if (isStudentMicrophoneOpen(level, socket.id)) {
         setStudentWhiteboardAccess(level, socket.id, true);
@@ -1540,6 +1562,33 @@ io.on("connection", (socket) => {
       fromSocketId: socket.id,
     });
     acknowledge(acknowledgement, { ok: true });
+  });
+
+  /**
+   * The teacher explicitly publishes whether a real display stream is active.
+   * The static level image is never represented by this flag.
+   */
+  socket.on("teacher_screen_share_state", (data = {}, acknowledgement) => {
+    const level = normalizeText(data.level);
+    const active = Boolean(data.active);
+    if (
+      !isValidLevel(level) ||
+      socket.data.role !== "teacher" ||
+      socket.data.roomLevel !== level ||
+      activeTeachersByLevel.get(level) !== socket.id ||
+      !isInLevelRoom(socket, level)
+    ) {
+      return emitClassroomError(
+        socket,
+        "teacher_screen_share_state",
+        "لا تملك صلاحية تغيير حالة مشاركة الشاشة لهذه الحصة.",
+        acknowledgement
+      );
+    }
+
+    setScreenShareActive(level, active);
+    io.to(level).emit("screen_share_state", { level, active });
+    acknowledge(acknowledgement, { ok: true, level, active });
   });
 
   /**
@@ -1967,6 +2016,8 @@ io.on("connection", (socket) => {
 
       await socket.leave(level);
       users.delete(socket.id);
+      setScreenShareActive(level, false);
+      io.to(level).emit("screen_share_state", { level, active: false });
       activeTeachersByLevel.delete(level);
       resetClassroomData(socket, level);
       holdClassroomForTeacherReturn(level, resumeToken);
