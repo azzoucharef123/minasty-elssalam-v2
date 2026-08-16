@@ -2500,10 +2500,6 @@ async function replaceScreenShareStream() {
     elements.localVideo.srcObject = replacement;
     setStageMode("screen");
     syncTeacherVideoTrackToAllPeers();
-    Object.values(peerConnections).forEach((peerConnection) => {
-      const videoSender = peerConnection.getSenders?.().find((sender) => sender.track?.kind === "video");
-      if (videoSender) videoSender.replaceTrack(nextVideoTrack).catch(() => {});
-    });
     addClassroomAudioSource("__screen_audio__", replacement, { enabled: true });
     syncMixMinusAudioToAllPeers();
     nextVideoTrack.onended = () => void stopScreenShare();
