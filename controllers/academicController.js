@@ -42,6 +42,13 @@ function text(value, max = 5000) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
+function asBinaryBuffer(value) {
+  if (Buffer.isBuffer(value)) return value;
+  if (value instanceof Uint8Array) return Buffer.from(value);
+  if (value instanceof ArrayBuffer) return Buffer.from(new Uint8Array(value));
+  return Buffer.from(value);
+}
+
 function isTeacher(req) {
   return req.user?.role === "teacher";
 }
@@ -344,9 +351,11 @@ async function getTeacherAnalytics(req, res) {
 async function getAssignmentFile(req, res) {
   const assignment = await prisma.assignment.findUnique({ where: { id: text(req.params.assignmentId, 80) } });
   if (!assignment || !assignment.attachmentData) return res.status(404).json({ error: "الملف غير موجود." });
+  const fileBuffer = asBinaryBuffer(assignment.attachmentData);
   res.setHeader("Content-Type", assignment.attachmentMimeType || "application/octet-stream");
+  res.setHeader("Content-Length", String(fileBuffer.length));
   res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(assignment.attachmentOriginalName || "attachment")}"`);
-  return res.send(assignment.attachmentData);
+  return res.end(fileBuffer);
 }
 
 async function getSubmissionFile(req, res) {
@@ -354,9 +363,11 @@ async function getSubmissionFile(req, res) {
   if (!submission || !submission.attachmentData) return res.status(404).json({ error: "الملف غير موجود." });
   const isOwner = req.user?.studentId === submission.studentId;
   if (!isTeacher(req) && !isOwner) return res.status(403).json({ error: "لا تملك صلاحية عرض هذا الملف." });
+  const fileBuffer = asBinaryBuffer(submission.attachmentData);
   res.setHeader("Content-Type", submission.attachmentMimeType || "application/octet-stream");
+  res.setHeader("Content-Length", String(fileBuffer.length));
   res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(submission.attachmentOriginalName || "attachment")}"`);
-  return res.send(submission.attachmentData);
+  return res.end(fileBuffer);
 }
 
 async function deleteAssignment(req, res) {
