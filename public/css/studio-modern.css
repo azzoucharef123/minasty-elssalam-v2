@@ -228,3 +228,19 @@
 
 .studio-topbar-title { max-width: min(34vw, 28rem); overflow: hidden; color: var(--text-primary); font-size: .82rem; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
 @media (max-width: 700px) { .studio-topbar-title { display: none; } }
+
+/* Whiteboard-first classroom stage. Screen sharing is an optional replacement. */
+.video-stage { position: relative; background: #09090b; }
+.video-stage.whiteboard-mode { background: #ffffff; }
+.video-stage.idle-mode { background: #09090b; }
+.video-stage .teacher-video-frame { display: none; }
+.video-stage.screen-mode .teacher-video-frame { display: block; }
+.video-stage.whiteboard-mode .teacher-video-frame { display: none; }
+.video-stage .annotation-canvas { display: none; background: transparent; }
+.video-stage.whiteboard-mode .annotation-canvas,
+.video-stage.screen-mode .annotation-canvas { display: block; }
+.video-stage.whiteboard-mode .annotation-canvas { background: #ffffff; }
+.video-stage.whiteboard-mode .annotation-toolbar { color: #111827; }
+.video-stage.whiteboard-mode .stage-empty-state { display: none; }
+.video-stage.screen-mode .stage-empty-state,
+.video-stage.idle-mode .annotation-toolbar { display: none; }

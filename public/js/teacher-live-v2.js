@@ -40,6 +40,7 @@ const rtcConfig = {
 // Required broadcaster state requested for this phase.
 const peerConnections = Object.create(null);
 let screenStream;
+let whiteboardStream;
 let cameraStream;
 
 // Extra state used to make negotiation and cleanup predictable.
@@ -132,6 +133,7 @@ const elements = {
   endClassButton: document.getElementById("end-class-btn"),
   liveStatus: document.getElementById("live-status"),
   liveStatusText: document.getElementById("live-status-text"),
+  videoStage: document.querySelector(".video-stage"),
   studioTopbarTitle: document.getElementById("studio-topbar-title"),
   studioDuration: document.getElementById("studio-duration"),
   sidebarAttendeeCount: document.getElementById("sidebar-attendee-count"),
@@ -201,6 +203,19 @@ function setStudioStatus(message, mode = "neutral") {
   elements.liveStatusText.textContent = message;
   elements.liveStatus.classList.toggle("is-live", mode === "live");
   elements.liveStatus.classList.toggle("is-error", mode === "error");
+}
+
+function setStageMode(mode = "idle") {
+  const stage = elements.videoStage;
+  if (!stage) return;
+  const isWhiteboard = mode === "whiteboard";
+  const isScreen = mode === "screen";
+  stage.classList.toggle("whiteboard-mode", isWhiteboard);
+  stage.classList.toggle("screen-mode", isScreen);
+  stage.classList.toggle("idle-mode", mode === "idle");
+  elements.stageEmptyState.hidden = mode !== "idle";
+  elements.localVideo.hidden = !isScreen;
+  elements.teacherCanvas.hidden = mode === "idle";
 }
 
 function openQuestionImageModal(imageUrl) {
@@ -513,8 +528,8 @@ function getTeacherAnnotationContext() {
 }
 
 function getTeacherCanvasCssSize() {
-  const width = Math.round(elements.localVideo?.clientWidth || 0);
-  const height = Math.round(elements.localVideo?.clientHeight || 0);
+  const width = Math.round(elements.videoStage?.clientWidth || elements.localVideo?.clientWidth || 0);
+  const height = Math.round(elements.videoStage?.clientHeight || elements.localVideo?.clientHeight || 0);
   return { width, height };
 }
 
@@ -545,6 +560,10 @@ function redrawTeacherBoard() {
   }
 
   context.clearRect(0, 0, width, height);
+  if (elements.videoStage?.classList.contains("whiteboard-mode")) {
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, width, height);
+  }
   annotationSegments.forEach(drawTeacherSegment);
 }
 
@@ -1780,6 +1799,41 @@ function getLiveScreenAudioTrack() {
   return screenStream?.getAudioTracks?.().find((track) => track.readyState === "live") || null;
 }
 
+function getActiveTeacherVideoTrack() {
+  return screenStream?.getVideoTracks?.().find((track) => track.readyState === "live")
+    || whiteboardStream?.getVideoTracks?.().find((track) => track.readyState === "live")
+    || null;
+}
+
+function ensureWhiteboardStream() {
+  if (!elements.teacherCanvas?.captureStream) return null;
+  resizeTeacherCanvas();
+  if (!whiteboardStream) {
+    whiteboardStream = elements.teacherCanvas.captureStream(20);
+  }
+  return whiteboardStream;
+}
+
+function syncTeacherVideoTrackToAllPeers() {
+  const track = getActiveTeacherVideoTrack();
+  if (!track) return;
+  Object.entries(peerConnections).forEach(([studentSocketId, peerConnection]) => {
+    const sender = peerConnection.getSenders?.().find((item) => item.__classroomVideoTrack === true);
+    if (sender) {
+      if (sender.track !== track) sender.replaceTrack(track).catch(() => {});
+      return;
+    }
+    const stream = screenStream || whiteboardStream;
+    if (!stream) return;
+    const nextSender = peerConnection.addTrack(track, stream);
+    nextSender.__classroomVideoTrack = true;
+    void tuneOutboundSender(nextSender, "video");
+    if (peerConnection.remoteDescription && peerConnection.signalingState === "stable") {
+      void createAndSendOffer(studentSocketId);
+    }
+  });
+}
+
 function addClassroomAudioSource(sourceKey, stream, { enabled = true } = {}) {
   if (!classroomAudioContext || !stream?.getAudioTracks?.().length) {
     return false;
@@ -2044,15 +2098,14 @@ async function tuneOutboundSender(sender, kind) {
  * with the same audio channel as all current attendees.
  */
 function addTeacherTracks(peerConnection, studentSocketId) {
-  if (!screenStream) {
-    return;
-  }
-
-  screenStream.getVideoTracks().forEach((track) => {
-    track.contentHint = "detail";
-    const sender = peerConnection.addTrack(track, screenStream);
+  const videoStream = screenStream || ensureWhiteboardStream();
+  const videoTrack = videoStream?.getVideoTracks?.().find((track) => track.readyState === "live");
+  if (videoTrack) {
+    videoTrack.contentHint = "detail";
+    const sender = peerConnection.addTrack(videoTrack, videoStream);
+    sender.__classroomVideoTrack = true;
     void tuneOutboundSender(sender, "video");
-  });
+  }
 
   // Every student receives one unique mix-minus track. It contains the teacher
   // microphone, screen audio, and all approved student sources except this one.
@@ -2222,7 +2275,7 @@ async function emitWithAcknowledgement(eventName, payload, timeoutMs = 10_000) {
  * overlapping offers against the same RTCPeerConnection.
  */
 async function createAndSendOffer(studentSocketId, { iceRestart = false } = {}) {
-  if (!classActive || !screenStream) {
+  if (!classActive || !getActiveTeacherVideoTrack()) {
     return;
   }
 
@@ -2274,7 +2327,11 @@ function stopLocalStreams() {
   screenStream = undefined;
   cameraStream = undefined;
   elements.localVideo.srcObject = null;
-  elements.stageEmptyState.hidden = false;
+  if (whiteboardStream) {
+    whiteboardStream.getTracks().forEach((track) => track.stop());
+    whiteboardStream = undefined;
+  }
+  setStageMode("idle");
 }
 
 /**
@@ -2417,13 +2474,14 @@ async function stopScreenShare() {
   const streamToStop = screenStream;
   screenStream = undefined;
   streamToStop?.getTracks?.().forEach((track) => track.stop());
-  if (elements.localVideo) elements.localVideo.srcObject = null;
-  Object.values(peerConnections).forEach((peerConnection) => {
-    const videoSender = peerConnection.getSenders?.().find((sender) => sender.track?.kind === "video");
-    videoSender?.replaceTrack(null).catch(() => {});
-  });
+  if (elements.localVideo)   elements.localVideo.srcObject = null;
+  setStageMode(classActive ? "whiteboard" : "idle");
   removeClassroomAudioSource("__screen_audio__");
-  setStudioStatus(classActive ? "تم إيقاف مشاركة الشاشة؛ بقيت الحصة والصوت مفتوحين." : "تم إيقاف مشاركة الشاشة.", classActive ? "live" : "neutral");
+  if (classActive) {
+    ensureWhiteboardStream();
+    syncTeacherVideoTrackToAllPeers();
+  }
+  setStudioStatus(classActive ? "عادت السبورة البيضاء؛ بقيت الحصة والصوت مفتوحين." : "تم إيقاف مشاركة الشاشة.", classActive ? "live" : "neutral");
   updateControls();
 }
 
@@ -2440,6 +2498,8 @@ async function replaceScreenShareStream() {
     screenStream = replacement;
     previousStream?.getTracks?.().forEach((track) => track.stop());
     elements.localVideo.srcObject = replacement;
+    setStageMode("screen");
+    syncTeacherVideoTrackToAllPeers();
     Object.values(peerConnections).forEach((peerConnection) => {
       const videoSender = peerConnection.getSenders?.().find((sender) => sender.track?.kind === "video");
       if (videoSender) videoSender.replaceTrack(nextVideoTrack).catch(() => {});
@@ -2447,7 +2507,7 @@ async function replaceScreenShareStream() {
     addClassroomAudioSource("__screen_audio__", replacement, { enabled: true });
     syncMixMinusAudioToAllPeers();
     nextVideoTrack.onended = () => void stopScreenShare();
-    setStudioStatus("تم تحديث مشاركة الشاشة للحصة.", "live");
+    setStudioStatus("تم تشغيل مشاركة الشاشة للحصة.", "live");
     updateControls();
   } catch (error) {
     setStudioStatus(error?.message || "تعذر تغيير مشاركة الشاشة.", "error");
@@ -2471,11 +2531,6 @@ async function startLiveClass() {
     return;
   }
 
-  if (!navigator.mediaDevices?.getDisplayMedia) {
-    setStudioStatus("هذا المتصفح لا يدعم مشاركة الشاشة المطلوبة للبث.", "error");
-    return;
-  }
-
   const selectedLevel = elements.levelSelect.value;
   const selectedSubject = elements.subjectSelect.value;
   const selectedSubjectName = getClassTypeName(selectedLevel, selectedSubject);
@@ -2488,7 +2543,7 @@ async function startLiveClass() {
   const isResumingAfterPageRefresh = Boolean(pageRecovery);
   isStarting = true;
   updateControls();
-  setStudioStatus("بانتظار اختيار الشاشة للمشاركة…", "neutral");
+  setStudioStatus("جارٍ بدء الحصة — السبورة البيضاء جاهزة…", "neutral");
 
   let microphoneUnavailableMessage = "";
 
@@ -2497,42 +2552,10 @@ async function startLiveClass() {
   primeClassroomAudioContext();
 
   try {
-    // Screen sharing is mandatory for the broadcaster experience.
-    screenStream = await navigator.mediaDevices.getDisplayMedia({
-      video: {
-        frameRate: { ideal: 30, max: 30 },
-        width: { ideal: 1920, max: 1920 },
-        height: { ideal: 1080, max: 1080 },
-      },
-      audio: true,
-    });
-
-    if (screenStream.getVideoTracks().length === 0) {
-      throw new Error("لم يتم اختيار شاشة للمشاركة.");
-    }
-
-    elements.localVideo.srcObject = screenStream;
+    // Screen sharing is optional. The class starts on a clean whiteboard and
+    // the teacher can activate sharing later from the bottom toolbar.
     clearTeacherChat();
-    elements.stageEmptyState.hidden = true;
-
-    // If the user clicks the browser's native “Stop sharing” action, close the
-    // classroom immediately instead of streaming a frozen or black screen.
-    const displayTrack = screenStream.getVideoTracks()[0];
-    const displayAudioTrack = getLiveScreenAudioTrack();
-    if (displayAudioTrack) {
-      displayAudioTrack.contentHint = "music";
-      displayAudioTrack.onunmute = () => setStudioStatus("تم تفعيل صوت الشاشة داخل المازج المركزي.", classActive ? "live" : "neutral");
-      displayAudioTrack.onmute = () => setStudioStatus("تم كتم صوت الشاشة؛ مايك الأستاذ وبقية الأصوات مستمرة.", classActive ? "live" : "neutral");
-      displayAudioTrack.onended = () => setStudioStatus("انتهى صوت الشاشة؛ سيستمر المازج في بث الأصوات المتاحة.", classActive ? "live" : "neutral");
-    } else {
-      microphoneUnavailableMessage = "لم يرسل المتصفح صوت النظام من الشاشة المختارة";
-    }
-
-    displayTrack.onended = () => {
-      if (classActive && !isEnding && !isPageNavigatingAway) {
-        void stopScreenShare();
-      }
-    };
+    setStageMode("whiteboard");
 
     // Capture only the teacher microphone. The camera is deliberately never
     // requested, previewed, or sent so the teacher's face remains private.
