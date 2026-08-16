@@ -225,3 +225,6 @@
   .recording-ready-actions { flex-direction: column; }
   .recording-ready-actions .studio-button { width: 100%; }
 }
+
+.studio-topbar-title { max-width: min(34vw, 28rem); overflow: hidden; color: var(--text-primary); font-size: .82rem; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+@media (max-width: 700px) { .studio-topbar-title { display: none; } }

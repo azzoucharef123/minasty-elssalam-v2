@@ -132,6 +132,7 @@ const elements = {
   endClassButton: document.getElementById("end-class-btn"),
   liveStatus: document.getElementById("live-status"),
   liveStatusText: document.getElementById("live-status-text"),
+  studioTopbarTitle: document.getElementById("studio-topbar-title"),
   studioDuration: document.getElementById("studio-duration"),
   sidebarAttendeeCount: document.getElementById("sidebar-attendee-count"),
   attendeeSearch: document.getElementById("attendee-search"),
@@ -1406,6 +1407,13 @@ function handleGoogleDriveButton() {
 
 function updateControls() {
   const hasAudio = getAllAudioTracks().length > 0;
+  if (elements.studioTopbarTitle) {
+    const titleLevel = activeLevel || elements.levelSelect?.value || "";
+    const titleSubject = activeSubject || elements.subjectSelect?.value || "";
+    elements.studioTopbarTitle.textContent = titleLevel && titleSubject
+      ? `${getClassTypeName(titleLevel, titleSubject)} - ${titleLevel}`
+      : "استوديو البث المباشر";
+  }
 
   elements.startButton.disabled = isStarting || isEnding || classActive;
   elements.levelSelect.disabled = isStarting || isEnding || classActive;
