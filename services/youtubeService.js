@@ -5,6 +5,7 @@ const { google } = require("googleapis");
 const prisma = require("../lib/prisma");
 
 const YOUTUBE_SCOPES = Object.freeze([
+  "https://www.googleapis.com/auth/youtube", // Full management scope for embedding fixes
   "https://www.googleapis.com/auth/youtube.upload",
   "https://www.googleapis.com/auth/youtube.readonly",
 ]);
