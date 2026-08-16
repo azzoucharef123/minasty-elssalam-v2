@@ -26,6 +26,7 @@ let pc;
 let localAudioStream;
 let remoteMediaStream;
 let screenShareActive = false;
+let screenShareRefreshScheduled = false;
 const pendingRemoteAudioTracks = [];
 
 let teacherSocketId = null;
@@ -1778,12 +1779,21 @@ socket.on("room_joined", (data = {}) => {
   }
 });
 
+function scheduleScreenSharePageRefresh() {
+  if (!joinedClass || screenShareRefreshScheduled) return;
+  screenShareRefreshScheduled = true;
+  showMobileControlToast("بدأ الأستاذ مشاركة الشاشة. جارٍ تحديث البث تلقائيًا…");
+  window.setTimeout(() => window.location.reload(), 450);
+}
+
 socket.on("screen_share_state", (data = {}) => {
   if (data.level !== level) return;
+  const wasScreenShareActive = screenShareActive;
   screenShareActive = Boolean(data.active);
   updateRemoteVideoPresentation();
   if (screenShareActive) {
     setViewerStatus("جارٍ عرض شاشة الأستاذ…", "live");
+    if (!wasScreenShareActive) scheduleScreenSharePageRefresh();
   } else if (joinedClass) {
     setViewerStatus("صوت الأستاذ متصل. بانتظار مشاركة الشاشة…", "live");
   }
