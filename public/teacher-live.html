@@ -1157,7 +1157,7 @@
         }
       }
     </style>
-    <link rel="stylesheet" href="./css/studio-modern.css?v=studio-modern-1" />
+    <link rel="stylesheet" href="./css/studio-modern.css?v=studio-rebuild-2" />
     <link rel="stylesheet" href="./css/participation.css?v=participation-1" />
   </head>
   <body class="teacher-live-page">
@@ -1185,6 +1185,13 @@
           <span id="studio-duration" class="studio-duration" role="timer" aria-label="مدة الحصة" hidden>00:00:00</span>
         </div>
         <span id="local-recording-state" class="local-recording-state" role="status" aria-live="polite" hidden>جارٍ تسجيل الحصة محليًا</span>
+        <div class="studio-topbar-actions">
+          <div class="topbar-select-field"><label for="level-select">المستوى</label><select id="level-select" aria-label="اختر المستوى الدراسي للحصة"><option value="السنة الأولى">السنة الأولى متوسط</option><option value="السنة الثانية">السنة الثانية متوسط</option><option value="السنة الثالثة">السنة الثالثة متوسط</option><option value="السنة الرابعة">السنة الرابعة متوسط</option><option value="طالب جامعي">طالب جامعي</option></select></div>
+          <div class="topbar-select-field"><label id="subject-select-label" for="subject-select">المادة</label><select id="subject-select" aria-label="اختر مادة الحصة"><option value="MATH">الرياضيات</option><option value="PHYSICS">الفيزياء</option></select></div>
+          <button id="start-class-btn" class="studio-button primary" type="button" title="بدء الحصة المباشرة"><span>بدء الحصة</span></button>
+          <button id="record-local-btn" class="studio-button record" type="button" title="بدء أو إيقاف التسجيل المحلي" disabled><span>تسجيل</span></button>
+          <button id="end-class-btn" class="studio-button danger" type="button" title="إنهاء الحصة لجميع التلاميذ" disabled><span>إنهاء الحصة</span></button>
+        </div>
         <div class="studio-header-actions">
           <button class="studio-settings-button" type="button" title="إعدادات الاستوديو" aria-label="إعدادات الاستوديو"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.25a3.75 3.75 0 1 0 0 7.5 3.75 3.75 0 0 0 0-7.5Z"/><path d="m19.2 13.5 1.1.85-1.8 3.12-1.3-.55a7.6 7.6 0 0 1-1.9 1.1l-.2 1.4h-3.6l-.2-1.4a7.6 7.6 0 0 1-1.9-1.1l-1.3.55-1.8-3.12 1.1-.85a7 7 0 0 1 0-2.2l-1.1-.85 1.8-3.12 1.3.55a7.6 7.6 0 0 1 1.9-1.1l.2-1.4h3.6l.2 1.4a7.6 7.6 0 0 1 1.9 1.1l1.3-.55 1.8 3.12-1.1.85a7 7 0 0 1 0 2.2Z"/></svg></button>
           <a class="message-bell" data-message-bell href="./teacher-chat.html" target="_blank" rel="noopener" aria-label="الرسائل"><span aria-hidden="true">✉</span><b data-message-badge hidden>0</b></a>
@@ -1208,6 +1215,12 @@
             <div class="teacher-video-frame">
               <video id="local-video" autoplay muted playsinline aria-label="معاينة مشاركة شاشة الأستاذ"></video>
             </div>
+            <canvas id="teacher-canvas" class="annotation-canvas" aria-label="السبورة التفاعلية"></canvas>
+            <div class="annotation-toolbar" aria-label="أدوات السبورة">
+              <label for="annotation-color">اللون <input id="annotation-color" type="color" value="#3b82f6" /></label>
+              <label for="annotation-line-width">السماكة <input id="annotation-line-width" type="range" min="1" max="12" value="4" /></label>
+              <button id="clear-board-btn" class="clear-board-button" type="button">مسح السبورة</button>
+            </div>
 
             <div id="stage-empty-state" class="stage-empty-state">
               <span class="stage-empty-icon" aria-hidden="true">
@@ -1220,34 +1233,7 @@
           </div>
 
           <div class="studio-controls floating-toolbar" aria-label="أدوات التحكم في الحصة">
-            <div class="control-field">
-              <label for="level-select">المستوى الدراسي</label>
-              <select id="level-select" aria-label="اختر المستوى الدراسي للحصة">
-                <option value="السنة الأولى">السنة الأولى متوسط</option>
-                <option value="السنة الثانية">السنة الثانية متوسط</option>
-                <option value="السنة الثالثة">السنة الثالثة متوسط</option>
-                <option value="السنة الرابعة">السنة الرابعة متوسط</option>
-                <option value="طالب جامعي">طالب جامعي</option>
-              </select>
-            </div>
 
-            <div class="control-field">
-              <label id="subject-select-label" for="subject-select">مادة الحصة</label>
-              <select id="subject-select" aria-label="اختر مادة الحصة">
-                <option value="MATH">الرياضيات</option>
-                <option value="PHYSICS">الفيزياء</option>
-              </select>
-            </div>
-
-            <button id="start-class-btn" class="studio-button primary" type="button" title="بدء مشاركة الشاشة وفتح الحصة">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.75A1.75 1.75 0 0 1 6.75 3h6.5A1.75 1.75 0 0 1 15 4.75v6.5A1.75 1.75 0 0 1 13.25 13h-6.5A1.75 1.75 0 0 1 5 11.25v-6.5ZM15 8l4-2v12l-4-2" /></svg>
-              <span>بدء الحصة المباشرة</span>
-            </button>
-
-            <button id="record-local-btn" class="studio-button record" type="button" title="بدء أو إيقاف التسجيل المحلي" disabled>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.25" /><path d="M12 3.5v2M20.5 12h-2M12 20.5v-2M3.5 12h2" /></svg>
-              <span>بدء تسجيل الحصة</span>
-            </button>
 
             <button id="save-drive-btn" class="studio-button drive" type="button" title="حفظ آخر تسجيل في Google Drive" disabled>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.25 3.75h5.5L20 16.25l-2.75 4H11.75L7.25 12.5 10 7.75m2.75-4-2.75 4M7.25 12.5H14m3.25 7.75L14 16.25" /></svg>
@@ -1258,16 +1244,16 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5A3.5 3.5 0 0 0 15.5 12V6.5a3.5 3.5 0 0 0-7 0V12a3.5 3.5 0 0 0 3.5 3.5ZM5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M8.5 21h7" /></svg>
               <span>إيقاف المايك</span>
             </button>
+            <button id="screen-share-btn" class="studio-button" type="button" title="بدء مشاركة الشاشة أو تغييرها">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.75 5.5A1.75 1.75 0 0 1 6.5 3.75h11A1.75 1.75 0 0 1 19.25 5.5v8A1.75 1.75 0 0 1 17.5 15.25h-11A1.75 1.75 0 0 1 4.75 13.5v-8ZM8 19.75h8M12 15.25v4.5" /></svg>
+              <span>مشاركة الشاشة</span>
+            </button>
 
             <button id="leave-studio-btn" class="studio-button leave" type="button" title="مغادرة الاستوديو مع إبقاء الحصة مفتوحة" disabled>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6.5 4.5 12l5.5 5.5M4.75 12h11.5M14.5 5.25h2.25A1.75 1.75 0 0 1 18.5 7v10a1.75 1.75 0 0 1-1.75 1.75H14.5" /></svg>
               <span>مغادرة الاستوديو</span>
             </button>
 
-            <button id="end-class-btn" class="studio-button danger" type="button" title="إنهاء الحصة لجميع التلاميذ" disabled>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17.25v.01M4.76 18.5h14.48c1.34 0 2.17-1.45 1.5-2.61L13.5 3.36a1.73 1.73 0 0 0-3 0L3.26 15.89a1.74 1.74 0 0 0 1.5 2.61Z" /></svg>
-              <span>إنهاء الحصة</span>
-            </button>
 
             <div id="drive-upload-state" class="drive-upload-state" role="status" aria-live="polite" hidden>
               <span id="drive-upload-text">سيظهر تقدّم حفظ التسجيل في Google Drive هنا.</span>
@@ -1280,33 +1266,25 @@
           </div>
         </section>
 
-        <aside class="studio-sidebar" aria-labelledby="attendees-title">
+        <aside class="studio-sidebar attendance-sidebar" aria-labelledby="attendees-title">
           <header class="sidebar-head">
-            <h2 id="attendees-title">الحضور وطلبات التحدث</h2>
-            <span id="attendee-count" class="attendee-count" aria-label="عدد الحضور">0</span>
+            <div class="sidebar-title-group"><h2 id="attendees-title">الحضور وطلبات التحدث</h2><span id="attendee-count" class="attendee-count" aria-label="عدد الحضور">0</span></div>
+            <button id="attendance-sidebar-toggle" class="sidebar-collapse-button" type="button" aria-label="طي لوحة الحضور" aria-expanded="true">›</button>
           </header>
-          <nav class="sidebar-tabs" aria-label="لوحة الاستوديو">
-            <button class="sidebar-tab is-active" type="button" data-sidebar-tab="participants" aria-controls="participants-pane" aria-selected="true">👥 الحضور <span id="sidebar-attendee-count">0</span></button>
-            <button class="sidebar-tab" type="button" data-sidebar-tab="chat" aria-controls="chat-pane" aria-selected="false">💬 الدردشة</button>
-          </nav>
           <div id="participants-pane" class="sidebar-pane is-active" data-sidebar-pane="participants">
             <label class="attendee-search-wrap" for="attendee-search"><span aria-hidden="true">⌕</span><input id="attendee-search" type="search" placeholder="البحث عن تلميذ..." autocomplete="off" /></label>
-            <div id="attendees-empty" class="attendees-empty">
-            ستظهر أسماء التلاميذ هنا عند انضمامهم إلى الحصة.
+            <div id="attendees-empty" class="attendees-empty">ستظهر أسماء التلاميذ هنا عند انضمامهم إلى الحصة.</div>
+            <ul id="attendees-list" aria-live="polite" aria-label="قائمة حضور التلاميذ"></ul>
           </div>
-          <ul id="attendees-list" aria-live="polite" aria-label="قائمة حضور التلاميذ"></ul>
-          </div>
+        </aside>
 
-          <section id="chat-pane" class="teacher-chat-panel sidebar-pane" data-sidebar-pane="chat" aria-labelledby="teacher-chat-title" hidden>
-            <header class="chat-panel-head">
-              <div>
-                <h2 id="teacher-chat-title">رسائل التلاميذ</h2>
-                <p>الأسئلة تصل إليك فقط.</p>
-              </div>
-            </header>
-            <div id="chat-box" class="chat-box" aria-live="polite" aria-label="رسائل وأسئلة التلاميذ">
-              <p id="chat-empty" class="chat-empty">لا توجد رسائل بعد.</p>
-            </div>
+        <aside class="chat-sidebar" aria-labelledby="teacher-chat-title">
+          <header class="sidebar-head">
+            <div class="sidebar-title-group"><h2 id="teacher-chat-title">💬 الدردشة</h2><p>الأسئلة تصل إليك فقط.</p></div>
+            <button id="chat-sidebar-toggle" class="sidebar-collapse-button" type="button" aria-label="طي لوحة الدردشة" aria-expanded="true">‹</button>
+          </header>
+          <section id="chat-pane" class="teacher-chat-panel sidebar-pane" data-sidebar-pane="chat">
+            <div id="chat-box" class="chat-box" aria-live="polite" aria-label="رسائل وأسئلة التلاميذ"><p id="chat-empty" class="chat-empty">لا توجد رسائل بعد.</p></div>
             <form id="chat-form" class="chat-form" novalidate>
               <textarea id="chat-input" maxlength="800" rows="1" placeholder="اكتب رسالة للجميع..." autocomplete="off" aria-label="رسالة الأستاذ"></textarea>
               <button id="chat-send-btn" class="chat-send-button" type="submit" disabled>إرسال</button>
@@ -1314,6 +1292,17 @@
           </section>
         </aside>
       </main>
+    </div>
+
+    <div id="recording-ready-modal" class="recording-ready-modal" role="dialog" aria-modal="true" aria-labelledby="recording-ready-title" hidden>
+      <section class="recording-ready-card">
+        <h2 id="recording-ready-title">تم تسجيل الحصة بنجاح</h2>
+        <p>يمكنك الآن رفع التسجيل إلى YouTube وربطه بسجل الحصص حسب شروط النشر.</p>
+        <div class="recording-ready-actions">
+          <button id="upload-youtube-after-end-btn" class="studio-button primary" type="button"><span>☁ رفع التسجيل إلى YouTube</span></button>
+          <button id="close-recording-ready-btn" class="studio-button" type="button"><span>إغلاق</span></button>
+        </div>
+      </section>
     </div>
 
     <div id="question-image-modal" class="question-image-modal" role="dialog" aria-modal="true" aria-labelledby="question-image-modal-title" hidden>
@@ -1331,6 +1320,6 @@
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
     <script id="google-identity-services" src="https://accounts.google.com/gsi/client" defer></script>
-    <script src="./js/teacher-live-v2.js?v=auto-registry-1080-1" defer></script>
+    <script src="./js/teacher-live-v2.js?v=studio-rebuild-1" defer></script>
   </body>
 </html>

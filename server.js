@@ -304,6 +304,9 @@ const pendingTeacherRecoveryByLevel = new Map();
 // renegotiation and short teacher recovery windows. Media itself remains direct
 // WebRTC; this map stores only the current permission state by socket ID.
 const openStudentMicsByLevel = new Map();
+// Whiteboard authority follows the teacher's microphone decision for the same
+// student and classroom. The server remains the source of truth for drawing.
+const whiteboardAccessByLevel = new Map();
 // A full browser refresh drops the local screen-share stream. Keep the room
 // reserved long enough for the teacher to reload, select the screen again, and
 // reclaim the same classroom without forcing students out.
@@ -595,16 +598,31 @@ function setStudentMicrophoneOpen(level, socketId, enabled) {
     openStudentMicsByLevel.set(level, openMics);
     return;
   }
-
   const openMics = openStudentMicsByLevel.get(level);
   if (!openMics) {
     return;
   }
-
   openMics.delete(socketId);
   if (openMics.size === 0) {
     openStudentMicsByLevel.delete(level);
   }
+}
+
+function isStudentWhiteboardAllowed(level, socketId) {
+  return whiteboardAccessByLevel.get(level)?.has(socketId) || false;
+}
+
+function setStudentWhiteboardAccess(level, socketId, enabled) {
+  if (enabled) {
+    const allowed = whiteboardAccessByLevel.get(level) || new Set();
+    allowed.add(socketId);
+    whiteboardAccessByLevel.set(level, allowed);
+    return;
+  }
+  const allowed = whiteboardAccessByLevel.get(level);
+  if (!allowed) return;
+  allowed.delete(socketId);
+  if (allowed.size === 0) whiteboardAccessByLevel.delete(level);
 }
 
 async function getClassParticipation(studentId, sessionKey) {
@@ -651,8 +669,8 @@ async function closeClassroom(level, reason) {
   clearPendingTeacherRecovery(level);
   activeTeachersByLevel.delete(level);
   activeSubjectByLevel.delete(level);
-  openStudentMicsByLevel.delete(level);
-
+    openStudentMicsByLevel.delete(level);
+  whiteboardAccessByLevel.delete(level);
   io.to(level).emit("class_ended", { level, reason });
   // Parent dashboards join a separate passive lobby. They receive only the
   // live-state change—not attendee data, WebRTC signals, or media.
@@ -1333,6 +1351,10 @@ io.on("connection", (socket) => {
         teacherSocketId,
         participationCount,
       });
+      if (isStudentMicrophoneOpen(level, socket.id)) {
+        setStudentWhiteboardAccess(level, socket.id, true);
+        socket.emit("whiteboard_access_granted", { level });
+      }
 
       // Only the active teacher receives the student identity/socket ID.
       // Other students receive no attendee or signaling information.
@@ -1631,6 +1653,7 @@ io.on("connection", (socket) => {
     // prevents a late-arriving audio track from being rebroadcast after closure.
     const wasOpen = isStudentMicrophoneOpen(level, targetSocketId);
     setStudentMicrophoneOpen(level, targetSocketId, enabled);
+    setStudentWhiteboardAccess(level, targetSocketId, enabled);
 
     const sessionKey = socket.data.classResumeToken;
     if (enabled && !wasOpen) {
@@ -1653,6 +1676,10 @@ io.on("connection", (socket) => {
 
     io.to(targetSocketId).emit(
       enabled ? "permission_granted" : "microphone_revoked",
+      { level }
+    );
+    io.to(targetSocketId).emit(
+      enabled ? "whiteboard_access_granted" : "whiteboard_access_revoked",
       { level }
     );
 
@@ -1698,6 +1725,7 @@ io.on("connection", (socket) => {
 
     const wasOpen = isStudentMicrophoneOpen(level, targetSocketId);
     setStudentMicrophoneOpen(level, targetSocketId, true);
+    setStudentWhiteboardAccess(level, targetSocketId, true);
     const participation = wasOpen
       ? await getClassParticipation(targetSocket.data.studentId, socket.data.classResumeToken)
       : await recordClassParticipation({
@@ -1710,6 +1738,7 @@ io.on("connection", (socket) => {
     io.to(targetSocketId).emit("participation_count_updated", { level, count: participationCount });
     io.to(socket.id).emit("student_participation_updated", { socketId: targetSocketId, count: participationCount });
     io.to(targetSocketId).emit("permission_granted", { level });
+    io.to(targetSocketId).emit("whiteboard_access_granted", { level });
     io.to(level).emit("classroom_track_state", {
       type: "student_audio",
       speakerSocketId: targetSocketId,
@@ -1723,23 +1752,23 @@ io.on("connection", (socket) => {
   });
 
   /**
-   * Relay a normalized canvas segment only from the active teacher to other
-   * sockets in the same classroom. The payload's level is ignored deliberately:
-   * the level is taken from server-owned room membership.
+   * Relay a normalized canvas segment from the active teacher or from a student
+   * whose microphone is currently open. The level is always server-owned.
    */
-  socket.on("draw_data", (data = {}, acknowledgement) => {
+  function relayDrawData(data = {}, acknowledgement, eventName = "draw_data") {
     const level = socket.data.roomLevel;
+    const isTeacher = socket.data.role === "teacher" && activeTeachersByLevel.get(level) === socket.id;
+    const isAllowedStudent = socket.data.role === "student" && isStudentWhiteboardAllowed(level, socket.id);
 
     if (
-      socket.data.role !== "teacher" ||
+      (!isTeacher && !isAllowedStudent) ||
       !isValidLevel(level || "") ||
-      activeTeachersByLevel.get(level) !== socket.id ||
       !isInLevelRoom(socket, level) ||
       !isValidAnnotationSegment(data)
     ) {
       return emitClassroomError(
         socket,
-        "draw_data",
+        eventName,
         "لا تملك صلاحية إرسال الشروحات إلى هذه الحصة.",
         acknowledgement
       );
@@ -1752,11 +1781,15 @@ io.on("connection", (socket) => {
       y1: Number(data.y1),
       color: data.color,
       lineWidth: Number(data.lineWidth),
+      authorSocketId: socket.id,
     };
 
-    socket.to(level).emit("receive_draw_data", segment);
+    io.to(level).emit("receive_draw_data", segment);
     acknowledge(acknowledgement, { ok: true });
-  });
+  }
+
+  socket.on("draw_data", (data = {}, acknowledgement) => relayDrawData(data, acknowledgement, "draw_data"));
+  socket.on("draw_line", (data = {}, acknowledgement) => relayDrawData(data, acknowledgement, "draw_line"));
 
   /** Clear the synchronized canvas for every student in the active room. */
   socket.on("clear_board", (data = {}, acknowledgement) => {
@@ -2002,6 +2035,7 @@ io.on("connection", (socket) => {
 
     if (role === "student") {
       setStudentMicrophoneOpen(level, socket.id, false);
+      setStudentWhiteboardAccess(level, socket.id, false);
 
       // Record final attendance duration for this session
       const attendanceId = socket.data.attendanceId;

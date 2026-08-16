@@ -61,9 +61,12 @@ let initialAutoJoinPending = directClassEntryRequested;
 let waitingForNextClass = false;
 let participationCount = 0;
 
-// The viewer stores teacher-provided normalized segments only; there is no
-// student drawing input or outbound drawing event anywhere in this client.
+// The viewer stores synchronized segments and can draw only while the teacher
+// has opened this student's microphone and the server has granted the board.
 const receivedAnnotationSegments = [];
+let studentWhiteboardAllowed = false;
+let isStudentDrawing = false;
+let previousStudentPoint = null;
 
 const elements = {
   remoteVideo: document.getElementById("remote-video"),
@@ -387,8 +390,64 @@ function isValidAnnotationSegment(data) {
   );
 }
 
+function getStudentNormalizedPoint(event) {
+  const rect = elements.studentCanvas?.getBoundingClientRect();
+  if (!rect?.width || !rect?.height) return null;
+  return {
+    x: clampUnit((event.clientX - rect.left) / rect.width),
+    y: clampUnit((event.clientY - rect.top) / rect.height),
+  };
+}
+
+function stopStudentDrawing() {
+  isStudentDrawing = false;
+  previousStudentPoint = null;
+}
+
+function handleStudentCanvasPointerDown(event) {
+  if (!studentWhiteboardAllowed || !joinedClass || event.pointerType === "touch") return;
+  const point = getStudentNormalizedPoint(event);
+  if (!point) return;
+  isStudentDrawing = true;
+  previousStudentPoint = point;
+  elements.studentCanvas?.setPointerCapture?.(event.pointerId);
+  event.preventDefault();
+}
+
+function handleStudentCanvasPointerMove(event) {
+  if (!studentWhiteboardAllowed || !isStudentDrawing || !previousStudentPoint) return;
+  const point = getStudentNormalizedPoint(event);
+  if (!point) return;
+  const segment = {
+    x0: previousStudentPoint.x,
+    y0: previousStudentPoint.y,
+    x1: point.x,
+    y1: point.y,
+    color: "#3b82f6",
+    lineWidth: 4,
+  };
+  receivedAnnotationSegments.push(segment);
+  drawStudentSegment(segment);
+  socket.emit("draw_line", segment);
+  previousStudentPoint = point;
+  event.preventDefault();
+}
+
+function setStudentWhiteboardAccess(enabled) {
+  studentWhiteboardAllowed = Boolean(enabled);
+  stopStudentDrawing();
+  elements.studentCanvas?.classList.toggle("is-draw-enabled", studentWhiteboardAllowed);
+  const permissionBanner = document.getElementById("student-whiteboard-permission");
+  if (permissionBanner) permissionBanner.hidden = !studentWhiteboardAllowed;
+}
+
 function initializeStudentCanvas() {
   elements.remoteVideo?.addEventListener("loadedmetadata", resizeStudentCanvas);
+  elements.studentCanvas?.addEventListener("pointerdown", handleStudentCanvasPointerDown);
+  elements.studentCanvas?.addEventListener("pointermove", handleStudentCanvasPointerMove);
+  elements.studentCanvas?.addEventListener("pointerup", stopStudentDrawing);
+  elements.studentCanvas?.addEventListener("pointercancel", stopStudentDrawing);
+  elements.studentCanvas?.addEventListener("pointerleave", stopStudentDrawing);
   window.addEventListener("resize", resizeStudentCanvas);
   resizeStudentCanvas();
 }
@@ -1402,7 +1461,7 @@ socket.on("live_class_resumed", (data = {}) => {
 });
 
 socket.on("receive_draw_data", (data = {}) => {
-  if (!joinedClass || !isValidAnnotationSegment(data)) {
+  if (!joinedClass || data.authorSocketId === socket.id || !isValidAnnotationSegment(data)) {
     return;
   }
 
@@ -1557,6 +1616,14 @@ socket.on("webrtc_renegotiation_answer", async (data = {}) => {
   }
 });
 
+socket.on("whiteboard_access_granted", () => {
+  if (joinedClass) setStudentWhiteboardAccess(true);
+});
+
+socket.on("whiteboard_access_revoked", () => {
+  setStudentWhiteboardAccess(false);
+});
+
 socket.on("permission_granted", async () => {
   if (!joinedClass) {
     return;
@@ -1574,6 +1641,7 @@ socket.on("permission_granted", async () => {
 });
 
 socket.on("microphone_revoked", () => {
+  setStudentWhiteboardAccess(false);
   clearHandResetTimer();
   microphonePermissionGranted = false;
 

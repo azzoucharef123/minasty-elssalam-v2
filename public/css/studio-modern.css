@@ -143,3 +143,85 @@
 .studio-settings-button { display: grid; width: 2rem; height: 2rem; place-items: center; color: var(--text-secondary); border: 1px solid var(--border-dark); border-radius: 8px; background: transparent; cursor: pointer; }
 .studio-settings-button:hover { color: var(--text-primary); background: var(--bg-hover); }
 .studio-settings-button svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.45; }
+
+/* Studio rebuild: three-column RTL workspace with independent sidebars. */
+:root {
+  --bg-main: #0f0f13;
+  --bg-panel: #1c1c24;
+  --bg-toolbar: rgba(28, 28, 36, .85);
+  --text-primary: #fff;
+  --text-secondary: #a1a1aa;
+  --accent-blue: #3b82f6;
+  --danger-red: #ef4444;
+  --success-green: #10b981;
+  --border-color: #2d2d39;
+}
+.teacher-live-page { height: 100vh; min-height: 0; overflow: hidden; background: var(--bg-main); direction: rtl; }
+.studio-shell { width: 100%; height: 100vh; min-height: 0; padding: 0; display: grid; grid-template-rows: 60px minmax(0, 1fr); }
+.studio-topbar, .studio-header { height: 60px; min-height: 60px; padding: 0 1rem; background: var(--bg-panel); border-bottom: 1px solid var(--border-color); }
+.studio-topbar-actions { display: flex; align-items: center; gap: .45rem; margin-inline-start: auto; }
+.topbar-select-field { display: grid; gap: .12rem; min-width: 7.2rem; }
+.topbar-select-field label { color: var(--text-secondary); font-size: .56rem; font-weight: 800; }
+.topbar-select-field select { width: 100%; min-height: 2rem; padding: 0 .45rem; color: var(--text-primary); border: 1px solid var(--border-color); border-radius: .45rem; background: #27272a; font-size: .65rem; font-weight: 700; }
+.studio-topbar-actions .studio-button { width: auto; min-width: 5.5rem; height: 2.3rem; min-height: 2.3rem; padding: 0 .8rem; border-radius: .55rem; }
+.studio-topbar-actions .studio-button > span { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: nowrap; }
+.studio-layout { grid-row: 2; grid-template-areas: "chat stage attendance"; grid-template-columns: 300px minmax(0, 1fr) 300px; gap: 0; width: 100%; height: calc(100vh - 60px); min-height: 0; direction: ltr; transition: grid-template-columns .22s ease-out; }
+.studio-stage { grid-area: stage; min-width: 0; min-height: 0; border: 0; border-radius: 0; background: var(--bg-main); direction: rtl; }
+.studio-sidebar, .chat-sidebar { min-width: 0; min-height: 0; border: 0; border-radius: 0; background: var(--bg-panel); direction: rtl; transition: opacity .18s ease-out, transform .22s ease-out; }
+.attendance-sidebar { grid-area: attendance; border-left: 1px solid var(--border-color); }
+.chat-sidebar { grid-area: chat; border-right: 1px solid var(--border-color); }
+.studio-layout.attendance-collapsed { grid-template-columns: 300px minmax(0, 1fr) 0; }
+.studio-layout.chat-collapsed { grid-template-columns: 0 minmax(0, 1fr) 300px; }
+.studio-layout.attendance-collapsed.chat-collapsed { grid-template-columns: 0 minmax(0, 1fr) 0; }
+.studio-layout.attendance-collapsed .attendance-sidebar, .studio-layout.chat-collapsed .chat-sidebar { opacity: 0; overflow: hidden; pointer-events: none; }
+.sidebar-head { min-height: 60px; padding: .8rem .75rem; }
+.sidebar-title-group { display: flex; min-width: 0; align-items: center; gap: .45rem; }
+.sidebar-title-group p { margin: .1rem 0 0; color: var(--text-secondary); font-size: .58rem; }
+.sidebar-collapse-button { display: grid; width: 2rem; height: 2rem; place-items: center; flex: 0 0 auto; color: var(--text-primary); border: 1px solid var(--border-color); border-radius: .45rem; background: #27272a; font-size: 1.25rem; line-height: 1; cursor: pointer; }
+.sidebar-collapse-button:hover { background: var(--accent-blue); }
+.video-stage { min-height: 0; background: #09090b; }
+.teacher-video-frame { z-index: 1; }
+.annotation-canvas { z-index: 10; touch-action: none; }
+.annotation-toolbar { z-index: 12; top: 1rem; right: 1rem; padding: .4rem; background: var(--bg-toolbar); border: 1px solid var(--border-color); }
+.studio-controls { bottom: 24px; padding: .65rem .85rem; background: var(--bg-toolbar); border-color: var(--border-color); }
+.studio-controls .control-field, .studio-controls #save-drive-btn, .studio-controls #leave-studio-btn { display: none; }
+.studio-controls #toggle-mic-btn, .studio-controls #screen-share-btn { display: grid; }
+.studio-controls .drive-upload-state { display: none !important; }
+.chat-sidebar .teacher-chat-panel { height: auto; max-height: none; flex: 1 1 auto; border: 0; }
+.chat-sidebar .chat-panel-head { display: none; }
+.chat-sidebar .chat-box { background: var(--bg-panel); }
+@media (max-width: 900px) {
+  .studio-layout { grid-template-columns: 250px minmax(0, 1fr) 250px; }
+  .studio-layout.attendance-collapsed { grid-template-columns: 250px minmax(0, 1fr) 0; }
+  .studio-layout.chat-collapsed { grid-template-columns: 0 minmax(0, 1fr) 250px; }
+  .topbar-select-field { min-width: 5.6rem; }
+  .studio-topbar-actions .studio-button { min-width: 4.5rem; padding: 0 .5rem; }
+}
+@media (max-width: 700px) {
+  .teacher-live-page { overflow: hidden; }
+  .studio-topbar, .studio-header { padding: 0 .45rem; }
+  .studio-brand-copy, .studio-settings-button { display: none; }
+  .studio-topbar-actions { gap: .25rem; }
+  .topbar-select-field { min-width: 4.35rem; }
+  .topbar-select-field label { font-size: .48rem; }
+  .topbar-select-field select { font-size: .55rem; }
+  .studio-topbar-actions .studio-button { min-width: 3.2rem; padding: 0 .35rem; font-size: .58rem; }
+  .studio-layout { grid-template-areas: "stage"; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); height: calc(100vh - 60px); }
+  .studio-sidebar, .chat-sidebar { position: fixed; z-index: 40; top: 60px; bottom: 0; width: min(88vw, 300px); box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+  .attendance-sidebar { right: 0; left: auto; }
+  .chat-sidebar { right: auto; left: 0; }
+  .studio-layout.attendance-collapsed .attendance-sidebar, .studio-layout.chat-collapsed .chat-sidebar { width: 0; }
+  .studio-controls { bottom: 1rem; }
+}
+
+.recording-ready-modal { position: fixed; z-index: 80; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgba(0,0,0,.72); backdrop-filter: blur(7px); }
+.recording-ready-modal[hidden] { display: none; }
+.recording-ready-card { width: min(100%, 30rem); padding: 1.35rem; color: var(--text-primary); background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 1rem; box-shadow: 0 24px 80px rgba(0,0,0,.55); text-align: center; }
+.recording-ready-card h2 { margin: 0; color: #bbf7d0; font-size: 1.12rem; }
+.recording-ready-card p { margin: .7rem 0 1rem; color: var(--text-secondary); font-size: .78rem; line-height: 1.7; }
+.recording-ready-actions { display: flex; justify-content: center; gap: .6rem; }
+.recording-ready-actions .studio-button { width: auto; min-width: 10rem; min-height: 2.8rem; padding: .55rem .8rem; border-radius: .6rem; }
+@media (max-width: 520px) {
+  .recording-ready-actions { flex-direction: column; }
+  .recording-ready-actions .studio-button { width: 100%; }
+}

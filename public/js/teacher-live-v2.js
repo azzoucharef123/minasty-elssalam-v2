@@ -97,6 +97,16 @@ let studioDurationStartedAt = 0;
 
 const elements = {
   localVideo: document.getElementById("local-video"),
+  teacherCanvas: document.getElementById("teacher-canvas"),
+  annotationColor: document.getElementById("annotation-color"),
+  annotationLineWidth: document.getElementById("annotation-line-width"),
+  clearBoardButton: document.getElementById("clear-board-btn"),
+  screenShareButton: document.getElementById("screen-share-btn"),
+  studioLayout: document.querySelector(".studio-layout"),
+  attendanceSidebar: document.querySelector(".attendance-sidebar"),
+  chatSidebar: document.querySelector(".chat-sidebar"),
+  attendanceSidebarToggle: document.getElementById("attendance-sidebar-toggle"),
+  chatSidebarToggle: document.getElementById("chat-sidebar-toggle"),
   stageEmptyState: document.getElementById("stage-empty-state"),
   attendeesList: document.getElementById("attendees-list"),
   attendeesEmpty: document.getElementById("attendees-empty"),
@@ -115,6 +125,9 @@ const elements = {
   youtubeUploadState: document.getElementById("youtube-upload-state"),
   youtubeUploadText: document.getElementById("youtube-upload-text"),
   youtubeUploadProgress: document.getElementById("youtube-upload-progress"),
+  recordingReadyModal: document.getElementById("recording-ready-modal"),
+  uploadYoutubeAfterEndButton: document.getElementById("upload-youtube-after-end-btn"),
+  closeRecordingReadyButton: document.getElementById("close-recording-ready-btn"),
   leaveStudioButton: document.getElementById("leave-studio-btn"),
   endClassButton: document.getElementById("end-class-btn"),
   liveStatus: document.getElementById("live-status"),
@@ -480,6 +493,18 @@ function setButtonLabel(button, label) {
 /** Clamp a normalized annotation coordinate to the valid canvas range. */
 function clampUnit(value) {
   return Math.min(1, Math.max(0, Number(value)));
+}
+
+function isValidAnnotationSegment(data) {
+  return Boolean(
+    data &&
+    typeof data.color === "string" &&
+    /^#[0-9a-fA-F]{6}$/.test(data.color) &&
+    [data.x0, data.y0, data.x1, data.y1].every((value) => Number.isFinite(Number(value)) && Number(value) >= 0 && Number(value) <= 1) &&
+    Number.isFinite(Number(data.lineWidth)) &&
+    Number(data.lineWidth) >= 1 &&
+    Number(data.lineWidth) <= 12
+  );
 }
 
 function getTeacherAnnotationContext() {
@@ -1228,6 +1253,19 @@ async function stopRecordingAndSaveToGoogleDrive() {
   }
 }
 
+function showRecordingReadyModal() {
+  if (!elements.recordingReadyModal || !lastLocalRecording) return;
+  elements.recordingReadyModal.hidden = false;
+  elements.recordingReadyModal.classList.add("is-open");
+  elements.uploadYoutubeAfterEndButton?.focus();
+}
+
+function closeRecordingReadyModal() {
+  if (!elements.recordingReadyModal) return;
+  elements.recordingReadyModal.hidden = true;
+  elements.recordingReadyModal.classList.remove("is-open");
+}
+
 function finalizeLocalRecording() {
   if (localRecordingFinalized) {
     return;
@@ -1259,7 +1297,10 @@ function finalizeLocalRecording() {
   }
   updateControls();
   resolver?.(Boolean(recording));
-  if (recording) void uploadRecordingToYouTube(recording);
+  if (recording) {
+    if (isEnding) showRecordingReadyModal();
+    else void uploadRecordingToYouTube(recording);
+  }
 }
 
 function startLocalRecording() {
@@ -1374,6 +1415,10 @@ function updateControls() {
   elements.saveDriveButton.disabled = !lastLocalRecording || googleDriveUploadInProgress;
   elements.leaveStudioButton.disabled = !classActive || isEnding;
   elements.endClassButton.disabled = !classActive || isEnding;
+  if (elements.screenShareButton) {
+    elements.screenShareButton.disabled = isStarting || isEnding;
+    setButtonLabel(elements.screenShareButton, classActive && screenStream ? "إيقاف الشاشة" : "مشاركة الشاشة");
+  }
   elements.chatInput.disabled = !classActive || isEnding;
   elements.chatSendButton.disabled = !classActive || isEnding || !normalizeChatMessage(elements.chatInput.value);
 
@@ -1404,6 +1449,7 @@ function updateAttendeeCount() {
 }
 
 function setSidebarTab(tabName) {
+  if (!elements.sidebarTabs.length) return;
   elements.sidebarTabs.forEach((tab) => {
     const active = tab.dataset.sidebarTab === tabName;
     tab.classList.toggle("is-active", active);
@@ -1414,6 +1460,15 @@ function setSidebarTab(tabName) {
     pane.classList.toggle("is-active", active);
     pane.hidden = !active;
   });
+}
+
+function setSidebarCollapsed(sidebarName, collapsed) {
+  const className = sidebarName === "attendance" ? "attendance-collapsed" : "chat-collapsed";
+  const button = sidebarName === "attendance" ? elements.attendanceSidebarToggle : elements.chatSidebarToggle;
+  elements.studioLayout?.classList.toggle(className, collapsed);
+  button?.setAttribute("aria-expanded", String(!collapsed));
+  if (button) button.textContent = sidebarName === "attendance" ? (collapsed ? "‹" : "›") : (collapsed ? "›" : "‹");
+  window.requestAnimationFrame(() => resizeTeacherCanvas());
 }
 
 function filterAttendees() {
@@ -2350,6 +2405,59 @@ function getMediaErrorMessage(error, source) {
  * The class can safely continue with only the screen stream when camera access
  * is denied or a camera device is unavailable.
  */
+async function stopScreenShare() {
+  const streamToStop = screenStream;
+  screenStream = undefined;
+  streamToStop?.getTracks?.().forEach((track) => track.stop());
+  if (elements.localVideo) elements.localVideo.srcObject = null;
+  Object.values(peerConnections).forEach((peerConnection) => {
+    const videoSender = peerConnection.getSenders?.().find((sender) => sender.track?.kind === "video");
+    videoSender?.replaceTrack(null).catch(() => {});
+  });
+  removeClassroomAudioSource("__screen_audio__");
+  setStudioStatus(classActive ? "تم إيقاف مشاركة الشاشة؛ بقيت الحصة والصوت مفتوحين." : "تم إيقاف مشاركة الشاشة.", classActive ? "live" : "neutral");
+  updateControls();
+}
+
+async function replaceScreenShareStream() {
+  if (!classActive || isEnding || !navigator.mediaDevices?.getDisplayMedia) return;
+  try {
+    const replacement = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: { ideal: 30, max: 30 }, width: { ideal: 1920, max: 1920 }, height: { ideal: 1080, max: 1080 } },
+      audio: true,
+    });
+    const nextVideoTrack = replacement.getVideoTracks()[0];
+    if (!nextVideoTrack) throw new Error("لم يتم اختيار شاشة للمشاركة.");
+    const previousStream = screenStream;
+    screenStream = replacement;
+    previousStream?.getTracks?.().forEach((track) => track.stop());
+    elements.localVideo.srcObject = replacement;
+    Object.values(peerConnections).forEach((peerConnection) => {
+      const videoSender = peerConnection.getSenders?.().find((sender) => sender.track?.kind === "video");
+      if (videoSender) videoSender.replaceTrack(nextVideoTrack).catch(() => {});
+    });
+    addClassroomAudioSource("__screen_audio__", replacement, { enabled: true });
+    syncMixMinusAudioToAllPeers();
+    nextVideoTrack.onended = () => void stopScreenShare();
+    setStudioStatus("تم تحديث مشاركة الشاشة للحصة.", "live");
+    updateControls();
+  } catch (error) {
+    setStudioStatus(error?.message || "تعذر تغيير مشاركة الشاشة.", "error");
+  }
+}
+
+async function toggleScreenShare() {
+  if (!classActive) {
+    await startLiveClass();
+    return;
+  }
+  if (screenStream?.getVideoTracks?.().some((track) => track.readyState === "live")) {
+    await stopScreenShare();
+    return;
+  }
+  await replaceScreenShareStream();
+}
+
 async function startLiveClass() {
   if (classActive || isStarting || isEnding) {
     return;
@@ -2427,9 +2535,7 @@ async function startLiveClass() {
 
     displayTrack.onended = () => {
       if (classActive && !isEnding && !isPageNavigatingAway) {
-        // Stopping the shared screen must not end the classroom for students.
-        // Preserve it in the same way as a voluntary studio departure.
-        void leaveLiveStudio();
+        void stopScreenShare();
       }
     };
 
@@ -2614,6 +2720,24 @@ socket.on("room_ready", (data) => {
     setStudioStatus(`الحصة مباشرة الآن — ${data.level} | ${classTypeName}`, "live");
   }
 });
+
+socket.on("receive_draw_data", (data = {}) => {
+  if (!classActive || data.authorSocketId === socket.id || !isValidTeacherAnnotationSegment(data)) return;
+  const segment = {
+    x0: clampUnit(data.x0),
+    y0: clampUnit(data.y0),
+    x1: clampUnit(data.x1),
+    y1: clampUnit(data.y1),
+    color: data.color,
+    lineWidth: Number(data.lineWidth),
+  };
+  annotationSegments.push(segment);
+  drawTeacherSegment(segment);
+});
+
+function isValidTeacherAnnotationSegment(data) {
+  return isValidAnnotationSegment(data);
+}
 
 socket.on("student_joined", async (data = {}) => {
   const { socketId, studentName, participationCount } = data;
@@ -2842,8 +2966,15 @@ socket.connect();
 elements.sidebarTabs.forEach((tab) => {
   tab.addEventListener("click", () => setSidebarTab(tab.dataset.sidebarTab));
 });
+elements.attendanceSidebarToggle?.addEventListener("click", () => {
+  setSidebarCollapsed("attendance", !elements.studioLayout?.classList.contains("attendance-collapsed"));
+});
+elements.chatSidebarToggle?.addEventListener("click", () => {
+  setSidebarCollapsed("chat", !elements.studioLayout?.classList.contains("chat-collapsed"));
+});
 elements.attendeeSearch?.addEventListener("input", filterAttendees);
 setSidebarTab("participants");
+initializeTeacherCanvas();
 
 // UI-only duration refresh; it reads classActive and never changes media/signaling state.
 refreshStudioDuration();
@@ -2854,9 +2985,17 @@ elements.levelSelect.addEventListener("change", () => {
   }
 });
 elements.startButton.addEventListener("click", startLiveClass);
+elements.screenShareButton?.addEventListener("click", () => void toggleScreenShare());
 elements.toggleMicButton.addEventListener("click", toggleMicrophone);
 elements.recordLocalButton.addEventListener("click", toggleLocalRecording);
 elements.saveDriveButton.addEventListener("click", handleGoogleDriveButton);
+elements.uploadYoutubeAfterEndButton?.addEventListener("click", () => {
+  if (lastLocalRecording) void uploadRecordingToYouTube(lastLocalRecording);
+});
+elements.closeRecordingReadyButton?.addEventListener("click", closeRecordingReadyModal);
+elements.recordingReadyModal?.addEventListener("click", (event) => {
+  if (event.target === elements.recordingReadyModal) closeRecordingReadyModal();
+});
 elements.leaveStudioButton.addEventListener("click", () => {
   void leaveLiveStudio();
 });
@@ -2874,6 +3013,7 @@ elements.questionImageModal?.addEventListener("click", (event) => {
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeQuestionImageModal();
+    closeRecordingReadyModal();
   }
 });
 
