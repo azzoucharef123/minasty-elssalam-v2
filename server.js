@@ -1326,7 +1326,6 @@ io.on("connection", (socket) => {
       socket.data.studentId = student.id;
       users.set(socket.id, { role: "student", level, name: studentName, studentId: student.id });
 
-      const sessionKey = teacherSocket.data.classResumeToken;
       const participation = await getClassParticipation(student.id, sessionKey);
       const participationCount = participation?.count || 0;
 
