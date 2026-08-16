@@ -174,7 +174,7 @@ async function listRecentVideos(limit = 10) {
       publishedAt: item.snippet?.publishedAt || null,
       thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || null,
       privacyStatus: item.status?.privacyStatus || "unknown",
-      embedUrl: `https://www.youtube.com/embed/${item.contentDetails.videoId}?controls=0&disablekb=1&fs=1&iv_load_policy=3&cc_load_policy=0&rel=0&playsinline=1&enablejsapi=1&origin=https://dr.africacold.fr`,
+      embedUrl: `https://www.youtube.com/embed/${item.contentDetails.videoId}?controls=1&fs=1&rel=0&playsinline=1&enablejsapi=1&origin=https://dr.africacold.fr`,
     }));
 }
 
@@ -203,7 +203,7 @@ async function uploadVideo({ stream, mimeType = "video/webm", title, description
   if (!id) throw new Error("لم تُرجع YouTube معرّف الفيديو بعد الرفع.");
   return {
     id,
-    embedUrl: `https://www.youtube.com/embed/${id}?controls=0&disablekb=1&fs=1&iv_load_policy=3&cc_load_policy=0&rel=0&playsinline=1&enablejsapi=1&origin=https://dr.africacold.fr`,
+    embedUrl: `https://www.youtube.com/embed/${id}?controls=1&fs=1&rel=0&playsinline=1&enablejsapi=1&origin=https://dr.africacold.fr`,
     privacyStatus: "unlisted",
   };
 }

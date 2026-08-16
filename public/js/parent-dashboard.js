@@ -671,7 +671,9 @@ function resetLessonZoom() {
 }
 
 function activateLessonZoomLayer() {
-  elements.lessonVideoZoomLayer?.classList.add("is-active");
+  // Keep the native YouTube player fully interactive: CC, quality, settings,
+  // fullscreen, and the rest of its controls remain available to the learner.
+  elements.lessonVideoZoomLayer?.classList.remove("is-active");
 }
 
 function lessonZoomDistance(first, second) {

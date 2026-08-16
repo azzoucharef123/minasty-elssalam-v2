@@ -1028,6 +1028,8 @@
       .lesson-video-sidebar-meta { display: block; margin-top: 0.38rem; color: #64748b; font-size: 0.69rem; line-height: 1.7; }
       .lesson-video-sidebar-tip { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.55rem; align-items: start; padding: 0.72rem; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 0.78rem; font-size: 0.68rem; line-height: 1.75; }
       .lesson-video-sidebar-tip::before { content: "✓"; display: grid; width: 1.35rem; height: 1.35rem; place-items: center; color: #ffffff; background: #16a34a; border-radius: 50%; font-size: 0.66rem; font-weight: 900; }
+      .lesson-video-share-warning { display: grid; gap: 0.28rem; padding: 0.78rem; color: #991b1b; background: #fff1f2; border: 1px solid #fda4af; border-right: 4px solid #dc2626; border-radius: 0.78rem; font-size: 0.7rem; line-height: 1.8; }
+      .lesson-video-share-warning strong { color: #b91c1c; font-size: 0.74rem; }
 
       @keyframes lesson-modal-fade { from { opacity: 0; } to { opacity: 1; } }
       @keyframes lesson-dialog-enter { from { opacity: 0; transform: translateY(0.8rem) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
@@ -1353,7 +1355,8 @@
             <h3 id="lesson-video-sidebar-title">مشاهدة الحصة</h3>
             <span id="lesson-video-sidebar-meta" class="lesson-video-sidebar-meta">فيديو مسجل من مستودع المستوى</span>
           </div>
-          <div class="lesson-video-sidebar-tip">شاهد الفيديو بملء الشاشة عند الحاجة. بعد تدوير الهاتف، استخدم إصبعين للتكبير والتصغير، ثم أغلق النافذة للعودة إلى متابعة تقدّم التلميذ.</div>
+          <div class="lesson-video-sidebar-tip">شاهد الفيديو بملء الشاشة عند الحاجة، واستخدم أزرار YouTube لاختيار الجودة والترجمة والإعدادات.</div>
+          <div class="lesson-video-share-warning" role="note"><strong>تنبيه مهم</strong><span>مشاركة الفيديو مع غيرك تؤدي الى غلق حسابك في المنصة نهائيا ولا يسترجع اموالك</span></div>
         </aside>
       </div>
     </section>
@@ -1381,7 +1384,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/parent-dashboard.js?v=captions-off-1"></script>
+    <script src="./js/parent-dashboard.js?v=youtube-native-controls-1"></script>
     <script src="./js/class-registry-parent.js?v=error153-referrer-2"></script>
   </body>
 </html>
