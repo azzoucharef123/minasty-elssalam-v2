@@ -58,49 +58,103 @@ function originForResponse(req) {
   return configured || `${protocol}://${req.get("host")}`;
 }
 
+const LEVEL_ALIASES = Object.freeze({
+  "السنة الأولى متوسط": "السنة الأولى",
+  "السنة الثانية متوسط": "السنة الثانية",
+  "السنة الثالثة متوسط": "السنة الثالثة",
+  "السنة الرابعة متوسط": "السنة الرابعة",
+});
+const SUBJECT_ALIASES = Object.freeze({
+  "الرياضيات": "MATH",
+  "الفيزياء": "PHYSICS",
+  MATH: "MATH",
+  PHYSICS: "PHYSICS",
+  PAID: "PAID",
+  FREE: "FREE",
+});
+const ALGIERS_TIME_ZONE = "Africa/Algiers";
+const OFFICIAL_RECORDING_START_HOUR = 17;
+const OFFICIAL_RECORDING_END_HOUR = 21;
+
+function canonicalLevel(value) {
+  const normalized = String(value || "").trim();
+  return LEVEL_ALIASES[normalized] || normalized;
+}
+
+function canonicalSubject(value) {
+  const normalized = String(value || "").trim();
+  return SUBJECT_ALIASES[normalized] || normalized;
+}
+
+function getAlgiersDateParts(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: ALGIERS_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(({ type, value: partValue }) => [type, partValue]));
+  return {
+    dateKey: `${values.year}-${values.month}-${values.day}`,
+    hour: Number(values.hour),
+  };
+}
+
+function isOfficialRecordingTime(value) {
+  const parts = getAlgiersDateParts(value);
+  return Boolean(
+    parts &&
+    parts.hour >= OFFICIAL_RECORDING_START_HOUR &&
+    parts.hour < OFFICIAL_RECORDING_END_HOUR
+  );
+}
+
 async function attachVideoToNearestScheduledClass({ req, level, subject, videoId, recordedAt }) {
-  const normalizedLevel = String(level || "").trim();
-  const normalizedSubject = String(subject || "").trim();
-  if (!normalizedLevel || !normalizedSubject || !videoId) return null;
+  const normalizedLevel = canonicalLevel(level);
+  const targetSubject = canonicalSubject(subject);
+  if (!normalizedLevel || !targetSubject || !videoId) return null;
 
   const recordedDate = new Date(recordedAt || Date.now());
   const timestamp = Number.isFinite(recordedDate.getTime()) ? recordedDate : new Date();
-  const windowStart = new Date(timestamp.getTime() - 36 * 60 * 60 * 1000);
-  const windowEnd = new Date(timestamp.getTime() + 36 * 60 * 60 * 1000);
-  // Normalize subject for mapping if necessary (e.g. 'MATH' vs 'رياضيات')
-  const subjectMap = {
-    'الرياضيات': 'MATH',
-    'الفيزياء': 'PHYSICS',
-    'MATH': 'MATH',
-    'PHYSICS': 'PHYSICS'
-  };
-  const targetSubject = subjectMap[normalizedSubject] || normalizedSubject;
+  const recordingParts = getAlgiersDateParts(timestamp);
+  // Before 17:00 or at/after 21:00, treat the upload as an experiment. It stays
+  // on YouTube and is deliberately not attached to the official registry.
+  if (!recordingParts || !isOfficialRecordingTime(timestamp)) return null;
 
+  const displayLevel = Object.entries(LEVEL_ALIASES).find(([, canonical]) => canonical === normalizedLevel)?.[0];
+  const levelCandidates = [...new Set([normalizedLevel, displayLevel].filter(Boolean))];
   const candidates = await prisma.scheduledClass.findMany({
     where: {
-      level: { contains: normalizedLevel },
-      subject: { equals: targetSubject },
+      level: { in: levelCandidates },
+      subject: targetSubject,
       status: "PENDING",
-      scheduledAt: { gte: windowStart, lte: windowEnd },
     },
     orderBy: { scheduledAt: "asc" },
-    take: 25,
+    take: 50,
   });
-  if (!candidates.length) return null;
+  const sameDayCandidates = candidates.filter((item) => {
+    const scheduledParts = getAlgiersDateParts(item.scheduledAt);
+    return scheduledParts?.dateKey === recordingParts.dateKey;
+  });
+  if (!sameDayCandidates.length) return null;
 
-  const nearest = candidates.sort((left, right) =>
+  const nearest = sameDayCandidates.sort((left, right) =>
     Math.abs(new Date(left.scheduledAt).getTime() - timestamp.getTime()) -
     Math.abs(new Date(right.scheduledAt).getTime() - timestamp.getTime())
   )[0];
   const updated = await prisma.scheduledClass.update({
     where: { id: nearest.id },
-    data: { status: "COMPLETED", youtubeVideoId: videoId, driveLink: null, notes: null },
+    data: { status: "COMPLETED", youtubeVideoId: videoId },
   });
   req.app.get("io")?.to(`${normalizedLevel}_lobby`).emit("class_registry_updated", {
     level: normalizedLevel,
     classId: updated.id,
   });
-  return { id: updated.id, scheduledAt: updated.scheduledAt };
+  return { id: updated.id, level: updated.level, subject: updated.subject, scheduledAt: updated.scheduledAt };
 }
 
 router.get("/status", verifyToken, isTeacher, async (_req, res) => {
@@ -190,27 +244,36 @@ router.post("/upload", verifyToken, isTeacher, (req, res, next) => {
       return null;
     });
 
-    // 2. Automatically add to Lesson Repository
-    try {
-      const subjectMap = { 'الرياضيات': 'MATH', 'الفيزياء': 'PHYSICS', 'MATH': 'MATH', 'PHYSICS': 'PHYSICS' };
-      const repositoryType = subjectMap[subject] || "UNCLASSIFIED";
-      
-      await prisma.lessonVideo.create({
-        data: {
-          title: title.slice(0, 160),
-          level: level,
-          driveFileId: result.id, // We use YouTube ID as the reference ID
-          driveUrl: result.embedUrl, // The YouTube embed URL
-          repositoryType: repositoryType
-        }
-      });
-      console.log(`YouTube video ${result.id} automatically added to Lesson Repository for ${level}`);
-    } catch (repoError) {
-      console.error("Failed to auto-add YouTube video to Lesson Repository:", repoError);
-      // We don't fail the whole request if this optional step fails
+    // Official recordings are also available to the lesson repository. Experimental
+    // recordings remain on YouTube only and never enter either official registry.
+    let repositoryVideo = null;
+    if (registryClass) {
+      try {
+        const repositoryType = canonicalSubject(subject);
+        repositoryVideo = await prisma.lessonVideo.create({
+          data: {
+            title: title.slice(0, 160),
+            level: registryClass.level,
+            driveFileId: result.id,
+            driveUrl: result.embedUrl,
+            repositoryType,
+          },
+        });
+        console.log(`Official YouTube video ${result.id} added to Lesson Repository for ${registryClass.level}`);
+      } catch (repoError) {
+        console.error("Failed to add official YouTube video to Lesson Repository:", repoError);
+      }
     }
 
-    return res.status(201).json({ status: "success", data: { ...result, registryClass } });
+    return res.status(201).json({
+      status: "success",
+      data: {
+        ...result,
+        registryClass,
+        isExperimental: !registryClass,
+        repositoryVideoId: repositoryVideo?.id || null,
+      },
+    });
   } catch (error) {
     console.error("Unable to upload video to YouTube:", error);
     const status = error.code === "YOUTUBE_NOT_CONNECTED" ? 409 : 503;

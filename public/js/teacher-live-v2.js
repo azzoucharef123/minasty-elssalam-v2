@@ -935,10 +935,15 @@ async function uploadRecordingToYouTube(recording) {
     if (!response.ok) throw new Error(payload.error || "تعذر رفع التسجيل إلى YouTube.");
 
     const registryMessage = payload.data?.registryClass
-      ? " وتم ربطه تلقائياً بسجل الحصة."
-      : " ويمكن ربطه من سجل الحصص إذا لم توجد حصة مجدولة مطابقة.";
+      ? " وتم ربطه تلقائياً بسجل الحصة الرسمية وإتاحته حسب الصلاحيات."
+      : " هذا تسجيل تجريبي محفوظ على YouTube فقط ولم يُدرج في السجل الرسمي.";
     updateYoutubeUploadUi({ visible: true, text: `✅ تم الرفع لـ YouTube كفيديو غير مدرج${registryMessage}`, progress: 100 });
-    setStudioStatus("✅ تم رفع الحصة لـ YouTube وربطها بالسجل تلقائياً.", "live");
+    setStudioStatus(
+      payload.data?.registryClass
+        ? "✅ تم رفع الحصة الرسمية وربطها بالسجل تلقائياً."
+        : "✅ تم حفظ التسجيل التجريبي على YouTube فقط.",
+      "live"
+    );
     window.dispatchEvent(new CustomEvent("class-registry-refresh"));
     return payload.data || null;
   } catch (error) {
@@ -1266,8 +1271,8 @@ function startLocalRecording() {
     localRecordingStream = buildLocalRecordingStream();
     const mimeType = getLocalRecordingMimeType();
     const options = mimeType
-      ? { mimeType, videoBitsPerSecond: 2_500_000, audioBitsPerSecond: 128_000 }
-      : { videoBitsPerSecond: 2_500_000, audioBitsPerSecond: 128_000 };
+          ? { mimeType, videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 192_000 }
+      : { videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 192_000 };
     const recorder = new MediaRecorder(localRecordingStream, options);
     localMediaRecorder = recorder;
     localRecordingMimeType = recorder.mimeType || mimeType || "video/webm";
@@ -2392,7 +2397,7 @@ async function startLiveClass() {
     // Screen sharing is mandatory for the broadcaster experience.
     screenStream = await navigator.mediaDevices.getDisplayMedia({
       video: {
-        frameRate: { ideal: 15, max: 20 },
+        frameRate: { ideal: 30, max: 30 },
         width: { ideal: 1920, max: 1920 },
         height: { ideal: 1080, max: 1080 },
       },
