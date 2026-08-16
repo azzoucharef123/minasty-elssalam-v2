@@ -1002,7 +1002,7 @@
       .lesson-video-close { display: grid; width: 2.55rem; height: 2.55rem; flex: 0 0 auto; place-items: center; color: #475569; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 0.8rem; font-size: 1.35rem; line-height: 1; cursor: pointer; transition: color 0.18s ease, background 0.18s ease, transform 0.18s ease; }
       .lesson-video-close:hover { color: #b91c1c; background: #fef2f2; transform: rotate(4deg); }
       .lesson-video-modal-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem); gap: 1rem; align-items: start; }
-      .lesson-video-player-shell { min-width: 0; overflow: hidden; background: #020617; border: 1px solid #1e293b; border-radius: 1.05rem; box-shadow: 0 16px 36px rgba(15, 23, 42, 0.2); }
+      .lesson-video-player-shell { min-width: 0; overflow: hidden; background: #020617; border: 1px solid #1e293b; border-radius: 1.05rem; box-shadow: 0 16px 36px rgba(15, 23, 42, 0.2); touch-action: pinch-zoom; }
       .lesson-video-player-topbar { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; padding: 0.62rem 0.78rem; color: #cbd5e1; background: #0f172a; font-size: 0.68rem; font-weight: 800; }
       .lesson-video-player-topbar span { display: inline-flex; align-items: center; gap: 0.35rem; }
       .lesson-video-player-topbar span::before { width: 0.42rem; height: 0.42rem; content: ""; background: #22c55e; border-radius: 50%; box-shadow: 0 0 0 0.22rem rgba(34, 197, 94, 0.16); }
@@ -1011,8 +1011,8 @@
       .lesson-video-player-action:hover, .lesson-video-player-action:focus-visible { color: #ffffff; background: #2563eb; outline: none; transform: translateY(-1px); }
       .lesson-video-player-action:active { transform: scale(0.97); }
       .lesson-video-player-topbar small { color: #94a3b8; font-size: 0.64rem; }
-      .lesson-video-frame { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; background: #020617; }
-      .lesson-video-player-shell:fullscreen { display: grid; grid-template-rows: auto minmax(0, 1fr); width: 100vw; height: 100vh; border: 0; border-radius: 0; }
+      .lesson-video-frame { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; background: #020617; touch-action: pinch-zoom; user-select: none; -webkit-user-select: none; }
+      .lesson-video-player-shell:fullscreen { display: grid; grid-template-rows: auto minmax(0, 1fr); width: 100vw; height: 100vh; border: 0; border-radius: 0; touch-action: pinch-zoom; }
       .lesson-video-player-shell:fullscreen .lesson-video-frame { height: 100%; aspect-ratio: auto; }
       @media (max-width: 520px) { .lesson-video-player-topbar { align-items: stretch; flex-direction: column; } .lesson-video-player-actions { justify-content: flex-end; } }
       .lesson-video-sidebar { display: grid; gap: 0.75rem; padding: 0.9rem; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 1rem; }
@@ -1344,7 +1344,7 @@
             <h3 id="lesson-video-sidebar-title">مشاهدة الحصة</h3>
             <span id="lesson-video-sidebar-meta" class="lesson-video-sidebar-meta">فيديو مسجل من مستودع المستوى</span>
           </div>
-          <div class="lesson-video-sidebar-tip">شاهد الفيديو بملء الشاشة عند الحاجة، ثم أغلق النافذة للعودة إلى متابعة تقدّم التلميذ.</div>
+          <div class="lesson-video-sidebar-tip">شاهد الفيديو بملء الشاشة عند الحاجة. بعد تدوير الهاتف، استخدم إصبعين للتكبير والتصغير، ثم أغلق النافذة للعودة إلى متابعة تقدّم التلميذ.</div>
         </aside>
       </div>
     </section>
@@ -1372,7 +1372,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/parent-dashboard.js?v=fullscreen-rotate-1"></script>
+    <script src="./js/parent-dashboard.js?v=pinch-zoom-1"></script>
     <script src="./js/class-registry-parent.js?v=error153-referrer-2"></script>
   </body>
 </html>
