@@ -1725,6 +1725,12 @@ elements.raiseHandButton.addEventListener("click", raiseHand);
 elements.lowerHandButton?.addEventListener("click", lowerHand);
 elements.chatForm.addEventListener("submit", sendStudentChatMessage);
 elements.chatInput.addEventListener("input", updateChatControls);
+elements.chatInput.addEventListener("keydown", (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+    event.preventDefault();
+    elements.chatForm.requestSubmit();
+  }
+});
 elements.captureQuestionButton?.addEventListener("click", () => {
   if (!elements.captureQuestionButton.disabled) {
     elements.questionImageInput?.click();

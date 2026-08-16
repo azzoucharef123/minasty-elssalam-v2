@@ -515,7 +515,8 @@
         border-top: 1px solid rgba(148, 163, 184, 0.14);
       }
 
-      .student-chat-form input {
+      .student-chat-form input,
+      .student-chat-form textarea {
         min-width: 0;
         flex: 1;
         min-height: 2.15rem;
@@ -527,10 +528,20 @@
         font: inherit;
         font-size: 0.66rem;
         font-weight: 600;
+        line-height: 1.55;
         outline: 0;
       }
 
-      .student-chat-form input:focus {
+      .student-chat-form textarea {
+        height: 4.2rem;
+        max-height: 7.5rem;
+        resize: none;
+        overflow-y: auto;
+        white-space: pre-wrap;
+      }
+
+      .student-chat-form input:focus,
+      .student-chat-form textarea:focus {
         border-color: #60a5fa;
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
       }
@@ -704,7 +715,8 @@
           padding: 0.5rem 0.55rem calc(0.55rem + env(safe-area-inset-bottom));
         }
 
-        .student-chat-form input {
+        .student-chat-form input,
+        .student-chat-form textarea {
           min-height: 2.35rem;
         }
 
@@ -786,8 +798,11 @@
       @media screen and (max-width: 900px) {
         #chat-input {
           min-height: 2.05rem;
+          height: 4.2rem;
+          max-height: 6.2rem;
+          padding-block: 0.48rem;
           font-size: 16px;
-          line-height: 1.35;
+          line-height: 1.45;
           touch-action: manipulation;
           -webkit-text-size-adjust: 100%;
         }
@@ -1069,7 +1084,7 @@
             <button id="remove-question-image-btn" type="button" aria-label="إلغاء الصورة">×</button>
           </div>
           <form id="chat-form" class="student-chat-form" novalidate>
-            <input id="chat-input" type="text" maxlength="800" placeholder="اكتب سؤالك أو أرفق صورة..." autocomplete="off" aria-label="سؤالك للأستاذ" disabled />
+            <textarea id="chat-input" rows="2" maxlength="800" placeholder="اكتب سؤالك أو أرفق صورة..." autocomplete="off" aria-label="سؤالك للأستاذ" disabled></textarea>
             <input id="question-image-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden disabled />
             <button id="capture-question-btn" class="student-chat-capture" type="button" disabled aria-label="تصوير سؤال أو واجب">
               <span aria-hidden="true">▣</span><span>تصوير</span>
@@ -1109,6 +1124,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=mobile-ui-1"></script>
+    <script src="./js/student-live.js?v=textarea-chat-1"></script>
   </body>
 </html>
