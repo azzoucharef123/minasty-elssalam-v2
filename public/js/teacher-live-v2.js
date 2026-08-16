@@ -2988,6 +2988,17 @@ socket.on("disconnect", () => {
 // false "server unavailable" failure.
 socket.connect();
 
+// Bind the critical start action before optional sidebar/recording setup. A
+// missing optional element must never make the main classroom button inert.
+elements.startButton?.addEventListener("click", () => {
+  void startLiveClass().catch((error) => {
+    console.error("Unable to start the live class from the button:", error);
+    isStarting = false;
+    setStudioStatus(error?.message || "تعذر بدء الحصة المباشرة.", "error");
+    updateControls();
+  });
+});
+
 elements.sidebarTabs.forEach((tab) => {
   tab.addEventListener("click", () => setSidebarTab(tab.dataset.sidebarTab));
 });
@@ -2998,18 +3009,20 @@ elements.chatSidebarToggle?.addEventListener("click", () => {
   setSidebarCollapsed("chat", !elements.studioLayout?.classList.contains("chat-collapsed"));
 });
 elements.attendeeSearch?.addEventListener("input", filterAttendees);
-setSidebarTab("participants");
-initializeTeacherCanvas();
-
-// UI-only duration refresh; it reads classActive and never changes media/signaling state.
-refreshStudioDuration();
+try {
+  setSidebarTab("participants");
+  initializeTeacherCanvas();
+  // UI-only duration refresh; it reads classActive and never changes media/signaling state.
+  refreshStudioDuration();
+} catch (error) {
+  console.error("Unable to initialize optional studio controls:", error);
+}
 
 elements.levelSelect.addEventListener("change", () => {
   if (!classActive && !isStarting && !isEnding) {
     syncClassTypeSelector();
   }
 });
-elements.startButton.addEventListener("click", startLiveClass);
 elements.screenShareButton?.addEventListener("click", () => void toggleScreenShare());
 elements.toggleMicButton.addEventListener("click", toggleMicrophone);
 elements.recordLocalButton.addEventListener("click", toggleLocalRecording);
