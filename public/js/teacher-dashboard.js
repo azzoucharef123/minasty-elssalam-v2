@@ -789,6 +789,7 @@ function formatScheduledDate(value) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Africa/Algiers",
   }).format(date);
 }
 
@@ -1913,6 +1914,7 @@ function formatAttendanceDate(value) {
   return new Intl.DateTimeFormat("ar-DZ", {
     dateStyle: "full",
     timeStyle: "short",
+    timeZone: "Africa/Algiers",
   }).format(date);
 }
 

@@ -356,6 +356,7 @@ function formatParentScheduleDate(value) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Africa/Algiers",
   }).format(date);
 }
 

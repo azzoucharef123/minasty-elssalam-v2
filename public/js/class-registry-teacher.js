@@ -56,7 +56,7 @@
   function formatDate(value) {
     const date = new Date(value);
     return Number.isFinite(date.getTime())
-      ? new Intl.DateTimeFormat("ar-DZ", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(date)
+      ? new Intl.DateTimeFormat("ar-DZ", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Algiers" }).format(date)
       : "تاريخ غير صالح";
   }
 
