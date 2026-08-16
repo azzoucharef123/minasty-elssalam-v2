@@ -244,3 +244,221 @@
 .video-stage.whiteboard-mode .stage-empty-state { display: none; }
 .video-stage.screen-mode .stage-empty-state,
 .video-stage.idle-mode .annotation-toolbar { display: none; }
+
+/* Final visual monitor layout: RTL teacher workflow without changing any DOM IDs or handlers. */
+@media (min-width: 701px) {
+  .studio-layout {
+    grid-template-areas: "attendance chat stage";
+    grid-template-columns: minmax(15.5rem, 18rem) minmax(18rem, 23rem) minmax(0, 1fr);
+    gap: 1rem;
+    width: 100%;
+    height: calc(100vh - 60px);
+    padding: 1rem;
+    overflow: hidden;
+    direction: ltr;
+  }
+
+  .studio-stage {
+    grid-area: stage;
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    flex-direction: column;
+    background: #101d31;
+    border: 1px solid var(--border-color);
+    border-radius: 1rem;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
+    direction: rtl;
+  }
+
+  .stage-head {
+    display: flex;
+    min-height: 4.2rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 0.95rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .stage-head h1 {
+    color: var(--text-primary);
+    font-size: 0.92rem;
+  }
+
+  .stage-head p {
+    color: var(--text-secondary);
+    font-size: 0.65rem;
+  }
+
+  .stage-head-status {
+    flex: 0 0 auto;
+  }
+
+  .video-stage {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .chat-sidebar,
+  .studio-sidebar {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    border-radius: 1rem;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18);
+  }
+
+  .chat-sidebar {
+    grid-area: chat;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-panel);
+    direction: rtl;
+  }
+
+  .attendance-sidebar {
+    grid-area: attendance;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-panel);
+    direction: rtl;
+  }
+
+  .chat-sidebar .teacher-chat-panel {
+    display: grid;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    flex: 1 1 auto;
+  }
+
+  .chat-sidebar .chat-box {
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  .studio-controls {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    width: 100%;
+    max-width: none;
+    padding: 0.65rem;
+    transform: none;
+    border: 0;
+    border-top: 1px solid var(--border-color);
+    border-radius: 0;
+    box-shadow: none;
+    background: var(--bg-panel);
+    backdrop-filter: none;
+  }
+
+  .studio-controls #start-class-btn,
+  .studio-controls #record-local-btn,
+  .studio-controls #end-class-btn,
+  .studio-controls #toggle-mic-btn,
+  .studio-controls #screen-share-btn {
+    display: inline-flex;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    min-height: 2.65rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.34rem;
+    padding: 0.45rem 0.35rem;
+    border-radius: 0.62rem;
+    font-size: 0.62rem;
+    white-space: normal;
+  }
+
+  .studio-controls #start-class-btn > span,
+  .studio-controls #record-local-btn > span,
+  .studio-controls #end-class-btn > span,
+  .studio-controls #toggle-mic-btn > span,
+  .studio-controls #screen-share-btn > span {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  .studio-controls #start-class-btn { color: #fff; background: #2563eb; border-color: #3b82f6; }
+  .studio-controls #record-local-btn { color: #fee2e2; background: #7f1d1d; border-color: #ef4444; }
+  .studio-controls #end-class-btn { color: #fff; background: #b91c1c; border-color: #ef4444; }
+  .studio-controls #toggle-mic-btn { color: #fef3c7; background: #92400e; border-color: #f59e0b; }
+  .studio-controls #screen-share-btn { color: #dcfce7; background: #166534; border-color: #22c55e; }
+}
+
+@media (max-width: 700px) {
+  .studio-layout {
+    grid-template-areas:
+      "stage"
+      "chat"
+      "attendance";
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(34rem, auto) minmax(20rem, auto) minmax(20rem, auto);
+    width: 100%;
+    height: calc(100vh - 60px);
+    min-height: 0;
+    padding: 0.5rem;
+    overflow-y: auto;
+    direction: rtl;
+  }
+
+  .studio-stage {
+    min-height: 34rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.85rem;
+  }
+
+  .stage-head {
+    display: flex;
+    min-height: 4.4rem;
+    padding: 0.62rem;
+  }
+
+  .stage-head-status {
+    align-items: flex-end;
+    flex-direction: column;
+  }
+
+  .chat-sidebar,
+  .studio-sidebar {
+    position: static;
+    width: auto;
+    min-height: 20rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.85rem;
+  }
+
+  .studio-controls {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    max-width: none;
+    gap: 0.35rem;
+    padding: 0.45rem;
+    transform: none;
+  }
+
+  .studio-controls #start-class-btn,
+  .studio-controls #record-local-btn,
+  .studio-controls #end-class-btn,
+  .studio-controls #toggle-mic-btn,
+  .studio-controls #screen-share-btn {
+    min-height: 2.55rem;
+    font-size: 0.58rem;
+  }
+
+  .studio-controls #end-class-btn { grid-column: 1 / -1; }
+}
