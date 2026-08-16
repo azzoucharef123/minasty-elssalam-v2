@@ -42,6 +42,158 @@
           var(--viewer-bg);
       }
 
+      .student-prejoin-overlay {
+        position: fixed;
+        z-index: 30;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 1rem;
+        background: rgba(2, 6, 23, 0.82);
+        backdrop-filter: blur(12px);
+      }
+
+      .student-prejoin-overlay[hidden] {
+        display: none;
+      }
+
+      .student-prejoin-card {
+        width: min(100%, 30rem);
+        padding: clamp(1.25rem, 5vw, 2rem);
+        color: var(--viewer-text);
+        background: linear-gradient(145deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.98));
+        border: 1px solid rgba(96, 165, 250, 0.28);
+        border-radius: 1.2rem;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+        text-align: center;
+      }
+
+      .student-prejoin-icon {
+        display: grid;
+        width: 3.4rem;
+        height: 3.4rem;
+        margin: 0 auto 0.9rem;
+        place-items: center;
+        color: #dbeafe;
+        background: linear-gradient(135deg, #2563eb, #4f46e5);
+        border-radius: 1rem;
+        font-size: 1.6rem;
+        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.3);
+      }
+
+      .student-prejoin-card h1 {
+        margin: 0;
+        color: #f8fafc;
+        font-size: clamp(1.1rem, 4vw, 1.45rem);
+      }
+
+      .student-prejoin-card > p {
+        margin: 0.6rem 0 1.25rem;
+        color: #cbd5e1;
+        font-size: 0.85rem;
+        line-height: 1.7;
+      }
+
+      .student-prejoin-checks {
+        display: grid;
+        gap: 0.65rem;
+        margin-bottom: 1rem;
+        text-align: right;
+      }
+
+      .student-prejoin-check {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.7rem;
+        padding: 0.75rem 0.85rem;
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 0.75rem;
+      }
+
+      .student-prejoin-check-copy {
+        display: grid;
+        gap: 0.15rem;
+      }
+
+      .student-prejoin-check-copy strong {
+        color: #f8fafc;
+        font-size: 0.82rem;
+      }
+
+      .student-prejoin-check-copy small {
+        color: #94a3b8;
+        font-size: 0.7rem;
+      }
+
+      .student-prejoin-status {
+        color: #fbbf24;
+        font-size: 0.72rem;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .student-prejoin-status.is-ready {
+        color: #86efac;
+      }
+
+      .student-prejoin-status.is-error {
+        color: #fca5a5;
+      }
+
+      .student-prejoin-actions {
+        display: grid;
+        gap: 0.6rem;
+        margin-top: 1rem;
+      }
+
+      .student-prejoin-button {
+        min-height: 2.75rem;
+        padding: 0.65rem 1rem;
+        border-radius: 0.75rem;
+        font: inherit;
+        font-size: 0.82rem;
+        font-weight: 800;
+        cursor: pointer;
+        transition: transform 160ms ease-out, filter 160ms ease-out, opacity 160ms ease-out;
+      }
+
+      .student-prejoin-button:active:not(:disabled) {
+        transform: scale(0.97);
+      }
+
+      .student-prejoin-button:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+      }
+
+      .student-prejoin-mic-button {
+        color: #ffffff;
+        background: #2563eb;
+        border: 1px solid #60a5fa;
+      }
+
+      .student-prejoin-camera-button {
+        color: #dbeafe;
+        background: rgba(37, 99, 235, 0.12);
+        border: 1px solid rgba(96, 165, 250, 0.35);
+      }
+
+      .student-prejoin-continue-button {
+        color: #052e16;
+        background: #4ade80;
+        border: 1px solid #86efac;
+      }
+
+      .student-prejoin-message {
+        min-height: 1.2rem;
+        margin: 0.75rem 0 0;
+        color: #cbd5e1;
+        font-size: 0.72rem;
+        line-height: 1.6;
+      }
+
       .student-live-page *,
       .student-live-page *::before,
       .student-live-page *::after {
@@ -1471,6 +1623,38 @@
   </head>
   <body class="student-live-page">
     <div class="viewer-shell">
+      <section id="student-prejoin-overlay" class="student-prejoin-overlay" role="dialog" aria-modal="true" aria-labelledby="student-prejoin-title">
+        <div class="student-prejoin-card">
+          <div class="student-prejoin-icon" aria-hidden="true">🎙</div>
+          <h1 id="student-prejoin-title">تجهيز الدخول إلى الحصة</h1>
+          <p>قبل المتابعة، نتحقق من أن صوتك جاهز. الميكروفون ضروري للتحدث عند سماح الأستاذ، أما الكاميرا فهي اختيارية.</p>
+
+          <div class="student-prejoin-checks">
+            <div class="student-prejoin-check">
+              <div class="student-prejoin-check-copy">
+                <strong>الميكروفون <span aria-label="إلزامي">(ضروري)</span></strong>
+                <small>لن يُفتح للتلاميذ إلا بعد موافقة الأستاذ.</small>
+              </div>
+              <span id="student-prejoin-mic-status" class="student-prejoin-status">غير مفعّل</span>
+            </div>
+            <div class="student-prejoin-check">
+              <div class="student-prejoin-check-copy">
+                <strong>الكاميرا <span aria-label="اختيارية">(اختيارية)</span></strong>
+                <small>يمكنك المتابعة من دون تشغيلها.</small>
+              </div>
+              <span id="student-prejoin-camera-status" class="student-prejoin-status">اختيارية</span>
+            </div>
+          </div>
+
+          <div class="student-prejoin-actions">
+            <button id="student-prejoin-mic-btn" class="student-prejoin-button student-prejoin-mic-button" type="button">تفعيل الميكروفون</button>
+            <button id="student-prejoin-camera-btn" class="student-prejoin-button student-prejoin-camera-button" type="button">اختبار الكاميرا (اختياري)</button>
+            <button id="student-prejoin-continue-btn" class="student-prejoin-button student-prejoin-continue-button" type="button" disabled>استمرار إلى الحصة المباشرة</button>
+          </div>
+          <p id="student-prejoin-message" class="student-prejoin-message" role="status" aria-live="polite">يجب تفعيل الميكروفون أولًا.</p>
+        </div>
+      </section>
+
       <header class="viewer-header">
         <div class="viewer-brand">
           <span class="viewer-brand-mark" aria-hidden="true">
@@ -1588,6 +1772,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=refresh-media-1"></script>
+    <script src="./js/student-live.js?v=prejoin-1"></script>
   </body>
 </html>

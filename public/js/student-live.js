@@ -60,6 +60,8 @@ let initialAutoJoinPending = directClassEntryRequested;
 // automatically re-enters the next class for the same level.
 let waitingForNextClass = false;
 let participationCount = 0;
+let prejoinCompleted = false;
+let prejoinCameraReady = false;
 
 // The viewer stores synchronized segments and can draw only while the teacher
 // has opened this student's microphone and the server has granted the board.
@@ -104,6 +106,13 @@ const elements = {
   unrotateButton: document.getElementById("student-unrotate-btn"),
   mobileControlToast: document.getElementById("student-mobile-control-toast"),
   refreshMediaButton: document.getElementById("refresh-media-btn"),
+  prejoinOverlay: document.getElementById("student-prejoin-overlay"),
+  prejoinMicButton: document.getElementById("student-prejoin-mic-btn"),
+  prejoinCameraButton: document.getElementById("student-prejoin-camera-btn"),
+  prejoinContinueButton: document.getElementById("student-prejoin-continue-btn"),
+  prejoinMicStatus: document.getElementById("student-prejoin-mic-status"),
+  prejoinCameraStatus: document.getElementById("student-prejoin-camera-status"),
+  prejoinMessage: document.getElementById("student-prejoin-message"),
 };
 
 function openSubscriptionUpgradeModal(reason = "university") {
@@ -1063,8 +1072,13 @@ function stopLocalAudio() {
  * off, and keeps it private until the teacher explicitly opens the mic.
  */
 async function prepareStudentMicrophone() {
-  if (microphonePrepared || isPreparingMicrophone || !navigator.mediaDevices?.getUserMedia) {
-    return;
+  if (microphonePrepared) {
+    updatePrejoinControls();
+    return true;
+  }
+  if (isPreparingMicrophone || !navigator.mediaDevices?.getUserMedia) {
+    updatePrejoinControls();
+    return false;
   }
 
   isPreparingMicrophone = true;
@@ -1082,6 +1096,8 @@ async function prepareStudentMicrophone() {
     });
     microphonePrepared = true;
     setViewerStatus("تم تجهيز المايك للحصة. لن يعمل إلا عند سماح الأستاذ.", "live");
+    updatePrejoinControls();
+    return true;
   } catch (error) {
     microphonePrepared = false;
     if (error?.name === "NotAllowedError") {
@@ -1089,9 +1105,103 @@ async function prepareStudentMicrophone() {
     } else if (error?.name === "NotFoundError") {
       setViewerStatus("لم يتم العثور على مايك متاح. ستتابع الحصة بصوت الأستاذ.", "warning");
     }
+    updatePrejoinControls();
+    return false;
   } finally {
     isPreparingMicrophone = false;
     updateMicControl();
+    updatePrejoinControls();
+  }
+}
+
+function updatePrejoinControls(message = "") {
+  const micReady = Boolean(microphonePrepared);
+  const micBusy = Boolean(isPreparingMicrophone);
+
+  if (elements.prejoinMicStatus) {
+    elements.prejoinMicStatus.textContent = micBusy ? "جارٍ التحقق..." : micReady ? "جاهز ✓" : "غير مفعّل";
+    elements.prejoinMicStatus.classList.toggle("is-ready", micReady);
+    elements.prejoinMicStatus.classList.toggle("is-error", !micReady && !micBusy && Boolean(message));
+  }
+
+  if (elements.prejoinCameraStatus) {
+    elements.prejoinCameraStatus.textContent = prejoinCameraReady ? "جاهزة ✓" : "اختيارية";
+    elements.prejoinCameraStatus.classList.toggle("is-ready", prejoinCameraReady);
+  }
+
+  if (elements.prejoinMicButton) {
+    elements.prejoinMicButton.disabled = micReady || micBusy;
+    elements.prejoinMicButton.textContent = micReady ? "الميكروفون مفعّل ✓" : micBusy ? "جارٍ تفعيل الميكروفون..." : "تفعيل الميكروفون";
+  }
+
+  if (elements.prejoinCameraButton) {
+    elements.prejoinCameraButton.disabled = prejoinCameraReady;
+    elements.prejoinCameraButton.textContent = prejoinCameraReady ? "الكاميرا جاهزة ✓" : "اختبار الكاميرا (اختياري)";
+  }
+
+  if (elements.prejoinContinueButton) {
+    elements.prejoinContinueButton.disabled = !micReady || micBusy || prejoinCompleted;
+  }
+
+  if (elements.prejoinMessage && message) {
+    elements.prejoinMessage.textContent = message;
+  }
+}
+
+async function testOptionalStudentCamera() {
+  if (prejoinCameraReady || !navigator.mediaDevices?.getUserMedia) return;
+
+  if (elements.prejoinMessage) elements.prejoinMessage.textContent = "جارٍ اختبار الكاميرا الاختيارية...";
+  try {
+    const cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user" },
+      audio: false,
+    });
+    cameraStream.getTracks().forEach((track) => track.stop());
+    prejoinCameraReady = true;
+    updatePrejoinControls("الكاميرا جاهزة، ويمكنك المتابعة دون تشغيلها داخل الحصة.");
+  } catch (error) {
+    prejoinCameraReady = false;
+    updatePrejoinControls(error?.name === "NotAllowedError"
+      ? "تم تجاوز الكاميرا؛ هي اختيارية ويمكنك المتابعة الآن."
+      : "تعذر اختبار الكاميرا، لكنها اختيارية ويمكنك المتابعة.");
+  }
+}
+
+async function continueFromStudentPrejoin() {
+  if (!microphonePrepared) {
+    const ready = await prepareStudentMicrophone();
+    if (!ready) {
+      updatePrejoinControls("لا يمكن الاستمرار قبل السماح للمتصفح باستخدام الميكروفون.");
+      return;
+    }
+  }
+
+  prejoinCompleted = true;
+  initialAutoJoinPending = true;
+  if (elements.prejoinOverlay) elements.prejoinOverlay.hidden = true;
+  setPlaceholder("جاري الدخول إلى الحصة", "سيظهر بث الأستاذ تلقائياً عند توفر الحصة.");
+  setViewerStatus("جارٍ الدخول إلى الحصة…", "warning");
+  if (socket.connected) {
+    void joinClass();
+  }
+}
+
+async function initializeStudentPrejoin() {
+  if (!elements.prejoinOverlay) return;
+
+  prejoinCompleted = false;
+  initialAutoJoinPending = false;
+  elements.prejoinOverlay.hidden = false;
+  updatePrejoinControls("يجب تفعيل الميكروفون أولاً قبل دخول الحصة.");
+
+  const micWasPreparedDuringEntry = sessionStorage.getItem("studentMicPreflight") === "granted";
+  sessionStorage.removeItem("studentMicPreflight");
+  if (micWasPreparedDuringEntry) {
+    const ready = await prepareStudentMicrophone();
+    updatePrejoinControls(ready
+      ? "الميكروفون جاهز. اضغط استمرار للدخول إلى الحصة."
+      : "يجب السماح للمتصفح باستخدام الميكروفون قبل الاستمرار.");
   }
 }
 
@@ -1551,6 +1661,10 @@ async function enableApprovedMicrophone() {
 }
 
 async function joinClass({ rejoin = false, prepareMicrophone = false } = {}) {
+  if (!prejoinCompleted && !rejoin) {
+    return;
+  }
+
   // A user-initiated click is the best moment to obtain browser mic permission.
   // Automatic recovery and direct reconnects never request it unexpectedly.
   if (!rejoin && prepareMicrophone) {
@@ -1724,10 +1838,10 @@ socket.on("connect", () => {
     return;
   }
 
-  if (initialAutoJoinPending && !joinedClass && !isJoining) {
+  if (initialAutoJoinPending && prejoinCompleted && !joinedClass && !isJoining) {
     elements.joinButton.hidden = true;
     setViewerStatus("جارٍ الدخول إلى الحصة مباشرة…", "warning");
-    void joinClass({ prepareMicrophone: true });
+    void joinClass();
     return;
   }
 
@@ -2044,6 +2158,14 @@ elements.questionImageInput?.addEventListener("change", () => {
 });
 elements.removeQuestionImageButton?.addEventListener("click", clearSelectedQuestionImage);
 elements.refreshMediaButton?.addEventListener("click", refreshAudioVideo);
+elements.prejoinMicButton?.addEventListener("click", async () => {
+  const ready = await prepareStudentMicrophone();
+  updatePrejoinControls(ready
+    ? "الميكروفون جاهز. اضغط استمرار للدخول إلى الحصة."
+    : "يجب السماح للمتصفح باستخدام الميكروفون قبل الاستمرار.");
+});
+elements.prejoinCameraButton?.addEventListener("click", testOptionalStudentCamera);
+elements.prejoinContinueButton?.addEventListener("click", continueFromStudentPrejoin);
 elements.subscriptionDeclineButton?.addEventListener("click", () => {
   closeSubscriptionUpgradeModal();
   window.location.assign("./index.html");
@@ -2075,33 +2197,9 @@ if (!studentId || !studentName || !level) {
     "طالب جامعي": "طالب جامعي",
   };
   elements.classLevelLabel.textContent = levelDisplayLabels[level] || level;
-  setPlaceholder("جاري الدخول إلى الحصة", "سيظهر بث الأستاذ تلقائيًا عند توفر الحصة.");
+  setPlaceholder("جاري تجهيز الدخول إلى الحصة", "سيظهر بث الأستاذ بعد إكمال فحص الميكروفون.");
   updateMicControl();
   updateChatControls();
-  setViewerStatus("جاري الاتصال بالحصة…", "neutral");
-
-  // The parent dashboard may have already obtained this browser permission in
-  // the exact classroom-entry click. Reopen a disabled local track now without
-  // another prompt so teacher approval can work immediately later.
-  const micWasPreparedDuringEntry = sessionStorage.getItem("studentMicPreflight") === "granted";
-  sessionStorage.removeItem("studentMicPreflight");
-  if (micWasPreparedDuringEntry) {
-    void prepareStudentMicrophone();
-  }
-
-  // The viewer is opened only from a verified parent/student session. Join
-  // automatically so the learner receives the teacher's live screen and audio
-  // without having to discover or press an extra button.
-  // Whether the viewer was opened from the direct button or restored normally,
-  // wait for Socket.io instead of failing early when the page loads faster than
-  // the signaling connection.
-  initialAutoJoinPending = true;
-  if (directClassEntryRequested) {
-    elements.joinButton.hidden = true;
-    setViewerStatus("جارٍ الدخول إلى الحصة مباشرة…", "warning");
-  }
-
-  window.setTimeout(() => {
-    void joinClass();
-  }, 0);
+  setViewerStatus("بانتظار تجهيز الميكروفون…", "neutral");
+  void initializeStudentPrejoin();
 }
