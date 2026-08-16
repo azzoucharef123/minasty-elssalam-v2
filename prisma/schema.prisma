@@ -3,12 +3,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 model Student {
-  id            String   @id @default(uuid()) @db.Uuid
+  id            String   @id @default(uuid()) 
   studentName   String
   parentPhone   String
   level         String
@@ -51,13 +51,13 @@ model Student {
 }
 
 model StudentDocument {
-  id           String   @id @default(uuid()) @db.Uuid
-  studentId    String   @db.Uuid
+  id           String   @id @default(uuid()) 
+  studentId    String   
   kind         String
   originalName String
   mimeType     String
   fileSize     Int
-  data         Bytes
+  data         String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -68,13 +68,13 @@ model StudentDocument {
 }
 
 model Message {
-  id           String   @id @default(uuid()) @db.Uuid
-  studentId    String   @db.Uuid
+  id           String   @id @default(uuid()) 
+  studentId    String   
   senderId     String
   receiverId   String
   senderRole   String
   receiverRole String
-  content      String   @db.Text
+  content      String   
   createdAt    DateTime @default(now())
   isRead       Boolean  @default(false) @map("is_read")
 
@@ -86,12 +86,12 @@ model Message {
 }
 
 model Session {
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String   @id @default(uuid()) 
   tokenId   String   @unique
   role      String
   subjectId String?
-  studentId String?  @db.Uuid
-  userAgent String?  @db.Text
+  studentId String?  
+  userAgent String?  
   ipAddress String?
   createdAt DateTime @default(now())
   lastSeenAt DateTime @default(now())
@@ -105,16 +105,16 @@ model Session {
 }
 
 model AuditLog {
-  id         String   @id @default(uuid()) @db.Uuid
+  id         String   @id @default(uuid()) 
   actorRole  String
   actorId    String?
   action     String
   entityType String
   entityId   String?
-  studentId  String?  @db.Uuid
-  metadata   String?  @db.Text
+  studentId  String?  
+  metadata   String?  
   ipAddress  String?
-  userAgent  String?  @db.Text
+  userAgent  String?  
   createdAt  DateTime @default(now())
 
   student Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
@@ -126,13 +126,13 @@ model AuditLog {
 }
 
 model Notification {
-  id        String   @id @default(uuid()) @db.Uuid
-  studentId String?  @db.Uuid
+  id        String   @id @default(uuid()) 
+  studentId String?  
   recipientRole String
   recipientId String
   type      String
   title     String
-  body      String   @db.Text
+  body      String   
   link      String?
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -146,11 +146,11 @@ model Notification {
 }
 
 model PaymentEvent {
-  id        String   @id @default(uuid()) @db.Uuid
-  studentId String   @db.Uuid
+  id        String   @id @default(uuid()) 
+  studentId String   
   stage     String
   amount    Int?
-  note      String?  @db.Text
+  note      String?  
   receiptDocumentId String?
   actorRole String
   actorId   String?
@@ -163,7 +163,7 @@ model PaymentEvent {
 }
 
 model ScheduledClass {
-  id          String   @id @default(uuid()) @db.Uuid
+  id          String   @id @default(uuid()) 
   level       String
   subject     String
   scheduledAt DateTime
@@ -172,7 +172,7 @@ model ScheduledClass {
   status      String   @default("PENDING")
   driveLink   String?
   youtubeVideoId String?
-  notes       String?  @db.Text
+  notes       String?  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -195,8 +195,8 @@ model ParentCredential {
 }
 
 model LiveQuestionImage {
-  id        String   @id @default(uuid()) @db.Uuid
-  studentId String   @db.Uuid
+  id        String   @id @default(uuid()) 
+  studentId String   
   level     String
   fileName  String   @unique
   mimeType  String
@@ -209,8 +209,8 @@ model LiveQuestionImage {
 }
 
 model Attendance {
-  id        String   @id @default(uuid()) @db.Uuid
-  studentId String   @db.Uuid
+  id        String   @id @default(uuid()) 
+  studentId String   
   level     String
   joinedAt  DateTime @default(now())
 
@@ -221,7 +221,7 @@ model Attendance {
 }
 
 model Material {
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String   @id @default(uuid()) 
   title     String
   fileUrl   String
   level     String
@@ -231,7 +231,7 @@ model Material {
 }
 
 model LessonVideo {
-  id          String   @id @default(uuid()) @db.Uuid
+  id          String   @id @default(uuid()) 
   title       String
   level       String
   driveFileId String
@@ -248,9 +248,9 @@ model LessonVideo {
 }
 
 model LessonProgress {
-  id          String   @id @default(uuid()) @db.Uuid
-  studentId   String   @db.Uuid
-  lessonVideoId String @db.Uuid
+  id          String   @id @default(uuid()) 
+  studentId   String   
+  lessonVideoId String 
   watchedSeconds Int    @default(0)
   durationSeconds Int?
   completed   Boolean  @default(false)
@@ -266,9 +266,9 @@ model LessonProgress {
 }
 
 model Assignment {
-  id          String   @id @default(uuid()) @db.Uuid
+  id          String   @id @default(uuid()) 
   title       String
-  description String   @db.Text
+  description String   
   level       String
   subject     String
   dueAt       DateTime?
@@ -282,14 +282,14 @@ model Assignment {
 }
 
 model AssignmentSubmission {
-  id           String   @id @default(uuid()) @db.Uuid
-  assignmentId String   @db.Uuid
-  studentId    String   @db.Uuid
-  answerText   String?  @db.Text
+  id           String   @id @default(uuid()) 
+  assignmentId String   
+  studentId    String   
+  answerText   String?  
   attachmentUrl String?
   status       String   @default("SUBMITTED")
   grade        Float?
-  teacherNote  String?  @db.Text
+  teacherNote  String?  
   submittedAt  DateTime @default(now())
   gradedAt     DateTime?
 
@@ -302,15 +302,15 @@ model AssignmentSubmission {
 }
 
 model Question {
-  id          String   @id @default(uuid()) @db.Uuid
-  prompt      String   @db.Text
-  explanation String?  @db.Text
+  id          String   @id @default(uuid()) 
+  prompt      String   
+  explanation String?  
   level       String
   subject     String
   difficulty  String   @default("MEDIUM")
   questionType String  @default("MCQ")
-  optionsJson String?  @db.Text
-  answerJson  String?  @db.Text
+  optionsJson String?  
+  answerJson  String?  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -320,9 +320,9 @@ model Question {
 }
 
 model Assessment {
-  id          String   @id @default(uuid()) @db.Uuid
+  id          String   @id @default(uuid()) 
   title       String
-  description String?  @db.Text
+  description String?  
   level       String
   subject     String
   timeLimitSeconds Int?
@@ -337,8 +337,8 @@ model Assessment {
 }
 
 model AssessmentQuestion {
-  assessmentId String @db.Uuid
-  questionId  String @db.Uuid
+  assessmentId String 
+  questionId  String 
   position    Int    @default(0)
   points      Int    @default(1)
 
@@ -350,10 +350,10 @@ model AssessmentQuestion {
 }
 
 model AssessmentAttempt {
-  id           String   @id @default(uuid()) @db.Uuid
-  assessmentId String   @db.Uuid
-  studentId    String   @db.Uuid
-  answersJson  String   @db.Text
+  id           String   @id @default(uuid()) 
+  assessmentId String   
+  studentId    String   
+  answersJson  String   
   score        Float?
   submittedAt  DateTime?
   startedAt    DateTime @default(now())
@@ -367,10 +367,10 @@ model AssessmentAttempt {
 }
 
 model LearningPathItem {
-  id          String   @id @default(uuid()) @db.Uuid
-  studentId   String   @db.Uuid
+  id          String   @id @default(uuid()) 
+  studentId   String   
   title       String
-  description String?  @db.Text
+  description String?  
   subject     String
   position    Int      @default(0)
   status      String   @default("TODO")
@@ -384,11 +384,11 @@ model LearningPathItem {
 }
 
 model StudentBadge {
-  id        String   @id @default(uuid()) @db.Uuid
-  studentId String   @db.Uuid
+  id        String   @id @default(uuid()) 
+  studentId String   
   code      String
   title     String
-  description String? @db.Text
+  description String? 
   awardedAt DateTime @default(now())
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -398,14 +398,14 @@ model StudentBadge {
 }
 
 model Grade {
-  id        String   @id @default(uuid()) @db.Uuid
-  studentId String   @db.Uuid
+  id        String   @id @default(uuid()) 
+  studentId String   
   subject   String
   category  String
   title     String
   score     Float
   maxScore  Float    @default(100)
-  note      String?  @db.Text
+  note      String?  
   gradedAt  DateTime @default(now())
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -414,8 +414,8 @@ model Grade {
 }
 
 model ClassParticipation {
-  id                  String   @id @default(uuid()) @db.Uuid
-  studentId           String   @db.Uuid
+  id                  String   @id @default(uuid()) 
+  studentId           String   
   level               String
   subject             String
   sessionKey          String
@@ -432,7 +432,7 @@ model ClassParticipation {
 }
 
 model PublicRoomArchive {
-  id          String   @id @default(uuid()) @db.Uuid
+  id          String   @id @default(uuid()) 
   roomId      String   @unique
   title       String?
   startedAt   DateTime?
@@ -440,7 +440,7 @@ model PublicRoomArchive {
   recordingUrl String?
   recordingDriveFileId String?
   attendeeCount Int @default(0)
-  chatArchiveJson String? @db.Text
+  chatArchiveJson String? 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -450,8 +450,8 @@ model PublicRoomArchive {
 }
 
 model PublicRoomAttendance {
-  id        String   @id @default(uuid()) @db.Uuid
-  archiveId String   @db.Uuid
+  id        String   @id @default(uuid()) 
+  archiveId String   
   guestName String
   socketId  String?
   joinedAt  DateTime @default(now())
@@ -464,10 +464,10 @@ model PublicRoomAttendance {
 }
 
 model PushSubscription {
-  id           String   @id @default(uuid()) @db.Uuid
-  endpoint     String   @unique @db.Text
-  p256dh       String   @db.Text
-  auth         String   @db.Text
+  id           String   @id @default(uuid()) 
+  endpoint     String   @unique 
+  p256dh       String   
+  auth         String   
   recipientRole String
   recipientId  String
   createdAt    DateTime @default(now())
@@ -477,12 +477,12 @@ model PushSubscription {
 }
 
 model AnalyticsEvent {
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String   @id @default(uuid()) 
   eventType String
-  studentId String?  @db.Uuid
+  studentId String?  
   level     String?
   subject   String?
-  valueJson String?  @db.Text
+  valueJson String?  
   createdAt DateTime @default(now())
 
   @@index([eventType, createdAt(sort: Desc)])
@@ -492,8 +492,8 @@ model AnalyticsEvent {
 
 model YouTubeCredential {
   id           String   @id @default("singleton")
-  accessToken  String   @db.Text
-  refreshToken String   @db.Text
+  accessToken  String   
+  refreshToken String   
   expiryDate   BigInt
   updatedAt    DateTime @updatedAt
 }
