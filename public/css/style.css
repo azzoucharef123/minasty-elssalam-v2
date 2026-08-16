@@ -1076,6 +1076,9 @@ body.public-class-modal-open { overflow: hidden; }
 .class-registry-controls[hidden] { display: none; }
 .class-registry-filter-bar { display: grid; gap: .55rem; padding: .75rem; border: 1px solid #dbeafe; border-radius: .9rem; background: #ffffff; }
 .class-registry-filter-label { color: #334155; font-size: .75rem; font-weight: 900; }
+.class-registry-select { width: 100%; min-height: 2.65rem; padding: .55rem .75rem; color: #1e293b; background: #f8fbff; border: 1px solid #bfdbfe; border-radius: .7rem; font: inherit; font-size: .78rem; font-weight: 800; cursor: pointer; }
+.class-registry-select:focus { outline: 3px solid rgba(37, 99, 235, .2); outline-offset: 1px; border-color: #2563eb; }
+.class-registry-select:disabled { color: #94a3b8; background: #f8fafc; border-color: #e2e8f0; cursor: not-allowed; }
 .class-registry-options { display: flex; flex-wrap: wrap; gap: .55rem; }
 .class-registry-option { min-height: 2.55rem; padding: .55rem .8rem; color: #475569; background: #ffffff; border: 1px solid #cbd5e1; border-radius: .7rem; font: inherit; font-size: .73rem; font-weight: 800; cursor: pointer; transition: color .2s ease, background .2s ease, border-color .2s ease, transform .2s ease, box-shadow .2s ease; }
 .class-registry-option:hover { color: #1d4ed8; border-color: #93c5fd; background: #eff6ff; transform: translateY(-1px); }

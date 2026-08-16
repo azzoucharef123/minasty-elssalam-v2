@@ -7,12 +7,11 @@
   const toggle = $("class-registry-toggle");
   const toggleIcon = $("class-registry-toggle-icon");
   const controls = $("class-registry-controls");
-  const termOptions = $("registry-term-options");
-  const monthOptions = $("registry-month-options");
-  const subjectOptions = $("registry-subject-options");
+  const termSelect = $("registry-term-select");
+  const monthSelect = $("registry-month-select");
+  const subjectSelect = $("registry-subject-select");
   const list = $("parent-class-registry-list");
   const upsell = $("registry-upsell-modal");
-  const studentName = () => JSON.parse(sessionStorage.getItem("currentStudent") || "null")?.studentName || sessionStorage.getItem("studentName") || "التلميذ";
 
   let activeStudent = null;
   let isOpen = false;
@@ -117,8 +116,8 @@
   }
 
   function showMessage(message, className = "class-registry-empty") {
-    list?.replaceChildren();
     if (!list) return;
+    list.replaceChildren();
     const element = document.createElement("p");
     element.className = className;
     element.textContent = message;
@@ -128,59 +127,57 @@
   function showSelectionPrompt() {
     if (!isOpen) return;
     if (!term) return showMessage("اختر الفصل الدراسي أولاً.");
-    if (!month) return showMessage("اختر الشهر من الفصل المحدد.");
-    if (!subject) return showMessage("اختر المادة لعرض الحصص.");
+    if (!month) return showMessage("اختر الشهر من القائمة.");
+    if (!subject) return showMessage("اختر المادة من القائمة.");
     showMessage("جارٍ تحميل سجل الحصص…", "class-registry-loading");
   }
 
-  function createOptionButton({ value, label, kind, active = false, disabled = false }) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = `class-registry-option registry-${kind}-tab${active ? " is-active" : ""}`;
-    button.dataset[`registry${kind.charAt(0).toUpperCase()}${kind.slice(1)}`] = value;
-    button.setAttribute("role", "tab");
-    button.setAttribute("aria-selected", String(active));
-    button.disabled = disabled;
-    button.textContent = label;
-    return button;
+  function fillSelect(select, placeholder, options, selectedValue, disabled) {
+    if (!select) return;
+    select.replaceChildren();
+    const first = document.createElement("option");
+    first.value = "";
+    first.textContent = placeholder;
+    select.append(first);
+    options.forEach(({ value, label }) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      select.append(option);
+    });
+    select.disabled = disabled;
+    select.value = selectedValue || "";
   }
 
   function renderFilters() {
-    if (!termOptions || !monthOptions || !subjectOptions) return;
-    termOptions.replaceChildren();
-    Object.entries(TERMS).forEach(([value, data]) => {
-      termOptions.append(createOptionButton({ value, label: data.label, kind: "term", active: term === value }));
-    });
-
-    monthOptions.replaceChildren();
-    const months = getSelectedTerm()?.months || [];
-    if (!months.length) {
-      const placeholder = document.createElement("span");
-      placeholder.className = "class-registry-filter-placeholder";
-      placeholder.textContent = "اختر الفصل أولاً";
-      monthOptions.append(placeholder);
-    } else {
-      months.forEach((item) => monthOptions.append(createOptionButton({ value: item.value, label: item.label, kind: "month", active: month === item.value })));
-    }
-
-    subjectOptions.replaceChildren();
-    const choices = getSubjectChoices();
-    if (!month) {
-      const placeholder = document.createElement("span");
-      placeholder.className = "class-registry-filter-placeholder";
-      placeholder.textContent = "اختر الشهر أولاً";
-      subjectOptions.append(placeholder);
-    } else {
-      choices.forEach((item) => subjectOptions.append(createOptionButton({ value: item.value, label: item.label, kind: "subject", active: subject === item.value })));
-    }
-
+    fillSelect(
+      termSelect,
+      "اختر الفصل الدراسي",
+      Object.entries(TERMS).map(([value, data]) => ({ value, label: data.label })),
+      term,
+      false
+    );
+    fillSelect(
+      monthSelect,
+      term ? "اختر الشهر" : "اختر الفصل أولاً",
+      getSelectedTerm()?.months || [],
+      month,
+      !term
+    );
+    fillSelect(
+      subjectSelect,
+      month ? "اختر المادة" : "اختر الشهر أولاً",
+      getSubjectChoices(),
+      subject,
+      !month
+    );
     toggle?.setAttribute("aria-expanded", String(isOpen));
     if (toggleIcon) toggleIcon.textContent = isOpen ? "⌃" : "⌄";
   }
 
   function render(items) {
-    list?.replaceChildren();
     if (!list) return;
+    list.replaceChildren();
     if (!items.length) {
       showMessage(`لا توجد حصص مبرمجة في ${subjectLabels[subject] || "هذه المادة"} لهذا الشهر.`);
       return;
@@ -236,27 +233,6 @@
     }
   }
 
-  function selectTerm(value) {
-    term = term === value ? "" : value;
-    month = "";
-    subject = "";
-    renderFilters();
-    showSelectionPrompt();
-  }
-
-  function selectMonth(value) {
-    month = month === value ? "" : value;
-    subject = "";
-    renderFilters();
-    showSelectionPrompt();
-  }
-
-  function selectSubject(value) {
-    subject = subject === value ? "" : value;
-    renderFilters();
-    void load();
-  }
-
   function setOpen(nextOpen) {
     isOpen = Boolean(nextOpen);
     if (controls) controls.hidden = !isOpen;
@@ -266,17 +242,23 @@
   }
 
   toggle?.addEventListener("click", () => setOpen(!isOpen));
-  termOptions?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-registry-term]");
-    if (button) selectTerm(button.dataset.registryTerm);
+  termSelect?.addEventListener("change", () => {
+    term = termSelect.value;
+    month = "";
+    subject = "";
+    renderFilters();
+    showSelectionPrompt();
   });
-  monthOptions?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-registry-month]");
-    if (button && !button.disabled) selectMonth(button.dataset.registryMonth);
+  monthSelect?.addEventListener("change", () => {
+    month = monthSelect.value;
+    subject = "";
+    renderFilters();
+    showSelectionPrompt();
   });
-  subjectOptions?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-registry-subject]");
-    if (button && !button.disabled) selectSubject(button.dataset.registrySubject);
+  subjectSelect?.addEventListener("change", () => {
+    subject = subjectSelect.value;
+    renderFilters();
+    void load();
   });
 
   window.addEventListener("active-student-changed", (event) => {
