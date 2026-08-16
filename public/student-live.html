@@ -1014,6 +1014,80 @@
         }
       }
 
+      .student-mobile-controls {
+        position: fixed;
+        z-index: 40;
+        right: 1rem;
+        bottom: calc(1rem + env(safe-area-inset-bottom));
+        display: none;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.45rem;
+        pointer-events: none;
+      }
+
+      .student-mobile-control-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.85rem;
+        min-height: 2.85rem;
+        padding: 0.45rem 0.62rem;
+        color: #f8fafc;
+        background: rgba(15, 23, 42, 0.92);
+        border: 1px solid rgba(147, 197, 253, 0.52);
+        border-radius: 999px;
+        box-shadow: 0 8px 22px rgba(2, 6, 23, 0.38);
+        font: inherit;
+        font-size: 0.7rem;
+        font-weight: 800;
+        cursor: grab;
+        pointer-events: auto;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      .student-mobile-control-button:active {
+        cursor: grabbing;
+      }
+
+      .student-mobile-control-button:hover,
+      .student-mobile-control-button:focus-visible {
+        color: #ffffff;
+        background: #2563eb;
+        outline: none;
+      }
+
+      .student-mobile-control-toast {
+        position: fixed;
+        z-index: 45;
+        right: 50%;
+        bottom: calc(1rem + env(safe-area-inset-bottom));
+        max-width: min(90vw, 22rem);
+        padding: 0.68rem 0.85rem;
+        color: #f8fafc;
+        background: rgba(15, 23, 42, 0.94);
+        border: 1px solid rgba(147, 197, 253, 0.42);
+        border-radius: 0.7rem;
+        box-shadow: 0 12px 28px rgba(2, 6, 23, 0.32);
+        font-size: 0.72rem;
+        font-weight: 800;
+        line-height: 1.6;
+        text-align: center;
+        transform: translateX(50%);
+      }
+
+      .student-mobile-control-toast[hidden] {
+        display: none;
+      }
+
+      @media screen and (max-width: 900px) {
+        .student-mobile-controls {
+          display: flex;
+        }
+      }
+
       @media (prefers-reduced-motion: reduce) {
         .student-live-page *,
         .student-live-page *::before,
@@ -1094,6 +1168,12 @@
         </aside>
       </main>
 
+      <nav class="student-mobile-controls" aria-label="أدوات شاشة التلميذ">
+        <button id="student-refresh-fab" class="student-mobile-control-button" type="button" aria-label="تحديث الصفحة" title="تحديث الصفحة">↻</button>
+        <button id="student-rotate-btn" class="student-mobile-control-button" type="button" aria-label="تدوير الشاشة إلى الوضع الأفقي" title="تدوير الشاشة">⟳ تدوير</button>
+        <button id="student-unrotate-btn" class="student-mobile-control-button" type="button" aria-label="إلغاء تدوير الشاشة" title="إلغاء تدوير الشاشة" hidden>↺ إلغاء</button>
+      </nav>
+      <div id="student-mobile-control-toast" class="student-mobile-control-toast" role="status" aria-live="polite" hidden></div>
 
       <div id="subscription-upgrade-modal" class="subscription-upgrade-modal" role="dialog" aria-modal="true" aria-labelledby="subscription-upgrade-title" hidden>
         <section class="subscription-upgrade-dialog">
@@ -1124,6 +1204,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=textarea-chat-1"></script>
+    <script src="./js/student-live.js?v=mobile-controls-1"></script>
   </body>
 </html>

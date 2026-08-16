@@ -97,6 +97,10 @@ const elements = {
   subscriptionUpgradeHeadMessage: document.getElementById("subscription-upgrade-head-message"),
   subscriptionUpgradeMessage: document.getElementById("subscription-upgrade-message"),
   subscriptionDeclineButton: document.getElementById("subscription-decline-btn"),
+  refreshFab: document.getElementById("student-refresh-fab"),
+  rotateButton: document.getElementById("student-rotate-btn"),
+  unrotateButton: document.getElementById("student-unrotate-btn"),
+  mobileControlToast: document.getElementById("student-mobile-control-toast"),
 };
 
 function openSubscriptionUpgradeModal(reason = "university") {
@@ -240,6 +244,184 @@ function joinClassAutomaticallyFromLobby() {
 function setViewerStatus() {
   // The visual status tray was removed to keep the learner interface compact.
   // Connection and classroom operations continue without rendering a bottom notice.
+}
+
+const MOBILE_CONTROLS_POSITION_KEY = "studentMobileControlsPosition";
+let mobileControlDragState = null;
+let ignoreNextRefreshClick = false;
+let mobileToastTimer = null;
+
+function showMobileControlToast(message) {
+  if (!elements.mobileControlToast) return;
+  elements.mobileControlToast.textContent = message;
+  elements.mobileControlToast.hidden = false;
+  window.clearTimeout(mobileToastTimer);
+  mobileToastTimer = window.setTimeout(() => {
+    elements.mobileControlToast.hidden = true;
+  }, 3200);
+}
+
+function clampMobileControlPosition(left, top) {
+  const button = elements.refreshFab;
+  const margin = 8;
+  const maxLeft = Math.max(margin, window.innerWidth - (button?.offsetWidth || 48) - margin);
+  const maxTop = Math.max(margin, window.innerHeight - (button?.offsetHeight || 48) - margin);
+  return {
+    left: Math.min(Math.max(margin, Number(left) || margin), maxLeft),
+    top: Math.min(Math.max(margin, Number(top) || margin), maxTop),
+  };
+}
+
+function applyMobileControlPosition(position) {
+  if (!elements.refreshFab || !position) return;
+  const safePosition = clampMobileControlPosition(position.left, position.top);
+  elements.refreshFab.style.left = `${safePosition.left}px`;
+  elements.refreshFab.style.top = `${safePosition.top}px`;
+  elements.refreshFab.style.right = "auto";
+  elements.refreshFab.style.bottom = "auto";
+}
+
+function restoreMobileControlPosition() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(MOBILE_CONTROLS_POSITION_KEY) || "null");
+    if (stored && Number.isFinite(Number(stored.left)) && Number.isFinite(Number(stored.top))) {
+      applyMobileControlPosition(stored);
+    }
+  } catch {
+    // A malformed saved position should never block the classroom controls.
+  }
+}
+
+function saveMobileControlPosition() {
+  if (!elements.refreshFab) return;
+  const rect = elements.refreshFab.getBoundingClientRect();
+  localStorage.setItem(MOBILE_CONTROLS_POSITION_KEY, JSON.stringify({ left: rect.left, top: rect.top }));
+}
+
+function initializeRefreshFab() {
+  const button = elements.refreshFab;
+  if (!button) return;
+
+  restoreMobileControlPosition();
+  button.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    const rect = button.getBoundingClientRect();
+    mobileControlDragState = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+      moved: false,
+    };
+    button.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  });
+
+  button.addEventListener("pointermove", (event) => {
+    if (!mobileControlDragState || mobileControlDragState.pointerId !== event.pointerId) return;
+    const dx = event.clientX - mobileControlDragState.startX;
+    const dy = event.clientY - mobileControlDragState.startY;
+    if (Math.hypot(dx, dy) > 5) mobileControlDragState.moved = true;
+    if (!mobileControlDragState.moved) return;
+    applyMobileControlPosition({
+      left: event.clientX - mobileControlDragState.offsetX,
+      top: event.clientY - mobileControlDragState.offsetY,
+    });
+    event.preventDefault();
+  });
+
+  button.addEventListener("pointerup", (event) => {
+    if (!mobileControlDragState || mobileControlDragState.pointerId !== event.pointerId) return;
+    if (mobileControlDragState.moved) {
+      saveMobileControlPosition();
+      ignoreNextRefreshClick = true;
+      window.setTimeout(() => { ignoreNextRefreshClick = false; }, 250);
+    }
+    mobileControlDragState = null;
+    button.releasePointerCapture?.(event.pointerId);
+  });
+
+  button.addEventListener("pointercancel", () => {
+    mobileControlDragState = null;
+  });
+
+  button.addEventListener("click", () => {
+    if (ignoreNextRefreshClick) return;
+    window.location.reload();
+  });
+}
+
+function updateRotationControls() {
+  // Use the current viewport as the source of truth. In some Chrome emulator
+  // sessions screen.orientation.type can remain stale after a prior target.
+  const isLandscape = window.matchMedia?.("(orientation: landscape)").matches || false;
+  if (elements.rotateButton) elements.rotateButton.hidden = isLandscape;
+  if (elements.unrotateButton) elements.unrotateButton.hidden = !isLandscape;
+}
+
+async function lockStudentOrientation(orientation) {
+  if (!screen.orientation?.lock) {
+    showMobileControlToast("هذا المتصفح لا يدعم تدوير الشاشة من داخل الصفحة. أدر الهاتف يدويًا.");
+    return false;
+  }
+
+  try {
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      await document.documentElement.requestFullscreen();
+    }
+    await screen.orientation.lock(orientation);
+    updateRotationControls();
+    showMobileControlToast(orientation.startsWith("landscape") ? "تم تدوير الشاشة." : "تم إلغاء تدوير الشاشة.");
+    return true;
+  } catch (error) {
+    console.warn("Unable to lock student screen orientation:", error);
+    showMobileControlToast("لم يسمح المتصفح بالتدوير التلقائي. أدر الهاتف يدويًا.");
+    updateRotationControls();
+    return false;
+  }
+}
+
+async function rotateStudentScreen() {
+  await lockStudentOrientation("landscape");
+}
+
+async function unrotateStudentScreen() {
+  try {
+    if (screen.orientation?.lock) {
+      await screen.orientation.lock("portrait-primary");
+    } else if (screen.orientation?.unlock) {
+      screen.orientation.unlock();
+    }
+    if (document.fullscreenElement && document.exitFullscreen) {
+      await document.exitFullscreen();
+    }
+    updateRotationControls();
+    showMobileControlToast("تم إلغاء تدوير الشاشة.");
+  } catch (error) {
+    console.warn("Unable to unlock student screen orientation:", error);
+    if (screen.orientation?.unlock) screen.orientation.unlock();
+    updateRotationControls();
+    showMobileControlToast("أدر الهاتف يدويًا إلى الوضع العمودي.");
+  }
+}
+
+function initializeMobileControls() {
+  initializeRefreshFab();
+  elements.rotateButton?.addEventListener("click", () => { void rotateStudentScreen(); });
+  elements.unrotateButton?.addEventListener("click", () => { void unrotateStudentScreen(); });
+  screen.orientation?.addEventListener?.("change", updateRotationControls);
+  window.addEventListener("orientationchange", updateRotationControls);
+  window.addEventListener("resize", () => {
+    if (elements.refreshFab?.style.left) {
+      applyMobileControlPosition({
+        left: elements.refreshFab.getBoundingClientRect().left,
+        top: elements.refreshFab.getBoundingClientRect().top,
+      });
+    }
+    updateRotationControls();
+  });
+  updateRotationControls();
 }
 
 function setParticipationCount(value) {
@@ -1744,6 +1926,7 @@ elements.subscriptionDeclineButton?.addEventListener("click", () => {
   closeSubscriptionUpgradeModal();
   window.location.assign("./index.html");
 });
+initializeMobileControls();
 initializeStudentCanvas();
 
 window.addEventListener("pagehide", () => {
