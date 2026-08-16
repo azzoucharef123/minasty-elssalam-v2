@@ -74,7 +74,9 @@ app.use(
         "object-src": ["'none'"],
       },
     },
-    referrerPolicy: { policy: "no-referrer" },
+    // YouTube embedded players require a valid cross-origin Referer.
+    // Keep the policy privacy-conscious while sending only the origin cross-site.
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
   })
 );
 app.use((_req, res, next) => {

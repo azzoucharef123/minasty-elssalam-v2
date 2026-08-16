@@ -654,9 +654,11 @@ function openLessonVideo(video) {
   if (String(video.previewUrl).includes("youtube.com")) {
     elements.lessonVideoFrame.setAttribute("allow", "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share");
     elements.lessonVideoFrame.setAttribute("allowfullscreen", "true");
+    elements.lessonVideoFrame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
   } else {
     elements.lessonVideoFrame.removeAttribute("allow");
     elements.lessonVideoFrame.removeAttribute("allowfullscreen");
+    elements.lessonVideoFrame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
   }
   
   elements.lessonVideoFrame.src = video.previewUrl;

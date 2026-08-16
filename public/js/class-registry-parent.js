@@ -59,9 +59,11 @@
     if (videoUrl.includes("youtube.com")) {
       frame.setAttribute("allow", "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share");
       frame.setAttribute("allowfullscreen", "true");
+      frame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
     } else {
       frame.removeAttribute("allow");
       frame.removeAttribute("allowfullscreen");
+      frame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
     }
     
     frame.src = videoUrl;
