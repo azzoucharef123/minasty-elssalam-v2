@@ -780,6 +780,19 @@
         padding: 0.3rem 0.44rem;
       }
 
+      /* Mobile browsers zoom focused text controls whose font is smaller than
+         16px. Keep this rule scoped to the question field only so video pinch
+         zoom and the rest of the page remain unchanged. */
+      @media screen and (max-width: 900px) {
+        #chat-input {
+          min-height: 2.05rem;
+          font-size: 16px;
+          line-height: 1.35;
+          touch-action: manipulation;
+          -webkit-text-size-adjust: 100%;
+        }
+      }
+
       /* Live WebRTC has no useful seek position. Keep volume/fullscreen native
          controls while removing the misleading timeline and time labels. */
       #remote-video::-webkit-media-controls-timeline,
