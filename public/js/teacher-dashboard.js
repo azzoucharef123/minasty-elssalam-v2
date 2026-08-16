@@ -117,6 +117,10 @@ const elements = {
   assignmentFile: document.getElementById("assignment-file"),
   assignmentSubmit: document.getElementById("assignment-submit"),
   teacherAssignmentsList: document.getElementById("teacher-assignments-list"),
+  teacherSubmissionsModal: document.getElementById("teacher-submissions-modal"),
+  teacherSubmissionsModalClose: document.getElementById("teacher-submissions-modal-close"),
+  teacherSubmissionsAssignmentTitle: document.getElementById("teacher-submissions-assignment-title"),
+  teacherSubmissionsList: document.getElementById("teacher-submissions-list"),
   studentCertificatesModal: document.getElementById("student-certificates-modal"),
   studentCertificatesModalClose: document.getElementById("student-certificates-modal-close"),
   studentCertificatesStudentName: document.getElementById("student-certificates-student-name"),
@@ -155,6 +159,9 @@ let editingScheduledClassId = null;
 let scheduleManagerOpen = false;
 let lessonRepositoryOpen = false;
 let assignmentManagerOpen = false;
+let assignmentPastedImage = null;
+let assignmentPastedImageUrl = null;
+let activeSubmissionImageUrls = new Set();
 let paymentStatusStudentId = null;
 let lessonVideos = [];
 let googlePickerApiKey = null;
@@ -1603,13 +1610,12 @@ function renderAssignments(assignments = []) {
 
     const actions = document.createElement("div");
     actions.className = "teacher-assignment-actions";
-    if (assignment.attachmentUrl || assignment.attachmentMimeType) {
-      const attachmentButton = document.createElement("button");
-      attachmentButton.type = "button";
-      attachmentButton.textContent = "عرض ملف الواجب";
-      attachmentButton.addEventListener("click", () => void openTeacherAssignmentFile(assignment));
-      actions.append(attachmentButton);
-    }
+    const submissionsButton = document.createElement("button");
+    submissionsButton.type = "button";
+    submissionsButton.className = "btn-view-submissions";
+    submissionsButton.textContent = `أرى الحلول (${Number(assignment._count?.submissions) || 0})`;
+    submissionsButton.addEventListener("click", () => void openTeacherSubmissions(assignment));
+    actions.append(submissionsButton);
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
     deleteButton.className = "danger-action";
@@ -1637,32 +1643,60 @@ async function loadAssignments() {
   }
 }
 
+function clearAssignmentPastedImage() {
+  if (assignmentPastedImageUrl) URL.revokeObjectURL(assignmentPastedImageUrl);
+  assignmentPastedImage = null;
+  assignmentPastedImageUrl = null;
+  const preview = elements.assignmentDescription?.querySelector(".assignment-pasted-image");
+  preview?.remove();
+}
+
+function handleAssignmentDescriptionPaste(event) {
+  const imageItem = [...(event.clipboardData?.items || [])].find((item) => item.type.startsWith("image/"));
+  if (!imageItem) return;
+  const imageFile = imageItem.getAsFile();
+  if (!imageFile) return;
+  event.preventDefault();
+  clearAssignmentPastedImage();
+  assignmentPastedImage = imageFile;
+  assignmentPastedImageUrl = URL.createObjectURL(imageFile);
+  const image = document.createElement("img");
+  image.className = "assignment-pasted-image";
+  image.src = assignmentPastedImageUrl;
+  image.alt = "معاينة صورة الواجب الملصقة";
+  image.draggable = false;
+  elements.assignmentDescription?.append(image);
+}
+
+function resetAssignmentForm() {
+  elements.assignmentForm?.reset();
+  clearAssignmentPastedImage();
+  if (elements.assignmentDescription) elements.assignmentDescription.replaceChildren();
+}
+
 async function submitAssignment(event) {
   event.preventDefault();
   if (!elements.assignmentForm) return;
 
-  const title = elements.assignmentTitle?.value.trim();
-  const description = elements.assignmentDescription?.value.trim();
+  const description = elements.assignmentDescription?.innerText?.trim() || "";
   const subject = elements.assignmentSubject?.value;
-  if (!title || !description || !subject) {
-    showDashboardError("أدخل مادة الواجب وعنوانه ووصف التعليمات أولاً.");
+  if (!subject || (!description && !assignmentPastedImage)) {
+    showDashboardError("اختر المادة ثم اكتب التعليمات أو ألصق صورة الواجب.");
     return;
   }
 
   const formData = new FormData();
   formData.append("level", currentLevel);
   formData.append("subject", subject);
-  formData.append("title", title);
-  formData.append("description", description);
-  if (elements.assignmentDueAt?.value) formData.append("dueAt", elements.assignmentDueAt.value);
-  if (elements.assignmentFile?.files?.[0]) formData.append("file", elements.assignmentFile.files[0]);
+  if (description) formData.append("description", description);
+  if (assignmentPastedImage) formData.append("instructionImage", assignmentPastedImage, "homework-image.png");
 
   if (elements.assignmentSubmit) elements.assignmentSubmit.disabled = true;
   try {
     const response = await teacherFetch("/api/academic/assignments", { method: "POST", body: formData });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || "تعذر نشر الواجب.");
-    elements.assignmentForm.reset();
+    resetAssignmentForm();
     showToast(payload.message || "تم نشر الواجب بنجاح.");
     await loadAssignments();
   } catch (error) {
@@ -1694,6 +1728,122 @@ async function openTeacherAssignmentFile(assignment) {
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   } catch (error) {
     showDashboardError(error.message || "تعذر فتح ملف الواجب.");
+  }
+}
+
+function closeTeacherSubmissions() {
+  for (const url of activeSubmissionImageUrls) URL.revokeObjectURL(url);
+  activeSubmissionImageUrls.clear();
+  elements.teacherSubmissionsModal?.classList.remove("is-open");
+  if (elements.teacherSubmissionsModal) elements.teacherSubmissionsModal.hidden = true;
+  if (elements.teacherSubmissionsList) elements.teacherSubmissionsList.replaceChildren();
+}
+
+async function openTeacherSubmissionFile(submission, container) {
+  if (!submission?.id || !container) return;
+  const existing = container.querySelector(".teacher-submission-preview");
+  if (existing) {
+    existing.remove();
+    return;
+  }
+  try {
+    const response = await teacherFetch(`/api/academic/submissions/${encodeURIComponent(submission.id)}/file`, { headers: { Accept: "*/*" } });
+    if (!response.ok) throw new Error("تعذر فتح صورة الحل.");
+    const mimeType = submission.attachmentMimeType || response.headers.get("Content-Type") || "image/*";
+    const blob = new Blob([await response.arrayBuffer()], { type: mimeType });
+    const imageUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("تعذر تجهيز صورة الحل."));
+      reader.readAsDataURL(blob);
+    });
+    const image = document.createElement("img");
+    image.className = "teacher-submission-preview";
+    image.src = imageUrl;
+    image.alt = `حل التلميذ ${submission.student?.studentName || ""}`;
+    image.loading = "lazy";
+    container.append(image);
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) showDashboardError(error.message || "تعذر فتح صورة الحل.");
+  }
+}
+
+async function receiveTeacherSubmission(submissionId) {
+  if (!submissionId) return;
+  try {
+    const response = await teacherFetch(`/api/academic/submissions/${encodeURIComponent(submissionId)}/receive`, { method: "PUT", headers: { Accept: "application/json" } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر تأكيد استلام الحل.");
+    showToast(payload.message || "تم تأكيد استلام الحل.");
+    const assignmentId = elements.teacherSubmissionsModal?.dataset.assignmentId;
+    if (assignmentId) {
+      const assignment = { id: assignmentId, title: elements.teacherSubmissionsAssignmentTitle?.textContent || "الواجب" };
+      await openTeacherSubmissions(assignment);
+    }
+    await loadAssignments();
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) showDashboardError(error.message || "تعذر تأكيد استلام الحل.");
+  }
+}
+
+async function openTeacherSubmissions(assignment) {
+  if (!assignment?.id || !elements.teacherSubmissionsModal || !elements.teacherSubmissionsList) return;
+  elements.teacherSubmissionsModal.dataset.assignmentId = assignment.id;
+  elements.teacherSubmissionsAssignmentTitle.textContent = assignment.title || "حلول الواجب";
+  elements.teacherSubmissionsList.replaceChildren(Object.assign(document.createElement("p"), { className: "teacher-assignment-empty", textContent: "جارٍ تحميل الحلول…" }));
+  elements.teacherSubmissionsModal.hidden = false;
+  elements.teacherSubmissionsModal.classList.add("is-open");
+  try {
+    const response = await teacherFetch(`/api/academic/assignments/${encodeURIComponent(assignment.id)}/submissions`, { headers: { Accept: "application/json" } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر تحميل حلول التلاميذ.");
+    const submissions = Array.isArray(payload.data) ? payload.data : [];
+    elements.teacherSubmissionsList.replaceChildren();
+    if (!submissions.length) {
+      elements.teacherSubmissionsList.append(Object.assign(document.createElement("p"), { className: "teacher-assignment-empty", textContent: "لم يرسل أي تلميذ حلاً بعد." }));
+      return;
+    }
+    for (const submission of submissions) {
+      const card = document.createElement("article");
+      card.className = "teacher-submission-card";
+      const header = document.createElement("div");
+      header.className = "teacher-submission-head";
+      const name = document.createElement("strong");
+      name.textContent = submission.student?.studentName || "تلميذ";
+      const status = document.createElement("span");
+      status.className = `teacher-submission-status ${submission.status === "RECEIVED" || submission.status === "GRADED" ? "is-received" : "is-pending"}`;
+      status.textContent = submission.status === "RECEIVED" || submission.status === "GRADED" ? "تم تأكيد الاستلام" : "حل جديد";
+      header.append(name, status);
+      card.append(header);
+      if (submission.answerText) {
+        const answer = document.createElement("p");
+        answer.className = "teacher-submission-answer";
+        answer.textContent = submission.answerText;
+        card.append(answer);
+      }
+      const actions = document.createElement("div");
+      actions.className = "teacher-submission-actions";
+      if (submission.attachmentUrl || submission.attachmentMimeType) {
+        const view = document.createElement("button");
+        view.type = "button";
+        view.className = "btn-view-submissions";
+        view.textContent = "أرى الحل";
+        view.addEventListener("click", () => void openTeacherSubmissionFile(submission, card));
+        actions.append(view);
+      }
+      if (submission.status !== "RECEIVED" && submission.status !== "GRADED") {
+        const receive = document.createElement("button");
+        receive.type = "button";
+        receive.className = "confirm-receipt-btn";
+        receive.textContent = "تأكيد الاستلام";
+        receive.addEventListener("click", () => void receiveTeacherSubmission(submission.id));
+        actions.append(receive);
+      }
+      card.append(actions);
+      elements.teacherSubmissionsList.append(card);
+    }
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) elements.teacherSubmissionsList.replaceChildren(Object.assign(document.createElement("p"), { className: "teacher-assignment-empty", textContent: error.message || "تعذر تحميل الحلول." }));
   }
 }
 
@@ -2441,9 +2591,12 @@ if (!getTeacherToken()) {
   elements.scheduleForm?.addEventListener("submit", saveScheduledClass);
   elements.lessonVideoForm?.addEventListener("submit", saveLessonVideo);
   elements.assignmentForm?.addEventListener("submit", submitAssignment);
+  elements.assignmentDescription?.addEventListener("paste", handleAssignmentDescriptionPaste);
   elements.scheduleManagerToggle?.addEventListener("click", () => setScheduleManagerOpen(!scheduleManagerOpen));
   elements.lessonRepositoryToggle?.addEventListener("click", () => setLessonRepositoryOpen(!lessonRepositoryOpen));
   elements.assignmentManagerToggle?.addEventListener("click", () => setAssignmentManagerOpen(!assignmentManagerOpen));
+  elements.teacherSubmissionsModalClose?.addEventListener("click", closeTeacherSubmissions);
+  elements.teacherSubmissionsModal?.addEventListener("click", (event) => { if (event.target === elements.teacherSubmissionsModal) closeTeacherSubmissions(); });
   elements.scheduleCancelButton?.addEventListener("click", resetScheduleForm);
   elements.teacherAbsenceButton?.addEventListener("click", () => void toggleTeacherAbsence());
   elements.subscriptionForm?.addEventListener("submit", saveSubscription);

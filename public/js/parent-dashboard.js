@@ -185,6 +185,7 @@ function homeworkSubjectLabel(subject) {
 
 function homeworkStatusMeta(submission) {
   if (!submission) return { label: "لم يُرسل الحل بعد", className: "status-pending" };
+  if (submission.status === "RECEIVED") return { label: "تم تأكيد استلام الحل", className: "status-received" };
   if (submission.status === "GRADED") return { label: "تم التصحيح", className: "status-graded" };
   return { label: "تم إرسال الحل", className: "status-submitted" };
 }
@@ -296,42 +297,46 @@ function readHomeworkBlobAsDataUrl(blob) {
   });
 }
 
-function resolveHomeworkFileMimeType(assignment, response) {
-  const responseType = String(response.headers.get("Content-Type") || "").split(";", 1)[0].trim().toLowerCase();
-  const storedType = String(assignment?.attachmentMimeType || "").split(";", 1)[0].trim().toLowerCase();
-  const filename = String(assignment?.attachmentOriginalName || "").toLowerCase();
-  const extensionTypes = {
-    png: "image/png",
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    webp: "image/webp",
-    gif: "image/gif",
-    bmp: "image/bmp",
-    avif: "image/avif",
-    pdf: "application/pdf",
+function homeworkFileMeta(assignment, source = "attachment") {
+  const instruction = source === "instruction";
+  return {
+    url: instruction ? `/api/academic/assignments/${encodeURIComponent(assignment.id)}/instruction-image` : (assignment.attachmentUrl || `/api/academic/assignments/${encodeURIComponent(assignment.id)}/file`),
+    mimeType: instruction ? assignment.instructionImageMimeType : assignment.attachmentMimeType,
+    originalName: instruction ? assignment.instructionImageOriginalName : assignment.attachmentOriginalName,
   };
+}
+
+function resolveHomeworkFileMimeType(assignment, response, source = "attachment") {
+  const meta = homeworkFileMeta(assignment, source);
+  const responseType = String(response.headers.get("Content-Type") || "").split(";", 1)[0].trim().toLowerCase();
+  const storedType = String(meta.mimeType || "").split(";", 1)[0].trim().toLowerCase();
+  const filename = String(meta.originalName || "").toLowerCase();
+  const extensionTypes = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", bmp: "image/bmp", avif: "image/avif", pdf: "application/pdf" };
   const extension = filename.match(/\.([a-z0-9]+)$/i)?.[1];
   return storedType && storedType !== "application/octet-stream"
     ? storedType
     : extensionTypes[extension] || (responseType && responseType !== "application/octet-stream" ? responseType : "application/octet-stream");
 }
 
-async function openStudentHomeworkFile(assignment) {
+async function fetchHomeworkPreview(assignment, source = "attachment") {
+  const meta = homeworkFileMeta(assignment, source);
+  const response = await parentFetch(meta.url, { headers: { Accept: "*/*" } });
+  if (!response.ok) throw new Error("تعذر فتح صورة الواجب.");
+  const mimeType = resolveHomeworkFileMimeType(assignment, response, source);
+  const fileBytes = await response.arrayBuffer();
+  const blob = new Blob([fileBytes], { type: mimeType });
+  const isImage = mimeType.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(meta.originalName || "");
+  const isPdf = mimeType.includes("pdf") || /\.pdf$/i.test(meta.originalName || "");
+  const url = isImage ? await readHomeworkBlobAsDataUrl(blob) : URL.createObjectURL(blob);
+  return { url, mimeType, isImage, isPdf };
+}
+
+async function openStudentHomeworkFile(assignment, source = "attachment") {
   if (!assignment?.id || !elements.studentHomeworkFileModal) return;
   try {
     closeStudentHomeworkFile();
-    const response = assignment.attachmentUrl
-      ? await parentFetch(assignment.attachmentUrl, { headers: { Accept: "*/*" } })
-      : await parentFetch(`/api/academic/assignments/${encodeURIComponent(assignment.id)}/file`, { headers: { Accept: "*/*" } });
-    if (!response.ok) throw new Error("تعذر فتح ملف الواجب.");
-    const mimeType = resolveHomeworkFileMimeType(assignment, response);
-    const fileBytes = await response.arrayBuffer();
-    const blob = new Blob([fileBytes], { type: mimeType });
-    const isImage = mimeType.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(assignment.attachmentOriginalName || "");
-    const isPdf = mimeType.includes("pdf") || /\.pdf$/i.test(assignment.attachmentOriginalName || "");
-    // Data URLs avoid mobile Chromium treating an authenticated blob response
-    // as an external download or rendering it as a broken image.
-    homeworkFileObjectUrl = isImage ? await readHomeworkBlobAsDataUrl(blob) : URL.createObjectURL(blob);
+    const { url, mimeType, isImage, isPdf } = await fetchHomeworkPreview(assignment, source);
+    homeworkFileObjectUrl = url;
     if (elements.studentHomeworkFileTitle) elements.studentHomeworkFileTitle.textContent = assignment.title || "معاينة الواجب";
     if (elements.studentHomeworkFileImage) {
       elements.studentHomeworkFileImage.hidden = !isImage;
@@ -401,12 +406,10 @@ function renderStudentHomework(assignments = []) {
 
     const head = document.createElement("div");
     head.className = "student-homework-head";
-    const title = document.createElement("h4");
-    title.textContent = assignment.title || "واجب";
     const statusBadge = document.createElement("span");
     statusBadge.className = `student-homework-status ${status.className}`;
     statusBadge.textContent = status.label;
-    head.append(title, statusBadge);
+    head.append(statusBadge);
 
     const subject = document.createElement("small");
     subject.className = "homework-subject";
@@ -422,13 +425,23 @@ function renderStudentHomework(assignments = []) {
     due.textContent = formatHomeworkDueDate(assignment.dueAt);
     footer.append(subject, due);
 
-    if (assignment.attachmentUrl || assignment.attachmentMimeType) {
-      const fileButton = document.createElement("button");
-      fileButton.type = "button";
-      fileButton.className = "homework-action-btn btn-view-attachment";
-      fileButton.textContent = "عرض ملف الواجب";
-      fileButton.addEventListener("click", () => void openStudentHomeworkFile(assignment));
-      footer.append(fileButton);
+    let instructionPreview = null;
+    if (assignment.instructionImageMimeType) {
+      instructionPreview = document.createElement("button");
+      instructionPreview.type = "button";
+      instructionPreview.className = "student-homework-instruction-preview";
+      instructionPreview.setAttribute("aria-label", "تكبير صورة الواجب");
+      const instructionImage = document.createElement("img");
+      instructionImage.alt = "صورة الواجب";
+      instructionImage.loading = "lazy";
+      instructionImage.decoding = "async";
+      instructionPreview.append(instructionImage);
+      instructionPreview.addEventListener("click", () => void openStudentHomeworkFile(assignment, "instruction"));
+      void fetchHomeworkPreview(assignment, "instruction").then(({ url, isImage }) => {
+        if (isImage) instructionImage.src = url;
+      }).catch(() => {
+        instructionPreview.hidden = true;
+      });
     }
 
     if (!submission) {
@@ -462,7 +475,9 @@ function renderStudentHomework(assignments = []) {
         void submitHomeworkSolution(assignment.id, solutionForm, submit);
       });
       footer.append(solutionButton);
-      item.append(head, subject, description, footer, solutionForm);
+      item.append(head, subject, description);
+      if (instructionPreview) item.append(instructionPreview);
+      item.append(footer, solutionForm);
     } else {
       if (submission.grade != null) {
         const grade = document.createElement("strong");
@@ -470,7 +485,9 @@ function renderStudentHomework(assignments = []) {
         grade.textContent = `العلامة: ${submission.grade}`;
         footer.append(grade);
       }
-      item.append(head, subject, description, footer);
+      item.append(head, subject, description);
+      if (instructionPreview) item.append(instructionPreview);
+      item.append(footer);
     }
     elements.studentHomeworkList.append(item);
   });

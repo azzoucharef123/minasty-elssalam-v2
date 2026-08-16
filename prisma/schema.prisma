@@ -279,6 +279,9 @@ model Assignment {
   attachmentData Bytes?
   attachmentMimeType String?
   attachmentOriginalName String?
+  instructionImageData Bytes?
+  instructionImageMimeType String?
+  instructionImageOriginalName String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -297,6 +300,7 @@ model AssignmentSubmission {
   attachmentMimeType String?
   attachmentOriginalName String?
   status       String   @default("SUBMITTED")
+  receivedAt   DateTime?
   grade        Float?
   teacherNote  String?  @db.Text
   submittedAt  DateTime @default(now())

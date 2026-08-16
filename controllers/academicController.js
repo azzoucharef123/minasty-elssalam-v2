@@ -96,22 +96,27 @@ async function createAssignment(req, res) {
   const requestedLevel = text(req.body?.level, 100);
   const level = normalizeAssignmentLevel(requestedLevel);
   const subject = text(req.body?.subject, 40).toUpperCase();
-  const title = text(req.body?.title, 160);
+  const subjectTitle = subject === "PHYSICS" ? "الفيزياء" : subject === "MATH" ? "الرياضيات" : "واجب";
+  const title = text(req.body?.title, 160) || `واجب ${subjectTitle}`;
   const description = text(req.body?.description, 10000);
-  if (!ASSIGNMENT_CANONICAL_LEVELS.has(level) || !SUBJECTS.has(subject) || !title || !description) return res.status(400).json({ error: "أدخل المستوى والمادة وعنوان الواجب ووصفه." });
+  const instructionImage = Array.isArray(req.files?.instructionImage) ? req.files.instructionImage[0] : null;
+  const file = Array.isArray(req.files?.file) ? req.files.file[0] : req.file;
+  if (!ASSIGNMENT_CANONICAL_LEVELS.has(level) || !SUBJECTS.has(subject) || (!description && !instructionImage)) return res.status(400).json({ error: "اختر المادة ثم اكتب التعليمات أو ألصق صورة الواجب." });
 
-  const file = req.file;
   const assignment = await prisma.assignment.create({
     data: {
       level,
       subject,
       title,
-      description,
-      dueAt: req.body?.dueAt ? new Date(req.body.dueAt) : null,
+      description: description || "صورة الواجب مرفقة داخل التعليمات.",
+      dueAt: null,
       attachmentUrl: text(req.body?.attachmentUrl, 1000) || null,
       attachmentData: file ? file.buffer : null,
       attachmentMimeType: file ? file.mimetype : null,
       attachmentOriginalName: file ? file.originalname : null,
+      instructionImageData: instructionImage ? instructionImage.buffer : null,
+      instructionImageMimeType: instructionImage ? instructionImage.mimetype : null,
+      instructionImageOriginalName: instructionImage ? instructionImage.originalname : null,
     }
   });
   void logAudit(req, { action: "ASSIGNMENT_CREATED", entityType: "Assignment", entityId: assignment.id, metadata: { requestedLevel, level, subject } });
@@ -135,6 +140,8 @@ async function listTeacherAssignments(req, res) {
       attachmentUrl: true,
       attachmentMimeType: true,
       attachmentOriginalName: true,
+      instructionImageMimeType: true,
+      instructionImageOriginalName: true,
       createdAt: true,
       updatedAt: true,
       _count: { select: { submissions: true } },
@@ -160,12 +167,14 @@ async function listAssignments(req, res) {
       attachmentUrl: true,
       attachmentMimeType: true,
       attachmentOriginalName: true,
+      instructionImageMimeType: true,
+      instructionImageOriginalName: true,
       createdAt: true,
       updatedAt: true,
       submissions: {
         where: { studentId: student.id },
         take: 1,
-        select: { id: true, status: true, grade: true, teacherNote: true, submittedAt: true, gradedAt: true, attachmentUrl: true, attachmentMimeType: true, attachmentOriginalName: true, answerText: true },
+        select: { id: true, status: true, receivedAt: true, grade: true, teacherNote: true, submittedAt: true, gradedAt: true, attachmentUrl: true, attachmentMimeType: true, attachmentOriginalName: true, answerText: true },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -208,8 +217,37 @@ async function submitAssignment(req, res) {
 async function listSubmissions(req, res) {
   if (!requireTeacher(req, res)) return;
   const assignmentId = text(req.params.assignmentId, 80);
-  const submissions = await prisma.assignmentSubmission.findMany({ where: { assignmentId }, include: { student: { select: { id: true, studentName: true, level: true } } }, orderBy: { submittedAt: "desc" } });
+  const submissions = await prisma.assignmentSubmission.findMany({
+    where: { assignmentId },
+    select: {
+      id: true,
+      studentId: true,
+      answerText: true,
+      attachmentUrl: true,
+      attachmentMimeType: true,
+      attachmentOriginalName: true,
+      status: true,
+      receivedAt: true,
+      grade: true,
+      teacherNote: true,
+      submittedAt: true,
+      gradedAt: true,
+      student: { select: { id: true, studentName: true, level: true } },
+    },
+    orderBy: { submittedAt: "desc" },
+  });
   return res.json({ status: "success", data: submissions });
+}
+
+async function receiveSubmission(req, res) {
+  if (!requireTeacher(req, res)) return;
+  const submission = await prisma.assignmentSubmission.update({
+    where: { id: text(req.params.submissionId, 80) },
+    data: { status: "RECEIVED", receivedAt: new Date() },
+    select: { id: true, status: true, receivedAt: true, studentId: true },
+  });
+  void logAudit(req, { action: "ASSIGNMENT_SUBMISSION_RECEIVED", entityType: "AssignmentSubmission", entityId: submission.id, studentId: submission.studentId });
+  return res.json({ status: "success", message: "تم تأكيد استلام الحل وتسجيله للتلميذ.", data: submission });
 }
 
 async function gradeSubmission(req, res) {
@@ -348,6 +386,16 @@ async function getTeacherAnalytics(req, res) {
   return res.json({ status: "success", data: { from, to, students, attendance, submissions, gradeCount: grades.length, averageGrade: average, events } });
 }
 
+async function getAssignmentInstructionImage(req, res) {
+  const assignment = await prisma.assignment.findUnique({ where: { id: text(req.params.assignmentId, 80) } });
+  if (!assignment || !assignment.instructionImageData) return res.status(404).json({ error: "صورة التعليمات غير موجودة." });
+  const fileBuffer = asBinaryBuffer(assignment.instructionImageData);
+  res.setHeader("Content-Type", assignment.instructionImageMimeType || "application/octet-stream");
+  res.setHeader("Content-Length", String(fileBuffer.length));
+  res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(assignment.instructionImageOriginalName || "homework-image")}"`);
+  return res.end(fileBuffer);
+}
+
 async function getAssignmentFile(req, res) {
   const assignment = await prisma.assignment.findUnique({ where: { id: text(req.params.assignmentId, 80) } });
   if (!assignment || !assignment.attachmentData) return res.status(404).json({ error: "الملف غير موجود." });
@@ -400,6 +448,8 @@ module.exports = {
   listAuditLogs,
   bulkUpdateStudents,
   getAssignmentFile,
+  getAssignmentInstructionImage,
   getSubmissionFile,
+  receiveSubmission,
   deleteAssignment,
 };

@@ -23,7 +23,9 @@ const {
   listAuditLogs,
   bulkUpdateStudents,
   getAssignmentFile,
+  getAssignmentInstructionImage,
   getSubmissionFile,
+  receiveSubmission,
   deleteAssignment,
 } = require("../controllers/academicController");
 
@@ -46,11 +48,13 @@ router.get("/students/:studentId/assessments", listAssessments);
 router.post("/students/:studentId/assessments/:assessmentId/submit", submitAssessment);
 
 router.get("/assignments", isTeacher, listTeacherAssignments);
-router.post("/assignments", isTeacher, upload.single("file"), createAssignment);
+router.post("/assignments", isTeacher, upload.fields([{ name: "instructionImage", maxCount: 1 }, { name: "file", maxCount: 1 }]), createAssignment);
 router.get("/assignments/:assignmentId/file", getAssignmentFile);
+router.get("/assignments/:assignmentId/instruction-image", getAssignmentInstructionImage);
 router.delete("/assignments/:assignmentId", isTeacher, deleteAssignment);
 router.get("/assignments/:assignmentId/submissions", listSubmissions);
 router.get("/submissions/:submissionId/file", getSubmissionFile);
+router.put("/submissions/:submissionId/receive", receiveSubmission);
 router.put("/submissions/:submissionId/grade", gradeSubmission);
 router.post("/questions", createQuestion);
 router.post("/assessments", createAssessment);

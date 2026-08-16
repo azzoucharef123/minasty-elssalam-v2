@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./css/style.css?v=homework-collapse-1" />
+  <link rel="stylesheet" href="./css/style.css?v=homework-paste-1" />
   <link rel="stylesheet" href="./css/app.css" />
   <link rel="stylesheet" href="./css/private-messages.css" />
   <link rel="stylesheet" href="./css/payment-feedback.css" />
@@ -138,11 +138,11 @@
           <form id="assignment-form" class="assignment-form stack-form" novalidate>
             <div class="form-row">
               <label>المادة<select id="assignment-subject" required><option value="MATH">الرياضيات</option><option value="PHYSICS">الفيزياء</option></select></label>
-              <label>تاريخ التسليم<input id="assignment-due-at" type="date" /></label>
             </div>
-            <label>عنوان الواجب<input id="assignment-title" type="text" maxlength="160" placeholder="مثال: واجب منزلي رقم 1 - الميكانيك" required /></label>
-            <label>وصف التعليمات<textarea id="assignment-description" rows="3" placeholder="اكتب تعليمات الواجب هنا..." required></textarea></label>
-            <label>ملف الواجب (PDF أو صورة)<input id="assignment-file" type="file" accept="application/pdf,image/png,image/jpeg" /></label>
+            <label>وصف التعليمات
+              <div id="assignment-description" class="assignment-paste-editor" contenteditable="true" role="textbox" aria-label="وصف تعليمات الواجب" data-placeholder="اكتب التعليمات أو ألصق صورة الواجب هنا…"></div>
+              <small class="assignment-paste-help">يمكنك نسخ صورة الواجب ثم لصقها هنا مباشرةً من الحاسوب أو الهاتف.</small>
+            </label>
             <button id="assignment-submit" class="cta-button cta-primary" type="submit">نشر الواجب</button>
           </form>
           <div id="teacher-assignments-list" class="teacher-assignments-list" aria-live="polite"></div>
@@ -163,13 +163,14 @@
   <div id="confirm-delete-modal" class="modal confirm-delete-modal" hidden><div class="modal-card confirm-delete-card" role="dialog" aria-modal="true" aria-labelledby="confirm-delete-title"><button id="close-confirm-delete" class="modal-close" type="button" aria-label="إغلاق">×</button><span class="confirm-delete-icon" aria-hidden="true">!</span><p class="eyebrow">إجراء نهائي</p><h2 id="confirm-delete-title">هل أنت متأكد من حذف هذا التلميذ؟</h2><p id="confirm-delete-message">سيتم حذف بيانات الحساب وسجل الحضور نهائيًا ولا يمكن التراجع عن هذا الإجراء.</p><div class="confirm-delete-actions"><button id="cancel-confirm-delete" class="confirm-delete-cancel" type="button">إلغاء</button><button id="approve-confirm-delete" class="confirm-delete-approve" type="button">نعم، احذف التلميذ</button></div></div></div>
   <div id="class-registry-action-modal" class="modal class-registry-action-modal" hidden><div class="modal-card class-registry-modal-card" role="dialog" aria-modal="true" aria-labelledby="class-registry-action-title"><button id="class-registry-action-close" class="modal-close" type="button" aria-label="إغلاق">×</button><p class="eyebrow">تحديث سجل الحصة</p><h2 id="class-registry-action-title">تحديث الحصة</h2><form id="class-registry-action-form" class="stack-form"><div id="class-registry-youtube-field" class="class-registry-youtube-field"><button id="class-registry-youtube-picker" class="youtube-picker-button" type="button">اختيار فيديو من قناتي على YouTube</button><span id="class-registry-youtube-selected" class="youtube-selected-video" aria-live="polite">لم يتم اختيار فيديو YouTube</span><input id="class-registry-youtube-video-id" type="hidden" /></div><label id="class-registry-drive-field">رابط تسجيل Google Drive<input id="class-registry-drive-link" type="url" inputmode="url" placeholder="https://drive.google.com/file/d/.../view" /></label><label id="class-registry-notes-field">ملاحظة أو سبب الغياب<textarea id="class-registry-notes" rows="4" maxlength="2000" placeholder="اكتب ملاحظة قصيرة…"></textarea></label><button class="cta-button cta-primary" type="submit">حفظ التحديث</button></form></div></div><div id="youtube-video-picker-modal" class="modal" hidden><div class="modal-card youtube-video-picker-card" role="dialog" aria-modal="true" aria-labelledby="youtube-video-picker-title"><button id="youtube-video-picker-close" class="modal-close" type="button" aria-label="إغلاق">×</button><p class="eyebrow">قناة الأستاذ</p><h2 id="youtube-video-picker-title">اختر فيديو الحصة</h2><p class="youtube-picker-note">ستُحفظ الحصة كرابط غير مدرج ويشاهدها التلاميذ المؤهلون داخل الأكاديمية.</p><div id="youtube-video-picker-list" class="youtube-video-picker-list" aria-live="polite"></div></div></div>
   <div id="document-feedback-modal" class="document-feedback-modal" role="dialog" aria-modal="true" aria-labelledby="document-feedback-title" hidden><section class="document-feedback-dialog"><div class="document-feedback-head"><span class="document-feedback-icon" aria-hidden="true">!</span><div><h2 id="document-feedback-title">تعذر إتمام العملية</h2><p>راجع وثيقة الدفع وحاول مرة أخرى.</p></div></div><div id="document-feedback-message" class="document-feedback-body"></div><button id="document-feedback-close" class="document-feedback-close" type="button">إغلاق</button></section></div>
+  <div id="teacher-submissions-modal" class="modal teacher-submissions-modal" role="dialog" aria-modal="true" aria-labelledby="teacher-submissions-title" hidden><div class="modal-card teacher-submissions-card"><button id="teacher-submissions-modal-close" class="modal-close" type="button" aria-label="إغلاق">×</button><p class="eyebrow">حلول التلاميذ</p><h2 id="teacher-submissions-title">أرى الحلول</h2><p id="teacher-submissions-assignment-title" class="teacher-submissions-assignment-title"></p><div id="teacher-submissions-list" class="teacher-submissions-list" aria-live="polite"></div></div></div>
   <div id="toast" class="toast" hidden></div>
   <script id="google-identity-services" src="https://accounts.google.com/gsi/client" defer></script>
   <script id="google-picker-api" src="https://apis.google.com/js/api.js" defer></script>
   <script src="/socket.io/socket.io.js"></script>
   <script src="./js/session-storage.js"></script>
   <script src="./js/message-notifications.js"></script>
-  <script src="./js/teacher-dashboard.js?v=homework-collapse-1" defer></script>
+  <script src="./js/teacher-dashboard.js?v=homework-paste-1"></script>
   <script src="./js/class-registry-teacher.js?v=registry-collapse-1" defer></script>
 </body>
 </html>
