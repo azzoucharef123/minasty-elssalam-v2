@@ -944,12 +944,22 @@
 
       .lesson-repository-head {
         display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
+        align-items: stretch;
         gap: 1rem;
-        padding-bottom: 1rem;
         border-bottom: 1px solid rgba(187, 247, 208, 0.72);
       }
+      .lesson-repository-toggle { display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: 100%; padding: 0 0 1rem; color: inherit; background: transparent; border: 0; text-align: right; cursor: pointer; }
+      .lesson-repository-toggle-copy { display: grid; gap: .18rem; min-width: 0; }
+      .lesson-repository-toggle-copy > span { display: inline-flex; width: fit-content; align-items: center; gap: .35rem; color: #15803d; font-size: .7rem; font-weight: 900; }
+      .lesson-repository-toggle-copy > span::before { width: .45rem; height: .45rem; content: ""; background: #22c55e; border-radius: 999px; box-shadow: 0 0 0 .25rem rgba(34, 197, 94, .13); }
+      .lesson-repository-toggle-copy strong { margin-top: .28rem; color: #14532d; font-size: clamp(1.05rem, 2vw, 1.28rem); letter-spacing: -.02em; }
+      .lesson-repository-toggle-copy small { color: #64748b; font-size: .76rem; line-height: 1.8; }
+      .lesson-repository-toggle-icon { display: grid; width: 2.45rem; height: 2.45rem; flex: 0 0 auto; place-items: center; color: #166534; background: #dcfce7; border: 1px solid #bbf7d0; border-radius: .75rem; font-size: 1.2rem; transition: transform .2s ease, background .2s ease; }
+      .lesson-repository-card.is-open .lesson-repository-toggle-icon { transform: rotate(180deg); background: #bbf7d0; }
+      .lesson-repository-toggle:focus-visible { outline: 3px solid rgba(34, 197, 94, .25); outline-offset: 3px; border-radius: .5rem; }
+      .lesson-repository-controls { display: grid; gap: .35rem; padding-top: .95rem; }
+      .lesson-repository-controls[hidden] { display: none; }
+      .lesson-repository-level-caption { margin: 0; color: #64748b; font-size: .76rem; line-height: 1.8; }
 
       .lesson-repository-head span {
         display: inline-flex;
@@ -1305,13 +1315,19 @@
         </div>
         <section id="lesson-repository-card" class="lesson-repository-card" aria-labelledby="lesson-repository-parent-title">
           <header class="lesson-repository-head">
-            <div>
-              <span>مستودع الدروس</span>
-              <h2 id="lesson-repository-parent-title">فيديوهات الحصص المسجلة</h2>
-              <p id="lesson-repository-level-caption">ستظهر هنا حصص مستوى التلميذ المختار.</p>
-            </div>
+            <button id="lesson-repository-toggle" class="lesson-repository-toggle" type="button" aria-expanded="false" aria-controls="lesson-repository-controls">
+              <span class="lesson-repository-toggle-copy">
+                <span>فيديوهات مكملة</span>
+                <strong id="lesson-repository-parent-title">فيديوهات مكملة</strong>
+                <small>اضغط لعرض الفيديوهات التي أضافها الأستاذ يدويًا</small>
+              </span>
+              <span id="lesson-repository-toggle-icon" class="lesson-repository-toggle-icon" aria-hidden="true">⌄</span>
+            </button>
           </header>
-          <div id="lesson-video-list" class="lesson-video-list" aria-live="polite"></div>
+          <div id="lesson-repository-controls" class="lesson-repository-controls" hidden>
+            <p id="lesson-repository-level-caption" class="lesson-repository-level-caption">ستظهر هنا الفيديوهات المكملة لمستوى التلميذ المختار.</p>
+            <div id="lesson-video-list" class="lesson-video-list" aria-live="polite"></div>
+          </div>
         </section>
 
         <section id="class-registry-student" class="class-registry-student" aria-labelledby="class-registry-student-title">
@@ -1443,7 +1459,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/parent-dashboard.js?v=live-next-class-1"></script>
+    <script src="./js/parent-dashboard.js?v=lesson-complements-1"></script>
     <script src="./js/class-registry-parent.js?v=registry-selects-1"></script>
   </body>
 </html>

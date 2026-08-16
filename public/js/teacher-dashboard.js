@@ -887,7 +887,7 @@ async function loadLevelSchedule() {
 
 function renderLessonVideos() {
   if (elements.lessonRepositoryCaption) {
-    elements.lessonRepositoryCaption.textContent = `أضف رابط YouTube يدوياً لحصص ${displayLevelLabel(currentLevel)} ليشاهده التلاميذ داخل حساباتهم.`;
+    elements.lessonRepositoryCaption.textContent = `أضف رابط YouTube وعنوانًا لفيديو مكمل لمستوى ${displayLevelLabel(currentLevel)} ليشاهده التلاميذ المؤهلون داخل حساباتهم.`;
   }
   if (!elements.lessonVideoList) return;
 
@@ -895,7 +895,7 @@ function renderLessonVideos() {
   if (!lessonVideos.length) {
     const empty = document.createElement("p");
     empty.className = "teacher-lesson-empty";
-    empty.textContent = "لا توجد فيديوهات مضافة لهذا المستوى بعد.";
+    empty.textContent = "لا توجد فيديوهات مكملة مضافة لهذا المستوى بعد.";
     elements.lessonVideoList.append(empty);
     return;
   }
@@ -936,7 +936,7 @@ async function loadLessonVideos() {
       headers: { Accept: "application/json" },
     });
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || "تعذر تحميل مستودع الدروس.");
+    if (!response.ok) throw new Error(payload.error || "تعذر تحميل الفيديوهات المكملة.");
     lessonVideos = Array.isArray(payload.data) ? payload.data : [];
     renderLessonVideos();
   } catch (error) {
@@ -1000,7 +1000,7 @@ async function saveLessonVideo(event, selectedVideo = null) {
 
     elements.lessonVideoForm.reset();
     syncLessonVideoTypeOptions();
-    showToast("تمت إضافة الفيديو إلى تصنيف المستودع المحدد.");
+    showToast("تم نشر الفيديو المكمل في التصنيف المحدد.");
     await loadLessonVideos();
   } catch (error) {
     console.error("Unable to save lesson video:", error);
@@ -1021,9 +1021,9 @@ async function deleteLessonVideo(videoId) {
       headers: { Accept: "application/json" },
     });
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || "تعذر حذف رابط الحصة.");
+    if (!response.ok) throw new Error(payload.error || "تعذر حذف الفيديو المكمل.");
 
-    showToast("تم حذف رابط الحصة من المستودع.");
+    showToast("تم حذف الفيديو المكمل.");
     await loadLessonVideos();
   } catch (error) {
     console.error("Unable to delete lesson video:", error);

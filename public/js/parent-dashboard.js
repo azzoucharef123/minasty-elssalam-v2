@@ -9,6 +9,9 @@ const elements = {
   loadingState: document.getElementById("loading-state"),
   dashboardContent: document.getElementById("dashboard-content"),
   lessonRepositoryCard: document.getElementById("lesson-repository-card"),
+  lessonRepositoryToggle: document.getElementById("lesson-repository-toggle"),
+  lessonRepositoryControls: document.getElementById("lesson-repository-controls"),
+  lessonRepositoryToggleIcon: document.getElementById("lesson-repository-toggle-icon"),
   studentAvatar: document.getElementById("student-avatar"),
   studentName: document.getElementById("student-name"),
   studentLevel: document.getElementById("student-level"),
@@ -87,6 +90,7 @@ const elements = {
 
 let socket = null;
 let currentStudent = null;
+let lessonRepositoryOpen = false;
 let currentStudents = [];
 let currentLobbyLevel = null;
 let paymentReturnRefreshTimer = null;
@@ -565,6 +569,14 @@ function canAccessLessonRepository(student) {
   return Boolean(student);
 }
 
+function setLessonRepositoryOpen(nextOpen) {
+  lessonRepositoryOpen = Boolean(nextOpen);
+  if (elements.lessonRepositoryControls) elements.lessonRepositoryControls.hidden = !lessonRepositoryOpen;
+  elements.lessonRepositoryCard?.classList.toggle("is-open", lessonRepositoryOpen);
+  elements.lessonRepositoryToggle?.setAttribute("aria-expanded", String(lessonRepositoryOpen));
+  if (elements.lessonRepositoryToggleIcon) elements.lessonRepositoryToggleIcon.textContent = lessonRepositoryOpen ? "⌃" : "⌄";
+}
+
 function syncLessonRepositoryVisibility(student) {
   const shouldShow = Boolean(student);
   if (elements.lessonRepositoryCard) {
@@ -573,6 +585,7 @@ function syncLessonRepositoryVisibility(student) {
   if (!shouldShow) {
     elements.lessonVideoList?.replaceChildren();
   }
+  setLessonRepositoryOpen(false);
 }
 
 function secondaryPaymentStateLabel(student) {
@@ -968,7 +981,7 @@ function renderLessonVideos(videos) {
   elements.lessonVideoList.replaceChildren();
 
   if (!videos.length) {
-    elements.lessonVideoList.append(createLessonVideoEmptyState("لا توجد حصص مسجلة متاحة حالياً."));
+    elements.lessonVideoList.append(createLessonVideoEmptyState("لا توجد فيديوهات مكملة متاحة حاليًا."));
     return;
   }
 
@@ -1017,10 +1030,10 @@ function renderLessonVideos(videos) {
 async function loadLessonVideos(level) {
   if (!elements.lessonVideoList || !level || !canAccessLessonRepository(currentStudent)) return;
   if (elements.lessonRepositoryLevelCaption) {
-    elements.lessonRepositoryLevelCaption.textContent = `فيديوهات حصص ${displayLevelLabel(level)} المتاحة حسب مادة أو نوع اشتراك التلميذ.`;
+    elements.lessonRepositoryLevelCaption.textContent = `فيديوهات مكملة لمستوى ${displayLevelLabel(level)}، أضافها الأستاذ يدويًا حسب المادة أو نوع الاشتراك.`;
   }
   elements.lessonVideoList.replaceChildren();
-  elements.lessonVideoList.append(createLessonVideoEmptyState("جارٍ تحميل مستودع الدروس…"));
+    elements.lessonVideoList.append(createLessonVideoEmptyState("جارٍ تحميل الفيديوهات المكملة…"));
 
   try {
     const studentId = currentStudent?.id ? `?studentId=${encodeURIComponent(currentStudent.id)}` : "";
@@ -1035,7 +1048,7 @@ async function loadLessonVideos(level) {
     if (/انتهت الجلسة/.test(error.message)) return;
     console.error("Unable to load lesson videos:", error);
     if (!currentStudent || currentStudent.level !== level) return;
-    elements.lessonVideoList.replaceChildren(createLessonVideoEmptyState("تعذر تحميل مستودع الدروس حالياً."));
+    elements.lessonVideoList.replaceChildren(createLessonVideoEmptyState("تعذر تحميل الفيديوهات المكملة حاليًا."));
   }
 }
 
@@ -1558,6 +1571,7 @@ if (!getParentToken()) {
   elements.documentFeedbackModal?.addEventListener("click", (event) => {
     if (event.target === elements.documentFeedbackModal) closeDocumentFeedback();
   });
+  elements.lessonRepositoryToggle?.addEventListener("click", () => setLessonRepositoryOpen(!lessonRepositoryOpen));
   elements.lessonVideoClose?.addEventListener("click", closeLessonVideo);
   elements.lessonVideoFullscreen?.addEventListener("click", () => { void toggleLessonFullscreen(); });
   elements.lessonVideoRotate?.addEventListener("click", () => { void rotateLessonScreen(); });
