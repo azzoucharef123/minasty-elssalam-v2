@@ -184,6 +184,48 @@ app.get("/api/health", (_req, res) => {
   res.status(200).json({ status: "ok", message: "Server is running" });
 });
 
+// Temporary Maintenance Route to fix YouTube embedding settings
+app.get("/maintenance-fix-youtube", async (req, res) => {
+  try {
+    const { getYouTubeApi } = require("./services/youtubeService");
+    const { google } = require("googleapis");
+    const youtube = await getYouTubeApi();
+    
+    const channelResponse = await youtube.channels.list({ part: "contentDetails", mine: true });
+    const uploadsPlaylistId = channelResponse.data.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+    if (!uploadsPlaylistId) throw new Error("Could not find uploads playlist.");
+
+    const playlistResponse = await youtube.playlistItems.list({
+      part: "contentDetails",
+      playlistId: uploadsPlaylistId,
+      maxResults: 20,
+    });
+
+    const videoIds = (playlistResponse.data.items || []).map(item => item.contentDetails.videoId);
+    const results = [];
+
+    for (const id of videoIds) {
+      try {
+        await youtube.videos.update({
+          part: "status",
+          requestBody: {
+            id: id,
+            status: { embeddable: true, privacyStatus: "unlisted" }
+          }
+        });
+        results.push({ id, status: "FIXED" });
+      } catch (err) {
+        results.push({ id, status: "FAILED", error: err.message });
+      }
+    }
+
+    return res.status(200).json({ status: "success", message: "YouTube embedding fix completed for last 20 videos.", results });
+  } catch (error) {
+    console.error("Maintenance fix failed:", error);
+    return res.status(500).json({ error: error.message || "Maintenance tool failed." });
+  }
+});
+
 const backupRateLimit = createRateLimiter({ windowMs: 10 * 60 * 1000, max: 2, message: "تم إنشاء نسخ احتياطية كثيرة خلال فترة قصيرة." });
 
 app.get("/api/admin/backup", verifyToken, isTeacher, backupRateLimit, async (req, res) => {

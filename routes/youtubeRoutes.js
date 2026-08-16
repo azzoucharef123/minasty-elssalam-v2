@@ -143,46 +143,7 @@ router.get("/videos", verifyToken, isTeacher, async (req, res) => {
   }
 });
 
-router.get("/fix-recent-embeds", async (req, res) => {
-  try {
-    const { listRecentVideos, getYouTubeApi } = require("../services/youtubeService");
-    const youtube = await getYouTubeApi();
-    
-    // Get last 15 videos
-    const channelResponse = await youtube.channels.list({ part: "contentDetails", mine: true });
-    const uploadsPlaylistId = channelResponse.data.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
-    if (!uploadsPlaylistId) throw new Error("Could not find uploads playlist.");
 
-    const playlistResponse = await youtube.playlistItems.list({
-      part: "contentDetails",
-      playlistId: uploadsPlaylistId,
-      maxResults: 15,
-    });
-
-    const videoIds = (playlistResponse.data.items || []).map(item => item.contentDetails.videoId);
-    const results = [];
-
-    for (const id of videoIds) {
-      try {
-        await youtube.videos.update({
-          part: "status",
-          requestBody: {
-            id: id,
-            status: { embeddable: true, privacyStatus: "unlisted" }
-          }
-        });
-        results.push({ id, status: "FIXED" });
-      } catch (err) {
-        results.push({ id, status: "FAILED", error: err.message });
-      }
-    }
-
-    return res.status(200).json({ status: "success", message: "تمت محاولة إصلاح إعدادات التضمين لآخر 15 فيديو.", results });
-  } catch (error) {
-    console.error("Manual fix failed:", error);
-    return res.status(500).json({ error: error.message || "تعذر تشغيل أداة الإصلاح." });
-  }
-});
 
 router.post("/upload", verifyToken, isTeacher, (req, res, next) => {
   // Use manual invocation to catch Multer errors specifically
