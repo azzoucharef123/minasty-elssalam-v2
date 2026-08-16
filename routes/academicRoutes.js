@@ -5,6 +5,7 @@ const {
   listGrades,
   createGrade,
   createAssignment,
+  listTeacherAssignments,
   listAssignments,
   submitAssignment,
   listSubmissions,
@@ -44,6 +45,7 @@ router.put("/students/:studentId/progress/lessons/:lessonVideoId", updateLessonP
 router.get("/students/:studentId/assessments", listAssessments);
 router.post("/students/:studentId/assessments/:assessmentId/submit", submitAssessment);
 
+router.get("/assignments", isTeacher, listTeacherAssignments);
 router.post("/assignments", isTeacher, upload.single("file"), createAssignment);
 router.get("/assignments/:assignmentId/file", getAssignmentFile);
 router.delete("/assignments/:assignmentId", isTeacher, deleteAssignment);

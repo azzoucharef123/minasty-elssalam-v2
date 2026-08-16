@@ -77,10 +77,59 @@ async function createAssignment(req, res) {
   return res.status(201).json({ status: "success", data: assignment });
 }
 
+async function listTeacherAssignments(req, res) {
+  if (!requireTeacher(req, res)) return;
+  const level = text(req.query?.level, 100);
+  if (!LEVELS.has(level)) return res.status(400).json({ error: "المستوى الدراسي غير صالح." });
+
+  const assignments = await prisma.assignment.findMany({
+    where: { level },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      level: true,
+      subject: true,
+      dueAt: true,
+      attachmentUrl: true,
+      attachmentMimeType: true,
+      attachmentOriginalName: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: { select: { submissions: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+  return res.json({ status: "success", data: assignments });
+}
+
 async function listAssignments(req, res) {
   const student = await getStudentForUser(req, text(req.params.studentId, 80));
   if (!student) return res.status(403).json({ error: "لا تملك صلاحية هذه البيانات." });
-  const assignments = await prisma.assignment.findMany({ where: { level: student.level, ...(req.query.subject ? { subject: text(req.query.subject, 40).toUpperCase() } : {}) }, include: { submissions: { where: { studentId: student.id }, take: 1 } }, orderBy: { createdAt: "desc" }, take: 100 });
+  const assignments = await prisma.assignment.findMany({
+    where: { level: student.level, ...(req.query.subject ? { subject: text(req.query.subject, 40).toUpperCase() } : {}) },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      level: true,
+      subject: true,
+      dueAt: true,
+      attachmentUrl: true,
+      attachmentMimeType: true,
+      attachmentOriginalName: true,
+      createdAt: true,
+      updatedAt: true,
+      submissions: {
+        where: { studentId: student.id },
+        take: 1,
+        select: { id: true, status: true, grade: true, teacherNote: true, submittedAt: true, gradedAt: true, attachmentUrl: true, attachmentMimeType: true, attachmentOriginalName: true, answerText: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
   return res.json({ status: "success", data: assignments });
 }
 
@@ -288,6 +337,7 @@ module.exports = {
   listGrades,
   createGrade,
   createAssignment,
+  listTeacherAssignments,
   listAssignments,
   submitAssignment,
   listSubmissions,

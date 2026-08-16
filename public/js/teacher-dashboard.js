@@ -96,6 +96,16 @@ const elements = {
   closeDriveVideoModal: document.getElementById("close-drive-video-modal"),
   driveVideoList: document.getElementById("drive-video-list"),
   lessonRepositoryCaption: document.getElementById("lesson-repository-caption"),
+  assignmentManager: document.querySelector(".assignment-manager"),
+  assignmentLevelCaption: document.getElementById("assignment-level-caption"),
+  assignmentForm: document.getElementById("assignment-form"),
+  assignmentSubject: document.getElementById("assignment-subject"),
+  assignmentDueAt: document.getElementById("assignment-due-at"),
+  assignmentTitle: document.getElementById("assignment-title"),
+  assignmentDescription: document.getElementById("assignment-description"),
+  assignmentFile: document.getElementById("assignment-file"),
+  assignmentSubmit: document.getElementById("assignment-submit"),
+  teacherAssignmentsList: document.getElementById("teacher-assignments-list"),
   studentCertificatesModal: document.getElementById("student-certificates-modal"),
   studentCertificatesModalClose: document.getElementById("student-certificates-modal-close"),
   studentCertificatesStudentName: document.getElementById("student-certificates-student-name"),
@@ -1481,13 +1491,184 @@ async function fetchStudents(level = currentLevel) {
     // so this dashboard remains compatible during a staged deployment.
     currentStudents = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
     resetScheduleForm();
-    await Promise.all([loadLevelSchedule(), loadLessonVideos()]);
+    await Promise.all([loadLevelSchedule(), loadLessonVideos(), loadAssignments()]);
     applyFilters();
   } catch (error) {
     if (!/انتهت الجلسة/.test(error.message)) {
       console.error("Unable to fetch teacher roster:", error);
       showDashboardError(error.message || "تعذر تحميل قائمة التلاميذ.");
     }
+  }
+}
+
+function assignmentSubjectLabel(subject) {
+  return subject === "PHYSICS" ? "الفيزياء" : subject === "MATH" ? "الرياضيات" : subject || "عام";
+}
+
+function formatAssignmentDate(value) {
+  if (!value) return "دون تاريخ تسليم";
+  const date = new Date(value);
+  return Number.isFinite(date.getTime())
+    ? `آخر أجل: ${new Intl.DateTimeFormat("ar-DZ", { dateStyle: "medium", timeZone: "Africa/Algiers" }).format(date)}`
+    : "تاريخ التسليم غير صالح";
+}
+
+function escapeTeacherText(value) {
+  return String(value ?? "").replace(/[&<>'"]/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '"': "&quot;",
+  }[character]));
+}
+
+function renderAssignments(assignments = []) {
+  if (!elements.teacherAssignmentsList) return;
+  elements.teacherAssignmentsList.replaceChildren();
+  if (elements.assignmentLevelCaption) {
+    elements.assignmentLevelCaption.textContent = `أضف واجبات ${displayLevelLabel(currentLevel)} وتابع عدد الحلول المرسلة.`;
+  }
+
+  if (!assignments.length) {
+    const empty = document.createElement("p");
+    empty.className = "teacher-assignment-empty";
+    empty.textContent = "لا توجد واجبات منشورة لهذا المستوى بعد.";
+    elements.teacherAssignmentsList.append(empty);
+    return;
+  }
+
+  for (const assignment of assignments) {
+    const card = document.createElement("article");
+    card.className = "teacher-assignment-card";
+
+    const header = document.createElement("div");
+    header.className = "teacher-assignment-header";
+    const title = document.createElement("h4");
+    title.textContent = assignment.title || "واجب دون عنوان";
+    const subject = document.createElement("span");
+    subject.className = "teacher-assignment-subject";
+    subject.textContent = assignmentSubjectLabel(assignment.subject);
+    header.append(title, subject);
+
+    const description = document.createElement("p");
+    description.className = "teacher-assignment-description";
+    description.textContent = assignment.description || "لا توجد تعليمات إضافية.";
+
+    const meta = document.createElement("div");
+    meta.className = "teacher-assignment-meta";
+    const due = document.createElement("span");
+    due.textContent = formatAssignmentDate(assignment.dueAt);
+    const submissions = document.createElement("span");
+    submissions.textContent = `${Number(assignment._count?.submissions) || 0} حل مرسل`;
+    meta.append(due, submissions);
+
+    const actions = document.createElement("div");
+    actions.className = "teacher-assignment-actions";
+    if (assignment.attachmentUrl || assignment.attachmentMimeType) {
+      const attachmentButton = document.createElement("button");
+      attachmentButton.type = "button";
+      attachmentButton.textContent = "عرض ملف الواجب";
+      attachmentButton.addEventListener("click", () => void openTeacherAssignmentFile(assignment));
+      actions.append(attachmentButton);
+    }
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "danger-action";
+    deleteButton.textContent = "حذف الواجب";
+    deleteButton.addEventListener("click", () => void deleteTeacherAssignment(assignment.id));
+    actions.append(deleteButton);
+
+    card.append(header, description, meta, actions);
+    elements.teacherAssignmentsList.append(card);
+  }
+}
+
+async function loadAssignments() {
+  if (!elements.teacherAssignmentsList) return;
+  elements.teacherAssignmentsList.innerHTML = '<p class="teacher-assignment-empty">جارٍ تحميل واجبات المستوى…</p>';
+  try {
+    const response = await teacherFetch(`/api/academic/assignments?level=${encodeURIComponent(currentLevel)}`, { headers: { Accept: "application/json" } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر تحميل واجبات المستوى.");
+    renderAssignments(Array.isArray(payload.data) ? payload.data : []);
+  } catch (error) {
+    if (/انتهت الجلسة/.test(error.message)) return;
+    console.error("Unable to load teacher assignments:", error);
+    if (elements.teacherAssignmentsList) elements.teacherAssignmentsList.innerHTML = `<p class="teacher-assignment-empty">${escapeTeacherText(error.message || "تعذر تحميل الواجبات.")}</p>`;
+  }
+}
+
+async function submitAssignment(event) {
+  event.preventDefault();
+  if (!elements.assignmentForm) return;
+
+  const title = elements.assignmentTitle?.value.trim();
+  const description = elements.assignmentDescription?.value.trim();
+  const subject = elements.assignmentSubject?.value;
+  if (!title || !description || !subject) {
+    showDashboardError("أدخل مادة الواجب وعنوانه ووصف التعليمات أولاً.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("level", currentLevel);
+  formData.append("subject", subject);
+  formData.append("title", title);
+  formData.append("description", description);
+  if (elements.assignmentDueAt?.value) formData.append("dueAt", elements.assignmentDueAt.value);
+  if (elements.assignmentFile?.files?.[0]) formData.append("file", elements.assignmentFile.files[0]);
+
+  if (elements.assignmentSubmit) elements.assignmentSubmit.disabled = true;
+  try {
+    const response = await teacherFetch("/api/academic/assignments", { method: "POST", body: formData });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر نشر الواجب.");
+    elements.assignmentForm.reset();
+    showToast(payload.message || "تم نشر الواجب بنجاح.");
+    await loadAssignments();
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) {
+      console.error("Unable to submit teacher assignment:", error);
+      showDashboardError(error.message || "تعذر نشر الواجب.");
+    }
+  } finally {
+    if (elements.assignmentSubmit) elements.assignmentSubmit.disabled = false;
+  }
+}
+
+async function openTeacherAssignmentFile(assignment) {
+  if (!assignment?.id) return;
+  try {
+    const popup = window.open("about:blank", "_blank");
+    const response = assignment.attachmentUrl
+      ? await teacherFetch(assignment.attachmentUrl, { headers: { Accept: "*/*" } })
+      : await teacherFetch(`/api/academic/assignments/${encodeURIComponent(assignment.id)}/file`, { headers: { Accept: "*/*" } });
+    if (!response.ok) throw new Error("تعذر فتح ملف الواجب.");
+    const url = URL.createObjectURL(await response.blob());
+    if (popup) popup.location.href = url;
+    else {
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = assignment.attachmentOriginalName || "assignment";
+      link.click();
+    }
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (error) {
+    showDashboardError(error.message || "تعذر فتح ملف الواجب.");
+  }
+}
+
+async function deleteTeacherAssignment(assignmentId) {
+  if (!assignmentId || !window.confirm("هل تريد حذف هذا الواجب؟")) return;
+  try {
+    const response = await teacherFetch(`/api/academic/assignments/${encodeURIComponent(assignmentId)}`, { method: "DELETE", headers: { Accept: "application/json" } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر حذف الواجب.");
+    showToast(payload.message || "تم حذف الواجب.");
+    await loadAssignments();
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) showDashboardError(error.message || "تعذر حذف الواجب.");
   }
 }
 
@@ -2283,5 +2464,4 @@ if (!getTeacherToken()) {
 
   updateDashboardDate();
   fetchStudents(currentLevel);
-  loadAssignments();
 }

@@ -21,6 +21,11 @@ const elements = {
   studentCertificateModal: document.getElementById("student-certificate-modal"),
   studentCertificateModalImage: document.getElementById("student-certificate-modal-image"),
   studentCertificateModalClose: document.getElementById("student-certificate-modal-close"),
+  studentHomeworkCard: document.getElementById("student-homework-card"),
+  studentHomeworkToggle: document.getElementById("student-homework-toggle"),
+  studentHomeworkContent: document.getElementById("student-homework-content"),
+  studentHomeworkToggleIcon: document.getElementById("student-homework-toggle-icon"),
+  studentHomeworkList: document.getElementById("student-homework-list"),
   studentAvatar: document.getElementById("student-avatar"),
   studentName: document.getElementById("student-name"),
   studentLevel: document.getElementById("student-level"),
@@ -103,6 +108,7 @@ let socket = null;
 let currentStudent = null;
 let lessonRepositoryOpen = false;
 let studentCertificatesOpen = false;
+let studentHomeworkOpen = false;
 let certificateImageUrls = new Set();
 
 function scrollExpandedPanel(panel) {
@@ -140,6 +146,200 @@ function syncStudentCertificatesVisibility(student) {
   if (elements.studentCertificatesCard) elements.studentCertificatesCard.hidden = !shouldShow;
   if (!shouldShow) elements.studentCertificatesList?.replaceChildren();
   setStudentCertificatesOpen(false);
+}
+
+function setStudentHomeworkOpen(nextOpen) {
+  studentHomeworkOpen = Boolean(nextOpen);
+  if (elements.studentHomeworkContent) elements.studentHomeworkContent.hidden = !studentHomeworkOpen;
+  elements.studentHomeworkCard?.classList.toggle("is-open", studentHomeworkOpen);
+  elements.studentHomeworkToggle?.setAttribute("aria-expanded", String(studentHomeworkOpen));
+  if (elements.studentHomeworkToggleIcon) elements.studentHomeworkToggleIcon.textContent = studentHomeworkOpen ? "⌃" : "⌄";
+  if (studentHomeworkOpen) scrollExpandedPanel(elements.studentHomeworkCard);
+}
+
+function syncStudentHomeworkVisibility(student) {
+  const shouldShow = Boolean(student);
+  if (elements.studentHomeworkCard) elements.studentHomeworkCard.hidden = !shouldShow;
+  if (!shouldShow) elements.studentHomeworkList?.replaceChildren();
+  setStudentHomeworkOpen(false);
+}
+
+function homeworkSubjectLabel(subject) {
+  return subject === "PHYSICS" ? "الفيزياء" : subject === "MATH" ? "الرياضيات" : subject || "عام";
+}
+
+function homeworkStatusMeta(submission) {
+  if (!submission) return { label: "لم يُرسل الحل بعد", className: "status-pending" };
+  if (submission.status === "GRADED") return { label: "تم التصحيح", className: "status-graded" };
+  return { label: "تم إرسال الحل", className: "status-submitted" };
+}
+
+function formatHomeworkDueDate(value) {
+  if (!value) return "دون تاريخ تسليم";
+  const date = new Date(value);
+  return Number.isFinite(date.getTime())
+    ? `آخر أجل: ${new Intl.DateTimeFormat("ar-DZ", { dateStyle: "medium", timeZone: "Africa/Algiers" }).format(date)}`
+    : "تاريخ التسليم غير صالح";
+}
+
+function showHomeworkEmptyState(message) {
+  const empty = document.createElement("p");
+  empty.className = "student-homework-empty";
+  empty.textContent = message;
+  return empty;
+}
+
+async function openStudentHomeworkFile(assignment) {
+  if (!assignment?.id) return;
+  try {
+    const response = assignment.attachmentUrl
+      ? await parentFetch(assignment.attachmentUrl, { headers: { Accept: "*/*" } })
+      : await parentFetch(`/api/academic/assignments/${encodeURIComponent(assignment.id)}/file`, { headers: { Accept: "*/*" } });
+    if (!response.ok) throw new Error("تعذر فتح ملف الواجب.");
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = assignment.attachmentOriginalName || "assignment";
+    link.target = "_blank";
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) openDocumentFeedback(error.message || "تعذر فتح ملف الواجب.");
+  }
+}
+
+async function submitHomeworkSolution(assignmentId, form, submitButton) {
+  if (!assignmentId || !currentStudent) return;
+  const answerText = form.querySelector("textarea")?.value.trim() || "";
+  const file = form.querySelector('input[type="file"]')?.files?.[0];
+  if (!answerText && !file) {
+    openDocumentFeedback("اكتب حلاً أو ارفع ملف الحل قبل الإرسال.", "بيانات الحل ناقصة");
+    return;
+  }
+
+  const formData = new FormData();
+  if (answerText) formData.append("answerText", answerText);
+  if (file) formData.append("file", file);
+  if (submitButton) submitButton.disabled = true;
+  try {
+    const response = await parentFetch(`/api/academic/students/${encodeURIComponent(currentStudent.id)}/assignments/${encodeURIComponent(assignmentId)}/submissions`, { method: "POST", body: formData });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر إرسال الحل.");
+    openDocumentFeedback(payload.message || "تم إرسال الحل للأستاذ بنجاح.", "تم إرسال الحل");
+    await loadStudentHomework(currentStudent.id);
+    await loadActivityStats(currentStudent.id);
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) openDocumentFeedback(error.message || "تعذر إرسال الحل.");
+  } finally {
+    if (submitButton) submitButton.disabled = false;
+  }
+}
+
+function renderStudentHomework(assignments = []) {
+  if (!elements.studentHomeworkList) return;
+  elements.studentHomeworkList.replaceChildren();
+  if (!assignments.length) {
+    elements.studentHomeworkList.append(showHomeworkEmptyState("لا توجد واجبات منشورة لهذا المستوى حالياً."));
+    return;
+  }
+
+  assignments.forEach((assignment) => {
+    const submission = Array.isArray(assignment.submissions) ? assignment.submissions[0] : null;
+    const status = homeworkStatusMeta(submission);
+    const item = document.createElement("article");
+    item.className = "student-homework-item";
+
+    const head = document.createElement("div");
+    head.className = "student-homework-head";
+    const title = document.createElement("h4");
+    title.textContent = assignment.title || "واجب";
+    const statusBadge = document.createElement("span");
+    statusBadge.className = `student-homework-status ${status.className}`;
+    statusBadge.textContent = status.label;
+    head.append(title, statusBadge);
+
+    const subject = document.createElement("small");
+    subject.className = "homework-subject";
+    subject.textContent = homeworkSubjectLabel(assignment.subject);
+    const description = document.createElement("p");
+    description.className = "student-homework-desc";
+    description.textContent = assignment.description || "لا توجد تعليمات إضافية.";
+
+    const footer = document.createElement("div");
+    footer.className = "student-homework-footer";
+    const due = document.createElement("span");
+    due.className = "homework-due";
+    due.textContent = formatHomeworkDueDate(assignment.dueAt);
+    footer.append(subject, due);
+
+    if (assignment.attachmentUrl || assignment.attachmentMimeType) {
+      const fileButton = document.createElement("button");
+      fileButton.type = "button";
+      fileButton.className = "homework-action-btn btn-view-attachment";
+      fileButton.textContent = "عرض ملف الواجب";
+      fileButton.addEventListener("click", () => void openStudentHomeworkFile(assignment));
+      footer.append(fileButton);
+    }
+
+    if (!submission) {
+      const solutionButton = document.createElement("button");
+      solutionButton.type = "button";
+      solutionButton.className = "homework-action-btn btn-upload-solution";
+      solutionButton.textContent = "إرسال الحل";
+      const solutionForm = document.createElement("form");
+      solutionForm.className = "solution-form";
+      solutionForm.hidden = true;
+      const label = document.createElement("label");
+      label.textContent = "اكتب الحل أو ارفع صورة/PDF للحل";
+      const textarea = document.createElement("textarea");
+      textarea.rows = 3;
+      textarea.placeholder = "اكتب حلك هنا…";
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "application/pdf,image/png,image/jpeg";
+      const submit = document.createElement("button");
+      submit.type = "submit";
+      submit.className = "solution-submit-btn";
+      submit.textContent = "إرسال الحل للأستاذ";
+      label.append(textarea);
+      solutionForm.append(label, input, submit);
+      solutionButton.addEventListener("click", () => {
+        solutionForm.hidden = !solutionForm.hidden;
+        solutionButton.textContent = solutionForm.hidden ? "إرسال الحل" : "إخفاء نموذج الحل";
+      });
+      solutionForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        void submitHomeworkSolution(assignment.id, solutionForm, submit);
+      });
+      footer.append(solutionButton);
+      item.append(head, subject, description, footer, solutionForm);
+    } else {
+      if (submission.grade != null) {
+        const grade = document.createElement("strong");
+        grade.className = "homework-grade";
+        grade.textContent = `العلامة: ${submission.grade}`;
+        footer.append(grade);
+      }
+      item.append(head, subject, description, footer);
+    }
+    elements.studentHomeworkList.append(item);
+  });
+}
+
+async function loadStudentHomework(studentId) {
+  if (!elements.studentHomeworkList || !studentId) return;
+  elements.studentHomeworkList.replaceChildren(showHomeworkEmptyState("جارٍ تحميل الواجبات…"));
+  try {
+    const response = await parentFetch(`/api/academic/students/${encodeURIComponent(studentId)}/assignments`, { headers: { Accept: "application/json" } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر تحميل الواجبات.");
+    if (!currentStudent || currentStudent.id !== studentId) return;
+    renderStudentHomework(Array.isArray(payload.data) ? payload.data : []);
+  } catch (error) {
+    if (/انتهت الجلسة/.test(error.message)) return;
+    console.error("Unable to load student homework:", error);
+    if (currentStudent?.id === studentId) elements.studentHomeworkList.replaceChildren(showHomeworkEmptyState("تعذر تحميل الواجبات حالياً."));
+  }
 }
 
 function showCertificateEmptyState(message) {
@@ -729,6 +929,7 @@ function selectStudent(studentId) {
   clearError();
   emitLobbyJoin(student.level);
   void loadActivityStats(student.id);
+  void loadStudentHomework(student.id);
   void loadStudentCertificates(student.id);
   void loadParentSchedule(student.level);
   if (canAccessLessonRepository(student)) {
@@ -854,6 +1055,7 @@ function renderSecondaryPaymentUpgrade(student) {
 
 function renderStudent(student) {
   syncStudentCertificatesVisibility(student);
+  syncStudentHomeworkVisibility(student);
   elements.studentAvatar.textContent = getInitials(student.studentName);
   elements.studentName.textContent = student.studentName;
   elements.studentLevel.textContent = displayLevelLabel(student.level);
@@ -1804,6 +2006,7 @@ if (!getParentToken()) {
     if (event.target === elements.documentFeedbackModal) closeDocumentFeedback();
   });
   elements.lessonRepositoryToggle?.addEventListener("click", () => setLessonRepositoryOpen(!lessonRepositoryOpen));
+  elements.studentHomeworkToggle?.addEventListener("click", () => setStudentHomeworkOpen(!studentHomeworkOpen));
   elements.studentCertificatesToggle?.addEventListener("click", () => setStudentCertificatesOpen(!studentCertificatesOpen));
   elements.studentCertificateModalClose?.addEventListener("click", closeCertificateImage);
   elements.studentCertificateModal?.addEventListener("click", (event) => {
