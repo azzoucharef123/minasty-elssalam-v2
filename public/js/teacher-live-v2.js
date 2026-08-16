@@ -893,6 +893,14 @@ function updateYoutubeUploadUi({ visible = false, text = "", progress = 0 } = {}
 
 async function uploadRecordingToYouTube(recording) {
   if (!recording?.blob || youtubeUploadInProgress) return null;
+  
+  // Ensure the blob is not empty and has a correct type
+  if (recording.blob.size === 0) {
+    console.error("YouTube Upload Error: Recording blob is empty.");
+    updateYoutubeUploadUi({ visible: true, text: "تعذر رفع التسجيل: ملف الفيديو فارغ. يرجى إعادة المحاولة.", progress: 0 });
+    return null;
+  }
+
   const token = sessionStorage.getItem("teacherToken");
   if (!token) {
     updateYoutubeUploadUi({ visible: true, text: "تعذر رفع التسجيل: انتهت جلسة الأستاذ. احفظه يدوياً في Google Drive.", progress: 0 });
@@ -903,8 +911,10 @@ async function uploadRecordingToYouTube(recording) {
   updateYoutubeUploadUi({ visible: true, text: "جارٍ رفع تسجيل الحصة إلى YouTube…", progress: 8 });
   updateControls();
   try {
+    // Re-wrap blob to ensure mimeType is set correctly for Multer
+    const videoBlob = new Blob([recording.blob], { type: recording.mimeType || "video/webm" });
     const formData = new FormData();
-    formData.append("video", recording.blob, recording.fileName);
+    formData.append("video", videoBlob, recording.fileName || "recording.webm");
     formData.append("level", recording.registryLevel || recording.level || "");
     formData.append("subject", recording.registrySubject || "");
     formData.append("recordedAt", recording.recordedAt || new Date().toISOString());
@@ -1305,11 +1315,20 @@ function stopLocalRecording({ download = true } = {}) {
       // requestData is optional; stop() still flushes the final chunk in Chrome.
     }
     try {
+      // Force request final data before stopping
+      if (recorder.state !== "inactive") {
+        recorder.requestData();
+      }
+      
       recorder.stop();
-      // Small delay to ensure all dataavailable events have fired
+      
+      // Increased delay to ensure all chunks are processed and finalizedLocalRecording is called
       setTimeout(() => {
-        if (!localRecordingFinalized) finalizeLocalRecording();
-      }, 500);
+        if (!localRecordingFinalized) {
+          console.warn("Manual finalization fallback triggered.");
+          finalizeLocalRecording();
+        }
+      }, 1500);
     } catch (error) {
       console.warn("Unable to stop local class recorder:", error);
       finalizeLocalRecording();
