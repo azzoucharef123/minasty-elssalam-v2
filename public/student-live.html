@@ -2433,6 +2433,37 @@
           opacity: .86;
         }
       }
+
+      /* Keep the portrait chat composer visually stable when Chrome opens the
+         keyboard. This is presentation-only; existing keyboard compensation
+         and message behavior remain intact. */
+      @media screen and (orientation: portrait) and (max-width: 900px) {
+        html,
+        body,
+        .student-live-page,
+        .student-chat-panel,
+        .student-chat-form {
+          -webkit-text-size-adjust: 100%;
+          text-size-adjust: 100%;
+        }
+
+        .student-chat-form {
+          touch-action: manipulation;
+          scroll-margin: 0;
+        }
+
+        .student-chat-form textarea,
+        .student-chat-form input,
+        #chat-input {
+          box-sizing: border-box;
+          min-width: 0;
+          font-size: 16px !important;
+          line-height: 1.45;
+          -webkit-text-size-adjust: 100%;
+          text-size-adjust: 100%;
+          touch-action: manipulation;
+        }
+      }
     </style>
   </head>
   <body class="student-live-page">
@@ -2596,6 +2627,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=app-shell-1"></script>
+    <script src="./js/student-live.js?v=chat-focus-stable-1"></script>
   </body>
 </html>
