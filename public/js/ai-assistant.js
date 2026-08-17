@@ -9,14 +9,14 @@
   root.innerHTML = `
     <button class="ai-assistant-fab" type="button" aria-label="فتح مساعد الأكاديمية" title="مساعد الأكاديمية">
       <span class="ai-assistant-fab-icon" aria-hidden="true">✦</span>
-      <span class="ai-assistant-fab-label">اسقسي المساعد</span>
+      <span class="ai-assistant-fab-label">دردش مع الأستاذ</span>
     </button>
     <div class="ai-assistant-backdrop" hidden>
       <section class="ai-assistant-dialog" role="dialog" aria-modal="true" aria-labelledby="ai-assistant-title">
         <header class="ai-assistant-head">
           <div class="ai-assistant-head-copy">
-            <h2 id="ai-assistant-title">مساعد أكاديمية التفوق</h2>
-            <p>نعاونك بالدارجة الجزائرية في الموقع والدروس</p>
+            <h2 id="ai-assistant-title">الدردشة مع الأستاذ</h2>
+            <p>الدردشة مع الأستاذ هنا</p>
           </div>
           <div class="ai-assistant-head-actions">
             <button class="ai-assistant-clear" type="button" title="مسح الحوار" aria-label="مسح الحوار">↺</button>
@@ -77,14 +77,18 @@
 
   function addWelcome() {
     if (messages.childElementCount) return;
-    addMessage("assistant", "مرحبا بيك، أنا مساعد الأكاديمية. اسقسيني على التسجيل والحصص والأسعار، ولا صوّرلي تمرين ونشرحلك بالهنا.");
+  }
+
+  function addFirstGreeting() {
+    if (messages.dataset.greeted === "true") return;
+    messages.dataset.greeted = "true";
+    addMessage("assistant", "أهلًا بك في أكاديميتنا، وأنا هنا باش نعاونك ونرافقك طول العام إن شاء الله.");
   }
 
   function setOpen(open) {
     if (open) {
       backdrop.hidden = false;
       requestAnimationFrame(() => backdrop.classList.add("is-open"));
-      addWelcome();
       setTimeout(() => input.focus(), 80);
     } else {
       backdrop.classList.remove("is-open");
@@ -95,7 +99,7 @@
   function clearConversation() {
     history.length = 0;
     messages.replaceChildren();
-    addWelcome();
+    delete messages.dataset.greeted;
   }
 
   function updateAttachment() {
@@ -136,6 +140,8 @@
 
     const imageForRequest = selectedImage;
     const userDisplay = text || "صوّرتلك تمرين، شوفه واشرحهولي من فضلك.";
+    const isFirstQuestion = messages.dataset.greeted !== "true";
+    addFirstGreeting();
     addMessage("user", imageForRequest ? `${userDisplay}\n[صورة مرفقة]` : userDisplay);
     history.push({ role: "user", text: userDisplay });
     input.value = "";
@@ -147,6 +153,7 @@
     typing.innerHTML = '<span class="ai-assistant-typing"><i></i><i></i><i></i> راهي تجيني الإجابة...</span>';
     messages.appendChild(typing);
     messages.scrollTop = messages.scrollHeight;
+    if (isFirstQuestion) await new Promise((resolve) => setTimeout(resolve, 1100));
 
     try {
       const body = new FormData();
@@ -255,5 +262,4 @@
   });
 
   requestAnimationFrame(restoreFabPosition);
-  if (window.innerWidth < 440) fab.classList.add("is-compact");
 })();
