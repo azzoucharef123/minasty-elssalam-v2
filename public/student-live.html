@@ -2510,17 +2510,32 @@
         }
       }
 
-      /* Portrait chat frame: the user-selected height is exactly 400px. */
+      /* Portrait chat frame: reserve and expose the full 400px row. The stage
+         becomes the internal scroll container when a small phone cannot fit
+         video, controls, and chat simultaneously; the outer app shell stays fixed. */
       @media screen and (orientation: portrait) and (max-width: 900px) {
         .viewer-stage {
           grid-template-rows: minmax(0, 1fr) auto 400px;
+          height: calc(100svh - 0.5cm);
+          min-height: 0;
+          overflow-x: hidden;
+          overflow-y: auto;
+          align-content: start;
+          overscroll-behavior-y: contain;
         }
 
         .student-live-page .student-chat-panel {
-          height: 400px;
-          min-height: 400px;
-          max-height: 400px;
+          grid-row: 3;
+          align-self: start;
+          height: 400px !important;
+          min-height: 400px !important;
+          max-height: 400px !important;
           overflow: hidden;
+        }
+
+        .student-live-page .student-chat-box {
+          min-height: 0;
+          overflow-y: auto;
         }
       }
 
