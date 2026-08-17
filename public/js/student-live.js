@@ -67,6 +67,7 @@ let prejoinCompleted = false;
 let prejoinCameraReady = false;
 
 const elements = {
+  videoFrame: document.querySelector(".video-frame"),
   remoteVideo: document.getElementById("remote-video"),
   enableAudioButton: document.getElementById("enable-audio-btn"),
   placeholder: document.getElementById("video-placeholder"),
@@ -100,6 +101,8 @@ const elements = {
   refreshFab: document.getElementById("student-refresh-fab"),
   rotateButton: document.getElementById("student-rotate-btn"),
   unrotateButton: document.getElementById("student-unrotate-btn"),
+  centerRotateButton: document.getElementById("student-center-rotate-btn"),
+  centerUnrotateButton: document.getElementById("student-center-unrotate-btn"),
   mobileControlToast: document.getElementById("student-mobile-control-toast"),
   refreshMediaButton: document.getElementById("refresh-media-btn"),
   prejoinOverlay: document.getElementById("student-prejoin-overlay"),
@@ -316,6 +319,17 @@ const MOBILE_CONTROLS_POSITION_KEY = "studentMobileControlsPosition";
 let mobileControlDragState = null;
 let ignoreNextRefreshClick = false;
 let mobileToastTimer = null;
+const studentZoomState = {
+  scale: 1,
+  translateX: 0,
+  translateY: 0,
+  pointers: new Map(),
+  startDistance: 0,
+  startScale: 1,
+  startCenter: null,
+  startTranslateX: 0,
+  startTranslateY: 0,
+};
 
 function showMobileControlToast(message) {
   if (!elements.mobileControlToast) return;
@@ -424,6 +438,100 @@ function updateRotationControls() {
   const isLandscape = window.matchMedia?.("(orientation: landscape)").matches || false;
   if (elements.rotateButton) elements.rotateButton.hidden = isLandscape;
   if (elements.unrotateButton) elements.unrotateButton.hidden = !isLandscape;
+  if (elements.centerRotateButton) elements.centerRotateButton.hidden = isLandscape;
+  if (elements.centerUnrotateButton) elements.centerUnrotateButton.hidden = !isLandscape;
+  document.documentElement.classList.toggle("student-landscape-mode", isLandscape);
+  if (!isLandscape) resetStudentZoom();
+}
+
+function applyStudentZoom() {
+  const transform = `translate3d(${studentZoomState.translateX}px, ${studentZoomState.translateY}px, 0) scale(${studentZoomState.scale})`;
+  [elements.remoteVideo, elements.levelWelcomeImage].forEach((target) => {
+    if (!target) return;
+    target.style.transform = transform;
+    target.classList.toggle("student-video-zoomed", studentZoomState.scale > 1.01);
+  });
+}
+
+function resetStudentZoom() {
+  studentZoomState.scale = 1;
+  studentZoomState.translateX = 0;
+  studentZoomState.translateY = 0;
+  studentZoomState.pointers.clear();
+  studentZoomState.startDistance = 0;
+  studentZoomState.startCenter = null;
+  applyStudentZoom();
+}
+
+function clampStudentZoomTranslation(value, scale, axisSize) {
+  const maxOffset = Math.max(0, (axisSize * scale - axisSize) / 2);
+  return Math.min(maxOffset, Math.max(-maxOffset, value));
+}
+
+function getStudentPointerCenter() {
+  const points = [...studentZoomState.pointers.values()];
+  return {
+    x: (points[0].clientX + points[1].clientX) / 2,
+    y: (points[0].clientY + points[1].clientY) / 2,
+  };
+}
+
+function handleStudentZoomPointerDown(event) {
+  if (!document.documentElement.classList.contains("student-landscape-mode")) return;
+  studentZoomState.pointers.set(event.pointerId, event);
+  if (studentZoomState.pointers.size !== 2) return;
+
+  const points = [...studentZoomState.pointers.values()];
+  studentZoomState.startDistance = Math.hypot(
+    points[1].clientX - points[0].clientX,
+    points[1].clientY - points[0].clientY
+  );
+  studentZoomState.startScale = studentZoomState.scale;
+  studentZoomState.startCenter = getStudentPointerCenter();
+  studentZoomState.startTranslateX = studentZoomState.translateX;
+  studentZoomState.startTranslateY = studentZoomState.translateY;
+  event.currentTarget.setPointerCapture?.(event.pointerId);
+}
+
+function handleStudentZoomPointerMove(event) {
+  if (!studentZoomState.pointers.has(event.pointerId)) return;
+  studentZoomState.pointers.set(event.pointerId, event);
+  if (studentZoomState.pointers.size !== 2 || !studentZoomState.startDistance) return;
+
+  const points = [...studentZoomState.pointers.values()];
+  const distance = Math.hypot(
+    points[1].clientX - points[0].clientX,
+    points[1].clientY - points[0].clientY
+  );
+  const nextScale = Math.min(4, Math.max(1, studentZoomState.startScale * (distance / studentZoomState.startDistance)));
+  const center = getStudentPointerCenter();
+  const deltaX = center.x - studentZoomState.startCenter.x;
+  const deltaY = center.y - studentZoomState.startCenter.y;
+  const width = elements.videoFrame?.clientWidth || window.innerWidth;
+  const height = elements.videoFrame?.clientHeight || window.innerHeight;
+  studentZoomState.scale = nextScale;
+  studentZoomState.translateX = clampStudentZoomTranslation(studentZoomState.startTranslateX + deltaX, nextScale, width);
+  studentZoomState.translateY = clampStudentZoomTranslation(studentZoomState.startTranslateY + deltaY, nextScale, height);
+  applyStudentZoom();
+  event.preventDefault();
+}
+
+function handleStudentZoomPointerEnd(event) {
+  studentZoomState.pointers.delete(event.pointerId);
+  if (studentZoomState.pointers.size < 2) {
+    studentZoomState.startDistance = 0;
+    studentZoomState.startCenter = null;
+  }
+}
+
+function initializeStudentZoom() {
+  const target = elements.videoFrame;
+  if (!target) return;
+  target.addEventListener("pointerdown", handleStudentZoomPointerDown, { passive: false });
+  target.addEventListener("pointermove", handleStudentZoomPointerMove, { passive: false });
+  target.addEventListener("pointerup", handleStudentZoomPointerEnd, { passive: true });
+  target.addEventListener("pointercancel", handleStudentZoomPointerEnd, { passive: true });
+  target.addEventListener("pointerleave", handleStudentZoomPointerEnd, { passive: true });
 }
 
 async function lockStudentOrientation(orientation) {
@@ -462,6 +570,7 @@ async function unrotateStudentScreen() {
     if (document.fullscreenElement && document.exitFullscreen) {
       await document.exitFullscreen();
     }
+    resetStudentZoom();
     updateRotationControls();
     showMobileControlToast("تم إلغاء تدوير الشاشة.");
   } catch (error) {
@@ -474,8 +583,11 @@ async function unrotateStudentScreen() {
 
 function initializeMobileControls() {
   initializeRefreshFab();
+  initializeStudentZoom();
   elements.rotateButton?.addEventListener("click", () => { void rotateStudentScreen(); });
   elements.unrotateButton?.addEventListener("click", () => { void unrotateStudentScreen(); });
+  elements.centerRotateButton?.addEventListener("click", () => { void rotateStudentScreen(); });
+  elements.centerUnrotateButton?.addEventListener("click", () => { void unrotateStudentScreen(); });
   screen.orientation?.addEventListener?.("change", updateRotationControls);
   window.addEventListener("orientationchange", updateRotationControls);
   window.addEventListener("resize", () => {

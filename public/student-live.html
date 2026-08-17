@@ -469,6 +469,63 @@
         height: 100%;
         background: #020617;
         object-fit: contain;
+        transform-origin: center center;
+        will-change: transform;
+      }
+
+      #video-placeholder {
+        transform-origin: center center;
+        will-change: transform;
+      }
+
+      .student-center-rotate-controls {
+        position: absolute;
+        z-index: 20;
+        top: 50%;
+        right: 50%;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        transform: translate(50%, -50%);
+      }
+
+      .student-center-rotate-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .55rem;
+        min-width: 11rem;
+        min-height: 3.6rem;
+        padding: .7rem 1.1rem;
+        color: #fff;
+        background: rgba(37, 99, 235, .95);
+        border: 2px solid rgba(191, 219, 254, .9);
+        border-radius: 1rem;
+        box-shadow: 0 12px 28px rgba(2, 6, 23, .45), 0 0 0 4px rgba(37, 99, 235, .18);
+        font: inherit;
+        font-size: .9rem;
+        font-weight: 900;
+        cursor: pointer;
+        pointer-events: auto;
+        touch-action: manipulation;
+      }
+
+      .student-center-rotate-button span {
+        font-size: 1.7rem;
+        line-height: 1;
+      }
+
+      .student-center-rotate-button:hover,
+      .student-center-rotate-button:focus-visible { background: #1d4ed8; outline: 3px solid #fbbf24; outline-offset: 3px; }
+      .student-center-rotate-button.is-cancel { background: rgba(15, 23, 42, .94); }
+      .student-center-rotate-button[hidden] { display: none; }
+
+      .student-landscape-mode .video-frame { touch-action: none; }
+      .student-video-zoomed { cursor: move; }
+
+      @media screen and (max-width: 900px) {
+        .student-center-rotate-controls { display: flex; }
       }
 
       .remote-audio-toggle {
@@ -1728,6 +1785,15 @@
               </button>
             </div>
           </div>
+
+          <div class="student-center-rotate-controls" aria-label="تدوير شاشة الحصة">
+            <button id="student-center-rotate-btn" class="student-center-rotate-button" type="button" aria-label="تدوير الشاشة إلى الوضع الأفقي" title="تدوير الشاشة">
+              <span aria-hidden="true">⟳</span><strong>تدوير الشاشة</strong>
+            </button>
+            <button id="student-center-unrotate-btn" class="student-center-rotate-button is-cancel" type="button" aria-label="إلغاء تدوير الشاشة" title="إلغاء تدوير الشاشة" hidden>
+              <span aria-hidden="true">↺</span><strong>إلغاء التدوير</strong>
+            </button>
+          </div>
         </div>
 
         <div class="viewer-actions-divider">
@@ -1796,6 +1862,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=auto-screen-refresh-1"></script>
+    <script src="./js/student-live.js?v=rotate-zoom-1"></script>
   </body>
 </html>
