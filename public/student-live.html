@@ -2465,6 +2465,51 @@
         }
       }
 
+      /* Compact portrait header: the user-selected top strip is exactly 47px high. */
+      @media screen and (orientation: portrait) and (max-width: 900px) {
+        .viewer-shell {
+          grid-template-rows: 47px minmax(0, 1fr);
+        }
+
+        .viewer-header {
+          height: 47px;
+          min-height: 47px;
+          padding: 0 .6rem;
+          gap: .3rem;
+          overflow: hidden;
+        }
+
+        .viewer-brand,
+        .viewer-level,
+        .student-participation-count,
+        .message-bell {
+          min-height: 2.05rem;
+          height: 2.05rem;
+        }
+
+        .viewer-brand {
+          padding: .16rem .3rem;
+        }
+
+        .viewer-brand-mark {
+          width: 1.65rem;
+          height: 1.65rem;
+        }
+
+        .viewer-level,
+        .student-participation-count {
+          padding: .16rem .3rem;
+        }
+
+        .message-bell {
+          width: 2.05rem;
+        }
+
+        .viewer-stage {
+          height: calc(100svh - 47px);
+        }
+      }
+
       /* Compact chat actions: the composer is opened only on demand. */
       .student-chat-actions {
         display: grid;
