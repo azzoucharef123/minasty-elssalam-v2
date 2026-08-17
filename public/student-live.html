@@ -2139,6 +2139,22 @@
           font-size: .67rem;
         }
       }
+
+      /* Portrait mobile browser only: prevent page/interface pinch zoom.
+         Landscape rotated-screen zoom rules remain unchanged. */
+      @media screen and (orientation: portrait) and (max-width: 900px) {
+        html,
+        body,
+        .student-live-page,
+        .viewer-shell,
+        .viewer-stage,
+        .video-frame,
+        #remote-video,
+        #level-welcome-image {
+          touch-action: pan-x pan-y;
+          overscroll-behavior: none;
+        }
+      }
     </style>
   </head>
   <body class="student-live-page">
@@ -2302,6 +2318,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=visual-polish-2"></script>
+    <script src="./js/student-live.js?v=portrait-no-zoom-1"></script>
   </body>
 </html>
