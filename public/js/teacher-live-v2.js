@@ -118,6 +118,7 @@ const elements = {
   levelSelect: document.getElementById("level-select"),
   subjectSelectLabel: document.getElementById("subject-select-label"),
   subjectSelect: document.getElementById("subject-select"),
+  freeClassHint: document.getElementById("free-class-hint"),
   startButton: document.getElementById("start-class-btn"),
   toggleMicButton: document.getElementById("toggle-mic-btn"),
   recordLocalButton: document.getElementById("record-local-btn"),
@@ -188,11 +189,15 @@ function syncClassTypeSelector({ selectedValue = "" } = {}) {
     ? selectedValue
     : options[0].value;
 
-  elements.subjectSelectLabel.textContent = isUniversity ? "نوع الاشتراك" : "مادة الحصة";
+  const isFreeClass = nextValue === "FREE";
+  elements.subjectSelectLabel.textContent = isUniversity ? "نوع الاشتراك" : isFreeClass ? "نوع الحصة" : "المادة";
   elements.subjectSelect.setAttribute(
     "aria-label",
-    isUniversity ? "اختر نوع الاشتراك" : "اختر مادة الحصة"
+    isUniversity ? "اختر نوع الاشتراك" : isFreeClass ? "اختر نوع الحصة" : "اختر مادة الحصة"
   );
+  if (elements.freeClassHint) {
+    elements.freeClassHint.hidden = !isFreeClass;
+  }
   elements.subjectSelect.replaceChildren(
     ...options.map(({ value, label }) => new Option(label, value, false, value === nextValue))
   );

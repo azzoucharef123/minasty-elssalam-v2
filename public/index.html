@@ -14,7 +14,7 @@
       href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./css/style.css" />
+    <link rel="stylesheet" href="./css/style.css?v=landing-cleanup-1" />
     <link rel="stylesheet" href="./css/ai-assistant.css?v=ai-widget-1">
 </head>
   <body class="landing-page">
@@ -66,47 +66,16 @@
           />
         </a>
 
-        <a class="header-login-link" href="./parent-login.html">
+          <a class="header-login-link" href="./parent-login.html">
           بوابة الولي
           <span aria-hidden="true">←</span>
         </a>
+          <button class="header-ai-chat-link" type="button" data-open-ai-assistant>دردش مع الأستاذ</button>
       </div>
     </header>
 
     <main class="landing-hero">
       <section class="hero-content" aria-labelledby="hero-title">
-        <div class="hero-kicker">
-          <span class="kicker-dot" aria-hidden="true"></span>
-          تعلم موجه نحو التفوق
-        </div>
-
-        <h1 id="hero-title">منصة التعليم التفاعلي<br />والمتابعة المستمرة</h1>
-
-        <p class="hero-description">
-          نرافق التلاميذ في رحلتهم نحو إتقان الرياضيات والفيزياء عبر حصص مباشرة، تقييمات دقيقة، وتقارير واضحة تضع الولي في قلب التقدم.
-        </p>
-
-        <div class="hero-highlights" aria-label="مميزات الأكاديمية">
-          <div class="hero-highlight">
-            <span class="highlight-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M4 5.75A1.75 1.75 0 0 1 5.75 4h8.5A1.75 1.75 0 0 1 16 5.75v8.5A1.75 1.75 0 0 1 14.25 16h-8.5A1.75 1.75 0 0 1 4 14.25v-8.5ZM16 9l4-2v8l-4-2.1V9Z" /></svg>
-            </span>
-            <span>حصص مباشرة</span>
-          </div>
-          <div class="hero-highlight">
-            <span class="highlight-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M4 19.25V4.75A1.75 1.75 0 0 1 5.75 3h12.5A1.75 1.75 0 0 1 20 4.75v14.5M7.5 8H16.5M7.5 12h6M6 21h12" /></svg>
-            </span>
-            <span>تقييم مستمر</span>
-          </div>
-          <div class="hero-highlight">
-            <span class="highlight-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M12 20.25a8.25 8.25 0 1 0 0-16.5 8.25 8.25 0 0 0 0 16.5ZM12 7v5l3.25 2" /></svg>
-            </span>
-            <span>متابعة سهلة</span>
-          </div>
-        </div>
-
         <div class="landing-actions" aria-label="خيارات الدخول إلى المنصة">
           <a class="landing-cta cta-primary" href="./register.html">
             <span class="cta-icon" aria-hidden="true">
@@ -130,16 +99,6 @@
             <span class="cta-arrow" aria-hidden="true">←</span>
           </a>
 
-          <a id="public-free-class-cta" class="landing-cta cta-public-free" href="#" aria-haspopup="dialog" aria-live="polite">
-            <span class="cta-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M4 6.75A2.75 2.75 0 0 1 6.75 4h10.5A2.75 2.75 0 0 1 20 6.75v7.5A2.75 2.75 0 0 1 17.25 17H13l-3.5 3v-3H6.75A2.75 2.75 0 0 1 4 14.25v-7.5Z" /><path d="m10 8.5 5 2.25-5 2.25v-4.5Z" /></svg>
-            </span>
-            <span>
-              <strong>الدخول إلى الحصة المجانية</strong>
-              <small>مباشرة الآن — أدخل اسمك الحقيقي</small>
-            </span>
-            <span class="cta-arrow" aria-hidden="true">←</span>
-          </a>
 
         </div>
       </section>
@@ -208,19 +167,7 @@
       <p>الرياضيات × الفيزياء</p>
     </footer>
 
-    <div id="public-class-unavailable-modal" class="public-class-modal" hidden>
-      <div class="public-class-modal-backdrop" data-close-public-modal></div>
-      <section class="public-class-modal-card" role="dialog" aria-modal="true" aria-labelledby="public-class-unavailable-title">
-        <button id="close-public-class-modal" class="public-class-modal-close" type="button" aria-label="إغلاق">×</button>
-        <span class="public-class-modal-icon" aria-hidden="true">!</span>
-        <p class="public-class-modal-kicker">الحصة العامة</p>
-        <h2 id="public-class-unavailable-title">لا توجد حصة مجانية أو عامة الآن</h2>
-        <p>عندما يفتح الأستاذ حصة عامة سيظهر الدخول هنا تلقائيًا.</p>
-        <button id="public-class-modal-close-action" class="public-class-modal-action" type="button">إغلاق</button>
-      </section>
-    </div>
 
-    <script src="./js/public-class.js" defer></script>
     <script src="./js/testimonials.js" defer></script>
     <script src="./js/ai-assistant.js?v=ai-widget-1" defer></script>
 </body>
