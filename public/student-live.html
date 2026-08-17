@@ -478,54 +478,64 @@
         will-change: transform;
       }
 
-      .student-center-rotate-controls {
-        position: absolute;
-        z-index: 20;
-        top: 50%;
-        right: 50%;
-        display: none;
+      .viewer-actions-control-row {
+        display: flex;
         align-items: center;
         justify-content: center;
-        pointer-events: none;
-        transform: translate(50%, -50%);
+        flex-wrap: wrap;
+        width: 100%;
+        gap: .6rem;
       }
 
-      .student-center-rotate-button {
+      .hand-request-controls {
+        position: static;
+        z-index: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+      }
+
+      .student-inline-rotate-controls {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .student-inline-rotate-button {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: .55rem;
-        min-width: 11rem;
-        min-height: 3.6rem;
-        padding: .7rem 1.1rem;
+        gap: .45rem;
+        min-width: 10.5rem;
+        min-height: 3rem;
+        padding: .58rem .85rem;
         color: #fff;
         background: rgba(37, 99, 235, .95);
         border: 2px solid rgba(191, 219, 254, .9);
-        border-radius: 1rem;
-        box-shadow: 0 12px 28px rgba(2, 6, 23, .45), 0 0 0 4px rgba(37, 99, 235, .18);
+        border-radius: .85rem;
+        box-shadow: 0 8px 18px rgba(2, 6, 23, .3);
         font: inherit;
-        font-size: .9rem;
+        font-size: .78rem;
         font-weight: 900;
         cursor: pointer;
-        pointer-events: auto;
         touch-action: manipulation;
       }
 
-      .student-center-rotate-button span {
-        font-size: 1.7rem;
-        line-height: 1;
-      }
-
-      .student-center-rotate-button:hover,
-      .student-center-rotate-button:focus-visible { background: #1d4ed8; outline: 3px solid #fbbf24; outline-offset: 3px; }
-      .student-center-rotate-button.is-cancel { background: rgba(15, 23, 42, .94); }
-      .student-center-rotate-button[hidden] { display: none; }
+      .student-inline-rotate-button span { font-size: 1.4rem; line-height: 1; }
+      .student-inline-rotate-button:hover,
+      .student-inline-rotate-button:focus-visible { background: #1d4ed8; outline: 3px solid #fbbf24; outline-offset: 2px; }
+      .student-inline-rotate-button.is-cancel { background: rgba(15, 23, 42, .94); }
+      .student-inline-rotate-button[hidden] { display: none; }
+      .viewer-actions-control-row .refresh-media-button { width: auto; min-width: 15rem; max-width: 100%; min-height: 3.6rem; flex: 1 1 15rem; }
 
       .student-landscape-mode .video-frame { touch-action: none; }
       .student-video-zoomed { cursor: move; }
 
       @media screen and (max-width: 900px) {
-        .student-center-rotate-controls { display: flex; }
+        .viewer-actions-control-row { gap: .5rem; }
+        .student-inline-rotate-button { min-width: 9.5rem; }
+        .viewer-actions-control-row .refresh-media-button { flex-basis: 100%; }
       }
 
       .remote-audio-toggle {
@@ -549,16 +559,6 @@
 
       .remote-audio-toggle[hidden] {
         display: none;
-      }
-
-      .hand-request-controls {
-        position: absolute;
-        z-index: 16;
-        top: 0.75rem;
-        left: 0.75rem;
-        display: flex;
-        align-items: center;
-        gap: 0.45rem;
       }
 
       .hand-request-button {
@@ -1774,33 +1774,36 @@
             </div>
           </div>
 
-          <div class="hand-request-controls" aria-label="طلب التحدث">
-            <button id="raise-hand-btn" class="hand-request-button" type="button" hidden>
-              <span aria-hidden="true">✋</span><span class="button-label">رفع اليد</span>
-            </button>
-            <div id="hand-waiting-actions" class="hand-waiting-actions" hidden>
-              <span class="hand-waiting-label">انتظار</span>
-              <button id="lower-hand-btn" class="lower-hand-button" type="button">
-                <span class="button-label">تنزيل اليد</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="student-center-rotate-controls" aria-label="تدوير شاشة الحصة">
-            <button id="student-center-rotate-btn" class="student-center-rotate-button" type="button" aria-label="تدوير الشاشة إلى الوضع الأفقي" title="تدوير الشاشة">
-              <span aria-hidden="true">⟳</span><strong>تدوير الشاشة</strong>
-            </button>
-            <button id="student-center-unrotate-btn" class="student-center-rotate-button is-cancel" type="button" aria-label="إلغاء تدوير الشاشة" title="إلغاء تدوير الشاشة" hidden>
-              <span aria-hidden="true">↺</span><strong>إلغاء التدوير</strong>
-            </button>
-          </div>
         </div>
 
         <div class="viewer-actions-divider">
-          <button id="refresh-media-btn" class="refresh-media-button" type="button" title="تحديث صفحة الحصة لاستعادة الصوت والصورة" aria-label="تحديث الصوت والصورة">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 2v6h-6M2.5 22v-6h6" /><path d="M20 8a8 8 0 0 0-14.7-2M4 16a8 8 0 0 0 14.7 2" /></svg>
-            <span class="refresh-media-label">تحديث الصوت والصورة</span>
-          </button>
+          <div class="viewer-actions-control-row">
+            <div class="hand-request-controls" aria-label="طلب التحدث">
+              <button id="raise-hand-btn" class="hand-request-button" type="button" hidden>
+                <span aria-hidden="true">✋</span><span class="button-label">رفع اليد</span>
+              </button>
+              <div id="hand-waiting-actions" class="hand-waiting-actions" hidden>
+                <span class="hand-waiting-label">انتظار</span>
+                <button id="lower-hand-btn" class="lower-hand-button" type="button">
+                  <span class="button-label">تنزيل اليد</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="student-inline-rotate-controls" aria-label="تدوير شاشة الحصة">
+              <button id="student-center-rotate-btn" class="student-inline-rotate-button" type="button" aria-label="تدوير الشاشة إلى الوضع الأفقي" title="تدوير الشاشة">
+                <span aria-hidden="true">⟳</span><strong>تدوير الشاشة</strong>
+              </button>
+              <button id="student-center-unrotate-btn" class="student-inline-rotate-button is-cancel" type="button" aria-label="إلغاء تدوير الشاشة" title="إلغاء تدوير الشاشة" hidden>
+                <span aria-hidden="true">↺</span><strong>إلغاء التدوير</strong>
+              </button>
+            </div>
+
+            <button id="refresh-media-btn" class="refresh-media-button" type="button" title="تحديث صفحة الحصة لاستعادة الصوت والصورة" aria-label="تحديث الصوت والصورة">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 2v6h-6M2.5 22v-6h6" /><path d="M20 8a8 8 0 0 0-14.7-2M4 16a8 8 0 0 0 14.7 2" /></svg>
+              <span class="refresh-media-label">تحديث الصوت والصورة</span>
+            </button>
+          </div>
         </div>
 
         <aside class="student-chat-panel" aria-labelledby="student-chat-title">
@@ -1862,6 +1865,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=rotate-zoom-1"></script>
+    <script src="./js/student-live.js?v=rotate-zoom-inline-1"></script>
   </body>
 </html>
