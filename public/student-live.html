@@ -1869,6 +1869,276 @@
           font-size: .68rem;
         }
       }
+
+      /* Scoped portrait-only visual polish. The landscape/rotated screen rules
+         above remain unchanged by design. */
+      @media screen and (orientation: portrait) and (max-width: 900px) {
+        .viewer-header {
+          min-height: 3.65rem;
+          padding: .42rem .6rem;
+          gap: .4rem;
+          grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto auto;
+          align-items: center;
+        }
+
+        .viewer-brand,
+        .viewer-level,
+        .student-participation-count,
+        .message-bell {
+          min-height: 2.35rem;
+          border-radius: .62rem;
+        }
+
+        .viewer-brand {
+          min-width: 0;
+          gap: .35rem;
+          padding: .25rem .35rem;
+          overflow: hidden;
+          background: rgba(30, 41, 59, .32);
+          border: 1px solid rgba(148, 163, 184, .18);
+        }
+
+        .viewer-brand-mark {
+          width: 1.8rem;
+          height: 1.8rem;
+          flex: 0 0 auto;
+        }
+
+        .viewer-brand-copy {
+          min-width: 0;
+          direction: rtl;
+          text-align: right;
+        }
+
+        .viewer-brand-copy strong {
+          display: block;
+          overflow: hidden;
+          color: #f8fafc;
+          font-family: Cairo, Tajawal, "Noto Sans Arabic", sans-serif;
+          font-size: .66rem;
+          font-weight: 900;
+          letter-spacing: 0;
+          line-height: 1.25;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          unicode-bidi: isolate;
+        }
+
+        .viewer-brand-copy small {
+          display: block;
+          margin-top: .06rem;
+          font-size: .5rem;
+          line-height: 1.15;
+        }
+
+        .viewer-level {
+          display: inline-flex;
+          min-width: 0;
+          max-width: none;
+          align-items: center;
+          justify-content: center;
+          gap: .22rem;
+          padding: .25rem .35rem;
+          color: #dbeafe;
+          background: rgba(30, 64, 175, .55);
+          border: 1px solid rgba(147, 197, 253, .35);
+          font-size: .55rem;
+          font-weight: 900;
+          line-height: 1.15;
+          text-align: center;
+          white-space: nowrap;
+        }
+
+        .viewer-level svg {
+          width: .85rem;
+          height: .85rem;
+          flex: 0 0 auto;
+        }
+
+        .student-participation-count {
+          display: inline-flex;
+          min-width: 2.35rem;
+          align-items: center;
+          justify-content: center;
+          padding: .25rem .34rem;
+          color: #dbeafe;
+          background: rgba(30, 64, 175, .55);
+          border: 1px solid rgba(147, 197, 253, .35);
+          font-size: .52rem;
+          font-weight: 900;
+          line-height: 1.15;
+          text-align: center;
+          white-space: nowrap;
+        }
+
+        .message-bell {
+          display: grid;
+          width: 2.35rem;
+          height: 2.35rem;
+          place-items: center;
+          margin: 0;
+          color: #dbeafe;
+          background: rgba(30, 64, 175, .55);
+          border: 1px solid rgba(147, 197, 253, .35);
+        }
+
+        .message-bell span { font-size: .85rem; }
+
+        .video-frame {
+          margin: 0;
+          background: #020617;
+          border-radius: .65rem;
+        }
+
+        .video-placeholder {
+          padding: .35rem;
+        }
+
+        .level-welcome-image {
+          width: 100%;
+          height: 100%;
+          max-width: 100%;
+          max-height: 100%;
+          object-fit: contain;
+          object-position: center;
+        }
+
+        .video-placeholder-copy {
+          right: .55rem;
+          bottom: .55rem;
+          left: .55rem;
+          padding: .38rem .55rem;
+          border-radius: .5rem;
+        }
+
+        .video-placeholder-copy strong {
+          font-size: .68rem;
+        }
+
+        .video-placeholder-copy p {
+          margin-top: .18rem;
+          font-size: .56rem;
+          line-height: 1.45;
+        }
+
+        .viewer-actions-divider {
+          min-height: 3.45rem;
+          padding: .22rem .35rem;
+        }
+
+        .viewer-actions-control-row {
+          align-items: stretch;
+          gap: .35rem;
+          min-height: 3rem;
+        }
+
+        .viewer-actions-control-row .hand-request-controls,
+        .viewer-actions-control-row .student-inline-rotate-controls,
+        .viewer-actions-control-row .refresh-media-button {
+          flex: 1 1 0;
+          min-width: 0;
+          width: auto;
+          max-width: none;
+        }
+
+        .viewer-actions-control-row .hand-request-button,
+        .viewer-actions-control-row .hand-waiting-label,
+        .viewer-actions-control-row .lower-hand-button,
+        .viewer-actions-control-row .student-inline-rotate-button,
+        .viewer-actions-control-row .refresh-media-button {
+          width: 100%;
+          min-width: 0;
+          min-height: 3rem;
+          height: 3rem;
+          padding: .45rem .3rem;
+          border-radius: .65rem;
+          font-size: .67rem;
+          font-weight: 900;
+          line-height: 1.2;
+        }
+
+        /* One shared blue palette for the three portrait actions. */
+        .viewer-actions-control-row .refresh-media-button,
+        .viewer-actions-control-row .student-inline-rotate-button,
+        .viewer-actions-control-row .hand-request-button,
+        .viewer-actions-control-row .lower-hand-button,
+        .viewer-actions-control-row .hand-waiting-label {
+          color: #eff6ff;
+          background: linear-gradient(135deg, #2563eb, #1d4ed8);
+          border-color: rgba(191, 219, 254, .72);
+          box-shadow: 0 5px 12px rgba(30, 64, 175, .24);
+        }
+
+        .viewer-actions-control-row .hand-waiting-label {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .viewer-actions-control-row .student-inline-rotate-button.is-cancel {
+          background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        }
+
+        .question-image-preview {
+          min-height: 3.9rem;
+          align-items: center;
+          gap: .4rem;
+          margin: .35rem .45rem 0;
+          padding: .35rem;
+          overflow: hidden;
+        }
+
+        .question-image-preview img {
+          width: 3.1rem;
+          height: 3.1rem;
+          flex: 0 0 3.1rem;
+          object-fit: contain;
+          object-position: center;
+          background: #0f172a;
+        }
+
+        .question-image-preview-copy strong {
+          font-size: .62rem;
+        }
+
+        .question-image-preview-copy span {
+          font-size: .54rem;
+        }
+
+        .student-chat-image {
+          width: min(100%, 11rem);
+          height: auto;
+          max-height: 9rem;
+          object-fit: contain;
+          object-position: center;
+          padding: .12rem;
+        }
+
+        .student-chat-head {
+          min-height: 2.55rem;
+          padding: .45rem .7rem;
+        }
+
+        .student-chat-head h2 {
+          font-size: .78rem;
+        }
+
+        .student-chat-form textarea,
+        .student-chat-form input {
+          min-height: 3rem;
+          height: 3rem;
+          font-size: 16px;
+        }
+
+        .student-chat-send,
+        .student-chat-capture {
+          min-width: 3.6rem;
+          min-height: 3rem;
+          height: 3rem;
+          padding-inline: .35rem;
+          font-size: .67rem;
+        }
+      }
     </style>
   </head>
   <body class="student-live-page">
@@ -1911,7 +2181,7 @@
             <svg viewBox="0 0 24 24"><path d="M3.5 8 12 3.75 20.5 8 12 12.25 3.5 8Z" /><path d="M6.5 9.5v5.9c3.1 2.25 7.9 2.25 11 0V9.5" /></svg>
           </span>
           <span class="viewer-brand-copy">
-            <strong>أكاديمية التفوق</strong>
+            <strong dir="rtl" lang="ar">أكاديمية التفوق</strong>
             <small>الحصة المباشرة</small>
           </span>
         </div>
@@ -2032,6 +2302,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=portrait-polish-1"></script>
+    <script src="./js/student-live.js?v=visual-polish-1"></script>
   </body>
 </html>
