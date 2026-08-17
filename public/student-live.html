@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=overlays-content" />
+    <meta name="theme-color" content="#0b1220" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta
       name="description"
       content="مشاهدة الحصة المباشرة في أكاديمية التفوق للفيزياء والرياضيات."
@@ -2155,6 +2159,280 @@
           overscroll-behavior: none;
         }
       }
+
+      /* Portrait mobile-browser app shell. The landscape/rotated interface is
+         intentionally excluded from this block and remains unchanged. */
+      @media screen and (orientation: portrait) and (max-width: 900px) {
+        :root {
+          --student-safe-top: env(safe-area-inset-top, 0px);
+          --student-safe-right: env(safe-area-inset-right, 0px);
+          --student-safe-bottom: env(safe-area-inset-bottom, 0px);
+          --student-safe-left: env(safe-area-inset-left, 0px);
+          --student-app-gap: clamp(.35rem, 1.8vw, .7rem);
+          --student-action-height: 3.25rem;
+        }
+
+        html,
+        body {
+          width: 100%;
+          min-width: 0;
+          height: 100%;
+          min-height: 100%;
+          margin: 0;
+          overflow: hidden;
+          overscroll-behavior: none;
+          background: #0b1220;
+        }
+
+        .student-live-page {
+          position: fixed;
+          inset: 0;
+          width: 100vw;
+          height: 100svh;
+          min-height: 100svh;
+          padding: var(--student-safe-top) var(--student-safe-right) var(--student-safe-bottom) var(--student-safe-left);
+          overflow: hidden;
+          background: #0b1220;
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        .viewer-shell {
+          display: grid;
+          grid-template-rows: auto minmax(0, 1fr);
+          width: 100%;
+          height: 100%;
+          min-height: 0;
+          overflow: hidden;
+          background: #0b1220;
+        }
+
+        .viewer-header {
+          position: relative;
+          z-index: 5;
+          display: grid;
+          min-height: 3.8rem;
+          padding: .45rem var(--student-app-gap);
+          gap: var(--student-app-gap);
+          align-items: center;
+          background: rgba(15, 23, 42, .96);
+          border: 0;
+          border-bottom: 1px solid rgba(148, 163, 184, .18);
+          box-shadow: 0 5px 18px rgba(2, 6, 23, .28);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+        }
+
+        .viewer-stage {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          grid-template-rows: minmax(0, auto) auto minmax(0, 1fr);
+          grid-template-areas: "video" "divider" "chat";
+          width: 100%;
+          height: 100%;
+          min-height: 0;
+          gap: 0;
+          padding: 0;
+          overflow: hidden;
+          background: #0b1220;
+          border: 0;
+          border-radius: 0;
+          box-shadow: none;
+        }
+
+        .video-frame {
+          grid-area: video;
+          width: 100%;
+          height: auto;
+          min-height: 0;
+          max-height: min(45svh, 25rem);
+          aspect-ratio: 1.83 / 1;
+          margin: 0;
+          border: 0;
+          border-radius: 0;
+          box-shadow: none;
+          background: #020617;
+        }
+
+        .video-placeholder {
+          padding: .25rem;
+          background: #020617;
+        }
+
+        .video-placeholder-copy {
+          right: .5rem;
+          bottom: .5rem;
+          left: .5rem;
+          padding: .4rem .55rem;
+          border-radius: .65rem;
+          background: rgba(2, 6, 23, .78);
+        }
+
+        .viewer-actions-divider {
+          position: relative;
+          z-index: 4;
+          grid-area: divider;
+          width: 100%;
+          min-height: var(--student-action-height);
+          padding: .35rem var(--student-app-gap) calc(.35rem + var(--student-safe-bottom));
+          background: rgba(15, 23, 42, .98);
+          border: 0;
+          border-top: 1px solid rgba(148, 163, 184, .18);
+          border-bottom: 1px solid rgba(148, 163, 184, .18);
+          box-shadow: 0 -5px 18px rgba(2, 6, 23, .24);
+        }
+
+        .viewer-actions-control-row {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          align-items: stretch;
+          width: 100%;
+          min-height: 2.7rem;
+          gap: .4rem;
+        }
+
+        .viewer-actions-control-row .hand-request-controls,
+        .viewer-actions-control-row .student-inline-rotate-controls,
+        .viewer-actions-control-row .refresh-media-button {
+          width: 100%;
+          min-width: 0;
+          max-width: none;
+          flex: none;
+        }
+
+        .viewer-actions-control-row .hand-request-controls,
+        .viewer-actions-control-row .student-inline-rotate-controls {
+          display: flex;
+          align-items: stretch;
+        }
+
+        .viewer-actions-control-row .hand-request-button,
+        .viewer-actions-control-row .hand-waiting-label,
+        .viewer-actions-control-row .lower-hand-button,
+        .viewer-actions-control-row .student-inline-rotate-button,
+        .viewer-actions-control-row .refresh-media-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          min-width: 0;
+          min-height: 2.75rem;
+          height: 2.75rem;
+          padding: .4rem .3rem;
+          gap: .24rem;
+          border-radius: .75rem;
+          font-size: clamp(.61rem, 2.4vw, .72rem);
+          font-weight: 900;
+          line-height: 1.15;
+          white-space: nowrap;
+          transition: transform .16s ease, opacity .16s ease, box-shadow .16s ease, background .16s ease;
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        .viewer-actions-control-row .refresh-media-button,
+        .viewer-actions-control-row .student-inline-rotate-button,
+        .viewer-actions-control-row .hand-request-button,
+        .viewer-actions-control-row .lower-hand-button,
+        .viewer-actions-control-row .hand-waiting-label {
+          color: #eff6ff;
+          background: linear-gradient(135deg, #2563eb, #1d4ed8);
+          border: 1px solid rgba(191, 219, 254, .66);
+          box-shadow: 0 5px 14px rgba(30, 64, 175, .24);
+        }
+
+        .viewer-actions-control-row button:active,
+        .viewer-actions-control-row .hand-waiting-label:active {
+          transform: scale(.96);
+          opacity: .86;
+          box-shadow: 0 2px 7px rgba(30, 64, 175, .2);
+        }
+
+        .student-chat-panel {
+          grid-area: chat;
+          width: 100%;
+          min-height: 0;
+          overflow: hidden;
+          border: 0;
+          border-radius: 0;
+          box-shadow: none;
+          background: #171b26;
+        }
+
+        .student-chat-head {
+          min-height: 2.5rem;
+          padding: .45rem .75rem;
+          background: #121827;
+          border-bottom: 1px solid rgba(148, 163, 184, .15);
+        }
+
+        .student-chat-head h2 {
+          font-size: .78rem;
+          line-height: 1.2;
+        }
+
+        .student-chat-box {
+          min-height: 0;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+        }
+
+        .student-chat-box::-webkit-scrollbar {
+          display: none;
+        }
+
+        .question-image-preview,
+        .student-chat-image {
+          box-sizing: border-box;
+          overflow: hidden;
+        }
+
+        .question-image-preview img,
+        .student-chat-image {
+          object-fit: contain;
+          object-position: center;
+          background: #0f172a;
+        }
+
+        .student-chat-image {
+          width: min(100%, 11rem);
+          height: auto;
+          max-height: 9rem;
+          padding: .12rem;
+        }
+
+        .student-chat-form {
+          position: relative;
+          z-index: 3;
+          gap: .35rem;
+          padding: .4rem var(--student-app-gap) calc(.45rem + var(--student-safe-bottom));
+          background: #121827;
+          border-top: 1px solid rgba(148, 163, 184, .15);
+        }
+
+        .student-chat-form textarea,
+        .student-chat-form input {
+          min-height: 3rem;
+          height: 3rem;
+          font-size: 16px;
+        }
+
+        .student-chat-send,
+        .student-chat-capture {
+          min-width: 3.6rem;
+          min-height: 3rem;
+          height: 3rem;
+          border-radius: .7rem;
+          transition: transform .16s ease, opacity .16s ease, box-shadow .16s ease;
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        .student-chat-send:active,
+        .student-chat-capture:active {
+          transform: scale(.96);
+          opacity: .86;
+        }
+      }
     </style>
   </head>
   <body class="student-live-page">
@@ -2318,6 +2596,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=portrait-no-zoom-2"></script>
+    <script src="./js/student-live.js?v=app-shell-1"></script>
   </body>
 </html>
