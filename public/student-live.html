@@ -1684,22 +1684,86 @@
         }
 
         .viewer-stage {
-          height: 100%;
-          min-height: 100%;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          grid-template-rows: minmax(0, 1fr) .5cm;
+          grid-template-areas:
+            "video"
+            "divider";
+          width: 100vw;
+          height: 100dvh;
+          min-height: 100dvh;
+          padding: 0;
+          gap: 0;
           border: 0;
           border-radius: 0;
+          overflow: hidden;
         }
 
         .video-frame {
-          grid-column: 1;
-          grid-row: 1 / -1;
-          height: 100%;
-          min-height: 100%;
+          grid-area: video;
+          width: 100vw;
+          height: calc(100dvh - .5cm);
+          min-height: 0;
           border: 0;
+          border-radius: 0;
+          box-shadow: none;
         }
 
-        .student-chat-panel {
-          display: none;
+        .student-chat-panel,
+        html.student-landscape-mode .student-mobile-controls {
+          display: none !important;
+        }
+
+        .viewer-actions-divider {
+          grid-area: divider;
+          display: flex;
+          width: 100vw;
+          height: .5cm;
+          min-height: .5cm;
+          padding: 0;
+          border: 0;
+          border-radius: 0;
+          background: rgba(15, 23, 42, .98);
+          overflow: hidden;
+        }
+
+        .viewer-actions-control-row {
+          flex-wrap: nowrap;
+          width: 100%;
+          height: .5cm;
+          min-height: .5cm;
+          gap: .25rem;
+        }
+
+        .hand-request-controls,
+        .student-inline-rotate-controls {
+          height: .5cm;
+          min-height: .5cm;
+          flex: 0 0 auto;
+        }
+
+        .hand-request-button,
+        .hand-waiting-label,
+        .lower-hand-button,
+        .student-inline-rotate-button {
+          min-width: auto;
+          min-height: .5cm;
+          height: .5cm;
+          padding: 0 .45rem;
+          border-width: 1px;
+          border-radius: .18rem;
+          box-shadow: none;
+          font-size: .58rem;
+          line-height: 1;
+        }
+
+        .student-inline-rotate-button span {
+          font-size: .78rem;
+        }
+
+        .viewer-actions-control-row .refresh-media-button {
+          display: none !important;
         }
       }
     </style>
@@ -1865,6 +1929,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=rotate-zoom-inline-1"></script>
+    <script src="./js/student-live.js?v=landscape-strip-1"></script>
   </body>
 </html>
