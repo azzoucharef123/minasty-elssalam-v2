@@ -88,6 +88,9 @@ const elements = {
   chatForm: document.getElementById("chat-form"),
   chatInput: document.getElementById("chat-input"),
   chatSendButton: document.getElementById("chat-send-btn"),
+  openChatComposeButton: document.getElementById("open-chat-compose-btn"),
+  closeChatComposeButton: document.getElementById("close-chat-compose-btn"),
+  chatComposeModal: document.getElementById("chat-compose-modal"),
   captureQuestionButton: document.getElementById("capture-question-btn"),
   questionImageInput: document.getElementById("question-image-input"),
   questionImagePreview: document.getElementById("question-image-preview"),
@@ -880,7 +883,23 @@ function updateChatControls() {
   elements.chatInput.disabled = !canSend;
   elements.questionImageInput.disabled = !canSend;
   elements.captureQuestionButton.disabled = !canSend;
+  if (elements.openChatComposeButton) elements.openChatComposeButton.disabled = !canSend;
   elements.chatSendButton.disabled = !canSend || (!normalizeChatMessage(elements.chatInput.value) && !hasQuestionImage);
+}
+
+function openStudentChatComposer() {
+  if (!elements.chatComposeModal || elements.openChatComposeButton?.disabled) return;
+  elements.chatComposeModal.hidden = false;
+  document.body.classList.add("student-chat-compose-open");
+  updateChatControls();
+  window.requestAnimationFrame(() => elements.chatInput?.focus({ preventScroll: true }));
+}
+
+function closeStudentChatComposer() {
+  if (!elements.chatComposeModal) return;
+  elements.chatComposeModal.hidden = true;
+  document.body.classList.remove("student-chat-compose-open");
+  elements.chatInput?.blur();
 }
 
 function clearSelectedQuestionImage() {
@@ -969,6 +988,7 @@ async function sendStudentChatMessage(event) {
     appendStudentChatMessage({ sender: "أنا", message, kind: "student", imageUrl: localImageUrl });
     elements.chatInput.value = "";
     clearSelectedQuestionImage();
+    closeStudentChatComposer();
     // Keep the question controls unobstructed after sending. The chat itself
     // confirms delivery by displaying the submitted question or image.
   } catch (error) {
@@ -2159,6 +2179,16 @@ elements.remoteVideo?.addEventListener("volumechange", updateRemoteAudioControl)
 elements.raiseHandButton.addEventListener("click", raiseHand);
 elements.lowerHandButton?.addEventListener("click", lowerHand);
 elements.chatForm.addEventListener("submit", sendStudentChatMessage);
+elements.openChatComposeButton?.addEventListener("click", openStudentChatComposer);
+elements.closeChatComposeButton?.addEventListener("click", closeStudentChatComposer);
+elements.chatComposeModal?.addEventListener("click", (event) => {
+  if (event.target === elements.chatComposeModal) closeStudentChatComposer();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && elements.chatComposeModal && !elements.chatComposeModal.hidden) {
+    closeStudentChatComposer();
+  }
+});
 elements.chatInput.addEventListener("input", updateChatControls);
 elements.chatInput.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
@@ -2172,7 +2202,12 @@ elements.captureQuestionButton?.addEventListener("click", () => {
   }
 });
 elements.questionImageInput?.addEventListener("change", () => {
-  selectQuestionImage(elements.questionImageInput.files?.[0]);
+  const file = elements.questionImageInput.files?.[0];
+  if (!file) return;
+  selectQuestionImage(file);
+  if (selectedQuestionImageFile === file) {
+    window.setTimeout(() => sendStudentChatMessage({ preventDefault() {} }), 0);
+  }
 });
 elements.removeQuestionImageButton?.addEventListener("click", clearSelectedQuestionImage);
 elements.refreshMediaButton?.addEventListener("click", refreshAudioVideo);

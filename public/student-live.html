@@ -2464,6 +2464,202 @@
           touch-action: manipulation;
         }
       }
+
+      /* Compact chat actions: the composer is opened only on demand. */
+      .student-chat-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.55rem;
+        padding: 0.55rem;
+        background: #121827;
+        border-top: 1px solid rgba(148, 163, 184, 0.15);
+      }
+
+      .student-chat-actions button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        min-width: 0;
+        min-height: 3rem;
+        padding: 0.65rem 0.7rem;
+        color: #eff6ff;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        border: 1px solid rgba(191, 219, 254, 0.66);
+        border-radius: 0.75rem;
+        box-shadow: 0 5px 14px rgba(30, 64, 175, 0.24);
+        font-size: 0.78rem;
+        font-weight: 900;
+        line-height: 1.2;
+        cursor: pointer;
+        transition: transform 0.16s ease, opacity 0.16s ease, box-shadow 0.16s ease;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+      }
+
+      .student-chat-actions button:active:not(:disabled) {
+        transform: scale(0.96);
+        opacity: 0.86;
+        box-shadow: 0 2px 7px rgba(30, 64, 175, 0.2);
+      }
+
+      .student-chat-actions button:disabled,
+      .student-chat-send:disabled {
+        cursor: not-allowed;
+        opacity: 0.46;
+      }
+
+      .student-live-page.student-chat-compose-open {
+        overflow: hidden;
+      }
+
+      .chat-compose-modal {
+        position: fixed;
+        z-index: 40;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+        background: rgba(2, 6, 23, 0.74);
+        backdrop-filter: blur(10px);
+      }
+
+      .chat-compose-modal[hidden] {
+        display: none;
+      }
+
+      .chat-compose-dialog {
+        width: min(100%, 30rem);
+        overflow: hidden;
+        color: #e2e8f0;
+        background: linear-gradient(145deg, rgba(30, 41, 59, 0.99), rgba(15, 23, 42, 0.99));
+        border: 1px solid rgba(96, 165, 250, 0.3);
+        border-radius: 1.1rem;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48);
+      }
+
+      .chat-compose-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 1rem 1rem 0.85rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+      }
+
+      .chat-compose-eyebrow {
+        display: block;
+        margin-bottom: 0.2rem;
+        color: #93c5fd;
+        font-size: 0.68rem;
+        font-weight: 800;
+      }
+
+      .chat-compose-head h3 {
+        margin: 0;
+        color: #f8fafc;
+        font-size: 1rem;
+        font-weight: 900;
+      }
+
+      .chat-compose-close {
+        display: grid;
+        width: 2.4rem;
+        height: 2.4rem;
+        flex: 0 0 auto;
+        place-items: center;
+        color: #cbd5e1;
+        background: rgba(148, 163, 184, 0.12);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 0.65rem;
+        font-size: 1.35rem;
+        line-height: 1;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+
+      .chat-compose-close:active {
+        transform: scale(0.96);
+      }
+
+      .student-chat-form {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.65rem;
+        padding: 1rem;
+        background: transparent;
+        border-top: 0;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .chat-compose-label {
+        color: #cbd5e1;
+        font-size: 0.75rem;
+        font-weight: 800;
+      }
+
+      #chat-input {
+        width: 100%;
+        min-height: 8rem;
+        max-height: 14rem;
+        resize: vertical;
+        padding: 0.75rem;
+        color: #f8fafc;
+        background: rgba(2, 6, 23, 0.56);
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        border-radius: 0.8rem;
+        outline: none;
+        font-size: 16px !important;
+        line-height: 1.65;
+      }
+
+      #chat-input:focus {
+        border-color: rgba(96, 165, 250, 0.82);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+      }
+
+      .student-chat-send {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        width: 100%;
+        min-height: 3rem;
+        padding: 0.65rem 0.8rem;
+        color: #eff6ff;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        border: 1px solid rgba(191, 219, 254, 0.66);
+        border-radius: 0.75rem;
+        box-shadow: 0 5px 14px rgba(30, 64, 175, 0.24);
+        font-size: 0.82rem;
+        font-weight: 900;
+        cursor: pointer;
+        transition: transform 0.16s ease, opacity 0.16s ease, box-shadow 0.16s ease;
+        touch-action: manipulation;
+      }
+
+      .student-chat-send:active:not(:disabled) {
+        transform: scale(0.97);
+        opacity: 0.86;
+      }
+
+      @media screen and (max-width: 500px) {
+        .student-chat-actions {
+          gap: 0.45rem;
+          padding: 0.45rem;
+        }
+
+        .student-chat-actions button {
+          min-height: 3.15rem;
+          font-size: 0.74rem;
+        }
+
+        .chat-compose-dialog {
+          width: min(100%, 30rem);
+          border-radius: 0.95rem;
+        }
+      }
     </style>
   </head>
   <body class="student-live-page">
@@ -2576,18 +2772,37 @@
             <p id="chat-empty" class="student-chat-empty">اكتب سؤالك وسيظهر رد الأستاذ هنا.</p>
           </div>
           <div id="question-image-preview" class="question-image-preview" hidden>
-            <img id="question-image-preview-img" alt="معاينة صورة السؤال" />
-            <div class="question-image-preview-copy"><strong>صورة جاهزة للإرسال</strong><span>يمكنك كتابة توضيح ثم الإرسال.</span></div>
+            <img id="question-image-preview-img" alt="معاينة الصورة" />
+            <div class="question-image-preview-copy"><strong>صورة جاهزة للإرسال</strong><span>جارٍ تجهيز الصورة للإرسال.</span></div>
             <button id="remove-question-image-btn" type="button" aria-label="إلغاء الصورة">×</button>
           </div>
-          <form id="chat-form" class="student-chat-form" novalidate>
-            <textarea id="chat-input" rows="2" maxlength="800" placeholder="اكتب سؤالك أو أرفق صورة..." autocomplete="off" aria-label="سؤالك للأستاذ" disabled></textarea>
-            <input id="question-image-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden disabled />
-            <button id="capture-question-btn" class="student-chat-capture" type="button" disabled aria-label="تصوير سؤال أو واجب">
+          <div class="student-chat-actions" aria-label="أدوات التواصل مع الأستاذ">
+            <input id="question-image-input" type="file" accept="image/jpeg,image/png,image/webp" capture="user" hidden disabled />
+            <button id="capture-question-btn" class="student-chat-capture" type="button" disabled aria-label="تصوير">
               <span aria-hidden="true">▣</span><span>تصوير</span>
             </button>
-            <button id="chat-send-btn" class="student-chat-send" type="submit" disabled>إرسال</button>
-          </form>
+            <button id="open-chat-compose-btn" class="student-chat-message-button" type="button" disabled aria-label="إرسال رسالة">
+              <span aria-hidden="true">✉</span><span>إرسال رسالة</span>
+            </button>
+          </div>
+          <div id="chat-compose-modal" class="chat-compose-modal" role="dialog" aria-modal="true" aria-labelledby="chat-compose-title" hidden>
+            <section class="chat-compose-dialog">
+              <header class="chat-compose-head">
+                <div>
+                  <span class="chat-compose-eyebrow">تواصل مباشر</span>
+                  <h3 id="chat-compose-title">إرسال رسالة للأستاذ</h3>
+                </div>
+                <button id="close-chat-compose-btn" class="chat-compose-close" type="button" aria-label="إغلاق نافذة الرسالة">×</button>
+              </header>
+              <form id="chat-form" class="student-chat-form" novalidate>
+                <label class="chat-compose-label" for="chat-input">رسالتك</label>
+                <textarea id="chat-input" rows="5" maxlength="800" placeholder="اكتب رسالتك هنا..." autocomplete="off" aria-label="رسالتك للأستاذ" disabled></textarea>
+                <button id="chat-send-btn" class="student-chat-send" type="submit" disabled>
+                  <span aria-hidden="true">➤</span><span>إرسال</span>
+                </button>
+              </form>
+            </section>
+          </div>
         </aside>
       </main>
 
@@ -2627,6 +2842,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=chat-focus-stable-1"></script>
+    <script src="./js/student-live.js?v=chat-modal-1"></script>
   </body>
 </html>
