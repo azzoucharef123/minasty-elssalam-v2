@@ -994,7 +994,9 @@ function setRaisedHandState({ waiting = false } = {}) {
   elements.raiseHandButton.hidden = !canRequest || waiting;
   elements.raiseHandButton.disabled = !canRequest;
   elements.raiseHandButton.classList.toggle("hand-raised", waiting);
-  setButtonLabel(elements.raiseHandButton, waiting ? "مرفوعة ✋" : "رفع اليد");
+  // The raised state is rendered only by handWaitingActions. Keep the main
+  // request button label stable so a hidden control can never duplicate it.
+  setButtonLabel(elements.raiseHandButton, "رفع اليد");
   elements.handWaitingActions.hidden = !waiting;
   elements.handWaitingActions.classList.toggle("hand-raised", waiting);
   const waitingLabel = elements.handWaitingActions.querySelector(".hand-waiting-label");
