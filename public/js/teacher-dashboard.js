@@ -29,6 +29,12 @@ const elements = {
 
   toast: document.querySelector("#toast, #success-toast"),
   searchInput: document.getElementById("student-search"),
+  studentSearchTrigger: document.getElementById("student-search-trigger"),
+  studentSearchModal: document.getElementById("student-search-modal"),
+  studentSearchForm: document.getElementById("student-search-form"),
+  studentSearchModalInput: document.getElementById("student-search-modal-input"),
+  studentSearchModalClose: document.getElementById("student-search-modal-close"),
+  studentSearchModalCancel: document.getElementById("student-search-modal-cancel"),
   paymentFilter: document.getElementById("payment-filter"),
   summaryTotal: document.getElementById("summary-total"),
   summaryPaid: document.getElementById("summary-paid"),
@@ -48,6 +54,7 @@ const elements = {
   closeSubscriptionButton: document.getElementById("close-subscription-modal"),
   dashboardDate: document.getElementById("dashboard-date"),
   bentoCurrentLevel: document.getElementById("bento-current-level"),
+  quizCurrentLevel: document.getElementById("quiz-current-level"),
   bentoLiveEnabled: document.getElementById("bento-live-enabled"),
   bentoTotalCaption: document.getElementById("bento-total-caption"),
   paymentProgressBar: document.getElementById("payment-progress-bar"),
@@ -742,6 +749,7 @@ function setActiveLevelButton(level) {
     button.classList.toggle("is-active", isActive);
     button.classList.toggle("active", isActive);
     button.setAttribute("aria-current", isActive ? "true" : "false");
+    button.setAttribute("aria-pressed", String(isActive));
   });
 }
 
@@ -751,6 +759,9 @@ function setCurrentLevelHeading(level) {
   }
   if (elements.bentoCurrentLevel) {
     elements.bentoCurrentLevel.textContent = displayLevelLabel(level);
+  }
+  if (elements.quizCurrentLevel) {
+    elements.quizCurrentLevel.textContent = displayLevelLabel(level);
   }
   if (elements.studentPaymentHeading) {
     elements.studentPaymentHeading.textContent = level === "طالب جامعي" ? "بطاقة الطالب" : "حالة الدفع";
@@ -2437,6 +2448,7 @@ const DASHBOARD_TAB_HASHES = {
   registry: "#class-registry-manager",
   assignments: "#assignment-manager",
   lessons: "#lesson-repository-manager",
+  quiz: "#quiz-panel",
 };
 
 function tabFromHash(hash = window.location.hash) {
@@ -2672,8 +2684,40 @@ function updateDashboardDate() {
   }).format(new Date());
 }
 
+function openStudentSearchModal() {
+  if (!elements.studentSearchModal) return;
+  if (typeof elements.studentSearchModal.showModal === "function") {
+    if (!elements.studentSearchModal.open) elements.studentSearchModal.showModal();
+  } else {
+    elements.studentSearchModal.setAttribute("open", "");
+  }
+  if (elements.studentSearchModalInput) {
+    elements.studentSearchModalInput.value = elements.searchInput?.value || "";
+    window.setTimeout(() => elements.studentSearchModalInput.focus(), 0);
+  }
+}
+
+function closeStudentSearchModal() {
+  if (!elements.studentSearchModal) return;
+  if (typeof elements.studentSearchModal.close === "function" && elements.studentSearchModal.open) {
+    elements.studentSearchModal.close();
+  } else {
+    elements.studentSearchModal.removeAttribute("open");
+  }
+}
+
+function submitStudentSearch(event) {
+  event.preventDefault();
+  if (elements.searchInput && elements.studentSearchModalInput) {
+    elements.searchInput.value = elements.studentSearchModalInput.value.trim();
+  }
+  closeStudentSearchModal();
+  applyFilters();
+}
+
 function focusStudentSearch() {
-  setDashboardTab("students", { focusSearch: true });
+  setDashboardTab("students");
+  openStudentSearchModal();
 }
 function jumpToRoster() {
   setDashboardTab("students");
@@ -2813,6 +2857,16 @@ if (!getTeacherToken()) {
   });
   elements.searchInput?.addEventListener("input", applyFilters);
   elements.paymentFilter?.addEventListener("change", applyFilters);
+  elements.studentSearchTrigger?.addEventListener("click", () => {
+    setDashboardTab("students");
+    openStudentSearchModal();
+  });
+  elements.studentSearchForm?.addEventListener("submit", submitStudentSearch);
+  elements.studentSearchModalClose?.addEventListener("click", closeStudentSearchModal);
+  elements.studentSearchModalCancel?.addEventListener("click", closeStudentSearchModal);
+  elements.studentSearchModal?.addEventListener("click", (event) => {
+    if (event.target === elements.studentSearchModal) closeStudentSearchModal();
+  });
   elements.focusStudentSearchButton?.addEventListener("click", focusStudentSearch);
   elements.jumpToRosterButton?.addEventListener("click", jumpToRoster);
 

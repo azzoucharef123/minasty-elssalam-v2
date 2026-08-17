@@ -2713,3 +2713,288 @@ body.teacher-modal-open {
     transition: none;
   }
 }
+
+
+/* Teacher dashboard: level strip + section strip */
+.teacher-dashboard-page .teacher-level-strip {
+  display: flex;
+  flex: 0 0 auto;
+  gap: .35rem;
+  min-height: 2.9rem;
+  padding: .28rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid #cbdcf7;
+  border-radius: .78rem;
+  background: linear-gradient(135deg, #eef5ff, #ffffff);
+  box-shadow: 0 3px 12px rgba(37, 99, 235, .06);
+  scrollbar-width: none;
+}
+
+.teacher-dashboard-page .teacher-level-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.teacher-dashboard-page .teacher-level-strip .level-btn {
+  flex: 1 0 auto;
+  min-width: max-content;
+  min-height: 2.35rem;
+  padding: .46rem .85rem;
+  color: #38516f;
+  background: #ffffff;
+  border: 1px solid #d8e5f7;
+  border-radius: .62rem;
+  font-size: .7rem;
+  font-weight: 900;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.teacher-dashboard-page .teacher-level-strip .level-btn:hover,
+.teacher-dashboard-page .teacher-level-strip .level-btn:focus-visible {
+  color: #1d4ed8;
+  background: #f5f9ff;
+  border-color: #93c5fd;
+  outline: none;
+}
+
+.teacher-dashboard-page .teacher-level-strip .level-btn:active {
+  transform: translateY(1px);
+}
+
+.teacher-dashboard-page .teacher-level-strip .level-btn.is-active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border-color: #1d4ed8;
+  box-shadow: 0 4px 11px rgba(37, 99, 235, .2);
+}
+
+.teacher-dashboard-page .roster-heading h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: .42rem;
+}
+
+.teacher-dashboard-page .student-search-storage {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.teacher-dashboard-page .student-search-trigger {
+  display: inline-grid;
+  width: 2rem;
+  min-width: 2rem;
+  height: 2rem;
+  min-height: 2rem;
+  padding: 0;
+  place-items: center;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: .62rem;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.teacher-dashboard-page .student-search-trigger:hover,
+.teacher-dashboard-page .student-search-trigger:focus-visible {
+  color: #ffffff;
+  background: #2563eb;
+  border-color: #1d4ed8;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, .2);
+  outline: none;
+}
+
+.teacher-dashboard-page .student-search-trigger:active {
+  transform: scale(.96);
+}
+
+.teacher-dashboard-page .student-search-modal {
+  width: min(92vw, 25rem);
+  padding: 0;
+  color: #172033;
+  border: 0;
+  border-radius: 1rem;
+  background: transparent;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .24);
+}
+
+.teacher-dashboard-page .student-search-modal::backdrop {
+  background: rgba(15, 23, 42, .42);
+  backdrop-filter: blur(3px);
+}
+
+.teacher-dashboard-page .student-search-dialog {
+  position: relative;
+  display: grid;
+  gap: .7rem;
+  padding: 1.25rem;
+  background: #ffffff;
+  border: 1px solid #dbe7f5;
+  border-radius: 1rem;
+}
+
+.teacher-dashboard-page .student-search-dialog h2 {
+  margin: 0;
+  color: #172033;
+  font-size: 1.08rem;
+}
+
+.teacher-dashboard-page .student-search-dialog label {
+  display: grid;
+  gap: .35rem;
+  color: #475569;
+  font-size: .72rem;
+  font-weight: 900;
+}
+
+.teacher-dashboard-page .student-search-dialog input {
+  min-height: 2.7rem;
+  padding: .5rem .7rem;
+  color: #172033;
+  background: #f8fafc;
+  border: 1px solid #dbe4ef;
+  border-radius: .65rem;
+  font: inherit;
+  font-size: .8rem;
+  outline: none;
+}
+
+.teacher-dashboard-page .student-search-dialog input:focus {
+  background: #ffffff;
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, .16);
+}
+
+.teacher-dashboard-page .student-search-modal-close {
+  position: absolute;
+  top: .65rem;
+  left: .65rem;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 50%;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.teacher-dashboard-page .student-search-modal-actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: .5rem;
+  margin-top: .2rem;
+}
+
+.teacher-dashboard-page .student-search-modal-actions button {
+  min-width: 5rem;
+  min-height: 2.45rem;
+  padding: .45rem .8rem;
+  border-radius: .62rem;
+  font: inherit;
+  font-size: .75rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.teacher-dashboard-page .student-search-cancel {
+  color: #475569;
+  background: #f8fafc;
+  border: 1px solid #dbe4ef;
+}
+
+.teacher-dashboard-page .student-search-submit {
+  color: #ffffff;
+  background: #2563eb;
+  border: 1px solid #1d4ed8;
+}
+
+.teacher-dashboard-page .teacher-quiz-panel.teacher-tab-panel.is-active {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 1rem;
+}
+
+.teacher-dashboard-page .teacher-quiz-card {
+  width: min(100%, 42rem);
+  padding: 2rem;
+  text-align: center;
+  background: linear-gradient(145deg, #ffffff, #f3f7ff);
+  border: 1px solid #dbe7f5;
+  border-radius: 1rem;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, .07);
+}
+
+.teacher-dashboard-page .teacher-quiz-card h2 {
+  margin: .35rem 0 .5rem;
+  color: #172033;
+  font-size: 1.35rem;
+}
+
+.teacher-dashboard-page .teacher-quiz-card p {
+  margin: 0;
+  color: #64748b;
+  font-size: .82rem;
+  line-height: 1.8;
+}
+
+.teacher-dashboard-page .teacher-quiz-status {
+  display: inline-flex;
+  margin-top: 1rem;
+  padding: .35rem .75rem;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 900;
+}
+
+@media (max-width: 720px) {
+  .teacher-dashboard-page .teacher-level-strip .level-btn {
+    flex: 0 0 auto;
+  }
+
+  .teacher-dashboard-page .roster-heading h2 {
+    gap: .35rem;
+  }
+
+  .teacher-dashboard-page .student-search-trigger {
+    width: 2.2rem;
+    min-width: 2.2rem;
+    height: 2.2rem;
+    min-height: 2.2rem;
+  }
+
+  .teacher-dashboard-page .teacher-quiz-panel.teacher-tab-panel.is-active {
+    padding: .65rem;
+  }
+
+  .teacher-dashboard-page .teacher-quiz-card {
+    padding: 1.35rem 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .teacher-dashboard-page .teacher-level-strip .level-btn,
+  .teacher-dashboard-page .student-search-trigger {
+    transition: none;
+  }
+}
