@@ -108,6 +108,10 @@ const elements = {
   centerUnrotateButton: document.getElementById("student-center-unrotate-btn"),
   mobileControlToast: document.getElementById("student-mobile-control-toast"),
   refreshMediaButton: document.getElementById("refresh-media-btn"),
+  desktopFullscreenButton: document.getElementById("desktop-fullscreen-btn"),
+  desktopFullscreenExitButton: document.getElementById("desktop-fullscreen-exit-btn"),
+  desktopFullscreenCaptureButton: document.getElementById("desktop-fullscreen-capture-btn"),
+  desktopFullscreenMessageButton: document.getElementById("desktop-fullscreen-message-btn"),
   prejoinOverlay: document.getElementById("student-prejoin-overlay"),
   prejoinMicButton: document.getElementById("student-prejoin-mic-btn"),
   prejoinCameraButton: document.getElementById("student-prejoin-camera-btn"),
@@ -582,6 +586,49 @@ async function unrotateStudentScreen() {
     updateRotationControls();
     showMobileControlToast("أدر الهاتف يدويًا إلى الوضع العمودي.");
   }
+}
+
+function updateDesktopFullscreenState() {
+  const desktopViewport = window.matchMedia?.("(min-width: 901px)").matches || false;
+  const isFullscreen = desktopViewport && Boolean(document.fullscreenElement);
+  document.documentElement.classList.toggle("student-desktop-fullscreen-mode", isFullscreen);
+  if (elements.desktopFullscreenButton) elements.desktopFullscreenButton.hidden = isFullscreen;
+  if (elements.desktopFullscreenExitButton) elements.desktopFullscreenExitButton.hidden = !isFullscreen;
+  if (elements.desktopFullscreenCaptureButton) elements.desktopFullscreenCaptureButton.hidden = !isFullscreen;
+  if (elements.desktopFullscreenMessageButton) elements.desktopFullscreenMessageButton.hidden = !isFullscreen;
+}
+
+async function enterDesktopFullscreen() {
+  if (!document.documentElement.requestFullscreen) {
+    showMobileControlToast("ملء الشاشة غير مدعوم في هذا المتصفح.");
+    return;
+  }
+  try {
+    await document.documentElement.requestFullscreen();
+  } catch (error) {
+    console.warn("Unable to enter desktop fullscreen:", error);
+    showMobileControlToast("تعذر فتح وضع ملء الشاشة.");
+  }
+  updateDesktopFullscreenState();
+}
+
+async function exitDesktopFullscreen() {
+  try {
+    if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen();
+  } catch (error) {
+    console.warn("Unable to exit desktop fullscreen:", error);
+  }
+  updateDesktopFullscreenState();
+}
+
+function initializeDesktopFullscreen() {
+  elements.desktopFullscreenButton?.addEventListener("click", () => { void enterDesktopFullscreen(); });
+  elements.desktopFullscreenExitButton?.addEventListener("click", () => { void exitDesktopFullscreen(); });
+  elements.desktopFullscreenCaptureButton?.addEventListener("click", () => elements.captureQuestionButton?.click());
+  elements.desktopFullscreenMessageButton?.addEventListener("click", () => elements.openChatComposeButton?.click());
+  document.addEventListener("fullscreenchange", updateDesktopFullscreenState);
+  window.addEventListener("resize", updateDesktopFullscreenState);
+  updateDesktopFullscreenState();
 }
 
 function initializeMobileControls() {
@@ -2223,7 +2270,8 @@ elements.subscriptionDeclineButton?.addEventListener("click", () => {
   closeSubscriptionUpgradeModal();
   window.location.assign("./index.html");
 });
-initializeMobileControls();
+  initializeMobileControls();
+  initializeDesktopFullscreen();
 initializeStudentKeyboardLayout();
 
 window.addEventListener("pagehide", () => {
