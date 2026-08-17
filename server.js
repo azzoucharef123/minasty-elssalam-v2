@@ -137,7 +137,6 @@ const messageRoutes = require("./routes/messageRoutes");
 const academicRoutes = require("./routes/academicRoutes");
 const materialRoutes = require("./routes/materialRoutes");
 const certificateRoutes = require("./routes/certificateRoutes");
-const aiRoutes = require("./routes/aiRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/students", studentRoutes);
@@ -150,7 +149,6 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/academic", academicRoutes);
 app.use("/api/materials", materialRoutes);
 app.use("/api/certificates", certificateRoutes);
-app.use("/api/ai", aiRoutes);
 app.use("/api/push", pushRoutes);
 
 // Course-material uploads are intentionally disabled. Block the legacy public
