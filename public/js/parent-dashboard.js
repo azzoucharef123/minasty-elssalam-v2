@@ -129,6 +129,7 @@ const elements = {
 
 let socket = null;
 let currentStudent = null;
+let globalFreeClassActive = false;
 let lessonRepositoryOpen = false;
 let studentCertificatesOpen = false;
 let studentHomeworkOpen = false;
@@ -952,8 +953,8 @@ function setLiveClassVisible(isVisible, liveData = {}) {
   elements.liveBanner?.classList.toggle("is-visible", visible);
 
   if (visible && elements.liveBannerDetails) {
-    const levelLabel = displayLevelLabel(liveData.level || currentStudent?.level);
-    const subjectLabel = homeworkSubjectLabel(
+    const levelLabel = liveData.globalFree ? "جميع المستويات" : displayLevelLabel(liveData.level || currentStudent?.level);
+    const subjectLabel = liveData.globalFree ? "حصة مجانية مفتوحة للجميع" : homeworkSubjectLabel(
       liveData.subject || activeLiveClassType || ""
     );
     elements.liveBannerDetails.textContent = `${levelLabel} — ${subjectLabel} — يمكنك الدخول الآن`;
@@ -1267,6 +1268,7 @@ function selectStudent(studentId) {
   parentScheduleLoading = true;
   parentScheduleError = "";
   activeLiveClassType = null;
+  globalFreeClassActive = false;
   setLiveClassVisible(false);
   parentTeacherAbsent = false;
   teacherAbsenceLevel = null;
@@ -1898,6 +1900,7 @@ function emitLobbyJoin(level) {
     // The acknowledgement restores the existing state; subsequent events keep
     // it current while the parent remains on this dashboard.
     activeLiveClassType = response.isClassLive ? response.subject || null : null;
+    globalFreeClassActive = Boolean(response.globalFree);
     setLiveClassVisible(Boolean(response.isClassLive), response);
   });
 }
@@ -2007,6 +2010,7 @@ async function enterLiveClass() {
     currentStudent.paymentStage === "PAID" || currentStudent.paymentStatus === true;
   const hasSecondaryPaymentAccess =
     !isUniversityStudent && ["PAID", "PROMISED"].includes(currentStudent.paymentStage);
+  const isGlobalFreeClass = globalFreeClassActive && activeLiveClassType === "FREE";
   const isFreeSecondaryClass = !isUniversityStudent && activeLiveClassType === "FREE";
   const identityPending =
     isUniversityStudent &&
@@ -2023,13 +2027,13 @@ async function enterLiveClass() {
     return;
   }
 
-  if (!isFreeSecondaryClass && !currentStudent.liveAccessEnabled && !hasSecondaryPaymentAccess) {
+  if (!isGlobalFreeClass && !isFreeSecondaryClass && !currentStudent.liveAccessEnabled && !hasSecondaryPaymentAccess) {
     clearError();
     openPaymentAccessModal();
     return;
   }
 
-  if (isUniversityStudent && !isPaidSubscription && activeLiveClassType === "PAID") {
+  if (!isGlobalFreeClass && isUniversityStudent && !isPaidSubscription && activeLiveClassType === "PAID") {
     clearError();
     openPaymentAccessModal("subscription-upgrade");
     return;
@@ -2261,29 +2265,32 @@ function initializeLobbySocket() {
   });
 
   socket.on("live_class_started", (data = {}) => {
-    if (!currentStudent || (data.level && data.level !== currentStudent.level)) {
+    if (!currentStudent || (!data.globalFree && data.level && data.level !== currentStudent.level)) {
       return;
     }
 
     activeLiveClassType = data.subject || null;
+    globalFreeClassActive = Boolean(data.globalFree);
     setLiveClassVisible(true, data);
   });
 
   socket.on("live_class_resumed", (data = {}) => {
-    if (!currentStudent || (data.level && data.level !== currentStudent.level)) {
+    if (!currentStudent || (!data.globalFree && data.level && data.level !== currentStudent.level)) {
       return;
     }
 
     activeLiveClassType = data.subject || null;
+    globalFreeClassActive = Boolean(data.globalFree);
     setLiveClassVisible(true, data);
   });
 
   socket.on("live_class_ended", (data = {}) => {
-    if (!currentStudent || (data.level && data.level !== currentStudent.level)) {
+    if (!currentStudent || (!data.globalFree && data.level && data.level !== currentStudent.level)) {
       return;
     }
 
     activeLiveClassType = null;
+    globalFreeClassActive = false;
     setLiveClassVisible(false);
   });
 

@@ -116,6 +116,7 @@ const elements = {
   attendeesEmpty: document.getElementById("attendees-empty"),
   attendeeCount: document.getElementById("attendee-count"),
   levelSelect: document.getElementById("level-select"),
+  subjectSelectField: document.getElementById("subject-select-field"),
   subjectSelectLabel: document.getElementById("subject-select-label"),
   subjectSelect: document.getElementById("subject-select"),
   freeClassHint: document.getElementById("free-class-hint"),
@@ -155,6 +156,7 @@ const elements = {
 };
 
 const UNIVERSITY_LEVEL = "طالب جامعي";
+const GLOBAL_FREE_LEVEL = "FREE";
 const SECONDARY_CLASS_OPTIONS = [
   { value: "MATH", label: "الرياضيات" },
   { value: "PHYSICS", label: "الفيزياء" },
@@ -174,6 +176,7 @@ function isUniversityLevel(level) {
 }
 
 function getClassTypeName(level, classType) {
+  if (level === GLOBAL_FREE_LEVEL) return "حصة مجانية";
   if (isUniversityLevel(level)) {
     return classType === "PAID" ? "اشتراك مدفوع" : "اشتراك مجاني";
   }
@@ -183,20 +186,29 @@ function getClassTypeName(level, classType) {
 }
 
 function syncClassTypeSelector({ selectedValue = "" } = {}) {
-  const isUniversity = isUniversityLevel(elements.levelSelect.value);
-  const options = isUniversity ? UNIVERSITY_SUBSCRIPTION_OPTIONS : SECONDARY_CLASS_OPTIONS;
-  const nextValue = options.some(({ value }) => value === selectedValue)
-    ? selectedValue
-    : options[0].value;
+  const selectedLevel = elements.levelSelect.value;
+  const isGlobalFree = selectedLevel === GLOBAL_FREE_LEVEL;
+  const isUniversity = isUniversityLevel(selectedLevel);
+  const options = isGlobalFree
+    ? [{ value: "FREE", label: "حصة مجانية" }]
+    : isUniversity
+      ? UNIVERSITY_SUBSCRIPTION_OPTIONS
+      : SECONDARY_CLASS_OPTIONS;
+  const nextValue = isGlobalFree
+    ? "FREE"
+    : options.some(({ value }) => value === selectedValue)
+      ? selectedValue
+      : options[0].value;
 
   const isFreeClass = nextValue === "FREE";
+  if (elements.subjectSelectField) elements.subjectSelectField.hidden = isGlobalFree;
   elements.subjectSelectLabel.textContent = isUniversity ? "نوع الاشتراك" : isFreeClass ? "نوع الحصة" : "المادة";
   elements.subjectSelect.setAttribute(
     "aria-label",
     isUniversity ? "اختر نوع الاشتراك" : isFreeClass ? "اختر نوع الحصة" : "اختر مادة الحصة"
   );
   if (elements.freeClassHint) {
-    elements.freeClassHint.hidden = !isFreeClass;
+    elements.freeClassHint.hidden = !isFreeClass || isGlobalFree;
   }
   elements.subjectSelect.replaceChildren(
     ...options.map(({ value, label }) => new Option(label, value, false, value === nextValue))
@@ -1439,9 +1451,11 @@ function updateControls() {
   if (elements.studioTopbarTitle) {
     const titleLevel = activeLevel || elements.levelSelect?.value || "";
     const titleSubject = activeSubject || elements.subjectSelect?.value || "";
-    elements.studioTopbarTitle.textContent = titleLevel && titleSubject
-      ? `${getClassTypeName(titleLevel, titleSubject)} - ${titleLevel}`
-      : "استوديو البث المباشر";
+    elements.studioTopbarTitle.textContent = titleLevel === GLOBAL_FREE_LEVEL
+      ? "حصة مجانية مفتوحة للجميع"
+      : titleLevel && titleSubject
+        ? `${getClassTypeName(titleLevel, titleSubject)} - ${titleLevel}`
+        : "استوديو البث المباشر";
     elements.studioTopbarTitle.classList.toggle("is-live", Boolean(classActive));
   }
 
@@ -2627,7 +2641,9 @@ async function startLiveClass() {
 
     pendingPageRecovery = null;
     persistLiveClassRecovery();
-    const baseMessage = `${isResumingAfterPageRefresh || roomResponse?.resumed ? "تم استئناف الحصة" : "الحصة مباشرة الآن"} — ${selectedLevel} | ${selectedSubjectName}`;
+    const baseMessage = selectedLevel === GLOBAL_FREE_LEVEL
+      ? `${isResumingAfterPageRefresh || roomResponse?.resumed ? "تم استئناف الحصة المجانية" : "بدأت الحصة المجانية الآن"} — مفتوحة لجميع الحسابات المسجلة`
+      : `${isResumingAfterPageRefresh || roomResponse?.resumed ? "تم استئناف الحصة" : "الحصة مباشرة الآن"} — ${selectedLevel} | ${selectedSubjectName}`;
     setStudioStatus(
       microphoneUnavailableMessage ? `${baseMessage} (بدون مايك)` : baseMessage,
       "live"
@@ -2765,8 +2781,10 @@ socket.on("connect_error", () => {
 
 socket.on("room_ready", (data) => {
   if (data?.role === "teacher" && classActive) {
-    const classTypeName = getClassTypeName(data.level, data.subject);
-    setStudioStatus(`الحصة مباشرة الآن — ${data.level} | ${classTypeName}`, "live");
+    const statusMessage = data.globalFree
+      ? "الحصة المجانية مفتوحة لجميع الحسابات المسجلة"
+      : `الحصة مباشرة الآن — ${data.level} | ${getClassTypeName(data.level, data.subject)}`;
+    setStudioStatus(statusMessage, "live");
   }
 });
 

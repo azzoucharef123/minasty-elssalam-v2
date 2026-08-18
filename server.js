@@ -393,6 +393,7 @@ const MAX_LEVEL_LENGTH = 100;
 const MAX_NAME_LENGTH = 120;
 const MAX_CHAT_MESSAGE_LENGTH = 800;
 const UNIVERSITY_LEVEL = "طالب جامعي";
+const GLOBAL_FREE_LEVEL = "FREE";
 const SCHOOL_SUBJECTS = new Set(["MATH", "PHYSICS", "FREE"]);
 const UNIVERSITY_SUBSCRIPTION_TYPES = new Set(["PAID", "FREE"]);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -416,6 +417,7 @@ function isValidLevel(level) {
 }
 
 function isValidActiveClassType(level, classType) {
+  if (level === GLOBAL_FREE_LEVEL) return classType === "FREE";
   return level === UNIVERSITY_LEVEL
     ? UNIVERSITY_SUBSCRIPTION_TYPES.has(classType)
     : SCHOOL_SUBJECTS.has(classType);
@@ -547,6 +549,7 @@ function shareSameClassroom(sourceSocket, targetSocket, level) {
 function resetClassroomData(socket, level) {
   if (socket.data.roomLevel === level) {
     socket.data.roomLevel = null;
+    socket.data.studentAcademicLevel = null;
     socket.data.role = null;
     socket.data.studentName = null;
     socket.data.studentId = null;
@@ -700,7 +703,7 @@ async function closeClassroom(level, reason) {
   io.to(level).emit("class_ended", { level, reason });
   // Parent dashboards join a separate passive lobby. They receive only the
   // live-state change—not attendee data, WebRTC signals, or media.
-  io.to(`${level}_lobby`).emit("live_class_ended", { level, reason });
+  io.to(`${level}_lobby`).emit("live_class_ended", { level, globalFree: level === GLOBAL_FREE_LEVEL, reason });
 
   await Promise.all(
     participants.map(async (participant) => {
@@ -719,9 +722,11 @@ io.on("connection", (socket) => {
 
   // Socket data is server-owned after room entry and is used for authorization.
   socket.data.role = null;
-  socket.data.roomLevel = null;
-  socket.data.studentName = null;
-  socket.data.studentId = null;
+      socket.data.roomLevel = null;
+    socket.data.studentAcademicLevel = null;
+    socket.data.studentName = null;
+    socket.data.studentId = null;
+
   socket.data.lobbyLevel = null;
   socket.data.publicRoomId = null;
   socket.data.publicRole = null;
@@ -1000,7 +1005,7 @@ io.on("connection", (socket) => {
     try {
       const level = normalizeText(data.level);
 
-      if (!isValidLevel(level)) {
+      if (!isValidLevel(level) || level === GLOBAL_FREE_LEVEL) {
         return emitClassroomError(
           socket,
           "join_level_lobby",
@@ -1014,17 +1019,25 @@ io.on("connection", (socket) => {
       }
 
       await socket.join(`${level}_lobby`);
+      await socket.join(`${GLOBAL_FREE_LEVEL}_lobby`);
       socket.data.lobbyLevel = level;
 
       const teacherSocketId = activeTeachersByLevel.get(level);
       const teacherSocket = teacherSocketId
         ? io.sockets.sockets.get(teacherSocketId)
         : null;
+      const globalTeacherSocketId = activeTeachersByLevel.get(GLOBAL_FREE_LEVEL);
+      const globalTeacherSocket = globalTeacherSocketId
+        ? io.sockets.sockets.get(globalTeacherSocketId)
+        : null;
+      const isGlobalFreeLive = Boolean(
+        globalTeacherSocket &&
+        activeSubjectByLevel.get(GLOBAL_FREE_LEVEL) === "FREE" &&
+        isInLevelRoom(globalTeacherSocket, GLOBAL_FREE_LEVEL)
+      );
       const isClassLive = Boolean(teacherSocket && isInLevelRoom(teacherSocket, level));
       const isClassRecovering = pendingTeacherRecoveryByLevel.has(level);
 
-      // A parent who opens the dashboard after the teacher starts must still
-      // see the banner; they should not have to wait for another start event.
       const subject = activeSubjectByLevel.get(level) || null;
       const lobbyClassPayload = {
         level,
@@ -1041,12 +1054,23 @@ io.on("connection", (socket) => {
         activeSubjectByLevel.delete(level);
       }
 
+      if (isGlobalFreeLive) {
+        socket.emit("live_class_started", {
+          level: GLOBAL_FREE_LEVEL,
+          subject: "FREE",
+          subjectLabel: "حصة مجانية مفتوحة للجميع",
+          globalFree: true,
+          startedAt: new Date().toISOString(),
+        });
+      }
+
       acknowledge(acknowledgement, {
         ok: true,
         level,
-        subject,
-        isClassLive,
-        isClassRecovering,
+        subject: isGlobalFreeLive ? "FREE" : subject,
+        isClassLive: isClassLive || isGlobalFreeLive,
+        isClassRecovering: isClassRecovering || pendingTeacherRecoveryByLevel.has(GLOBAL_FREE_LEVEL),
+        globalFree: isGlobalFreeLive,
       });
     } catch (error) {
       console.error("[Socket.io] join_level_lobby failed:", error);
@@ -1188,25 +1212,35 @@ io.on("connection", (socket) => {
             }))
         : [];
 
+      const isGlobalFreeClass = level === GLOBAL_FREE_LEVEL && subject === "FREE";
       const liveClassPayload = {
         level,
         subject,
-        subjectLabel: getLiveSubjectLabel(subject),
+        subjectLabel: isGlobalFreeClass ? "حصة مجانية مفتوحة للجميع" : getLiveSubjectLabel(subject),
+        globalFree: isGlobalFreeClass,
         startedAt: new Date().toISOString(),
       };
 
       if (isResuming) {
-        io.to(level).emit("teacher_reconnected", { level, subject });
-        io.to(`${level}_lobby`).emit("live_class_resumed", liveClassPayload);
+        io.to(level).emit("teacher_reconnected", { level, subject, globalFree: isGlobalFreeClass });
+        if (isGlobalFreeClass) {
+          const lobbySockets = await io.fetchSockets();
+          lobbySockets.filter((peer) => peer.data.lobbyLevel).forEach((peer) => peer.emit("live_class_resumed", liveClassPayload));
+        } else {
+          io.to(`${level}_lobby`).emit("live_class_resumed", liveClassPayload);
+        }
         socket.emit("recovery_students", { level, students: recoveryStudents });
+      } else if (isGlobalFreeClass) {
+        const lobbySockets = await io.fetchSockets();
+        lobbySockets.filter((peer) => peer.data.lobbyLevel).forEach((peer) => peer.emit("live_class_started", liveClassPayload));
       } else {
         // Notify only passive dashboards/viewers observing this exact level.
         // Socket.io delivers this immediately without requiring a page refresh.
         io.to(`${level}_lobby`).emit("live_class_started", liveClassPayload);
       }
 
-      socket.emit("room_ready", { level, subject, role: "teacher", resumed: isResuming });
-      acknowledge(acknowledgement, { ok: true, level, subject, role: "teacher", resumed: isResuming });
+      socket.emit("room_ready", { level, subject, role: "teacher", resumed: isResuming, globalFree: isGlobalFreeClass });
+      acknowledge(acknowledgement, { ok: true, level, subject, role: "teacher", resumed: isResuming, globalFree: isGlobalFreeClass });
       console.info(`[Socket.io] Teacher ${socket.id} ${isResuming ? "resumed" : "started"} room: ${level} (${subject})`);
     } catch (error) {
       console.error("[Socket.io] teacher_start_room failed:", error);
@@ -1263,16 +1297,24 @@ io.on("connection", (socket) => {
         );
       }
 
-      const activeSubject = activeSubjectByLevel.get(level);
-      const isFreeSecondaryClass = level !== UNIVERSITY_LEVEL && activeSubject === "FREE";
+      const globalTeacherSocketId = activeTeachersByLevel.get(GLOBAL_FREE_LEVEL);
+      const globalTeacherSocket = globalTeacherSocketId
+        ? io.sockets.sockets.get(globalTeacherSocketId)
+        : null;
+      const isGlobalFreeActive = Boolean(
+        globalTeacherSocket &&
+        activeSubjectByLevel.get(GLOBAL_FREE_LEVEL) === "FREE" &&
+        isInLevelRoom(globalTeacherSocket, GLOBAL_FREE_LEVEL)
+      );
+      const classroomLevel = isGlobalFreeActive ? GLOBAL_FREE_LEVEL : level;
+      const activeSubject = activeSubjectByLevel.get(classroomLevel);
+      const isFreeClass = isGlobalFreeActive || activeSubject === "FREE";
 
-      // For secondary levels, a confirmed payment or a teacher-approved promise
-      // grants access automatically. A FREE class is the only exception: every
-      // registered student in the same level may enter regardless of payment.
-      // University access keeps its dedicated flow.
+      // Normal classes retain their existing payment rules. A global FREE class
+      // is open to every registered student, regardless of payment status.
       const hasSecondaryPaymentAccess =
         student.level !== UNIVERSITY_LEVEL && ["PAID", "PROMISED"].includes(student.paymentStage);
-      if (!student.liveAccessEnabled && !hasSecondaryPaymentAccess && !isFreeSecondaryClass) {
+      if (!isGlobalFreeActive && !student.liveAccessEnabled && !hasSecondaryPaymentAccess && !isFreeClass) {
         return emitClassroomError(
           socket,
           "student_join_room",
@@ -1290,7 +1332,7 @@ io.on("connection", (socket) => {
 
       const studentName = student.studentName;
 
-      if (socket.data.roomLevel && socket.data.roomLevel !== level) {
+      if (socket.data.roomLevel && socket.data.roomLevel !== classroomLevel) {
         return emitClassroomError(
           socket,
           "student_join_room",
@@ -1308,7 +1350,7 @@ io.on("connection", (socket) => {
         );
       }
 
-      const teacherSocketId = activeTeachersByLevel.get(level);
+      const teacherSocketId = activeTeachersByLevel.get(classroomLevel);
       const teacherSocket = teacherSocketId
         ? io.sockets.sockets.get(teacherSocketId)
         : null;
@@ -1316,36 +1358,36 @@ io.on("connection", (socket) => {
       // Do not add students to a room without a reachable broadcaster. During
       // the teacher's short reconnection window, preserve the room state and
       // tell the viewer to retry automatically rather than treating it as ended.
-      if (!teacherSocket || !isInLevelRoom(teacherSocket, level)) {
-        if (pendingTeacherRecoveryByLevel.has(level)) {
+      if (!teacherSocket || !isInLevelRoom(teacherSocket, classroomLevel)) {
+        if (pendingTeacherRecoveryByLevel.has(classroomLevel)) {
           const recoveryMessage = "الأستاذ يعيد الاتصال الآن. جارٍ استعادة الحصة تلقائياً…";
-          socket.emit("room_recovering", { level, message: recoveryMessage });
+          socket.emit("room_recovering", { level, classroomLevel, globalFree: isGlobalFreeActive, message: recoveryMessage });
           return acknowledge(acknowledgement, {
             ok: false,
             recovering: true,
             error: recoveryMessage,
           });
         }
-
-        activeTeachersByLevel.delete(level);
-        activeSubjectByLevel.delete(level);
+        activeTeachersByLevel.delete(classroomLevel);
+        activeSubjectByLevel.delete(classroomLevel);
         socket.emit("room_unavailable", {
           level,
-          message: "لا توجد حصة مباشرة نشطة لهذا المستوى حالياً.",
+          globalFree: isGlobalFreeActive,
+          message: isGlobalFreeActive ? "لا توجد حصة مجانية مفتوحة الآن." : "لا توجد حصة مباشرة نشطة لهذا المستوى حالياً.",
         });
+
         return acknowledge(acknowledgement, {
           ok: false,
-          error: "لا توجد حصة مباشرة نشطة لهذا المستوى حالياً.",
+          error: isGlobalFreeActive ? "لا توجد حصة مجانية مفتوحة الآن." : "لا توجد حصة مباشرة نشطة لهذا المستوى حالياً.",
         });
       }
 
-      const isUniversityClass = level === UNIVERSITY_LEVEL;
-      const isEligibleForActiveSubject = isUniversityClass
-        ? (activeSubject === "PAID" && isPaidSubscription(student)) ||
-          activeSubject === "FREE"
+      const isUniversityClass = student.level === UNIVERSITY_LEVEL;
+      const isEligibleForActiveSubject = isGlobalFreeActive || (isUniversityClass
+        ? (activeSubject === "PAID" && isPaidSubscription(student)) || activeSubject === "FREE"
         : activeSubject === "FREE" ||
           (activeSubject === "MATH" && student.mathEnrollment) ||
-          (activeSubject === "PHYSICS" && student.physicsEnrollment);
+          (activeSubject === "PHYSICS" && student.physicsEnrollment));
 
       if (!isEligibleForActiveSubject) {
         const message = isUniversityClass
@@ -1364,40 +1406,43 @@ io.on("connection", (socket) => {
 
       const isAlreadyJoined =
         socket.data.role === "student" &&
-        socket.data.roomLevel === level &&
-        isInLevelRoom(socket, level);
+        socket.data.roomLevel === classroomLevel &&
+        isInLevelRoom(socket, classroomLevel);
 
       const sessionKey = teacherSocket.data.classResumeToken || null;
       // A repeated join emit from the same socket must not inflate history.
       // A genuinely new connection creates a separate attendance visit.
       if (!isAlreadyJoined) {
         const attendance = await prisma.attendance.create({
-          data: { studentId: student.id, level, sessionKey },
+          data: { studentId: student.id, level: student.level, sessionKey },
         });
         socket.data.attendanceId = attendance.id;
       }
       socket.data.joinedAt = Date.now();
 
-      await socket.join(level);
+      await socket.join(classroomLevel);
       socket.data.role = "student";
-      socket.data.roomLevel = level;
+      socket.data.roomLevel = classroomLevel;
+      socket.data.studentAcademicLevel = student.level;
       socket.data.studentName = studentName;
       socket.data.studentId = student.id;
-      users.set(socket.id, { role: "student", level, name: studentName, studentId: student.id });
+      users.set(socket.id, { role: "student", level: student.level, classroomLevel, name: studentName, studentId: student.id });
 
       const participation = await getClassParticipation(student.id, sessionKey);
       const participationCount = participation?.count || 0;
 
       socket.emit("room_joined", {
-        level,
+        level: student.level,
+        classroomLevel,
+        globalFree: isGlobalFreeActive,
         role: "student",
         teacherSocketId,
         participationCount,
-        screenShareActive: isScreenShareActive(level),
+        screenShareActive: isScreenShareActive(classroomLevel),
       });
-      if (isStudentMicrophoneOpen(level, socket.id)) {
-        setStudentWhiteboardAccess(level, socket.id, true);
-        socket.emit("whiteboard_access_granted", { level });
+      if (isStudentMicrophoneOpen(classroomLevel, socket.id)) {
+        setStudentWhiteboardAccess(classroomLevel, socket.id, true);
+        socket.emit("whiteboard_access_granted", { level: student.level, classroomLevel, globalFree: isGlobalFreeActive });
       }
 
       // Only the active teacher receives the student identity/socket ID.
@@ -1413,18 +1458,20 @@ io.on("connection", (socket) => {
 
       // The teacher owns the classroom peer connections. Its next offer to this
       // learner includes every currently approved student-audio track.
-      io.to(level).emit("classroom_track_state", {
+      io.to(classroomLevel).emit("classroom_track_state", {
         type: "student_joined",
         studentSocketId: socket.id,
       });
 
       acknowledge(acknowledgement, {
         ok: true,
-        level,
+        level: student.level,
+        classroomLevel,
+        globalFree: isGlobalFreeActive,
         role: "student",
         teacherSocketId,
       });
-      console.info(`[Socket.io] Student ${socket.id} joined room: ${level}`);
+      console.info(`[Socket.io] Student ${socket.id} joined room: ${classroomLevel}${isGlobalFreeActive ? " (global free)" : ""}`);
     } catch (error) {
       console.error("[Socket.io] student_join_room failed:", error);
       emitClassroomError(
@@ -1735,7 +1782,7 @@ io.on("connection", (socket) => {
       if (micDurationSeconds >= 10) {
         const participation = await recordClassParticipation({
           studentId: targetSocket.data.studentId,
-          level,
+          level: targetSocket.data.studentAcademicLevel || level,
           subject: activeSubjectByLevel.get(level),
           sessionKey,
         });
@@ -1801,7 +1848,7 @@ io.on("connection", (socket) => {
       ? await getClassParticipation(targetSocket.data.studentId, socket.data.classResumeToken)
       : await recordClassParticipation({
           studentId: targetSocket.data.studentId,
-          level,
+          level: targetSocket.data.studentAcademicLevel || level,
           subject: activeSubjectByLevel.get(level),
           sessionKey: socket.data.classResumeToken,
         });
@@ -2133,7 +2180,7 @@ io.on("connection", (socket) => {
           if (sessionKey) {
             void recordClassParticipation({
               studentId: socket.data.studentId,
-              level,
+              level: socket.data.studentAcademicLevel || level,
               subject: activeSubjectByLevel.get(level),
               sessionKey,
             }).catch(err => console.error("Failed to record final mic participation on disconnect:", err));

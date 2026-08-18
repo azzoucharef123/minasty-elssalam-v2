@@ -1245,8 +1245,8 @@
           <span id="studio-duration" class="studio-duration" role="timer" aria-label="مدة الحصة" hidden>00:00:00</span>
         </div>
         <div class="studio-topbar-actions">
-          <div class="topbar-select-field"><label for="level-select">المستوى</label><select id="level-select" aria-label="اختر المستوى الدراسي للحصة"><option value="السنة الأولى">السنة الأولى متوسط</option><option value="السنة الثانية">السنة الثانية متوسط</option><option value="السنة الثالثة">السنة الثالثة متوسط</option><option value="السنة الرابعة">السنة الرابعة متوسط</option><option value="طالب جامعي">طالب جامعي</option></select></div>
-          <div class="topbar-select-field"><label id="subject-select-label" for="subject-select">نوع الحصة</label><select id="subject-select" aria-label="اختر نوع الحصة"><option value="MATH">الرياضيات</option><option value="PHYSICS">الفيزياء</option><option value="FREE">حصة مجانية</option></select><small id="free-class-hint" class="free-class-hint" hidden>الحصة المجانية بلا مادة، وتظهر للأعضاء المسجلين في هذا المستوى.</small></div>
+          <div class="topbar-select-field"><label for="level-select">المستوى</label><select id="level-select" aria-label="اختر المستوى الدراسي للحصة"><option value="السنة الأولى">السنة الأولى متوسط</option><option value="السنة الثانية">السنة الثانية متوسط</option><option value="السنة الثالثة">السنة الثالثة متوسط</option><option value="السنة الرابعة">السنة الرابعة متوسط</option><option value="طالب جامعي">طالب جامعي</option><option value="FREE">مجاني</option></select></div>
+          <div id="subject-select-field" class="topbar-select-field"><label id="subject-select-label" for="subject-select">نوع الحصة</label><select id="subject-select" aria-label="اختر نوع الحصة"><option value="MATH">الرياضيات</option><option value="PHYSICS">الفيزياء</option><option value="FREE">حصة مجانية</option></select><small id="free-class-hint" class="free-class-hint" hidden>الحصة المجانية بلا مادة، وتظهر لجميع الحسابات المسجلة.</small></div>
         </div>
         <div class="studio-header-actions">
           <button class="studio-settings-button" type="button" title="إعدادات الاستوديو" aria-label="إعدادات الاستوديو"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.25a3.75 3.75 0 1 0 0 7.5 3.75 3.75 0 0 0 0-7.5Z"/><path d="m19.2 13.5 1.1.85-1.8 3.12-1.3-.55a7.6 7.6 0 0 1-1.9 1.1l-.2 1.4h-3.6l-.2-1.4a7.6 7.6 0 0 1-1.9-1.1l-1.3.55-1.8-3.12 1.1-.85a7 7 0 0 1 0-2.2l-1.1-.85 1.8-3.12 1.3.55a7.6 7.6 0 0 1 1.9-1.1l.2-1.4h3.6l.2 1.4a7.6 7.6 0 0 1 1.9 1.1l1.3-.55 1.8 3.12-1.1.85a7 7 0 0 1 0 2.2Z"/></svg></button>
@@ -1376,6 +1376,6 @@
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
     <script id="google-identity-services" src="https://accounts.google.com/gsi/client" defer></script>
-    <script src="./js/teacher-live-v2.js?v=free-class-mode-1" defer></script>
+    <script src="./js/teacher-live-v2.js?v=global-free-class-1" defer></script>
   </body>
 </html>

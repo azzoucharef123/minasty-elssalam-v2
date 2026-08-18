@@ -27,6 +27,7 @@ let localAudioStream;
 let remoteMediaStream;
 let screenShareActive = false;
 let screenShareRefreshScheduled = false;
+let globalFreeClass = false;
 const pendingRemoteAudioTracks = [];
 
 let teacherSocketId = null;
@@ -289,11 +290,13 @@ function getLiveSubjectLabel(value) {
 function showLiveStartNotice(data = {}, resumed = false) {
   if (!elements.liveStartNotice || !elements.liveStartNoticeCopy) return;
 
-  const levelLabel = getLiveLevelLabel(data.level);
+  const levelLabel = data.globalFree ? "لجميع المستويات" : getLiveLevelLabel(data.level);
   const subjectLabel = data.subjectLabel || getLiveSubjectLabel(data.subject);
-  elements.liveStartNoticeCopy.textContent = resumed
-    ? `استؤنفت الحصة الآن — ${levelLabel} — ${subjectLabel}`
-    : `بدأت الحصة الآن — ${levelLabel} — ${subjectLabel}`;
+  elements.liveStartNoticeCopy.textContent = data.globalFree
+    ? (resumed ? "استؤنفت الحصة المجانية الآن — ادخل للحصة" : "بدأت الحصة المجانية الآن — ادخل للحصة")
+    : resumed
+      ? `استؤنفت الحصة الآن — ${levelLabel} — ${subjectLabel}`
+      : `بدأت الحصة الآن — ${levelLabel} — ${subjectLabel}`;
   elements.liveStartNotice.hidden = false;
   elements.liveStartNotice.classList.remove("is-visible");
   window.requestAnimationFrame(() => elements.liveStartNotice.classList.add("is-visible"));
@@ -1496,6 +1499,7 @@ function resetViewerState({ message, mode = "neutral", showJoin = true } = {}) {
   stopLocalAudio();
   joinedClass = false;
   isJoining = false;
+  globalFreeClass = false;
   setParticipationCount(0);
 
   resetRemoteMedia();
@@ -1952,6 +1956,7 @@ socket.on("connect_error", () => {
 
 socket.on("room_joined", (data = {}) => {
   if (data.role === "student") {
+    globalFreeClass = Boolean(data.globalFree);
     waitingForNextClass = false;
     teacherSocketId = data.teacherSocketId || teacherSocketId;
     screenShareActive = Boolean(data.screenShareActive);
@@ -1968,7 +1973,7 @@ function scheduleScreenSharePageRefresh() {
 }
 
 socket.on("screen_share_state", (data = {}) => {
-  if (data.level !== level) return;
+  if (!globalFreeClass && data.level !== level) return;
   const wasScreenShareActive = screenShareActive;
   screenShareActive = Boolean(data.active);
   updateRemoteVideoPresentation();
@@ -1983,21 +1988,21 @@ socket.on("screen_share_state", (data = {}) => {
 // Passive waiting viewers receive this from their level lobby when the teacher
 // starts the next class. Rejoin occurs inside the current page with no button.
 socket.on("live_class_started", (data = {}) => {
-  if (data.level === level) {
+  if (data.globalFree || data.level === level) {
     showLiveStartNotice(data);
     joinClassAutomaticallyFromLobby();
   }
 });
 
 socket.on("live_class_resumed", (data = {}) => {
-  if (data.level === level) {
+  if (data.globalFree || data.level === level) {
     showLiveStartNotice(data, true);
     joinClassAutomaticallyFromLobby();
   }
 });
 
 socket.on("participation_count_updated", (data = {}) => {
-  if (joinedClass || data.level === level) {
+  if (joinedClass || globalFreeClass || data.level === level) {
     setParticipationCount(data.count);
   }
 });
