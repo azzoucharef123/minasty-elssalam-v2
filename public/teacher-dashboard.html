@@ -9,7 +9,7 @@
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
 <link href="./css/style.css?v=homework-paste-1" rel="stylesheet"/>
-<link href="./css/app.css?v=teacher-two-strip-3" rel="stylesheet"/>
+<link href="./css/app.css?v=teacher-two-strip-4" rel="stylesheet"/>
 <link href="./css/private-messages.css" rel="stylesheet"/>
 <link href="./css/payment-feedback.css" rel="stylesheet"/>
 </head>
@@ -85,9 +85,9 @@
 <article class="bento-card bento-activity-card"><div class="bento-card-heading"><span class="bento-kicker">آخر نشاط</span></div><h2 id="bento-latest-student">في انتظار تحميل البيانات</h2><p id="bento-latest-caption">سيظهر هنا آخر تلميذ مسجل في المستوى المختار.</p><div class="activity-footer"><span class="activity-pulse"></span><span id="bento-activity-status">تحديث مباشر للبيانات</span></div></article>
 </section>
 <section aria-labelledby="roster-title" class="teacher-roster teacher-tab-panel" data-dashboard-panel="students" id="students-panel">
-<div class="roster-heading"><div><p class="eyebrow">إدارة التلاميذ</p><h2 id="roster-title"><span>قائمة التلاميذ</span><button aria-controls="student-search-modal" aria-label="البحث عن تلميذ" class="student-search-trigger" id="student-search-trigger" title="البحث عن تلميذ" type="button"><span aria-hidden="true">⌕</span></button></h2><p>اختر المستوى وابحث أو عدّل إعدادات التلميذ دون مغادرة الصفحة.</p></div><a class="roster-studio-link" href="./teacher-live.html">بدء حصة مباشرة</a></div>
+<div class="roster-heading"><div><p class="eyebrow">إدارة التلاميذ</p><h2 id="roster-title"><span>قائمة التلاميذ</span></h2><p>اختر المستوى وابحث أو عدّل إعدادات التلميذ دون مغادرة الصفحة.</p></div><a class="roster-studio-link" href="./teacher-live.html">بدء حصة مباشرة</a></div>
 
-<input aria-hidden="true" class="teacher-search-storage" id="student-search" tabindex="-1" type="search"/><section aria-label="بحث وتصفية التلاميذ" class="roster-toolbar"><label class="teacher-filter-field" for="payment-filter"><span>نوع الاشتراك</span><select id="payment-filter"><option value="all">كل الاشتراكات</option><option value="paid">اشتراك مدفوع</option><option value="unpaid">اشتراك غير مدفوع</option></select></label><span class="filtered-results-label" id="filtered-results-label">0 نتيجة معروضة</span></section>
+<input aria-hidden="true" class="teacher-search-storage" id="student-search" tabindex="-1" type="search"/><section aria-label="بحث وتصفية التلاميذ" class="roster-toolbar"><div aria-label="تصفية حسب الاشتراك" class="roster-filter-buttons" role="group"><button aria-pressed="true" class="roster-filter-button is-active" data-payment-filter="all" type="button">كل التلاميذ</button><button aria-pressed="false" class="roster-filter-button" data-payment-filter="paid" type="button">الحسابات المدفوعة</button><button aria-pressed="false" class="roster-filter-button" data-payment-filter="unpaid" type="button">الحسابات غير المدفوعة</button></div><select aria-hidden="true" class="roster-filter-storage" id="payment-filter" tabindex="-1"><option value="all">كل التلاميذ</option><option value="paid">الحسابات المدفوعة</option><option value="unpaid">الحسابات غير المدفوعة</option></select><button aria-controls="student-search-modal" aria-label="البحث عن تلميذ" class="student-search-trigger roster-search-button" id="student-search-trigger" title="البحث عن تلميذ" type="button"><span aria-hidden="true">⌕</span><span>بحث</span></button><span class="filtered-results-label" id="filtered-results-label">0 نتيجة معروضة</span></section>
 <section class="table-card teacher-table-card"><div class="table-title"><div><span class="table-kicker">المستوى المختار</span><h2 id="current-level-title">السنة الأولى متوسط</h2></div><span class="table-status"><i></i>تحديث مباشر</span></div><div class="table-wrap table-scroll-container"><table><thead><tr><th>التلميذ</th><th>رقم الولي</th><th>نوع الاشتراك</th><th id="student-payment-heading">حالة الدفع</th><th>إجراءات</th></tr></thead><tbody id="students-table-body"></tbody></table></div><nav aria-label="صفحات قائمة التلاميذ" class="roster-pagination" hidden="" id="roster-pagination"><button aria-label="الصفحة السابقة" class="roster-page-button" disabled="" id="roster-page-prev" type="button">السابق</button><span aria-live="polite" id="roster-page-status">صفحة 1 من 1</span><button aria-label="الصفحة التالية" class="roster-page-button" disabled="" id="roster-page-next" type="button">التالي</button></nav><p class="table-empty-state" hidden="" id="table-empty-state">لا يوجد تلاميذ مسجلون في هذا المستوى حالياً.</p></section>
 </section><section aria-labelledby="quiz-panel-title" class="teacher-quiz-panel teacher-tab-panel" data-dashboard-panel="quiz" id="quiz-panel"><div class="teacher-quiz-card"><span class="table-kicker">المستوى المختار</span><h2 id="quiz-panel-title">Quiz</h2><p>سيظهر هنا نظام الاختبارات القصيرة الخاص بمستوى <strong id="quiz-current-level">السنة الأولى متوسط</strong> عند تفعيله.</p><span class="teacher-quiz-status">قريبًا</span></div></section><section aria-labelledby="assignment-manager-title" class="assignment-manager teacher-tab-panel" data-dashboard-panel="assignments" id="assignment-manager">
 <button aria-controls="assignment-manager-controls" aria-expanded="false" class="class-registry-toggle" id="assignment-manager-toggle" type="button">
@@ -167,7 +167,7 @@
 <script src="/socket.io/socket.io.js"></script>
 <script src="./js/session-storage.js"></script>
 <script src="./js/message-notifications.js"></script>
-<script src="./js/teacher-dashboard.js?v=fixed-roster-1"></script>
+<script src="./js/teacher-dashboard.js?v=filter-buttons-1"></script>
 <script defer="" src="./js/class-registry-teacher.js?v=registry-collapse-1"></script>
 </body>
 </html>

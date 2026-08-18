@@ -40,6 +40,7 @@ const elements = {
   studentSearchModalClose: document.getElementById("student-search-modal-close"),
   studentSearchModalCancel: document.getElementById("student-search-modal-cancel"),
   paymentFilter: document.getElementById("payment-filter"),
+  rosterFilterButtons: Array.from(document.querySelectorAll(".roster-filter-button[data-payment-filter]")),
   summaryTotal: document.getElementById("summary-total"),
   summaryPaid: document.getElementById("summary-paid"),
   summaryUnpaid: document.getElementById("summary-unpaid"),
@@ -1536,11 +1537,21 @@ function updateBentoInsights(studentsArray, summary) {
 }
 
 /** Applies both controls to the in-memory array; no extra API call is made. */
+function setActivePaymentFilter(value) {
+  const selected = value || "all";
+  elements.rosterFilterButtons.forEach((button) => {
+    const isActive = button.dataset.paymentFilter === selected;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
 function applyFilters() {
   const query = String(elements.searchInput?.value || "")
     .trim()
     .toLocaleLowerCase("ar");
   const paymentSelection = elements.paymentFilter?.value || "all";
+  setActivePaymentFilter(paymentSelection);
 
   const filteredStudents = currentStudents.filter((student) => {
     const matchesName =
@@ -2884,6 +2895,13 @@ if (!getTeacherToken()) {
   });
   elements.searchInput?.addEventListener("input", applyFilters);
   elements.paymentFilter?.addEventListener("change", applyFilters);
+  elements.rosterFilterButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      if (elements.paymentFilter) elements.paymentFilter.value = button.dataset.paymentFilter || "all";
+      setActivePaymentFilter(elements.paymentFilter?.value || "all");
+      applyFilters();
+    });
+  });
   elements.rosterPagePrev?.addEventListener("click", () => {
     if (rosterPage <= 1) return;
     rosterPage -= 1;
