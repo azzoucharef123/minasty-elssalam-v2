@@ -6,11 +6,12 @@ const elements = {
   levelButtons: Array.from(document.querySelectorAll(".level-btn[data-level], [data-level].level-button")),
   currentLevelTitle: document.querySelector("#current-level-title, #current-level, [data-current-level]"),
   studentsTableBody: document.querySelector("#students-table-body, #students-tbody, table tbody"),
-  rosterPagination: document.getElementById("roster-pagination"),
-  rosterPagePrev: document.getElementById("roster-page-prev"),
-  rosterPageNext: document.getElementById("roster-page-next"),
-  rosterPageStatus: document.getElementById("roster-page-status"),
   tableEmptyState: document.querySelector("#table-empty-state, #empty-state"),
+  studentActionsModal: document.getElementById("student-actions-modal"),
+  studentActionsModalClose: document.getElementById("student-actions-modal-close"),
+  studentActionsTitle: document.getElementById("student-actions-title"),
+  studentActionsLevel: document.getElementById("student-actions-level"),
+  studentActionsList: document.getElementById("student-actions-list"),
   dashboardError: document.querySelector("#dashboard-error, #message-box"),
   logoutButton: document.querySelector("#logout-btn, [data-action='logout']"),
   publicInviteButton: document.getElementById("public-invite-btn"),
@@ -156,10 +157,6 @@ const elements = {
 let currentLevel =
   document.querySelector(".level-btn.is-active, .level-btn.active, .level-button.is-active")?.dataset
     .level || "السنة الأولى";
-
-const ROSTER_STUDENTS_PER_PAGE = 3;
-let rosterPage = 1;
-let rosterFilteredStudents = [];
 
 const LEVEL_DISPLAY_LABELS = Object.freeze({
   "السنة الأولى": "السنة الأولى متوسط",
@@ -1287,20 +1284,61 @@ async function deleteStudentCertificate(certificateId) {
   }
 }
 
-function updateRosterPagination(totalStudents, totalPages) {
-  const hasPages = totalStudents > ROSTER_STUDENTS_PER_PAGE;
-  if (elements.rosterPagination) elements.rosterPagination.hidden = !hasPages;
-  if (elements.rosterPageStatus) elements.rosterPageStatus.textContent = `صفحة ${rosterPage} من ${totalPages}`;
-  if (elements.rosterPagePrev) elements.rosterPagePrev.disabled = rosterPage <= 1;
-  if (elements.rosterPageNext) elements.rosterPageNext.disabled = rosterPage >= totalPages;
+function closeStudentActionsModal() {
+  elements.studentActionsModal?.classList.remove("is-open");
+  if (elements.studentActionsModal) elements.studentActionsModal.hidden = true;
+}
+
+function openStudentActionsModal(student) {
+  if (!student || !elements.studentActionsModal || !elements.studentActionsList) return;
+  elements.studentActionsTitle.textContent = student.studentName || "التلميذ";
+  elements.studentActionsLevel.textContent = displayLevelLabel(student.level);
+  elements.studentActionsList.replaceChildren();
+
+  const actions = [
+    createButton("تعديل الاشتراك", "student-action-modal-button", () => {
+      closeStudentActionsModal();
+      openSubscriptionModal(student.id);
+    }),
+    createButton(student.liveAccessEnabled ? "منع دخول الحصة" : "السماح بدخول الحصة", "student-action-modal-button", () => {
+      closeStudentActionsModal();
+      void toggleLiveAccess(student.id);
+    }),
+    createButton("سجل الحضور", "student-action-modal-button", () => {
+      closeStudentActionsModal();
+      void openAttendanceModal(student.id);
+    }),
+    createButton("الشهادات", "student-action-modal-button", () => {
+      closeStudentActionsModal();
+      openStudentCertificatesModal(student);
+    }),
+    createButton("حذف التلميذ", "student-action-modal-button danger", () => {
+      closeStudentActionsModal();
+      void deleteStudent(student.id);
+    }),
+  ];
+
+  if (student.paymentReceiptUrl) {
+    actions.unshift(createButton("عرض وصل الدفع", "student-action-modal-button", () => {
+      closeStudentActionsModal();
+      void viewStudentPaymentReceipt(student.id);
+    }));
+  }
+  if (student.level === "طالب جامعي" && student.cardPhotoUrl) {
+    actions.unshift(createButton("عرض بطاقة الطالب", "student-action-modal-button", () => {
+      closeStudentActionsModal();
+      void viewStudentCard(student.id);
+    }));
+  }
+
+  elements.studentActionsList.append(...actions);
+  elements.studentActionsModal.hidden = false;
+  elements.studentActionsModal.classList.add("is-open");
+  elements.studentActionsModalClose?.focus();
 }
 
 function renderTable(studentsArray) {
   const students = Array.isArray(studentsArray) ? studentsArray : [];
-  const totalPages = Math.max(1, Math.ceil(students.length / ROSTER_STUDENTS_PER_PAGE));
-  rosterPage = Math.min(Math.max(rosterPage, 1), totalPages);
-  const pageStart = (rosterPage - 1) * ROSTER_STUDENTS_PER_PAGE;
-  const visibleStudents = students.slice(pageStart, pageStart + ROSTER_STUDENTS_PER_PAGE);
 
   if (!elements.studentsTableBody) {
     return;
@@ -1313,7 +1351,6 @@ function renderTable(studentsArray) {
   }
 
   if (students.length === 0) {
-    updateRosterPagination(0, 1);
     const row = document.createElement("tr");
     const cell = document.createElement("td");
     cell.colSpan = 5;
@@ -1324,7 +1361,7 @@ function renderTable(studentsArray) {
     return;
   }
 
-  for (const student of visibleStudents) {
+  for (const student of students) {
     const row = document.createElement("tr");
 
     const paymentMeta = paymentStageMeta(student);
@@ -1378,8 +1415,12 @@ function renderTable(studentsArray) {
 
     const identity = document.createElement("div");
     identity.className = "teacher-student-identity";
-    const studentName = document.createElement("strong");
+    const studentName = document.createElement("button");
+    studentName.type = "button";
+    studentName.className = "student-name-action";
     studentName.textContent = student.studentName;
+    studentName.title = "فتح إجراءات التلميذ";
+    studentName.addEventListener("click", () => openStudentActionsModal(student));
     const accountStatus = document.createElement("span");
     const accountMeta = accountStatusMeta(student);
     accountStatus.className = `teacher-account-status ${accountMeta.className}`;
@@ -1482,7 +1523,6 @@ function renderTable(studentsArray) {
     elements.studentsTableBody.append(row);
   }
 
-  updateRosterPagination(students.length, totalPages);
 }
 
 /** Updates the three cards from the same array visible in the table. */
@@ -1564,8 +1604,6 @@ function applyFilters() {
     return matchesName && matchesPayment;
   });
 
-  rosterFilteredStudents = filteredStudents;
-  rosterPage = 1;
   renderTable(filteredStudents);
   updateSummary(filteredStudents);
 }
@@ -2869,6 +2907,10 @@ if (!getTeacherToken()) {
   });
 
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && elements.studentActionsModal && !elements.studentActionsModal.hidden) {
+      closeStudentActionsModal();
+      return;
+    }
     if (event.key === "Escape" && elements.studentCertificatesModal && !elements.studentCertificatesModal.hidden) {
       closeStudentCertificatesModal();
       return;
@@ -2902,16 +2944,9 @@ if (!getTeacherToken()) {
       applyFilters();
     });
   });
-  elements.rosterPagePrev?.addEventListener("click", () => {
-    if (rosterPage <= 1) return;
-    rosterPage -= 1;
-    renderTable(rosterFilteredStudents);
-  });
-  elements.rosterPageNext?.addEventListener("click", () => {
-    const totalPages = Math.max(1, Math.ceil(rosterFilteredStudents.length / ROSTER_STUDENTS_PER_PAGE));
-    if (rosterPage >= totalPages) return;
-    rosterPage += 1;
-    renderTable(rosterFilteredStudents);
+  elements.studentActionsModalClose?.addEventListener("click", closeStudentActionsModal);
+  elements.studentActionsModal?.addEventListener("click", (event) => {
+    if (event.target === elements.studentActionsModal) closeStudentActionsModal();
   });
   elements.studentSearchTrigger?.addEventListener("click", () => {
     setDashboardTab("students");

@@ -3291,3 +3291,192 @@ body.teacher-modal-open {
     transition: none;
   }
 }
+
+
+/* Student roster: scroll only inside the names/list area */
+.teacher-dashboard-page .teacher-table-card .table-scroll-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 transparent;
+}
+
+.teacher-dashboard-page .teacher-table-card .table-scroll-container::-webkit-scrollbar {
+  display: block;
+  width: .42rem;
+}
+
+.teacher-dashboard-page .teacher-table-card .table-scroll-container::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 1rem;
+}
+
+.teacher-dashboard-page .teacher-table-card th:last-child,
+.teacher-dashboard-page .teacher-table-card td:last-child {
+  display: none;
+}
+
+.teacher-dashboard-page .teacher-table-card th:nth-child(1),
+.teacher-dashboard-page .teacher-table-card td:nth-child(1) { width: 30%; }
+.teacher-dashboard-page .teacher-table-card th:nth-child(2),
+.teacher-dashboard-page .teacher-table-card td:nth-child(2) { width: 19%; }
+.teacher-dashboard-page .teacher-table-card th:nth-child(3),
+.teacher-dashboard-page .teacher-table-card td:nth-child(3) { width: 24%; }
+.teacher-dashboard-page .teacher-table-card th:nth-child(4),
+.teacher-dashboard-page .teacher-table-card td:nth-child(4) { width: 27%; }
+
+.teacher-dashboard-page .teacher-table-card .teacher-student-identity {
+  display: grid;
+  gap: .18rem;
+  min-width: 0;
+}
+
+.teacher-dashboard-page .teacher-table-card .student-name-action {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  color: #0f172a;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: .86rem;
+  font-weight: 900;
+  line-height: 1.35;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.teacher-dashboard-page .teacher-table-card .student-name-action:hover,
+.teacher-dashboard-page .teacher-table-card .student-name-action:focus-visible {
+  color: #1d4ed8;
+  text-decoration: underline;
+  outline: none;
+}
+
+.teacher-dashboard-page .teacher-table-card .teacher-account-status {
+  width: fit-content;
+  font-size: .7rem;
+  font-weight: 900;
+}
+
+.teacher-dashboard-page .teacher-table-card .phone-cell {
+  color: #0f172a;
+  font-size: .82rem;
+  font-weight: 900;
+  letter-spacing: .015em;
+  direction: ltr;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.teacher-dashboard-page .teacher-table-card .payment-cell .payment-toggle,
+.teacher-dashboard-page .teacher-table-card .secondary-payment-status {
+  min-height: 2.25rem;
+  padding: .42rem .7rem;
+  font-size: .76rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.teacher-dashboard-page .teacher-table-card .payment-cell .payment-toggle {
+  width: min(100%, 14rem);
+}
+
+.teacher-dashboard-page .student-actions-card {
+  width: min(94vw, 30rem);
+  max-height: min(86vh, 42rem);
+  overflow-y: auto;
+}
+
+.teacher-dashboard-page .student-actions-card h2 {
+  margin: .2rem 0 .15rem;
+  color: #0f172a;
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+.teacher-dashboard-page .student-actions-level {
+  margin: 0 0 .8rem;
+  color: #64748b;
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+.teacher-dashboard-page .student-actions-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .55rem;
+}
+
+.teacher-dashboard-page .student-action-modal-button {
+  min-height: 2.8rem;
+  padding: .55rem .7rem;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: .68rem;
+  font: inherit;
+  font-size: .75rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform .16s ease, background .16s ease, color .16s ease, box-shadow .16s ease;
+}
+
+.teacher-dashboard-page .student-action-modal-button:hover,
+.teacher-dashboard-page .student-action-modal-button:focus-visible {
+  color: #ffffff;
+  background: #2563eb;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, .2);
+  outline: none;
+}
+
+.teacher-dashboard-page .student-action-modal-button:active {
+  transform: scale(.98);
+}
+
+.teacher-dashboard-page .student-action-modal-button.danger {
+  color: #b91c1c;
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+
+.teacher-dashboard-page .student-action-modal-button.danger:hover,
+.teacher-dashboard-page .student-action-modal-button.danger:focus-visible {
+  color: #ffffff;
+  background: #dc2626;
+}
+
+@media (max-width: 720px) {
+  .teacher-dashboard-page .teacher-table-card .student-name-action {
+    font-size: .74rem;
+  }
+
+  .teacher-dashboard-page .teacher-table-card .phone-cell {
+    font-size: .7rem;
+  }
+
+  .teacher-dashboard-page .teacher-table-card .payment-cell .payment-toggle,
+  .teacher-dashboard-page .teacher-table-card .secondary-payment-status {
+    min-height: 2rem;
+    padding-inline: .4rem;
+    font-size: .64rem;
+  }
+
+  .teacher-dashboard-page .student-actions-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .teacher-dashboard-page .student-action-modal-button {
+    transition: none;
+  }
+}
