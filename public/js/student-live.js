@@ -447,16 +447,40 @@ function initializeRefreshFab() {
   });
 }
 
+function syncStudentZoomToViewport({ reset = false } = {}) {
+  if (reset) {
+    resetStudentZoom();
+    return;
+  }
+
+  const width = elements.videoFrame?.clientWidth || window.innerWidth;
+  const height = elements.videoFrame?.clientHeight || window.innerHeight;
+  studentZoomState.translateX = clampStudentZoomTranslation(studentZoomState.translateX, studentZoomState.scale, width);
+  studentZoomState.translateY = clampStudentZoomTranslation(studentZoomState.translateY, studentZoomState.scale, height);
+  applyStudentZoom();
+}
+
 function updateRotationControls() {
   // Use the current viewport as the source of truth. In some Chrome emulator
   // sessions screen.orientation.type can remain stale after a prior target.
   const isLandscape = window.matchMedia?.("(orientation: landscape)").matches || false;
+  const wasLandscape = document.documentElement.classList.contains("student-landscape-mode");
   if (elements.rotateButton) elements.rotateButton.hidden = isLandscape;
   if (elements.unrotateButton) elements.unrotateButton.hidden = !isLandscape;
   if (elements.centerRotateButton) elements.centerRotateButton.hidden = isLandscape;
   if (elements.centerUnrotateButton) elements.centerUnrotateButton.hidden = !isLandscape;
   document.documentElement.classList.toggle("student-landscape-mode", isLandscape);
-  if (!isLandscape) resetStudentZoom();
+
+  // A rotated viewport is a new coordinate system. Clear any stale transform
+  // before the first landscape frame is painted, otherwise its edges remain
+  // clipped by the video frame after the orientation change.
+  if (isLandscape && !wasLandscape) {
+    syncStudentZoomToViewport({ reset: true });
+  } else if (!isLandscape) {
+    resetStudentZoom();
+  } else {
+    syncStudentZoomToViewport();
+  }
 }
 
 function applyStudentZoom() {
@@ -699,6 +723,9 @@ function initializeMobileControls() {
       });
     }
     updateRotationControls();
+    if (document.documentElement.classList.contains("student-landscape-mode")) {
+      window.requestAnimationFrame(() => syncStudentZoomToViewport());
+    }
   });
   updateRotationControls();
 }
