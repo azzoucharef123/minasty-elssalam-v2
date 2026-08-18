@@ -326,6 +326,8 @@ function refreshAudioVideo() {
 }
 
 const MOBILE_CONTROLS_POSITION_KEY = "studentMobileControlsPosition";
+const STUDENT_MIN_ZOOM = 0.5;
+const STUDENT_MAX_ZOOM = 4;
 let mobileControlDragState = null;
 let ignoreNextRefreshClick = false;
 let mobileToastTimer = null;
@@ -576,7 +578,10 @@ function handleStudentZoomPointerMove(event) {
     points[1].clientX - points[0].clientX,
     points[1].clientY - points[0].clientY
   );
-  const nextScale = Math.min(4, Math.max(1, studentZoomState.startScale * (distance / studentZoomState.startDistance)));
+  const nextScale = Math.min(
+    STUDENT_MAX_ZOOM,
+    Math.max(STUDENT_MIN_ZOOM, studentZoomState.startScale * (distance / studentZoomState.startDistance))
+  );
   const center = getStudentPointerCenter();
   const deltaX = center.x - studentZoomState.startCenter.x;
   const deltaY = center.y - studentZoomState.startCenter.y;
