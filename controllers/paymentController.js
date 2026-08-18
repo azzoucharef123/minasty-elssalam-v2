@@ -3,10 +3,13 @@ const prisma = require("../lib/prisma");
 const { logAudit } = require("../utils/audit");
 
 const SOFIZPAY_ACCOUNT = process.env.SOFIZPAY_ACCOUNT || "GBYAJX2VUMCKQQMTQRKIHFL7GWKPXQGAQNNCJOIV232S3Q73NNYK6JF4";
-const SOFIZPAY_CREATE_URL = "https://sofizpay.com/make-cib-transaction/";
 const SOFIZPAY_CHECK_URL = "https://sofizpay.com/cib-transaction-check/";
 const PUBLIC_SITE_URL = String(process.env.PUBLIC_SITE_URL || "https://dr.africacold.fr").replace(/\/$/, "");
-const CONTACT_EMAIL = process.env.SOFIZPAY_CONTACT_EMAIL || "no-reply@dr.africacold.fr";
+const FIXED_PAYMENT_LINKS = Object.freeze({
+  BOTH: process.env.SOFIZPAY_LINK_BOTH || "https://sofizpay.com/create-payment-link/?account=GBYAJX2VUMCKQQMTQRKIHFL7GWKPXQGAQNNCJOIV232S3Q73NNYK6JF4&amount=2030&memo=BOTH-2030&return_url=https%3A%2F%2Fdr.africacold.fr%2Fparent-dashboard.html%3Fpayment%3Dsofizpay%26subscription%3DBOTH",
+  MATH: process.env.SOFIZPAY_LINK_MATH || "https://sofizpay.com/create-payment-link/?account=GBYAJX2VUMCKQQMTQRKIHFL7GWKPXQGAQNNCJOIV232S3Q73NNYK6JF4&amount=1030&memo=MATH-1030&return_url=https%3A%2F%2Fdr.africacold.fr%2Fparent-dashboard.html%3Fpayment%3Dsofizpay%26subscription%3DMATH",
+  PHYSICS: process.env.SOFIZPAY_LINK_PHYSICS || "https://sofizpay.com/create-payment-link/?account=GBYAJX2VUMCKQQMTQRKIHFL7GWKPXQGAQNNCJOIV232S3Q73NNYK6JF4&amount=1030&memo=PHYSICS-1030&return_url=https%3A%2F%2Fdr.africacold.fr%2Fparent-dashboard.html%3Fpayment%3Dsofizpay%26subscription%3DPHYSICS",
+});
 const VALID_SUBSCRIPTIONS = new Map([
   ["BOTH", { amount: 2030, mathEnrollment: true, physicsEnrollment: true, label: "الرياضيات والفيزياء" }],
   ["MATH", { amount: 1030, mathEnrollment: true, physicsEnrollment: false, label: "الرياضيات فقط" }],
@@ -25,10 +28,6 @@ function buildInternalOrderId() {
   return `MINA-${Date.now()}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
 }
 
-function buildMemo(orderId) {
-  return `M${orderId.replace(/[^A-Z0-9]/gi, "").slice(-22)}`.slice(0, 28);
-}
-
 function amountAsNumber(value) {
   const amount = Number(String(value ?? "").replace(",", "."));
   return Number.isFinite(amount) ? amount : null;
@@ -41,17 +40,10 @@ function extractProviderOrderNumber(payload) {
     payload?.cib_response?.orderId ||
     payload?.data?.cib_response?.orderId ||
     payload?.order_number ||
-    payload?.orderNumber,
+    payload?.orderNumber ||
+    payload?.order,
     120
   ) || null;
-}
-
-function extractProviderTransactionId(payload) {
-  return text(payload?.transaction_id || payload?.data?.transaction_id, 120) || null;
-}
-
-function extractPaymentUrl(payload) {
-  return text(payload?.payment_url || payload?.url || payload?.data?.payment_url || payload?.data?.url, 2000) || null;
 }
 
 function safeJson(value) {
@@ -62,11 +54,11 @@ function safeJson(value) {
   }
 }
 
-async function fetchJson(url, options = {}) {
+async function fetchJson(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
   try {
-    const response = await fetch(url, { ...options, signal: controller.signal, headers: { Accept: "application/json", ...(options.headers || {}) } });
+    const response = await fetch(url, { signal: controller.signal, headers: { Accept: "application/json" } });
     const payload = await response.json().catch(() => ({}));
     return { response, payload };
   } finally {
@@ -121,7 +113,7 @@ async function activatePaidTransaction(transaction, providerPayload) {
     if (!fresh) throw new Error("طلب الدفع غير موجود.");
     if (fresh.status === "PAID") return fresh;
 
-    const student = await tx.student.findUnique({ where: { id: fresh.studentId }, select: { id: true, level: true } });
+    const student = await tx.student.findUnique({ where: { id: fresh.studentId }, select: { id: true } });
     if (!student) throw new Error("التلميذ غير موجود.");
 
     const paidStudent = await tx.student.update({
@@ -139,12 +131,7 @@ async function activatePaidTransaction(transaction, providerPayload) {
 
     await tx.paymentTransaction.update({
       where: { id: fresh.id },
-      data: {
-        status: "PAID",
-        providerPayload: safeJson(providerPayload),
-        verifiedAt: now,
-        paidAt: now,
-      },
+      data: { status: "PAID", providerPayload: safeJson(providerPayload), verifiedAt: now, paidAt: now },
     });
 
     await tx.paymentEvent.create({
@@ -178,13 +165,8 @@ async function verifyTransaction(transaction) {
   checkUrl.searchParams.set("order_number", transaction.providerOrderNumber);
   const { response, payload } = await fetchJson(checkUrl.toString());
 
-  if (!response.ok || payload?.error) {
-    return { transaction, verified: false, pending: true, providerPayload: payload };
-  }
-
-  if (!providerPaymentAccepted(payload, transaction)) {
-    return { transaction, verified: false, pending: false, failed: true, providerPayload: payload };
-  }
+  if (!response.ok || payload?.error) return { transaction, verified: false, pending: true, providerPayload: payload };
+  if (!providerPaymentAccepted(payload, transaction)) return { transaction, verified: false, pending: false, failed: true, providerPayload: payload };
 
   const updated = await activatePaidTransaction(transaction, payload);
   return { transaction: updated, verified: true, pending: false, providerPayload: payload };
@@ -195,11 +177,12 @@ async function startSofizPayPayment(req, res) {
     if (!isParent(req)) return res.status(403).json({ error: "هذه العملية متاحة للولي فقط." });
     const subscriptionType = text(req.body?.subscriptionType, 20).toUpperCase();
     const subscription = VALID_SUBSCRIPTIONS.get(subscriptionType);
-    if (!subscription) return res.status(400).json({ error: "اختر الرياضيات أو الفيزياء أو المادتين معًا." });
+    const paymentUrl = FIXED_PAYMENT_LINKS[subscriptionType];
+    if (!subscription || !paymentUrl) return res.status(400).json({ error: "اختر الرياضيات أو الفيزياء أو المادتين معًا." });
 
     const student = await getOwnedStudent(req, req.body?.studentId);
     if (!student || !studentBelongsToParent(student, req)) return res.status(403).json({ error: "لا تملك صلاحية الدفع لهذا التلميذ." });
-    if (student.level === "طالب جامعي") return res.status(400).json({ error: "الدفع الإلكتروني بهذه الخطة متاح لتلاميذ التعليم المتوسط فقط حاليًا." });
+    if (student.level === "طالب جامعي") return res.status(400).json({ error: "الدفع الإلكتروني بهذه الروابط متاح لتلاميذ التعليم المتوسط فقط حاليًا." });
     if (student.paymentStage === "PAID" || student.paymentStatus) return res.status(400).json({ error: "هذا الحساب لديه اشتراك مدفوع بالفعل." });
 
     const recent = await prisma.paymentTransaction.findFirst({
@@ -211,75 +194,51 @@ async function startSofizPayPayment(req, res) {
     }
 
     const internalOrderId = buildInternalOrderId();
-    const memo = buildMemo(internalOrderId);
-    const returnUrl = `${PUBLIC_SITE_URL}/parent-dashboard.html?payment=sofizpay&order_id=${encodeURIComponent(internalOrderId)}`;
-    const webhookUrl = `${PUBLIC_SITE_URL}/api/payments/sofizpay/webhook`;
-    const params = new URLSearchParams({
-      account: SOFIZPAY_ACCOUNT,
-      amount: String(subscription.amount),
-      full_name: student.studentName,
-      phone: student.parentPhone,
-      email: CONTACT_EMAIL,
-      return_url: returnUrl,
-      webhook_url: webhookUrl,
-      invoice_id: internalOrderId,
-      memo,
-      redirect: "yes",
-      keep_return_url: "True",
-      language: "ar",
-    });
-
-    const { response, payload } = await fetchJson(`${SOFIZPAY_CREATE_URL}?${params.toString()}`);
-    if (!response.ok || payload?.success === false || payload?.error) {
-      console.error("SofizPay payment creation rejected:", response.status, payload?.error || payload?.message || "unknown");
-      return res.status(502).json({ error: "تعذر إنشاء رابط الدفع الإلكتروني من SofizPay حاليًا. حاول مرة أخرى." });
-    }
-
-    const paymentUrl = extractPaymentUrl(payload);
-    const providerOrderNumber = extractProviderOrderNumber(payload);
-    const providerTransactionId = extractProviderTransactionId(payload);
-    if (!paymentUrl || !providerOrderNumber) {
-      console.error("SofizPay response missing payment URL or order number:", payload);
-      return res.status(502).json({ error: "أعاد مزود الدفع ردًا غير مكتمل. لم يتم إنشاء طلب قابل للدفع." });
-    }
-
     const transaction = await prisma.paymentTransaction.create({
       data: {
         studentId: student.id,
         internalOrderId,
-        providerOrderNumber,
-        providerTransactionId,
         subscriptionType,
         amount: subscription.amount,
         paymentUrl,
-        returnUrl,
-        memo,
-        providerPayload: safeJson(payload),
+        returnUrl: `${PUBLIC_SITE_URL}/parent-dashboard.html?payment=sofizpay&subscription=${subscriptionType}`,
+        memo: `${subscriptionType}-${subscription.amount}`,
       },
     });
 
-    return res.json({ status: "success", data: { paymentUrl: transaction.paymentUrl, internalOrderId, amount: transaction.amount, subscriptionType } });
+    return res.json({ status: "success", data: { paymentUrl: transaction.paymentUrl, internalOrderId, amount: transaction.amount, subscriptionType, fixedLink: true } });
   } catch (error) {
-    console.error("SofizPay payment start failed:", error);
-    return res.status(500).json({ error: "تعذر بدء عملية الدفع الإلكتروني حاليًا." });
+    console.error("SofizPay fixed payment start failed:", error);
+    return res.status(500).json({ error: "تعذر تجهيز رابط الدفع الإلكتروني حاليًا." });
   }
 }
 
 async function getSofizPayPaymentStatus(req, res) {
   try {
     if (!isParent(req)) return res.status(403).json({ error: "هذه العملية متاحة للولي فقط." });
-    const internalOrderId = text(req.query?.order_id, 120);
-    if (!internalOrderId) return res.status(400).json({ error: "رقم طلب الدفع غير موجود." });
-    const transaction = await prisma.paymentTransaction.findUnique({ where: { internalOrderId } });
+    const internalOrderId = text(req.query?.internal_order_id || req.query?.order_id, 120);
+    const providerOrderNumber = extractProviderOrderNumber(req.query || {});
+    if (!internalOrderId) return res.status(400).json({ error: "رقم طلب الموقع غير موجود." });
+
+    let transaction = await prisma.paymentTransaction.findUnique({ where: { internalOrderId } });
     if (!transaction) return res.status(404).json({ error: "طلب الدفع غير موجود." });
     const student = await getOwnedStudent(req, transaction.studentId);
     if (!student) return res.status(403).json({ error: "لا تملك صلاحية هذا الطلب." });
 
+    if (providerOrderNumber && transaction.providerOrderNumber && transaction.providerOrderNumber !== providerOrderNumber) {
+      return res.status(409).json({ error: "رقم معاملة SofizPay لا يطابق طلب الموقع." });
+    }
+    if (providerOrderNumber && !transaction.providerOrderNumber) {
+      const alreadyAssigned = await prisma.paymentTransaction.findFirst({ where: { providerOrderNumber, NOT: { id: transaction.id } }, select: { id: true } });
+      if (alreadyAssigned) return res.status(409).json({ error: "رقم المعاملة مرتبط بطلب آخر." });
+      transaction = await prisma.paymentTransaction.update({ where: { id: transaction.id }, data: { providerOrderNumber } });
+    }
+
     const result = transaction.status === "PAID" ? { transaction, verified: true, pending: false } : await verifyTransaction(transaction);
     const subscription = VALID_SUBSCRIPTIONS.get(transaction.subscriptionType);
-    return res.json({ status: "success", data: { paymentStatus: result.verified ? "PAID" : result.failed ? "FAILED" : "PENDING", subscriptionType: transaction.subscriptionType, subscriptionLabel: subscription?.label, amount: transaction.amount, internalOrderId, studentId: transaction.studentId, message: result.verified ? `مبروك، تم تسجيلك في ${subscription?.label}.` : result.failed ? "لم يتم تأكيد عملية الدفع." : "عملية الدفع قيد التحقق من SofizPay." } });
+    return res.json({ status: "success", data: { paymentStatus: result.verified ? "PAID" : result.failed ? "FAILED" : "PENDING", subscriptionType: transaction.subscriptionType, subscriptionLabel: subscription?.label, amount: transaction.amount, internalOrderId, studentId: transaction.studentId, message: result.verified ? `مبروك، تم تسجيلك في ${subscription?.label}.` : result.failed ? "لم يتم تأكيد عملية الدفع." : providerOrderNumber ? "عملية الدفع قيد التحقق من SofizPay." : "لم تصلنا بعد بيانات المعاملة من SofizPay." } });
   } catch (error) {
-    console.error("SofizPay payment status failed:", error);
+    console.error("SofizPay fixed payment status failed:", error);
     return res.status(500).json({ error: "تعذر التحقق من حالة الدفع حاليًا." });
   }
 }
@@ -289,7 +248,7 @@ async function receiveSofizPayWebhook(req, res) {
     const providerOrderNumber = extractProviderOrderNumber(req.body || req.query || {});
     if (!providerOrderNumber) return res.status(400).json({ error: "رقم معاملة SofizPay غير موجود." });
     const transaction = await prisma.paymentTransaction.findUnique({ where: { providerOrderNumber } });
-    if (!transaction) return res.status(404).json({ error: "المعاملة غير معروفة." });
+    if (!transaction) return res.status(404).json({ error: "المعاملة غير معروفة أو لم تعد مرتبطة بطلب مفتوح." });
     const result = await verifyTransaction(transaction);
     return res.json({ status: result.verified ? "paid" : result.pending ? "pending" : "failed" });
   } catch (error) {

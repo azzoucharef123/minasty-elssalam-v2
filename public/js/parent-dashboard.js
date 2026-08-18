@@ -747,6 +747,11 @@ async function startSofizPayPayment() {
     if (!response.ok || !payload?.data?.paymentUrl) {
       throw new Error(payload.error || "تعذر تجهيز رابط الدفع الإلكتروني.");
     }
+    sessionStorage.setItem("sofizpayPendingOrder", JSON.stringify({
+      internalOrderId: payload.data.internalOrderId,
+      subscriptionType,
+      studentId: currentStudent.id,
+    }));
     window.location.assign(payload.data.paymentUrl);
   } catch (error) {
     openDocumentFeedback(error.message || "تعذر بدء الدفع الإلكتروني حاليًا.", "تعذر بدء الدفع");
@@ -771,13 +776,26 @@ function sleep(milliseconds) {
 async function checkSofizPayReturn() {
   const params = new URLSearchParams(window.location.search);
   if (params.get("payment") !== "sofizpay") return;
-  const orderId = params.get("order_id");
-  if (!orderId) return;
+  const subscriptionType = params.get("subscription");
+  let pending = null;
+  try {
+    pending = JSON.parse(sessionStorage.getItem("sofizpayPendingOrder") || "null");
+  } catch {
+    pending = null;
+  }
+  if (!pending?.internalOrderId || pending.subscriptionType !== subscriptionType || (currentStudent?.id && pending.studentId !== currentStudent.id)) {
+    openDocumentFeedback("تعذر ربط العودة بطلب الدفع الخاص بهذا الحساب. أعد اختيار الاشتراك من بوابة الولي.", "تعذر مطابقة الدفع");
+    return;
+  }
+
+  const providerOrderNumber = params.get("order_number") || params.get("cib_transaction_id") || params.get("orderNumber") || params.get("order") || "";
+  const query = new URLSearchParams({ internal_order_id: pending.internalOrderId });
+  if (providerOrderNumber) query.set("order_number", providerOrderNumber);
 
   let result = null;
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
-      const response = await parentFetch(`/api/payments/sofizpay/status?order_id=${encodeURIComponent(orderId)}`);
+      const response = await parentFetch(`/api/payments/sofizpay/status?${query.toString()}`);
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "تعذر التحقق من الدفع.");
       result = payload.data;
@@ -789,19 +807,28 @@ async function checkSofizPayReturn() {
     }
   }
 
+  const terminal = result?.paymentStatus === "PAID" || result?.paymentStatus === "FAILED";
   if (result?.paymentStatus === "PAID") {
     openDocumentFeedback(result.message || "مبروك، تم تسجيلك بنجاح.", "مبروك، تم تأكيد الدفع");
+    sessionStorage.removeItem("sofizpayPendingOrder");
     await loadDashboard({ backgroundRefresh: true });
   } else if (result?.paymentStatus === "FAILED") {
     openDocumentFeedback(result.message || "لم يتم تأكيد عملية الدفع.", "لم يكتمل الدفع");
+    sessionStorage.removeItem("sofizpayPendingOrder");
   } else {
-    openDocumentFeedback(result?.message || "عملية الدفع قيد التحقق من SofizPay. أعد تحديث الصفحة بعد لحظات.", "الدفع قيد التحقق");
+    openDocumentFeedback(result?.message || "لم تصلنا بعد بيانات المعاملة من SofizPay. أعد فتح الرابط بعد لحظات.", "الدفع قيد التحقق");
   }
 
-  params.delete("payment");
-  params.delete("order_id");
-  const cleanQuery = params.toString();
-  window.history.replaceState({}, document.title, `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ""}${window.location.hash}`);
+  if (terminal) {
+    params.delete("payment");
+    params.delete("subscription");
+    params.delete("order_number");
+    params.delete("cib_transaction_id");
+    params.delete("orderNumber");
+    params.delete("order");
+    const cleanQuery = params.toString();
+    window.history.replaceState({}, document.title, `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ""}${window.location.hash}`);
+  }
 }
 
 function setPaymentReceiptChoiceMenu(menu, toggle, open) {
