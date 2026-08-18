@@ -48,7 +48,9 @@ const elements = {
   universityPaymentTransfer: document.getElementById("university-payment-transfer"),
   parentPaymentReceiptInput: document.getElementById("parent-payment-receipt-input"),
   parentPaymentCapture: document.getElementById("parent-payment-capture"),
+  parentPaymentFileChoice: document.getElementById("parent-payment-file-choice"),
   parentPaymentUpload: document.getElementById("parent-payment-upload"),
+  parentPaymentChoiceMenu: document.getElementById("parent-payment-choice-menu"),
   parentPaymentFileName: document.getElementById("parent-payment-file-name"),
   parentCardPaymentButton: document.getElementById("university-card-payment-button"),
   parentPaymentSubmit: document.getElementById("parent-payment-submit"),
@@ -60,7 +62,9 @@ const elements = {
   secondarySubscriptionType: document.getElementById("secondary-subscription-type"),
   secondaryPaymentReceiptInput: document.getElementById("secondary-payment-receipt-input"),
   secondaryPaymentCapture: document.getElementById("secondary-payment-capture"),
+  secondaryPaymentFileChoice: document.getElementById("secondary-payment-file-choice"),
   secondaryPaymentUpload: document.getElementById("secondary-payment-upload"),
+  secondaryPaymentChoiceMenu: document.getElementById("secondary-payment-choice-menu"),
   secondaryPaymentFileName: document.getElementById("secondary-payment-file-name"),
   secondaryCardPaymentButton: document.getElementById("secondary-card-payment-button"),
   secondaryPaymentSubmit: document.getElementById("secondary-payment-submit"),
@@ -721,10 +725,34 @@ function showCardPaymentNotice() {
   );
 }
 
-function wirePaymentReceiptActions({ input, captureButton, uploadButton, fileName, cardPaymentButton }) {
-  captureButton?.addEventListener("click", () => openPaymentReceiptPicker(input, "capture"));
-  uploadButton?.addEventListener("click", () => openPaymentReceiptPicker(input, "upload"));
-  input?.addEventListener("change", () => updatePaymentReceiptFileName(input, fileName));
+function setPaymentReceiptChoiceMenu(menu, toggle, open) {
+  if (menu) menu.hidden = !open;
+  toggle?.setAttribute("aria-expanded", String(open));
+}
+
+function wirePaymentReceiptActions({ input, captureButton, fileChoiceButton, uploadButton, choiceMenu, fileName, cardPaymentButton, submitAfterCapture }) {
+  let selectionMode = "upload";
+
+  uploadButton?.addEventListener("click", () => {
+    const isOpen = choiceMenu ? choiceMenu.hidden : true;
+    setPaymentReceiptChoiceMenu(choiceMenu, uploadButton, isOpen);
+  });
+  captureButton?.addEventListener("click", () => {
+    selectionMode = "capture";
+    setPaymentReceiptChoiceMenu(choiceMenu, uploadButton, false);
+    openPaymentReceiptPicker(input, "capture");
+  });
+  fileChoiceButton?.addEventListener("click", () => {
+    selectionMode = "upload";
+    setPaymentReceiptChoiceMenu(choiceMenu, uploadButton, false);
+    openPaymentReceiptPicker(input, "upload");
+  });
+  input?.addEventListener("change", () => {
+    updatePaymentReceiptFileName(input, fileName);
+    if (selectionMode === "capture" && input.files?.[0]) {
+      void submitAfterCapture?.();
+    }
+  });
   cardPaymentButton?.addEventListener("click", showCardPaymentNotice);
 }
 
@@ -1237,7 +1265,7 @@ function renderUniversityPaymentUpgrade(student, isPaidSubscription) {
   if (elements.parentPaymentPending) {
     elements.parentPaymentPending.hidden = !receiptPending;
     elements.parentPaymentPending.textContent = receiptPending
-      ? "تم إرسال وصل الدفع بنجاح. الوصل في انتظار تأكيد الأستاذ."
+      ? "لقد استلم الأستاذ الوصل. في انتظار تأكيد الوصل."
       : "";
   }
 }
@@ -1274,7 +1302,7 @@ function renderSecondaryPaymentUpgrade(student) {
   if (elements.secondaryPaymentPending) {
     elements.secondaryPaymentPending.hidden = !receiptPending;
     elements.secondaryPaymentPending.textContent = receiptPending
-      ? "تم إرسال الوصل واختيار الاشتراك. ينتظر الطلب مراجعة الأستاذ وتأكيد الدفع."
+      ? "لقد استلم الأستاذ الوصل. في انتظار تأكيد الوصل."
       : "";
   }
 }
@@ -1969,7 +1997,7 @@ async function submitSecondaryPaymentReceipt() {
   if (!receipt) missing.push("لم ترفع وصل الدفع.");
   if (!["BOTH", "MATH", "PHYSICS"].includes(subscriptionType)) missing.push("لم تختَر المادة أو نوع الاشتراك.");
   if (missing.length) {
-    openDocumentFeedback(missing.join("\n"), "بيانات الترقية ناقصة");
+      openDocumentFeedback(missing.join("\n"), "بيانات الترقية ناقصة");
     if (!receipt) elements.secondaryPaymentReceiptInput?.focus();
     else elements.secondarySubscriptionType?.focus();
     return;
@@ -2221,9 +2249,12 @@ if (!getParentToken()) {
   wirePaymentReceiptActions({
     input: elements.parentPaymentReceiptInput,
     captureButton: elements.parentPaymentCapture,
+    fileChoiceButton: elements.parentPaymentFileChoice,
     uploadButton: elements.parentPaymentUpload,
+    choiceMenu: elements.parentPaymentChoiceMenu,
     fileName: elements.parentPaymentFileName,
     cardPaymentButton: elements.parentCardPaymentButton,
+    submitAfterCapture: submitUniversityPaymentReceipt,
   });
   elements.parentPaymentSubmit?.addEventListener("click", () => {
     void submitUniversityPaymentReceipt();
@@ -2232,9 +2263,12 @@ if (!getParentToken()) {
   wirePaymentReceiptActions({
     input: elements.secondaryPaymentReceiptInput,
     captureButton: elements.secondaryPaymentCapture,
+    fileChoiceButton: elements.secondaryPaymentFileChoice,
     uploadButton: elements.secondaryPaymentUpload,
+    choiceMenu: elements.secondaryPaymentChoiceMenu,
     fileName: elements.secondaryPaymentFileName,
     cardPaymentButton: elements.secondaryCardPaymentButton,
+    submitAfterCapture: submitSecondaryPaymentReceipt,
   });
   elements.secondaryPaymentSubmit?.addEventListener("click", () => {
     void submitSecondaryPaymentReceipt();

@@ -604,3 +604,28 @@
   .payment-receipt-choice,
   .card-payment-button { transition: none; }
 }
+
+
+.payment-receipt-choice-menu {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .45rem;
+  padding: .55rem;
+  background: #f8fafc;
+  border: 1px solid #dbeafe;
+  border-radius: .7rem;
+}
+
+.payment-receipt-choice-menu[hidden] { display: none; }
+.payment-receipt-choice-menu .payment-receipt-choice { min-height: 2.55rem; font-size: .72rem; }
+.payment-receipt-choice.file-choice { color: #1d4ed8; background: #ffffff; border: 1px solid #93c5fd; }
+
+@media (hover: hover) and (pointer: fine) {
+  .payment-receipt-choice-menu .payment-receipt-choice.capture { display: none; }
+  .payment-receipt-choice-menu { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 560px) {
+  .payment-receipt-choice-menu { grid-template-columns: 1fr; }
+}

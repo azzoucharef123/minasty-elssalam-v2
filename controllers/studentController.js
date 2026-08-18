@@ -557,7 +557,7 @@ async function submitPaymentReceipt(req, res) {
 
   try {
     if (!uploadedReceiptFile?.filename) {
-      return res.status(400).json({ error: "اختر صورة وصل الدفع بصيغة JPG أو PNG أولاً." });
+      return res.status(400).json({ error: "اختر صورة أو ملف PDF لوصل الدفع أولاً." });
     }
 
     const student = await prisma.student.findUnique({
