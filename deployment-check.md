@@ -91,3 +91,6 @@ Final verification: after propagation, public page returned doctor=2, benefits-c
 Global teacher absence deployment check: Railway dashboard reports the `a8f56cb` deployment as ACTIVE and successful. The first public API probe returned 404 and the first HTML probe showed the previous dashboard, so propagation or edge caching needed another verification after the deployment became active.
 
 Global teacher absence final verification: public `teacher-dashboard.html` now contains one `teacher-global-absence-btn`, one `teacher-global-absence-status`, and the `teacher-absence-global-1` cache version. The public `GET /api/schedules/absence/global` route returns `401` without a teacher Bearer token, confirming the new route is deployed and protected rather than missing.
+
+
+2026-08-18 — Global free class deployment check: commit `f779bf5` was pushed to `main`; the first public fetch after waiting still served the prior HTML (the new `مجاني` option and `global-free-class-1` cache were absent). Railway service page loaded but exposed no deployment details in the browser view, so propagation remains pending. No live class or payment was started during verification.
