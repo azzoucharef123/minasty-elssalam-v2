@@ -9,6 +9,12 @@
         if (other !== video) other.pause();
       });
     });
+
+    if (video.closest(".desktop-testimonial-video-card")) {
+      video.addEventListener("click", () => {
+        if (video.paused) video.play().catch(() => {});
+      });
+    }
   });
 
   moreButton?.addEventListener("click", () => {

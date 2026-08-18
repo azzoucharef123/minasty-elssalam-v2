@@ -16,7 +16,7 @@
     />
     <link rel="stylesheet" href="./css/style.css?v=landing-inapp-browser-1" />
 </head>
-  <body class="landing-page">
+  <body class="landing-page desktop-landing-home">
     <div class="landing-background" aria-hidden="true">
       <span class="orbit orbit-one"></span>
       <span class="orbit orbit-two"></span>
@@ -28,6 +28,54 @@
         <path d="M55 485C130 390 204 225 300 310C398 397 453 206 550 105" class="grid-curve" />
       </svg>
     </div>
+
+    <main class="desktop-landing-layout" aria-label="واجهة الأكاديمية على الحاسوب">
+      <section class="desktop-landing-panel desktop-landing-left" aria-label="الجدول وآراء التلاميذ">
+        <img class="desktop-schedule-image" src="./images/class-schedule.jpg" alt="جدول الحصص الدراسية للأطوار المتوسطة" width="1024" height="503" />
+        <div class="desktop-testimonials-block">
+          <h2>ماذا قال تلاميذنا السابقون؟</h2>
+          <div class="desktop-testimonial-video-grid" aria-label="فيديوهات آراء التلاميذ">
+            <article class="desktop-testimonial-video-card">
+              <video data-testimonial-video controls playsinline preload="none" poster="./assets/testimonials/testimonial-01.jpg"><source src="./assets/testimonials/testimonial-01.mp4" type="video/mp4" /></video>
+            </article>
+            <article class="desktop-testimonial-video-card">
+              <video data-testimonial-video controls playsinline preload="none" poster="./assets/testimonials/testimonial-02.jpg"><source src="./assets/testimonials/testimonial-02.mp4" type="video/mp4" /></video>
+            </article>
+            <article class="desktop-testimonial-video-card">
+              <video data-testimonial-video controls playsinline preload="none" poster="./assets/testimonials/testimonial-03.jpg"><source src="./assets/testimonials/testimonial-03.mp4" type="video/mp4" /></video>
+            </article>
+            <article class="desktop-testimonial-video-card">
+              <video data-testimonial-video controls playsinline preload="none" poster="./assets/testimonials/testimonial-04.jpg"><source src="./assets/testimonials/testimonial-04.mp4" type="video/mp4" /></video>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="desktop-landing-panel desktop-landing-center" aria-label="الدخول إلى الأكاديمية">
+        <div class="desktop-academy-identity">
+          <span class="desktop-academy-mark" aria-hidden="true">∑</span>
+          <h1>أكاديمية التفوق<br /><span>للفيزياء والرياضيات</span></h1>
+        </div>
+        <p class="desktop-academy-welcome">طريق واضح نحو الفهم، المتابعة، والتفوق.</p>
+        <div class="desktop-entry-actions">
+          <a class="desktop-entry-button desktop-entry-primary" href="./register.html">تسجيل حساب جديد</a>
+          <a class="desktop-entry-button desktop-entry-secondary" href="./parent-login.html">الدخول إلى حسابي</a>
+        </div>
+      </section>
+
+      <aside class="desktop-landing-panel desktop-landing-right" aria-labelledby="desktop-benefits-title">
+        <h2 id="desktop-benefits-title">ماذا ستستفيد من منصتنا؟</h2>
+        <p class="desktop-benefits-intro">كل ما يحتاجه التلميذ والولي في مسار تعليمي واحد منظم.</p>
+        <ul class="desktop-benefits-list">
+          <li><span aria-hidden="true">✓</span><strong>حصص مباشرة</strong><small>شرح تفاعلي في الرياضيات والفيزياء حسب المستوى.</small></li>
+          <li><span aria-hidden="true">✓</span><strong>متابعة مستمرة</strong><small>وضوح في الحضور والمشاركة وتقدم التلميذ.</small></li>
+          <li><span aria-hidden="true">✓</span><strong>واجبات وتصحيح</strong><small>إرسال الواجبات ومتابعة الحلول مع الأستاذ.</small></li>
+          <li><span aria-hidden="true">✓</span><strong>فيديوهات مكملة</strong><small>مراجعة الدروس والتمارين في أي وقت.</small></li>
+          <li><span aria-hidden="true">✓</span><strong>شهادات تحفيزية</strong><small>إنجازات وشهادات تشجع التلميذ على الاستمرار.</small></li>
+          <li><span aria-hidden="true">✓</span><strong>بوابة خاصة بالولي</strong><small>متابعة منظمة للحصص، الواجبات، والنتائج.</small></li>
+        </ul>
+      </aside>
+    </main>
 
     <header class="landing-header">
       <a class="brand" href="./index.html" aria-label="العودة إلى الصفحة الرئيسية">
