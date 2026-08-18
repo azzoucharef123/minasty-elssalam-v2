@@ -9,7 +9,7 @@
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
 <link href="./css/style.css?v=homework-paste-1" rel="stylesheet"/>
-<link href="./css/app.css?v=teacher-two-strip-5" rel="stylesheet"/>
+<link href="./css/app.css?v=teacher-absence-global-1" rel="stylesheet"/>
 <link href="./css/private-messages.css" rel="stylesheet"/>
 <link href="./css/payment-feedback.css" rel="stylesheet"/>
 </head>
@@ -51,6 +51,10 @@
 <div class="teacher-topbar-actions">
 <span class="teacher-presence"><i aria-hidden="true"></i>جاهز للإدارة</span>
 <a class="topbar-studio-link" href="./teacher-live.html">بدء حصة مباشرة</a>
+<div class="teacher-global-absence-control" role="group" aria-label="الإعلان العام عن غياب الأستاذ">
+<button aria-pressed="false" class="teacher-global-absence-btn" id="teacher-global-absence-btn" type="button">الإعلان عن الغياب</button>
+<span aria-live="polite" class="teacher-global-absence-status is-present" id="teacher-global-absence-status">الأستاذ حاضر</span>
+</div>
 <a aria-label="الرسائل" class="message-bell teacher-dashboard-message-bell" data-message-bell="" href="./teacher-chat.html" rel="noopener" target="_blank"><span aria-hidden="true">✉</span><b data-message-badge="" hidden="">0</b></a>
 <a class="topbar-messages-link" href="./teacher-chat.html" rel="noopener" target="_blank">الرسائل</a>
 <button class="topbar-public-invite" id="public-invite-btn" type="button">حصة عامة</button>
@@ -141,10 +145,8 @@
 <span class="schedule-manager-toggle-copy"><span class="schedule-kicker">برنامج المستوى</span><strong id="schedule-manager-title">برمجة الحصص</strong><small id="schedule-level-caption">أضف وعدّل واحذف حصص المستوى المختار.</small></span>
 <span aria-hidden="true" class="schedule-manager-toggle-icon" id="schedule-manager-toggle-icon">⌄</span>
 </button>
-<button class="teacher-absence-btn" id="teacher-absence-btn" type="button">الأستاذ غائب اليوم</button>
 </header>
 <div class="schedule-manager-content" hidden="" id="schedule-manager-content">
-<p class="teacher-absence-status" hidden="" id="teacher-absence-status"></p>
 <form class="schedule-form" id="schedule-form" novalidate=""><label>نوع الحصة<select id="schedule-subject" required=""></select></label><label>التاريخ والتوقيت<input id="schedule-datetime" required="" type="datetime-local"/></label><div class="schedule-form-actions"><button class="schedule-submit-btn" id="schedule-submit-btn" type="submit">إضافة حصة</button><button class="schedule-cancel-btn" hidden="" id="schedule-cancel-edit-btn" type="button">إلغاء التعديل</button></div></form>
 <div aria-live="polite" class="scheduled-class-list" id="scheduled-class-list"></div>
 </div>
@@ -168,7 +170,7 @@
 <script src="/socket.io/socket.io.js"></script>
 <script src="./js/session-storage.js"></script>
 <script src="./js/message-notifications.js"></script>
-<script src="./js/teacher-dashboard.js?v=student-actions-1"></script>
+<script src="./js/teacher-dashboard.js?v=teacher-absence-global-1"></script>
 <script defer="" src="./js/class-registry-teacher.js?v=registry-collapse-1"></script>
 </body>
 </html>

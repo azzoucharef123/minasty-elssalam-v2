@@ -3480,3 +3480,68 @@ body.teacher-modal-open {
     transition: none;
   }
 }
+
+
+/* Global teacher absence toggle */
+.teacher-global-absence-control {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  min-height: 2.25rem;
+  padding: .2rem;
+  border: 1px solid #fecaca;
+  border-radius: var(--border-radius-button, .7rem);
+  background: #fff7f7;
+}
+
+.teacher-global-absence-btn {
+  min-height: 1.85rem;
+  padding: .32rem .68rem;
+  color: #b91c1c;
+  border: 1px solid transparent;
+  border-radius: .52rem;
+  background: transparent;
+  font: inherit;
+  font-size: .68rem;
+  font-weight: 900;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .16s ease, color .16s ease, transform .16s ease;
+}
+
+.teacher-global-absence-btn:hover { background: #fee2e2; }
+.teacher-global-absence-btn:active { transform: scale(.97); }
+.teacher-global-absence-btn:disabled { opacity: .62; cursor: wait; }
+.teacher-global-absence-btn.is-active {
+  color: #fff;
+  background: #dc2626;
+  border-color: #b91c1c;
+}
+.teacher-global-absence-btn.is-active:hover { background: #b91c1c; }
+
+.teacher-global-absence-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.85rem;
+  padding: .28rem .55rem;
+  border-radius: .48rem;
+  font-size: .65rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.teacher-global-absence-status.is-present {
+  color: #166534;
+  background: #dcfce7;
+}
+.teacher-global-absence-status.is-absent {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+@media (max-width: 720px) {
+  .teacher-global-absence-control { gap: .2rem; padding: .14rem; }
+  .teacher-global-absence-btn,
+  .teacher-global-absence-status { font-size: .6rem; }
+  .teacher-global-absence-btn { padding-inline: .48rem; }
+  .teacher-global-absence-status { padding-inline: .4rem; }
+}

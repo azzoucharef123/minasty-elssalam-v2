@@ -105,6 +105,8 @@ const elements = {
   scheduleLevelCaption: document.getElementById("schedule-level-caption"),
   teacherAbsenceButton: document.getElementById("teacher-absence-btn"),
   teacherAbsenceStatus: document.getElementById("teacher-absence-status"),
+  globalAbsenceButton: document.getElementById("teacher-global-absence-btn"),
+  globalAbsenceStatus: document.getElementById("teacher-global-absence-status"),
   lessonVideoForm: document.getElementById("lesson-video-form"),
   lessonVideoType: document.getElementById("lesson-video-type"),
   lessonVideoTypeHelp: document.getElementById("lesson-video-type-help"),
@@ -176,6 +178,8 @@ let subscriptionStudentId = null;
 let toastTimer = null;
 let scheduledClasses = [];
 let teacherAbsent = false;
+let globalTeacherAbsent = false;
+let globalAbsenceBusy = false;
 let editingScheduledClassId = null;
 let scheduleManagerOpen = false;
 let lessonRepositoryOpen = false;
@@ -942,6 +946,64 @@ function setScheduleManagerOpen(nextOpen) {
   elements.scheduleManager?.classList.toggle("is-open", scheduleManagerOpen);
   elements.scheduleManagerToggle?.setAttribute("aria-expanded", String(scheduleManagerOpen));
   if (elements.scheduleManagerToggleIcon) elements.scheduleManagerToggleIcon.textContent = scheduleManagerOpen ? "⌃" : "⌄";
+}
+
+function renderGlobalTeacherAbsence() {
+  if (elements.globalAbsenceButton) {
+    elements.globalAbsenceButton.classList.toggle("is-active", globalTeacherAbsent);
+    elements.globalAbsenceButton.setAttribute("aria-pressed", String(globalTeacherAbsent));
+    elements.globalAbsenceButton.disabled = globalAbsenceBusy;
+    elements.globalAbsenceButton.textContent = globalTeacherAbsent
+      ? "إلغاء إعلان الغياب"
+      : "الإعلان عن الغياب";
+  }
+  if (elements.globalAbsenceStatus) {
+    elements.globalAbsenceStatus.classList.toggle("is-absent", globalTeacherAbsent);
+    elements.globalAbsenceStatus.classList.toggle("is-present", !globalTeacherAbsent);
+    elements.globalAbsenceStatus.textContent = globalTeacherAbsent
+      ? "الأستاذ غائب"
+      : "الأستاذ حاضر";
+  }
+}
+
+async function loadGlobalTeacherAbsence() {
+  try {
+    const response = await teacherFetch("/api/schedules/absence/global", {
+      headers: { Accept: "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر تحميل حالة الغياب العامة.");
+    globalTeacherAbsent = payload.data?.isAbsent === true;
+    renderGlobalTeacherAbsence();
+  } catch (error) {
+    console.error("Unable to load global teacher absence:", error);
+    showDashboardError(error.message || "تعذر تحميل حالة الغياب العامة.");
+  }
+}
+
+async function toggleGlobalTeacherAbsence() {
+  if (globalAbsenceBusy) return;
+  globalAbsenceBusy = true;
+  renderGlobalTeacherAbsence();
+  try {
+    const response = await teacherFetch("/api/schedules/absence/global", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ isAbsent: !globalTeacherAbsent }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر تحديث حالة الغياب العامة.");
+
+    globalTeacherAbsent = payload.data?.isAbsent === true;
+    renderGlobalTeacherAbsence();
+    showToast(payload.message || "تم تحديث حالة الغياب العامة.");
+  } catch (error) {
+    console.error("Unable to update global teacher absence:", error);
+    showDashboardError(error.message || "تعذر تحديث حالة الغياب العامة.");
+  } finally {
+    globalAbsenceBusy = false;
+    renderGlobalTeacherAbsence();
+  }
 }
 
 function renderTeacherAbsence() {
@@ -2865,6 +2927,7 @@ if (!getTeacherToken()) {
   elements.teacherSubmissionsModal?.addEventListener("click", (event) => { if (event.target === elements.teacherSubmissionsModal) closeTeacherSubmissions(); });
   elements.scheduleCancelButton?.addEventListener("click", resetScheduleForm);
   elements.teacherAbsenceButton?.addEventListener("click", () => void toggleTeacherAbsence());
+  elements.globalAbsenceButton?.addEventListener("click", () => void toggleGlobalTeacherAbsence());
   elements.subscriptionForm?.addEventListener("submit", saveSubscription);
   elements.closeSubscriptionButton?.addEventListener("click", closeSubscriptionModal);
   elements.logoutButton?.addEventListener("click", logoutTeacher);
@@ -2963,5 +3026,7 @@ if (!getTeacherToken()) {
 
   initializeDashboardTabs();
   updateDashboardDate();
+  renderGlobalTeacherAbsence();
+  void loadGlobalTeacherAbsence();
   fetchStudents(currentLevel);
 }

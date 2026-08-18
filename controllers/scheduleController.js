@@ -11,6 +11,7 @@ const LEVELS = new Set([
   "طالب جامعي",
 ]);
 const UNIVERSITY_LEVEL = "طالب جامعي";
+const GLOBAL_ABSENCE_LEVELS = Object.freeze([...LEVELS]);
 const LEVEL_ALIASES = Object.freeze({
   "السنة الأولى متوسط": "السنة الأولى",
   "السنة الثانية متوسط": "السنة الثانية",
@@ -381,6 +382,92 @@ async function getCalendarIcs(req, res) {
   }
 }
 
+async function getGlobalTeacherAbsence(req, res) {
+  try {
+    const absences = await prisma.teacherAbsence.findMany({
+      where: { level: { in: GLOBAL_ABSENCE_LEVELS } },
+      select: { level: true, isAbsent: true, updatedAt: true },
+    });
+    const isAbsent = absences.length === GLOBAL_ABSENCE_LEVELS.length
+      && absences.every((absence) => absence.isAbsent === true);
+    const updatedAt = absences
+      .map((absence) => absence.updatedAt)
+      .filter(Boolean)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || null;
+
+    return res.status(200).json({
+      status: "success",
+      data: { isAbsent, updatedAt },
+    });
+  } catch (error) {
+    console.error("Unable to load global teacher absence:", error);
+    return res.status(500).json({ error: "تعذر تحميل حالة الغياب العامة حالياً." });
+  }
+}
+
+async function updateGlobalTeacherAbsence(req, res) {
+  try {
+    const isAbsent = req.body?.isAbsent === true;
+    const absences = await prisma.$transaction(
+      GLOBAL_ABSENCE_LEVELS.map((level) => prisma.teacherAbsence.upsert({
+        where: { level },
+        create: { level, isAbsent },
+        update: { isAbsent },
+      })),
+    );
+    const updatedAt = absences
+      .map((absence) => absence.updatedAt)
+      .filter(Boolean)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || null;
+    const io = req.app.get("io");
+
+    for (const absence of absences) {
+      io?.to(`${absence.level}_lobby`).emit("teacher_absence_updated", {
+        level: absence.level,
+        isAbsent,
+        isGlobal: true,
+        updatedAt: absence.updatedAt,
+      });
+    }
+
+    if (isAbsent) {
+      const students = await prisma.student.findMany({
+        where: { level: { in: GLOBAL_ABSENCE_LEVELS } },
+        select: { id: true, parentPhone: true },
+      });
+      await prisma.notification.createMany({
+        data: students.map((student) => ({
+          studentId: student.id,
+          recipientRole: "parent",
+          recipientId: student.parentPhone,
+          type: "ABSENCE",
+          title: "إعلان غياب الأستاذ",
+          body: "الأستاذ غائب اليوم لظروف خاصة.",
+          link: "./parent-dashboard.html",
+        })),
+      }).catch(() => {});
+    }
+
+    void logAudit(req, {
+      action: isAbsent ? "TEACHER_GLOBAL_ABSENCE_ENABLED" : "TEACHER_GLOBAL_ABSENCE_DISABLED",
+      entityType: "TeacherAbsence",
+      entityId: "GLOBAL",
+      metadata: { levels: GLOBAL_ABSENCE_LEVELS },
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: isAbsent
+        ? "تم إعلان غياب الأستاذ لجميع المستويات."
+        : "تم إلغاء إعلان الغياب وأصبح الأستاذ حاضرًا لجميع المستويات.",
+      data: { isAbsent, updatedAt, levels: GLOBAL_ABSENCE_LEVELS },
+    });
+  } catch (error) {
+    console.error("Unable to update global teacher absence:", error);
+    return res.status(500).json({ error: "تعذر تحديث حالة الغياب العامة حالياً." });
+  }
+}
+
 async function updateTeacherAbsence(req, res) {
   try {
     const level = normalizeText(req.params.level);
@@ -415,5 +502,7 @@ module.exports = {
   createScheduledClass,
   updateScheduledClass,
   deleteScheduledClass,
+  getGlobalTeacherAbsence,
+  updateGlobalTeacherAbsence,
   updateTeacherAbsence,
 };
