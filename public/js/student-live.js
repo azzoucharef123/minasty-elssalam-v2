@@ -339,6 +339,11 @@ const studentZoomState = {
   startCenter: null,
   startTranslateX: 0,
   startTranslateY: 0,
+  panPointerId: null,
+  panStartX: 0,
+  panStartY: 0,
+  panStartTranslateX: 0,
+  panStartTranslateY: 0,
 };
 
 function showMobileControlToast(message) {
@@ -470,6 +475,11 @@ function resetStudentZoom() {
   studentZoomState.pointers.clear();
   studentZoomState.startDistance = 0;
   studentZoomState.startCenter = null;
+  studentZoomState.panPointerId = null;
+  studentZoomState.panStartX = 0;
+  studentZoomState.panStartY = 0;
+  studentZoomState.panStartTranslateX = 0;
+  studentZoomState.panStartTranslateY = 0;
   applyStudentZoom();
 }
 
@@ -489,8 +499,19 @@ function getStudentPointerCenter() {
 function handleStudentZoomPointerDown(event) {
   if (!document.documentElement.classList.contains("student-landscape-mode")) return;
   studentZoomState.pointers.set(event.pointerId, event);
-  if (studentZoomState.pointers.size !== 2) return;
+  event.currentTarget.setPointerCapture?.(event.pointerId);
 
+  if (studentZoomState.pointers.size === 1) {
+    studentZoomState.panPointerId = event.pointerId;
+    studentZoomState.panStartX = event.clientX;
+    studentZoomState.panStartY = event.clientY;
+    studentZoomState.panStartTranslateX = studentZoomState.translateX;
+    studentZoomState.panStartTranslateY = studentZoomState.translateY;
+    return;
+  }
+
+  if (studentZoomState.pointers.size !== 2) return;
+  studentZoomState.panPointerId = null;
   const points = [...studentZoomState.pointers.values()];
   studentZoomState.startDistance = Math.hypot(
     points[1].clientX - points[0].clientX,
@@ -500,12 +521,30 @@ function handleStudentZoomPointerDown(event) {
   studentZoomState.startCenter = getStudentPointerCenter();
   studentZoomState.startTranslateX = studentZoomState.translateX;
   studentZoomState.startTranslateY = studentZoomState.translateY;
-  event.currentTarget.setPointerCapture?.(event.pointerId);
 }
 
 function handleStudentZoomPointerMove(event) {
   if (!studentZoomState.pointers.has(event.pointerId)) return;
   studentZoomState.pointers.set(event.pointerId, event);
+
+  if (studentZoomState.pointers.size === 1 && studentZoomState.panPointerId === event.pointerId && studentZoomState.scale > 1.01) {
+    const width = elements.videoFrame?.clientWidth || window.innerWidth;
+    const height = elements.videoFrame?.clientHeight || window.innerHeight;
+    studentZoomState.translateX = clampStudentZoomTranslation(
+      studentZoomState.panStartTranslateX + event.clientX - studentZoomState.panStartX,
+      studentZoomState.scale,
+      width
+    );
+    studentZoomState.translateY = clampStudentZoomTranslation(
+      studentZoomState.panStartTranslateY + event.clientY - studentZoomState.panStartY,
+      studentZoomState.scale,
+      height
+    );
+    applyStudentZoom();
+    event.preventDefault();
+    return;
+  }
+
   if (studentZoomState.pointers.size !== 2 || !studentZoomState.startDistance) return;
 
   const points = [...studentZoomState.pointers.values()];
@@ -528,9 +567,18 @@ function handleStudentZoomPointerMove(event) {
 
 function handleStudentZoomPointerEnd(event) {
   studentZoomState.pointers.delete(event.pointerId);
-  if (studentZoomState.pointers.size < 2) {
-    studentZoomState.startDistance = 0;
-    studentZoomState.startCenter = null;
+  studentZoomState.startDistance = 0;
+  studentZoomState.startCenter = null;
+
+  if (studentZoomState.pointers.size === 1 && studentZoomState.scale > 1.01) {
+    const [remainingPointerId, remainingPointer] = [...studentZoomState.pointers.entries()][0];
+    studentZoomState.panPointerId = remainingPointerId;
+    studentZoomState.panStartX = remainingPointer.clientX;
+    studentZoomState.panStartY = remainingPointer.clientY;
+    studentZoomState.panStartTranslateX = studentZoomState.translateX;
+    studentZoomState.panStartTranslateY = studentZoomState.translateY;
+  } else if (studentZoomState.pointers.size === 0) {
+    studentZoomState.panPointerId = null;
   }
 }
 
