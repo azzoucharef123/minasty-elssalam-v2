@@ -2608,6 +2608,44 @@
         display: none;
       }
 
+      /* Final modal stacking fix: keep the composer above every live-view layer. */
+      .chat-compose-modal,
+      #chat-compose-modal {
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 999999 !important;
+        display: grid !important;
+        place-items: center !important;
+        background: rgba(2, 6, 23, 0.85) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+      }
+
+      .chat-compose-modal[hidden],
+      #chat-compose-modal[hidden] {
+        display: none !important;
+      }
+
+      .chat-compose-dialog {
+        position: relative !important;
+        z-index: 1000000 !important;
+        width: min(92vw, 32rem) !important;
+        max-height: 90dvh !important;
+        overflow-y: auto !important;
+      }
+
+      /* Strictly suppress every live toolbar layer while composing. */
+      body.student-chat-compose-open .viewer-actions-divider,
+      html.student-landscape-mode body.student-chat-compose-open .viewer-actions-divider,
+      html.student-virtual-landscape-mode body.student-chat-compose-open .viewer-actions-divider,
+      body.student-chat-compose-open .student-mobile-controls,
+      body.student-chat-compose-open .viewer-header {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+
       .chat-compose-dialog {
         width: min(100%, 30rem);
         overflow: hidden;
@@ -2616,6 +2654,11 @@
         border: 1px solid rgba(96, 165, 250, 0.3);
         border-radius: 1.1rem;
         box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48);
+      }
+
+      .chat-compose-dialog {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
       }
 
       .chat-compose-head {
@@ -3448,6 +3491,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=rotate-pan-9"></script>
+    <script src="./js/student-live.js?v=rotate-pan-10"></script>
   </body>
 </html>
