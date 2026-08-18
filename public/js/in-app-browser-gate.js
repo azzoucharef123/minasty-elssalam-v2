@@ -14,7 +14,7 @@
     window.navigator.standalone === true ||
     window.matchMedia?.("(display-mode: standalone)").matches
   );
-  const hasInAppToken = /(FBAN|FBAV|FB_IAB|Instagram|Messenger|Line\/|Twitter|Snapchat|TikTok|GSA\/)/i.test(userAgent);
+  const hasInAppToken = /(FBAN|FBAV|FB_IAB|Instagram|Messenger|Telegram|Line\/|Twitter|Snapchat|TikTok|GSA\/)/i.test(userAgent);
   const isAndroidWebView = isAndroid && (
     /;\s*wv\)/i.test(userAgent) ||
     (/Version\/4\.0/i.test(userAgent) && /Chrome\//i.test(userAgent))
