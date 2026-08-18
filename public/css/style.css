@@ -1519,6 +1519,21 @@ body.public-class-modal-open { overflow: hidden; }
     box-shadow: 0 12px 24px rgba(2, 6, 23, .22);
   }
 
+  .desktop-doctor-link {
+    display: inline-block;
+    color: inherit;
+    text-decoration: none;
+    border-radius: .65rem;
+    transition: transform .2s ease, filter .2s ease;
+  }
+
+  .desktop-doctor-link:hover,
+  .desktop-doctor-link:focus-visible {
+    transform: translateY(-.1rem);
+    filter: brightness(1.15);
+    outline: none;
+  }
+
   .desktop-doctor-name {
     margin: 0 0 .75rem;
     color: #dbeafe;
@@ -1526,6 +1541,7 @@ body.public-class-modal-open { overflow: hidden; }
     font-weight: 900;
     line-height: 1.25;
     text-align: center;
+    cursor: pointer;
   }
 
   .desktop-academy-identity h1 {
