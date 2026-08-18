@@ -1519,6 +1519,15 @@ body.public-class-modal-open { overflow: hidden; }
     box-shadow: 0 12px 24px rgba(2, 6, 23, .22);
   }
 
+  .desktop-doctor-name {
+    margin: 0 0 .75rem;
+    color: #dbeafe;
+    font-size: clamp(1.35rem, 2vw, 2.1rem);
+    font-weight: 900;
+    line-height: 1.25;
+    text-align: center;
+  }
+
   .desktop-academy-identity h1 {
     margin: 0;
     color: #fff;
@@ -1536,6 +1545,8 @@ body.public-class-modal-open { overflow: hidden; }
   .desktop-entry-secondary { color: #064e3b; background: linear-gradient(135deg, #dcfce7, #86efac); box-shadow: 0 12px 24px rgba(22, 163, 74, .18); }
 
   .desktop-landing-right {
+    display: flex;
+    flex-direction: column;
     padding: 1.25rem;
     overflow: hidden;
     background: linear-gradient(160deg, rgba(15, 47, 88, .96), rgba(15, 23, 42, .94));
@@ -1543,7 +1554,23 @@ body.public-class-modal-open { overflow: hidden; }
 
   .desktop-landing-right h2 { color: #fff; font-size: clamp(1.15rem, 1.7vw, 1.55rem); }
   .desktop-benefits-intro { margin: .45rem 0 1rem; color: #bfdbfe; font-size: .8rem; line-height: 1.75; }
-  .desktop-benefits-list { display: grid; gap: .62rem; margin: 0; padding: 0; list-style: none; }
+  .desktop-benefits-list {
+    display: grid;
+    flex: 1 1 auto;
+    gap: .62rem;
+    min-height: 0;
+    margin: 0;
+    padding: 0 .35rem 0 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(134, 239, 172, .8) rgba(255, 255, 255, .08);
+    list-style: none;
+  }
+
+  .desktop-benefits-list::-webkit-scrollbar { width: .5rem; }
+  .desktop-benefits-list::-webkit-scrollbar-track { background: rgba(255, 255, 255, .08); border-radius: 999px; }
+  .desktop-benefits-list::-webkit-scrollbar-thumb { background: #86efac; border-radius: 999px; }
   .desktop-benefits-list li { display: grid; grid-template-columns: 1.7rem minmax(0, 1fr); column-gap: .55rem; align-items: start; padding: .66rem .65rem; color: #e2e8f0; background: rgba(255,255,255,.07); border: 1px solid rgba(147,197,253,.16); border-radius: .8rem; }
   .desktop-benefits-list li > span { display: grid; width: 1.65rem; height: 1.65rem; place-items: center; color: #052e16; background: #86efac; border-radius: 50%; font-weight: 900; }
   .desktop-benefits-list strong { display: block; color: #fff; font-size: .88rem; font-weight: 900; line-height: 1.4; }
