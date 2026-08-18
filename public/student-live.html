@@ -3133,6 +3133,50 @@
           -webkit-user-drag: none;
         }
       }
+      /* Rotation safety: these rules affect presentation only. Audio controls,
+         buttons, WebRTC tracks, and signaling remain untouched. */
+      html.student-landscape-mode .video-frame > video,
+      html.student-landscape-mode #remote-video,
+      html.student-landscape-mode #student-canvas,
+      html.student-landscape-mode #whiteboardCanvas,
+      html.student-landscape-mode #localScreenVideo,
+      html.student-virtual-landscape-mode .video-frame > video,
+      html.student-virtual-landscape-mode #remote-video,
+      html.student-virtual-landscape-mode #student-canvas,
+      html.student-virtual-landscape-mode #whiteboardCanvas,
+      html.student-virtual-landscape-mode #localScreenVideo {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        object-fit: contain !important;
+        object-position: center center !important;
+      }
+
+      /* Fallback for browsers that reject native orientation locking. The
+         page remains a single visual surface; the existing lower control row
+         stays inside it and no audio or button behavior is replaced. */
+      html.student-virtual-landscape-mode,
+      html.student-virtual-landscape-mode body {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden !important;
+        background: #000;
+      }
+
+      html.student-virtual-landscape-mode .viewer-stage {
+        position: fixed !important;
+        top: 50% !important;
+        left: 50% !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        min-height: 0 !important;
+        transform: translate(-50%, -50%) rotate(90deg) !important;
+        transform-origin: center center !important;
+        z-index: 99999 !important;
+        background: #000 !important;
+        overflow: hidden !important;
+      }
       </style>
   </head>
   <body class="student-live-page">
@@ -3319,6 +3363,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=rotate-pan-5"></script>
+    <script src="./js/student-live.js?v=rotate-pan-6"></script>
   </body>
 </html>

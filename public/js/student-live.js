@@ -331,6 +331,7 @@ const STUDENT_MAX_ZOOM = 4;
 let mobileControlDragState = null;
 let ignoreNextRefreshClick = false;
 let mobileToastTimer = null;
+let studentVirtualLandscapeMode = false;
 const studentZoomState = {
   scale: 1,
   translateX: 0,
@@ -465,13 +466,16 @@ function syncStudentZoomToViewport({ reset = false } = {}) {
 function updateRotationControls() {
   // Use the current viewport as the source of truth. In some Chrome emulator
   // sessions screen.orientation.type can remain stale after a prior target.
-  const isLandscape = window.matchMedia?.("(orientation: landscape)").matches || false;
+  const nativeLandscape = window.matchMedia?.("(orientation: landscape)").matches || false;
+  const isLandscape = nativeLandscape || studentVirtualLandscapeMode;
   const wasLandscape = document.documentElement.classList.contains("student-landscape-mode");
   if (elements.rotateButton) elements.rotateButton.hidden = isLandscape;
   if (elements.unrotateButton) elements.unrotateButton.hidden = !isLandscape;
   if (elements.centerRotateButton) elements.centerRotateButton.hidden = isLandscape;
   if (elements.centerUnrotateButton) elements.centerUnrotateButton.hidden = !isLandscape;
   document.documentElement.classList.toggle("student-landscape-mode", isLandscape);
+  document.documentElement.classList.toggle("student-virtual-landscape-mode", studentVirtualLandscapeMode);
+  document.body.classList.toggle("hide-ui-for-rotation", studentVirtualLandscapeMode);
 
   // A rotated viewport is a new coordinate system. Clear any stale transform
   // before the first landscape frame is painted, otherwise its edges remain
@@ -622,21 +626,26 @@ function initializeStudentZoom() {
 }
 
 async function lockStudentOrientation(orientation) {
-  if (!screen.orientation?.lock) {
-    showMobileControlToast("هذا المتصفح لا يدعم تدوير الشاشة من داخل الصفحة. أدر الهاتف يدويًا.");
-    return false;
-  }
-
   try {
     if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
       await document.documentElement.requestFullscreen();
     }
+    if (!screen.orientation?.lock) {
+      throw new Error("Screen Orientation API is unavailable");
+    }
     await screen.orientation.lock(orientation);
+    studentVirtualLandscapeMode = false;
     updateRotationControls();
     showMobileControlToast(orientation.startsWith("landscape") ? "تم تدوير الشاشة." : "تم إلغاء تدوير الشاشة.");
     return true;
   } catch (error) {
-    console.warn("Unable to lock student screen orientation:", error);
+    console.warn("Unable to lock student screen orientation; using visual fallback:", error);
+    if (orientation.startsWith("landscape")) {
+      studentVirtualLandscapeMode = true;
+      updateRotationControls();
+      showMobileControlToast("تم تفعيل وضع التدوير.");
+      return true;
+    }
     showMobileControlToast("لم يسمح المتصفح بالتدوير التلقائي. أدر الهاتف يدويًا.");
     updateRotationControls();
     return false;
@@ -649,6 +658,9 @@ async function rotateStudentScreen() {
 
 async function unrotateStudentScreen() {
   try {
+    studentVirtualLandscapeMode = false;
+    document.documentElement.classList.remove("student-virtual-landscape-mode");
+    document.body.classList.remove("hide-ui-for-rotation");
     if (screen.orientation?.lock) {
       await screen.orientation.lock("portrait-primary");
     } else if (screen.orientation?.unlock) {
