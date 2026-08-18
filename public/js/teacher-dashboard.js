@@ -6,6 +6,10 @@ const elements = {
   levelButtons: Array.from(document.querySelectorAll(".level-btn[data-level], [data-level].level-button")),
   currentLevelTitle: document.querySelector("#current-level-title, #current-level, [data-current-level]"),
   studentsTableBody: document.querySelector("#students-table-body, #students-tbody, table tbody"),
+  rosterPagination: document.getElementById("roster-pagination"),
+  rosterPagePrev: document.getElementById("roster-page-prev"),
+  rosterPageNext: document.getElementById("roster-page-next"),
+  rosterPageStatus: document.getElementById("roster-page-status"),
   tableEmptyState: document.querySelector("#table-empty-state, #empty-state"),
   dashboardError: document.querySelector("#dashboard-error, #message-box"),
   logoutButton: document.querySelector("#logout-btn, [data-action='logout']"),
@@ -151,6 +155,10 @@ const elements = {
 let currentLevel =
   document.querySelector(".level-btn.is-active, .level-btn.active, .level-button.is-active")?.dataset
     .level || "السنة الأولى";
+
+const ROSTER_STUDENTS_PER_PAGE = 3;
+let rosterPage = 1;
+let rosterFilteredStudents = [];
 
 const LEVEL_DISPLAY_LABELS = Object.freeze({
   "السنة الأولى": "السنة الأولى متوسط",
@@ -1278,8 +1286,20 @@ async function deleteStudentCertificate(certificateId) {
   }
 }
 
+function updateRosterPagination(totalStudents, totalPages) {
+  const hasPages = totalStudents > ROSTER_STUDENTS_PER_PAGE;
+  if (elements.rosterPagination) elements.rosterPagination.hidden = !hasPages;
+  if (elements.rosterPageStatus) elements.rosterPageStatus.textContent = `صفحة ${rosterPage} من ${totalPages}`;
+  if (elements.rosterPagePrev) elements.rosterPagePrev.disabled = rosterPage <= 1;
+  if (elements.rosterPageNext) elements.rosterPageNext.disabled = rosterPage >= totalPages;
+}
+
 function renderTable(studentsArray) {
-  const students = studentsArray;
+  const students = Array.isArray(studentsArray) ? studentsArray : [];
+  const totalPages = Math.max(1, Math.ceil(students.length / ROSTER_STUDENTS_PER_PAGE));
+  rosterPage = Math.min(Math.max(rosterPage, 1), totalPages);
+  const pageStart = (rosterPage - 1) * ROSTER_STUDENTS_PER_PAGE;
+  const visibleStudents = students.slice(pageStart, pageStart + ROSTER_STUDENTS_PER_PAGE);
 
   if (!elements.studentsTableBody) {
     return;
@@ -1292,6 +1312,7 @@ function renderTable(studentsArray) {
   }
 
   if (students.length === 0) {
+    updateRosterPagination(0, 1);
     const row = document.createElement("tr");
     const cell = document.createElement("td");
     cell.colSpan = 5;
@@ -1302,7 +1323,7 @@ function renderTable(studentsArray) {
     return;
   }
 
-  for (const student of students) {
+  for (const student of visibleStudents) {
     const row = document.createElement("tr");
 
     const paymentMeta = paymentStageMeta(student);
@@ -1459,6 +1480,8 @@ function renderTable(studentsArray) {
 
     elements.studentsTableBody.append(row);
   }
+
+  updateRosterPagination(students.length, totalPages);
 }
 
 /** Updates the three cards from the same array visible in the table. */
@@ -1530,6 +1553,8 @@ function applyFilters() {
     return matchesName && matchesPayment;
   });
 
+  rosterFilteredStudents = filteredStudents;
+  rosterPage = 1;
   renderTable(filteredStudents);
   updateSummary(filteredStudents);
 }
@@ -2859,6 +2884,17 @@ if (!getTeacherToken()) {
   });
   elements.searchInput?.addEventListener("input", applyFilters);
   elements.paymentFilter?.addEventListener("change", applyFilters);
+  elements.rosterPagePrev?.addEventListener("click", () => {
+    if (rosterPage <= 1) return;
+    rosterPage -= 1;
+    renderTable(rosterFilteredStudents);
+  });
+  elements.rosterPageNext?.addEventListener("click", () => {
+    const totalPages = Math.max(1, Math.ceil(rosterFilteredStudents.length / ROSTER_STUDENTS_PER_PAGE));
+    if (rosterPage >= totalPages) return;
+    rosterPage += 1;
+    renderTable(rosterFilteredStudents);
+  });
   elements.studentSearchTrigger?.addEventListener("click", () => {
     setDashboardTab("students");
     openStudentSearchModal();

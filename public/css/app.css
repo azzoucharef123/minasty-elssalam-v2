@@ -2998,3 +2998,175 @@ body.teacher-modal-open {
     transition: none;
   }
 }
+
+
+/* Fixed student roster: no internal or horizontal scrolling */
+.teacher-dashboard-page .teacher-table-card {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.teacher-dashboard-page .teacher-table-card .table-scroll-container {
+  flex: 0 0 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
+  overscroll-behavior: auto;
+  scrollbar-width: none;
+}
+
+.teacher-dashboard-page .teacher-table-card .table-scroll-container::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.teacher-dashboard-page .teacher-table-card table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.teacher-dashboard-page .teacher-table-card th,
+.teacher-dashboard-page .teacher-table-card td {
+  padding: .34rem .4rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.teacher-dashboard-page .teacher-table-card th {
+  font-size: .6rem;
+}
+
+.teacher-dashboard-page .teacher-table-card td {
+  font-size: .66rem;
+}
+
+.teacher-dashboard-page .teacher-table-card .teacher-student-identity strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .68rem;
+}
+
+.teacher-dashboard-page .teacher-table-card .teacher-account-status,
+.teacher-dashboard-page .teacher-table-card .payment-toggle,
+.teacher-dashboard-page .teacher-table-card .secondary-payment-status {
+  min-width: 0;
+  max-width: 100%;
+  padding: .2rem .35rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: .56rem;
+}
+
+.teacher-dashboard-page .teacher-table-card .table-action-group {
+  justify-content: flex-end;
+  gap: .2rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.teacher-dashboard-page .teacher-table-card .table-action-group button {
+  min-width: 1.65rem;
+  min-height: 1.65rem;
+  max-width: 100%;
+  padding: .2rem .3rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: .55rem;
+}
+
+.teacher-dashboard-page .teacher-table-card .table-action-group .icon-action {
+  width: 1.65rem;
+  min-width: 1.65rem;
+  height: 1.65rem;
+  font-size: .7rem;
+}
+
+.teacher-dashboard-page .teacher-table-card .student-certificates-btn {
+  min-width: 3.25rem;
+}
+
+.teacher-dashboard-page .roster-pagination {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: .7rem;
+  min-height: 2.25rem;
+  padding: .28rem .55rem;
+  color: #475569;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  font-size: .64rem;
+  font-weight: 900;
+}
+
+.teacher-dashboard-page .roster-pagination[hidden] {
+  display: none;
+}
+
+.teacher-dashboard-page .roster-page-button {
+  min-width: 4rem;
+  min-height: 1.75rem;
+  padding: .25rem .5rem;
+  color: #1d4ed8;
+  background: #ffffff;
+  border: 1px solid #bfdbfe;
+  border-radius: .5rem;
+  font: inherit;
+  font-size: .6rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.teacher-dashboard-page .roster-page-button:disabled {
+  color: #94a3b8;
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  .teacher-dashboard-page .teacher-table-card th,
+  .teacher-dashboard-page .teacher-table-card td {
+    padding: .28rem .25rem;
+  }
+
+  .teacher-dashboard-page .teacher-table-card th {
+    font-size: .52rem;
+  }
+
+  .teacher-dashboard-page .teacher-table-card td {
+    font-size: .58rem;
+  }
+
+  .teacher-dashboard-page .teacher-table-card .teacher-account-status,
+  .teacher-dashboard-page .teacher-table-card .payment-toggle,
+  .teacher-dashboard-page .teacher-table-card .secondary-payment-status {
+    font-size: .5rem;
+  }
+
+  .teacher-dashboard-page .teacher-table-card .table-action-group {
+    gap: .12rem;
+  }
+
+  .teacher-dashboard-page .teacher-table-card .table-action-group button {
+    min-height: 1.5rem;
+    min-width: 1.5rem;
+    padding-inline: .2rem;
+    font-size: .48rem;
+  }
+
+  .teacher-dashboard-page .teacher-table-card .table-action-group .icon-action {
+    width: 1.5rem;
+    min-width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .teacher-dashboard-page .teacher-table-card .student-certificates-btn {
+    min-width: 2.8rem;
+  }
+}
