@@ -2987,7 +2987,14 @@
         .student-desktop-fullscreen-mode .student-chat-box,
         .student-desktop-fullscreen-mode .chat-compose-dialog { visibility: hidden; }
       }
-    </style>
+      /* Keep the centered action bar below the display as the only portrait mobile control surface. */
+      @media (max-width: 900px) and (orientation: portrait) {
+        .student-live-page .student-mobile-controls {
+          display: none !important;
+        }
+      }
+
+      </style>
   </head>
   <body class="student-live-page">
     <div class="viewer-shell">
