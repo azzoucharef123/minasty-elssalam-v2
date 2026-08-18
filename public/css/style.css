@@ -1460,7 +1460,8 @@ body.public-class-modal-open { overflow: hidden; }
 
   .desktop-testimonial-video-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
     gap: .55rem;
     height: calc(100% - 2rem);
     min-height: 0;
@@ -1506,18 +1507,16 @@ body.public-class-modal-open { overflow: hidden; }
     box-shadow: 0 16px 30px rgba(15, 47, 88, .22);
   }
 
-  .desktop-academy-mark {
-    display: grid;
-    width: 3.2rem;
-    height: 3.2rem;
+  .desktop-teacher-photo {
+    display: block;
+    width: 100%;
+    height: clamp(11rem, 28vh, 18rem);
     margin: 0 auto .75rem;
-    place-items: center;
-    color: #1d4ed8;
-    background: #dbeafe;
+    object-fit: cover;
+    object-position: center top;
+    border: 2px solid rgba(147, 197, 253, .42);
     border-radius: 1rem;
-    font-family: Georgia, serif;
-    font-size: 1.7rem;
-    font-weight: 900;
+    box-shadow: 0 12px 24px rgba(2, 6, 23, .22);
   }
 
   .desktop-academy-identity h1 {

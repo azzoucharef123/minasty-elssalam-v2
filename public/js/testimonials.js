@@ -10,9 +10,17 @@
       });
     });
 
-    if (video.closest(".desktop-testimonial-video-card")) {
-      video.addEventListener("click", () => {
+    if (video.matches("[data-desktop-testimonial-video]")) {
+      const togglePlayback = (event) => {
+        event.preventDefault();
         if (video.paused) video.play().catch(() => {});
+        else video.pause();
+      };
+      video.addEventListener("click", togglePlayback);
+      video.addEventListener("contextmenu", (event) => event.preventDefault());
+      video.addEventListener("dblclick", (event) => event.preventDefault());
+      video.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") togglePlayback(event);
       });
     }
   });
