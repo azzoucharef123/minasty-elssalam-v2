@@ -243,6 +243,49 @@ async function getSofizPayPaymentStatus(req, res) {
   }
 }
 
+async function getTeacherElectronicPayments(req, res) {
+  try {
+    const level = text(req.query?.level, 80);
+    if (!level) return res.status(400).json({ error: "المستوى الدراسي مطلوب." });
+
+    const transactions = await prisma.paymentTransaction.findMany({
+      where: {
+        status: "PAID",
+        student: { level },
+      },
+      orderBy: [{ paidAt: "desc" }, { updatedAt: "desc" }],
+      select: {
+        id: true,
+        studentId: true,
+        subscriptionType: true,
+        amount: true,
+        currency: true,
+        status: true,
+        providerOrderNumber: true,
+        internalOrderId: true,
+        paidAt: true,
+        verifiedAt: true,
+        createdAt: true,
+        student: {
+          select: {
+            id: true,
+            studentName: true,
+            parentPhone: true,
+            level: true,
+            mathEnrollment: true,
+            physicsEnrollment: true,
+          },
+        },
+      },
+    });
+
+    return res.json({ status: "success", data: transactions });
+  } catch (error) {
+    console.error("Teacher electronic payments lookup failed:", error);
+    return res.status(500).json({ error: "تعذر تحميل الدفعات الإلكترونية حالياً." });
+  }
+}
+
 async function receiveSofizPayWebhook(req, res) {
   try {
     const providerOrderNumber = extractProviderOrderNumber(req.body || req.query || {});
@@ -257,4 +300,9 @@ async function receiveSofizPayWebhook(req, res) {
   }
 }
 
-module.exports = { startSofizPayPayment, getSofizPayPaymentStatus, receiveSofizPayWebhook };
+module.exports = {
+  startSofizPayPayment,
+  getSofizPayPaymentStatus,
+  getTeacherElectronicPayments,
+  receiveSofizPayWebhook,
+};

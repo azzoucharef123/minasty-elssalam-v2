@@ -81,6 +81,12 @@ const elements = {
   paymentStatusAmount: document.getElementById("payment-status-amount"),
   paymentAmountField: document.getElementById("payment-amount-field"),
   closePaymentStatusButton: document.getElementById("close-payment-status-modal"),
+  electronicPaymentsTableBody: document.getElementById("electronic-payments-table-body"),
+  electronicPaymentsEmpty: document.getElementById("electronic-payments-empty"),
+  electronicPaymentsCount: document.getElementById("electronic-payments-count"),
+  manualPaymentsTableBody: document.getElementById("manual-payments-table-body"),
+  manualPaymentsEmpty: document.getElementById("manual-payments-empty"),
+  manualPaymentsCount: document.getElementById("manual-payments-count"),
   cardPreviewModal: document.getElementById("student-card-preview-modal"),
   cardPreviewTitle: document.getElementById("student-card-preview-title"),
   cardPreviewStatus: document.getElementById("student-card-preview-status"),
@@ -204,6 +210,8 @@ let cardPreviewStudentId = null;
 let paymentReceiptPreviewObjectUrl = null;
 let paymentReceiptPreviewRequestId = 0;
 let paymentReceiptPreviewStudentId = null;
+let electronicPayments = [];
+let electronicPaymentsLevel = "";
 let pendingDeleteStudentId = null;
 const driveFileUploadInProgress = new Set();
 
@@ -1670,6 +1678,136 @@ function applyFilters() {
   updateSummary(filteredStudents);
 }
 
+function formatTeacherPaymentDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("ar-DZ", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Africa/Algiers",
+  }).format(date);
+}
+
+function teacherPaymentCountLabel(count) {
+  const value = Number(count) || 0;
+  return `${value} ${value === 1 ? "تلميذ" : "تلاميذ"}`;
+}
+
+function electronicSubscriptionLabel(type) {
+  return type === "BOTH"
+    ? "الرياضيات والفيزياء"
+    : type === "PHYSICS"
+      ? "الفيزياء فقط"
+      : type === "MATH"
+        ? "الرياضيات فقط"
+        : type || "—";
+}
+
+function appendPaymentEmptyRow(tbody, colSpan, message) {
+  if (!tbody) return;
+  const row = document.createElement("tr");
+  const cell = document.createElement("td");
+  cell.colSpan = colSpan;
+  cell.className = "payment-muted";
+  cell.textContent = message;
+  row.append(cell);
+  tbody.append(row);
+}
+
+function renderManualPayments(studentsArray = currentStudents) {
+  const students = Array.isArray(studentsArray)
+    ? studentsArray.filter((student) => Boolean(student.paymentReceiptUrl))
+    : [];
+  const tbody = elements.manualPaymentsTableBody;
+  if (!tbody) return;
+
+  tbody.replaceChildren();
+  if (elements.manualPaymentsCount) {
+    elements.manualPaymentsCount.textContent = teacherPaymentCountLabel(students.length);
+  }
+  if (elements.manualPaymentsEmpty) elements.manualPaymentsEmpty.hidden = students.length > 0;
+
+  if (!students.length) {
+    appendPaymentEmptyRow(tbody, 5, "لا توجد وصولات دفع مرفوعة لهذا المستوى.");
+    return;
+  }
+
+  students.forEach((student) => {
+    const row = document.createElement("tr");
+    const status = document.createElement("span");
+    status.className = `payment-status-badge${student.paymentReceiptPending ? " is-pending" : ""}`;
+    status.textContent = student.paymentReceiptPending ? "في انتظار المراجعة" : "وصل مرفوع";
+    const viewButton = createButton("عرض الوصل", "payment-receipt-view-btn", () => {
+      void viewStudentPaymentReceipt(student.id);
+    });
+    viewButton.title = "عرض وصل الدفع المرفوع من الولي";
+    row.append(
+      createCell(student.studentName || "—", "payment-student-name"),
+      createCell(student.parentPhone || "—"),
+      createCell(status),
+      createCell(formatTeacherPaymentDate(student.paymentReceiptSubmittedAt)),
+      createCell(viewButton),
+    );
+    tbody.append(row);
+  });
+}
+
+function renderElectronicPayments(payments = electronicPayments) {
+  const rows = Array.isArray(payments) ? payments : [];
+  const tbody = elements.electronicPaymentsTableBody;
+  if (!tbody) return;
+
+  tbody.replaceChildren();
+  if (elements.electronicPaymentsCount) {
+    elements.electronicPaymentsCount.textContent = teacherPaymentCountLabel(rows.length);
+  }
+  if (elements.electronicPaymentsEmpty) elements.electronicPaymentsEmpty.hidden = rows.length > 0;
+
+  if (!rows.length) {
+    appendPaymentEmptyRow(tbody, 6, "لا توجد دفعات إلكترونية مؤكدة لهذا المستوى.");
+    return;
+  }
+
+  rows.forEach((payment) => {
+    const student = payment.student || {};
+    const row = document.createElement("tr");
+    row.append(
+      createCell(student.studentName || "—", "payment-student-name"),
+      createCell(student.parentPhone || "—"),
+      createCell(electronicSubscriptionLabel(payment.subscriptionType)),
+      createCell(`${Number(payment.amount || 0).toLocaleString("ar-DZ")} ${payment.currency || "DZD"}`),
+      createCell(formatTeacherPaymentDate(payment.paidAt || payment.verifiedAt || payment.createdAt)),
+      createCell(payment.providerOrderNumber || payment.internalOrderId || "—", "payment-muted"),
+    );
+    tbody.append(row);
+  });
+}
+
+async function loadElectronicPayments(level = currentLevel) {
+  const requestedLevel = level;
+  try {
+    const response = await teacherFetch(
+      `/api/payments/teacher/electronic?level=${encodeURIComponent(requestedLevel)}`,
+      { headers: { Accept: "application/json" } },
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "تعذر تحميل الدفعات الإلكترونية.");
+    if (requestedLevel !== currentLevel) return;
+    electronicPayments = Array.isArray(data?.data) ? data.data : [];
+    electronicPaymentsLevel = requestedLevel;
+    renderElectronicPayments(electronicPayments);
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) {
+      console.error("Unable to fetch electronic payments:", error);
+      showDashboardError(error.message || "تعذر تحميل الدفعات الإلكترونية.");
+      electronicPayments = [];
+      electronicPaymentsLevel = "";
+      renderElectronicPayments([]);
+    }
+  }
+}
+
 async function fetchStudents(level = currentLevel) {
   if (!getTeacherToken()) {
     return;
@@ -1697,9 +1835,15 @@ async function fetchStudents(level = currentLevel) {
     // Phase 15 returns { status, data, meta }; retain the legacy array fallback
     // so this dashboard remains compatible during a staged deployment.
     currentStudents = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+    electronicPayments = [];
+    electronicPaymentsLevel = "";
+    renderManualPayments(currentStudents);
     resetScheduleForm();
     await Promise.all([loadLevelSchedule(), loadLessonVideos(), loadAssignments()]);
     applyFilters();
+    if (tabFromHash() === "electronic-payments") {
+      void loadElectronicPayments(level);
+    }
   } catch (error) {
     if (!/انتهت الجلسة/.test(error.message)) {
       console.error("Unable to fetch teacher roster:", error);
@@ -2587,6 +2731,8 @@ const DASHBOARD_TAB_HASHES = {
   assignments: "#assignment-manager",
   lessons: "#lesson-repository-manager",
   quiz: "#quiz-panel",
+  "electronic-payments": "#electronic-payments-panel",
+  "manual-payments": "#manual-payments-panel",
 };
 
 function tabFromHash(hash = window.location.hash) {
@@ -2613,6 +2759,16 @@ function setDashboardTab(tabName, { updateHash = true, focusSearch = false } = {
   });
   if (updateHash && window.location.hash !== DASHBOARD_TAB_HASHES[tab]) {
     window.history.replaceState(null, "", DASHBOARD_TAB_HASHES[tab]);
+  }
+  if (tab === "manual-payments") {
+    renderManualPayments(currentStudents);
+  }
+  if (tab === "electronic-payments") {
+    if (electronicPaymentsLevel === currentLevel) {
+      renderElectronicPayments(electronicPayments);
+    } else {
+      void loadElectronicPayments(currentLevel);
+    }
   }
   if (focusSearch) {
     window.setTimeout(() => elements.searchInput?.focus(), 0);

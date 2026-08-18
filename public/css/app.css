@@ -3897,3 +3897,152 @@ body.parent-login-page {
   line-height: 1.5;
   text-align: center;
 }
+.teacher-dashboard-page .teacher-payments-panel.teacher-tab-panel.is-active {
+  display: block;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.teacher-dashboard-page .teacher-payments-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  padding: clamp(1rem, 2vw, 1.5rem);
+  border: 1px solid rgba(148, 163, 184, .2);
+  border-radius: 1.25rem;
+  background: rgba(15, 23, 42, .82);
+  box-shadow: 0 18px 40px rgba(2, 6, 23, .18);
+}
+
+.teacher-dashboard-page .teacher-payments-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.teacher-dashboard-page .teacher-payments-heading h2 {
+  margin: .25rem 0 .35rem;
+  color: #f8fafc;
+  font-size: clamp(1.1rem, 2vw, 1.45rem);
+}
+
+.teacher-dashboard-page .teacher-payments-heading p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: .9rem;
+}
+
+.teacher-dashboard-page .teacher-payments-count {
+  flex: 0 0 auto;
+  min-width: 6.5rem;
+  padding: .55rem .8rem;
+  color: #dbeafe;
+  text-align: center;
+  font-weight: 800;
+  border: 1px solid rgba(96, 165, 250, .35);
+  border-radius: .8rem;
+  background: rgba(37, 99, 235, .2);
+}
+
+.teacher-dashboard-page .teacher-payments-table-wrap {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  border: 1px solid rgba(148, 163, 184, .16);
+  border-radius: .9rem;
+  overscroll-behavior: contain;
+}
+
+.teacher-dashboard-page .teacher-payments-table-wrap table {
+  width: 100%;
+  min-width: 48rem;
+  border-collapse: collapse;
+}
+
+.teacher-dashboard-page .teacher-payments-table-wrap th,
+.teacher-dashboard-page .teacher-payments-table-wrap td {
+  padding: .75rem .85rem;
+  text-align: right;
+  vertical-align: middle;
+  border-bottom: 1px solid rgba(148, 163, 184, .13);
+}
+
+.teacher-dashboard-page .teacher-payments-table-wrap th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: #bfdbfe;
+  font-size: .78rem;
+  background: #172554;
+}
+
+.teacher-dashboard-page .teacher-payments-table-wrap td {
+  color: #e2e8f0;
+  font-size: .9rem;
+}
+
+.teacher-dashboard-page .teacher-payments-table-wrap tbody tr:hover {
+  background: rgba(59, 130, 246, .08);
+}
+
+.teacher-dashboard-page .teacher-payments-table-wrap .payment-student-name {
+  color: #fff;
+  font-weight: 800;
+}
+
+.teacher-dashboard-page .teacher-payments-table-wrap .payment-muted {
+  color: #94a3b8;
+}
+
+.teacher-dashboard-page .teacher-payments-table-wrap .payment-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.9rem;
+  padding: .25rem .65rem;
+  color: #bbf7d0;
+  font-weight: 800;
+  border: 1px solid rgba(74, 222, 128, .28);
+  border-radius: 999px;
+  background: rgba(22, 101, 52, .3);
+}
+
+.teacher-dashboard-page .teacher-payments-table-wrap .payment-status-badge.is-pending {
+  color: #fde68a;
+  border-color: rgba(250, 204, 21, .28);
+  background: rgba(133, 77, 14, .3);
+}
+
+.teacher-dashboard-page .teacher-payments-table-wrap .payment-receipt-view-btn {
+  min-height: 2.2rem;
+  padding: .4rem .7rem;
+  color: #dbeafe;
+  font: inherit;
+  font-weight: 800;
+  border: 1px solid rgba(96, 165, 250, .35);
+  border-radius: .65rem;
+  background: rgba(37, 99, 235, .3);
+  cursor: pointer;
+}
+
+.teacher-dashboard-page .teacher-payments-empty {
+  margin: 1rem 0 0;
+  padding: 1.2rem;
+  color: #cbd5e1;
+  text-align: center;
+  border: 1px dashed rgba(148, 163, 184, .3);
+  border-radius: .8rem;
+}
+
+@media (max-width: 900px) {
+  .teacher-dashboard-page .teacher-payments-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .teacher-dashboard-page .teacher-payments-count {
+    align-self: flex-start;
+  }
+}
