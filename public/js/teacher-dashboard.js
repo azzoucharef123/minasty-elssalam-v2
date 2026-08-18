@@ -1540,6 +1540,8 @@ async function fetchStudents(level = currentLevel) {
   }
 
   currentLevel = level;
+  if (elements.searchInput) elements.searchInput.value = "";
+  if (elements.studentSearchModalInput) elements.studentSearchModalInput.value = "";
   setActiveLevelButton(level);
   setCurrentLevelHeading(level);
   syncLessonVideoTypeOptions();

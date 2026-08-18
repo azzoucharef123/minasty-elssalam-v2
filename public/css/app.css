@@ -2776,7 +2776,7 @@ body.teacher-modal-open {
   gap: .42rem;
 }
 
-.teacher-dashboard-page .student-search-storage {
+.teacher-dashboard-page .teacher-search-storage {
   position: absolute;
   width: 1px;
   height: 1px;
