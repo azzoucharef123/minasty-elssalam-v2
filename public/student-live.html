@@ -3027,8 +3027,8 @@
         }
       }
 
-      /* Final rotated-screen fit: the display owns every pixel above the
-         bottom control strip; the strip is the only excluded area. */
+      /* Landscape is deliberately split into two independent frames:
+         the upper frame is display-only and the lower frame is controls-only. */
       @media screen and (orientation: landscape) and (max-width: 900px) {
         :root { --student-landscape-strip-height: 1.2cm; }
 
@@ -3046,18 +3046,27 @@
         html.student-landscape-mode .viewer-stage {
           position: fixed;
           inset: 0;
-          display: block;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          grid-template-rows: minmax(0, 1fr) var(--student-landscape-strip-height);
+          grid-template-areas:
+            "video"
+            "divider";
           padding: 0;
+          gap: 0;
           background: #020617;
           touch-action: none;
         }
 
         html.student-landscape-mode .video-frame {
-          position: absolute;
-          inset: 0 0 var(--student-landscape-strip-height) 0;
-          width: 100vw;
-          height: auto;
+          position: relative;
+          inset: auto;
+          grid-area: video;
+          width: 100%;
+          height: 100%;
+          min-width: 0;
           min-height: 0;
+          max-width: none;
           max-height: none;
           overflow: hidden;
           border: 0;
@@ -3067,15 +3076,16 @@
         }
 
         html.student-landscape-mode .viewer-actions-divider {
-          position: absolute;
-          right: 0;
-          bottom: 0;
-          left: 0;
+          position: relative;
+          inset: auto;
           z-index: 20;
+          grid-area: divider;
           display: flex;
-          width: 100vw;
-          height: var(--student-landscape-strip-height);
+          width: 100%;
+          height: 100%;
+          min-width: 0;
           min-height: var(--student-landscape-strip-height);
+          max-height: var(--student-landscape-strip-height);
           padding: 0;
           overflow: hidden;
           border: 0;
@@ -3284,6 +3294,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=rotate-pan-2"></script>
+    <script src="./js/student-live.js?v=rotate-pan-3"></script>
   </body>
 </html>
