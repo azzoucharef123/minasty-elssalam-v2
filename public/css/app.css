@@ -3887,3 +3887,13 @@ body.parent-login-page {
   .parent-login-page .stack-form .cta-button { min-height: 1.85rem; }
   .parent-login-page .muted { margin-top: .4rem; font-size: .6rem; }
 }
+
+
+.sofizpay-payment-help {
+  margin: .45rem 0 .1rem;
+  color: #1d4ed8;
+  font-size: .72rem;
+  font-weight: 800;
+  line-height: 1.5;
+  text-align: center;
+}

@@ -718,11 +718,90 @@ function openPaymentReceiptPicker(input, mode = "upload") {
   input.click();
 }
 
+async function startSofizPayPayment() {
+  const subscriptionType = elements.secondarySubscriptionType?.value;
+  if (!currentStudent) {
+    openDocumentFeedback("تعذر تحديد حساب التلميذ الحالي. أعد فتح لوحة الولي وحاول مرة أخرى.", "تعذر تحديد الحساب");
+    return;
+  }
+  if (!["BOTH", "MATH", "PHYSICS"].includes(subscriptionType)) {
+    openDocumentFeedback("اختر الرياضيات أو الفيزياء أو المادتين معًا قبل الضغط على الدفع الإلكتروني.", "اختر نوع الاشتراك");
+    elements.secondarySubscriptionType?.focus();
+    return;
+  }
+
+  const button = elements.secondaryCardPaymentButton;
+  const originalLabel = button?.textContent || "الدفع بالبطاقة الذهبية أو البنكية";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "جارٍ تجهيز رابط الدفع…";
+  }
+
+  try {
+    const response = await parentFetch("/api/payments/sofizpay/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ studentId: currentStudent.id, subscriptionType }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload?.data?.paymentUrl) {
+      throw new Error(payload.error || "تعذر تجهيز رابط الدفع الإلكتروني.");
+    }
+    window.location.assign(payload.data.paymentUrl);
+  } catch (error) {
+    openDocumentFeedback(error.message || "تعذر بدء الدفع الإلكتروني حاليًا.", "تعذر بدء الدفع");
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalLabel;
+    }
+  }
+}
+
 function showCardPaymentNotice() {
   openDocumentFeedback(
-    "سيتم توجيهك إلى بوابة الدفع الإلكتروني الرسمية عند تفعيل الربط بالبطاقة الذهبية أو البطاقة البنكية. لا تُدخل بيانات بطاقتك في أي نافذة غير موثوقة.",
+    "الدفع الإلكتروني للطالب الجامعي غير متاح بهذه الخطة حاليًا. يمكنك إرسال وصل الدفع ليؤكده الأستاذ.",
     "الدفع بالبطاقة الذهبية أو البنكية"
   );
+}
+
+function sleep(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+async function checkSofizPayReturn() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("payment") !== "sofizpay") return;
+  const orderId = params.get("order_id");
+  if (!orderId) return;
+
+  let result = null;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      const response = await parentFetch(`/api/payments/sofizpay/status?order_id=${encodeURIComponent(orderId)}`);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "تعذر التحقق من الدفع.");
+      result = payload.data;
+      if (result?.paymentStatus !== "PENDING") break;
+      if (attempt < 4) await sleep(2000);
+    } catch (error) {
+      openDocumentFeedback(error.message || "تعذر التحقق من عملية الدفع.", "نتيجة الدفع الإلكتروني");
+      return;
+    }
+  }
+
+  if (result?.paymentStatus === "PAID") {
+    openDocumentFeedback(result.message || "مبروك، تم تسجيلك بنجاح.", "مبروك، تم تأكيد الدفع");
+    await loadDashboard({ backgroundRefresh: true });
+  } else if (result?.paymentStatus === "FAILED") {
+    openDocumentFeedback(result.message || "لم يتم تأكيد عملية الدفع.", "لم يكتمل الدفع");
+  } else {
+    openDocumentFeedback(result?.message || "عملية الدفع قيد التحقق من SofizPay. أعد تحديث الصفحة بعد لحظات.", "الدفع قيد التحقق");
+  }
+
+  params.delete("payment");
+  params.delete("order_id");
+  const cleanQuery = params.toString();
+  window.history.replaceState({}, document.title, `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ""}${window.location.hash}`);
 }
 
 function setPaymentReceiptChoiceMenu(menu, toggle, open) {
@@ -730,7 +809,7 @@ function setPaymentReceiptChoiceMenu(menu, toggle, open) {
   toggle?.setAttribute("aria-expanded", String(open));
 }
 
-function wirePaymentReceiptActions({ input, captureButton, fileChoiceButton, uploadButton, choiceMenu, fileName, cardPaymentButton, submitAfterCapture }) {
+function wirePaymentReceiptActions({ input, captureButton, fileChoiceButton, uploadButton, choiceMenu, fileName, cardPaymentButton, submitAfterCapture, onCardPayment = showCardPaymentNotice }) {
   let selectionMode = "upload";
 
   uploadButton?.addEventListener("click", () => {
@@ -753,7 +832,7 @@ function wirePaymentReceiptActions({ input, captureButton, fileChoiceButton, upl
       void submitAfterCapture?.();
     }
   });
-  cardPaymentButton?.addEventListener("click", showCardPaymentNotice);
+  cardPaymentButton?.addEventListener("click", () => { void onCardPayment?.(); });
 }
 
 function openPaymentAccessModal(reason = "access") {
@@ -2269,6 +2348,7 @@ if (!getParentToken()) {
     fileName: elements.secondaryPaymentFileName,
     cardPaymentButton: elements.secondaryCardPaymentButton,
     submitAfterCapture: submitSecondaryPaymentReceipt,
+    onCardPayment: startSofizPayPayment,
   });
   elements.secondaryPaymentSubmit?.addEventListener("click", () => {
     void submitSecondaryPaymentReceipt();
@@ -2372,5 +2452,5 @@ if (!getParentToken()) {
     }
   });
   initializeLobbySocket();
-  loadDashboard();
+  void loadDashboard().then(() => checkSofizPayReturn());
 }
