@@ -3739,3 +3739,151 @@ body.register-page {
   .register-page .verification-heading p { font-size: .57rem; }
   .register-page #submit-btn { min-height: 1.8rem; }
 }
+
+
+/* Parent login page — same fixed centered shell as registration */
+html:has(body.parent-login-page),
+body.parent-login-page {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body.parent-login-page {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(147, 197, 253, .42), transparent 34%),
+    radial-gradient(circle at 95% 100%, rgba(191, 219, 254, .48), transparent 38%),
+    #f4f8fd;
+}
+
+.parent-login-page .auth-layout {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  width: 100%;
+  height: 100dvh;
+  min-height: 100svh;
+  place-items: center;
+  padding: clamp(.5rem, 2.2vh, 1.25rem) clamp(.5rem, 3vw, 1.5rem);
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.parent-login-page .auth-card {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 520px);
+  max-height: calc(100dvh - 1rem);
+  min-height: 0;
+  padding: clamp(1rem, 3.4vh, 2.2rem) clamp(.85rem, 3vw, 2.2rem);
+  overflow: hidden;
+  border-color: #dbeafe;
+  border-radius: clamp(1rem, 3vw, 1.5rem);
+  box-shadow: 0 16px 36px rgba(30, 64, 175, .12);
+}
+
+.parent-login-page .brand-link,
+.parent-login-page .eyebrow,
+.parent-login-page h1,
+.parent-login-page .auth-card > p:not(.eyebrow):not(.muted),
+.parent-login-page .muted {
+  text-align: center;
+}
+
+.parent-login-page .brand-link {
+  align-self: center;
+  font-size: clamp(.86rem, 2.6vw, 1rem);
+}
+
+.parent-login-page .eyebrow {
+  margin: .4rem 0 .1rem;
+  font-size: clamp(.82rem, 2.45vw, 1rem);
+}
+
+.parent-login-page h1 {
+  margin: .2rem 0 .2rem;
+  color: #0f172a;
+  font-size: clamp(1.5rem, 5.8vw, 2.2rem);
+  line-height: 1.2;
+}
+
+.parent-login-page .auth-card > p:not(.eyebrow):not(.muted) {
+  margin: .1rem 0 .65rem;
+  color: #64748b;
+  font-size: clamp(.72rem, 2.4vw, .9rem);
+  line-height: 1.55;
+}
+
+.parent-login-page .stack-form {
+  gap: clamp(.35rem, 1.2vh, .72rem);
+  min-height: 0;
+  margin-top: .35rem;
+  overflow: hidden;
+}
+
+.parent-login-page .stack-form label {
+  gap: .2rem;
+  font-size: clamp(.75rem, 2.4vw, .9rem);
+  line-height: 1.25;
+}
+
+.parent-login-page .stack-form input {
+  min-height: clamp(2.15rem, 5.8vh, 2.8rem);
+  padding: .4rem .65rem;
+  border-radius: .62rem;
+  font-size: clamp(.82rem, 2.6vw, .96rem);
+}
+
+.parent-login-page #parent-pin {
+  direction: ltr;
+  letter-spacing: .24em;
+  text-align: center;
+}
+
+.parent-login-page .stack-form > .field-hint {
+  margin-top: -.28rem;
+  font-size: clamp(.62rem, 2vw, .74rem);
+  line-height: 1.25;
+  text-align: center;
+}
+
+.parent-login-page #login-error:not([hidden]) {
+  margin: .05rem 0;
+  padding: .45rem .6rem;
+  font-size: clamp(.68rem, 2vw, .8rem);
+  line-height: 1.35;
+  text-align: center;
+}
+
+.parent-login-page .stack-form .cta-button {
+  min-height: clamp(2.15rem, 5.8vh, 2.8rem);
+  margin-top: .1rem;
+  border-radius: .62rem;
+  font-size: clamp(.8rem, 2.7vw, .96rem);
+}
+
+.parent-login-page .muted {
+  margin: .85rem 0 0;
+  font-size: clamp(.64rem, 2vw, .76rem);
+  line-height: 1.55;
+}
+
+@media (max-width: 560px) {
+  .parent-login-page .auth-layout { padding: .5rem; }
+  .parent-login-page .auth-card { max-height: calc(100dvh - 1rem); padding: .85rem .75rem; }
+}
+
+@media (max-height: 620px) {
+  .parent-login-page .auth-card { padding-block: .55rem; }
+  .parent-login-page .brand-link { font-size: .8rem; }
+  .parent-login-page .eyebrow { margin-top: .15rem; font-size: .76rem; }
+  .parent-login-page h1 { margin-block: .08rem; font-size: 1.35rem; }
+  .parent-login-page .auth-card > p:not(.eyebrow):not(.muted) { margin-block: .05rem .25rem; font-size: .65rem; }
+  .parent-login-page .stack-form { gap: .26rem; margin-top: .15rem; }
+  .parent-login-page .stack-form label { gap: .12rem; font-size: .7rem; }
+  .parent-login-page .stack-form input { min-height: 1.85rem; padding-block: .24rem; }
+  .parent-login-page .stack-form .cta-button { min-height: 1.85rem; }
+  .parent-login-page .muted { margin-top: .4rem; font-size: .6rem; }
+}
