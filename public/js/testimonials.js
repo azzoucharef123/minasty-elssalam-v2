@@ -4,25 +4,29 @@
   const moreCards = [...document.querySelectorAll(".testimonial-card.is-more")];
 
   videos.forEach((video) => {
+    video.controls = false;
+    video.setAttribute("controlslist", "nodownload nofullscreen noremoteplayback");
+    video.disablePictureInPicture = true;
+
     video.addEventListener("play", () => {
       videos.forEach((other) => {
         if (other !== video) other.pause();
       });
     });
 
-    if (video.matches("[data-desktop-testimonial-video]")) {
-      const togglePlayback = (event) => {
-        event.preventDefault();
-        if (video.paused) video.play().catch(() => {});
-        else video.pause();
-      };
-      video.addEventListener("click", togglePlayback);
-      video.addEventListener("contextmenu", (event) => event.preventDefault());
-      video.addEventListener("dblclick", (event) => event.preventDefault());
-      video.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") togglePlayback(event);
-      });
-    }
+    const togglePlayback = (event) => {
+      event.preventDefault();
+      if (video.paused) video.play().catch(() => {});
+      else video.pause();
+    };
+
+    video.addEventListener("click", togglePlayback);
+    video.addEventListener("contextmenu", (event) => event.preventDefault());
+    video.addEventListener("dblclick", (event) => event.preventDefault());
+    video.addEventListener("dragstart", (event) => event.preventDefault());
+    video.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") togglePlayback(event);
+    });
   });
 
   moreButton?.addEventListener("click", () => {
