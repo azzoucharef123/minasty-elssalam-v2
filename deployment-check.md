@@ -87,3 +87,7 @@ Desktop controls verification: live page after commit `7445d0b` shows «الدخ
 Expanded benefits deployment check: commit `5db6ce1` is pushed. Railway reports Minasaty Online, but the first cache-busted public fetch still returned the old six-item benefits list and no doctor title, indicating propagation/cache delay. Local checks passed for the expanded list and internal scrolling CSS.
 
 Final verification: after propagation, public page returned doctor=2, benefits-count=25, scroll-css=2, and title=1 for commit `5db6ce1`.
+
+Global teacher absence deployment check: Railway dashboard reports the `a8f56cb` deployment as ACTIVE and successful. The first public API probe returned 404 and the first HTML probe showed the previous dashboard, so propagation or edge caching needed another verification after the deployment became active.
+
+Global teacher absence final verification: public `teacher-dashboard.html` now contains one `teacher-global-absence-btn`, one `teacher-global-absence-status`, and the `teacher-absence-global-1` cache version. The public `GET /api/schedules/absence/global` route returns `401` without a teacher Bearer token, confirming the new route is deployed and protected rather than missing.
