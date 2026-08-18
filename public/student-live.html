@@ -3153,6 +3153,84 @@
         object-position: center center !important;
       }
 
+      /* Final no-crop landscape layout: one display row plus one compact toolbar row. */
+      :root {
+        --student-landscape-strip-height: 48px;
+      }
+
+      html.student-landscape-mode .viewer-stage,
+      html.student-virtual-landscape-mode .viewer-stage {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        grid-template-rows: 1fr var(--student-landscape-strip-height) !important;
+        grid-template-areas:
+          "video"
+          "divider" !important;
+        width: 100vw !important;
+        height: 100dvh !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+      }
+
+      html.student-landscape-mode .video-frame,
+      html.student-virtual-landscape-mode .video-frame {
+        position: relative !important;
+        inset: auto !important;
+        grid-area: video !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100% !important;
+        height: 100% !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        max-width: none !important;
+        max-height: none !important;
+        overflow: hidden !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #020617 !important;
+      }
+
+      html.student-landscape-mode #remote-video,
+      html.student-virtual-landscape-mode #remote-video {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        object-fit: contain !important;
+        object-position: center center !important;
+      }
+
+      html.student-landscape-mode .viewer-actions-divider,
+      html.student-virtual-landscape-mode .viewer-actions-divider {
+        position: relative !important;
+        inset: auto !important;
+        z-index: 20 !important;
+        grid-area: divider !important;
+        display: flex !important;
+        width: 100% !important;
+        height: var(--student-landscape-strip-height) !important;
+        min-height: var(--student-landscape-strip-height) !important;
+        max-height: var(--student-landscape-strip-height) !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        border: 0 !important;
+        border-top: 1px solid rgba(148, 163, 184, .34) !important;
+        border-radius: 0 !important;
+        background: rgba(15, 23, 42, .98) !important;
+      }
+
+      html.student-landscape-mode .viewer-actions-control-row,
+      html.student-virtual-landscape-mode .viewer-actions-control-row {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 0 !important;
+        gap: .25rem !important;
+      }
+
       /* Fallback for browsers that reject native orientation locking. The
          page remains a single visual surface; the existing lower control row
          stays inside it and no audio or button behavior is replaced. */
@@ -3364,6 +3442,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=rotate-pan-7"></script>
+    <script src="./js/student-live.js?v=rotate-pan-8"></script>
   </body>
 </html>

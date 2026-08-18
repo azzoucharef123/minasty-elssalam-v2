@@ -451,11 +451,10 @@ function initializeRefreshFab() {
 }
 
 function syncStudentZoomToViewport({ reset = false } = {}) {
-  if (reset) {
+  if (reset || document.documentElement.classList.contains("student-landscape-mode")) {
     resetStudentZoom();
     return;
   }
-
   const width = elements.videoFrame?.clientWidth || window.innerWidth;
   const height = elements.videoFrame?.clientHeight || window.innerHeight;
   studentZoomState.translateX = clampStudentZoomTranslation(studentZoomState.translateX, studentZoomState.scale, width);
@@ -480,12 +479,12 @@ function updateRotationControls() {
   // A rotated viewport is a new coordinate system. Clear any stale transform
   // before the first landscape frame is painted, otherwise its edges remain
   // clipped by the video frame after the orientation change.
-  if (isLandscape && !wasLandscape) {
-    syncStudentZoomToViewport({ reset: true });
-  } else if (!isLandscape) {
+  // Never carry a transform into or through landscape. CSS object-fit: contain
+  // is responsible for fitting the stream; JavaScript must not auto-scale it.
+  if (isLandscape) {
     resetStudentZoom();
   } else {
-    syncStudentZoomToViewport();
+    resetStudentZoom();
   }
 }
 
@@ -510,7 +509,11 @@ function resetStudentZoom() {
   studentZoomState.panStartY = 0;
   studentZoomState.panStartTranslateX = 0;
   studentZoomState.panStartTranslateY = 0;
-  applyStudentZoom();
+  [elements.remoteVideo, elements.levelWelcomeImage].forEach((target) => {
+    if (!target) return;
+    target.style.transform = "none";
+    target.classList.remove("student-video-zoomed");
+  });
 }
 
 function clampStudentZoomTranslation(value, scale, axisSize) {
