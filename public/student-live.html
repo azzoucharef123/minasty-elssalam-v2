@@ -3280,6 +3280,62 @@
         gap: .25rem !important;
       }
 
+      /* Final portrait order: display, question frame, then action toolbar. */
+      @media screen and (orientation: portrait) and (max-width: 900px) {
+        .student-live-page .viewer-stage {
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) !important;
+          grid-template-rows: minmax(0, 1fr) 400px auto !important;
+          grid-template-areas:
+            "video"
+            "chat"
+            "divider" !important;
+          width: 100% !important;
+          height: calc(100svh - 0.5cm) !important;
+          min-height: 0 !important;
+          gap: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+          align-content: stretch !important;
+        }
+
+        .student-live-page .video-frame {
+          grid-area: video !important;
+          grid-row: auto !important;
+          width: 100% !important;
+          height: 100% !important;
+          min-height: 0 !important;
+          max-height: none !important;
+          aspect-ratio: auto !important;
+          overflow: hidden !important;
+        }
+
+        .student-live-page .student-chat-panel {
+          grid-area: chat !important;
+          grid-row: auto !important;
+          align-self: stretch !important;
+          width: 100% !important;
+          height: 400px !important;
+          min-height: 400px !important;
+          max-height: 400px !important;
+          margin: 0 !important;
+          overflow: hidden !important;
+        }
+
+        .student-live-page .viewer-actions-divider {
+          grid-area: divider !important;
+          grid-row: auto !important;
+          position: relative !important;
+          z-index: 4 !important;
+          width: 100% !important;
+          height: auto !important;
+          min-height: var(--student-action-height) !important;
+          max-height: none !important;
+          padding: .35rem var(--student-app-gap)
+                   calc(.35rem + var(--student-safe-bottom)) !important;
+        }
+      }
+
       /* Root-level composer styles: the modal is teleported to body by JS. */
       body > #chat-compose-modal {
         position: fixed !important;
@@ -3524,6 +3580,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=rotate-pan-11"></script>
+    <script src="./js/student-live.js?v=rotate-pan-12"></script>
   </body>
 </html>
