@@ -1640,3 +1640,314 @@ body.public-class-modal-open { overflow: hidden; }
 
   body.desktop-schedule-modal-open { overflow: hidden; }
 }
+
+
+/* Mobile landing — one fixed viewport split into three sections */
+.mobile-landing-benefits { display: none; }
+
+@media (max-width: 900px) {
+  html:has(body.landing-page),
+  body.landing-page {
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  body.landing-page {
+    display: grid;
+    grid-template-rows: minmax(4.8rem, 18dvh) minmax(0, 1fr) minmax(8rem, 30dvh);
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  body.landing-page > .landing-background {
+    z-index: -1;
+  }
+
+  body.landing-page > .landing-header,
+  body.landing-page > .landing-hero,
+  body.landing-page > .mobile-landing-benefits {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+  }
+
+  body.landing-page > .landing-header {
+    display: flex;
+    min-height: 0;
+    height: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: .35rem;
+    padding: .45rem clamp(.55rem, 3vw, 1rem) .25rem;
+  }
+
+  .landing-header .brand {
+    position: static;
+    display: inline-flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    transform: none;
+  }
+
+  .landing-header .brand-mark {
+    width: clamp(2rem, 9vw, 2.65rem);
+    height: clamp(2rem, 9vw, 2.65rem);
+    flex: 0 0 auto;
+    border-radius: .72rem;
+  }
+
+  .landing-header .brand-mark svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .landing-header .brand-text {
+    min-width: 0;
+  }
+
+  .landing-header .brand-text strong {
+    overflow: hidden;
+    font-size: clamp(.72rem, 3vw, .93rem);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .landing-header .brand-text small {
+    font-size: clamp(.52rem, 2.1vw, .68rem);
+    white-space: nowrap;
+  }
+
+  .landing-header .header-access-links {
+    display: inline-flex;
+    min-width: 0;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .25rem;
+  }
+
+  .landing-header .teacher-entry-card {
+    min-height: 2.65rem;
+    gap: .25rem;
+    padding: .2rem .25rem .2rem .35rem;
+    border-radius: .7rem;
+  }
+
+  .landing-header .teacher-entry-photo {
+    width: 2.15rem;
+    height: 2.15rem;
+    border-radius: .52rem;
+  }
+
+  .landing-header .teacher-entry-copy strong {
+    font-size: clamp(.57rem, 2.1vw, .72rem);
+  }
+
+  .landing-header .teacher-entry-copy small,
+  .landing-header .teacher-entry-arrow {
+    display: none;
+  }
+
+  .landing-header .header-login-link {
+    gap: .12rem;
+    font-size: clamp(.56rem, 2.2vw, .72rem);
+    white-space: nowrap;
+  }
+
+  .landing-header .header-login-link span {
+    font-size: .86rem;
+  }
+
+  body.landing-page > .landing-hero {
+    display: grid;
+    height: 100%;
+    min-height: 0;
+    place-items: center;
+    padding: .3rem clamp(.55rem, 3vw, 1rem);
+    overflow: hidden;
+  }
+
+  .landing-hero .hero-content {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .landing-hero .landing-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(.45rem, 2.3vw, .8rem);
+    width: 100%;
+    max-width: 42rem;
+    margin: 0 auto;
+  }
+
+  .landing-hero .landing-cta {
+    min-width: 0;
+    min-height: clamp(5.2rem, 15dvh, 7.2rem);
+    padding: .7rem .55rem;
+    border-radius: 1.1rem;
+    text-align: center;
+  }
+
+  .landing-hero .landing-cta > span:nth-child(2) {
+    min-width: 0;
+    justify-items: center;
+  }
+
+  .landing-hero .landing-cta strong {
+    font-size: clamp(.84rem, 3.8vw, 1.2rem);
+    line-height: 1.35;
+  }
+
+  .landing-hero .landing-cta small {
+    font-size: clamp(.56rem, 2.4vw, .75rem);
+    line-height: 1.35;
+  }
+
+  .landing-hero .landing-cta .cta-icon {
+    width: clamp(2rem, 9vw, 2.6rem);
+    height: clamp(2rem, 9vw, 2.6rem);
+    margin: 0 0 .28rem;
+    border-radius: .68rem;
+  }
+
+  .landing-hero .landing-cta .cta-arrow {
+    display: none;
+  }
+
+  body.landing-page > .mobile-landing-benefits {
+    display: grid;
+    align-content: center;
+    gap: .45rem;
+    height: 100%;
+    min-height: 0;
+    padding: .45rem clamp(.55rem, 3vw, 1rem) calc(.55rem + env(safe-area-inset-bottom));
+    overflow: hidden;
+  }
+
+  .mobile-benefits-heading {
+    text-align: center;
+  }
+
+  .mobile-benefits-heading span {
+    display: block;
+    color: #2563eb;
+    font-size: clamp(.58rem, 2.2vw, .72rem);
+    font-weight: 800;
+  }
+
+  .mobile-benefits-heading h2 {
+    margin: .08rem 0 0;
+    color: #0f172a;
+    font-size: clamp(.95rem, 3.7vw, 1.25rem);
+    line-height: 1.25;
+  }
+
+  .mobile-benefits-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(.28rem, 1.5vw, .55rem);
+    min-width: 0;
+  }
+
+  .mobile-benefit-card {
+    display: grid;
+    min-width: 0;
+    min-height: clamp(4.3rem, 13dvh, 6.2rem);
+    align-content: center;
+    justify-items: center;
+    gap: .18rem;
+    padding: .45rem .25rem;
+    text-align: center;
+    background: rgba(255, 255, 255, .72);
+    border: 1px solid rgba(147, 197, 253, .28);
+    border-radius: .85rem;
+    box-shadow: 0 8px 18px rgba(30, 64, 175, .08);
+  }
+
+  .mobile-benefit-icon {
+    display: grid;
+    width: 1.45rem;
+    height: 1.45rem;
+    place-items: center;
+    color: #fff;
+    background: #2563eb;
+    border-radius: 50%;
+    font-size: .66rem;
+    font-weight: 900;
+  }
+
+  .mobile-benefit-card strong {
+    overflow: hidden;
+    color: #1e3a8a;
+    font-size: clamp(.58rem, 2.2vw, .75rem);
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-benefit-card small {
+    overflow: hidden;
+    color: #64748b;
+    font-size: clamp(.48rem, 1.85vw, .62rem);
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-benefits-note {
+    margin: 0;
+    color: #64748b;
+    font-size: clamp(.54rem, 2vw, .68rem);
+    font-weight: 700;
+    line-height: 1.3;
+    text-align: center;
+  }
+
+  body.landing-page > .student-testimonials,
+  body.landing-page > .class-schedule,
+  body.landing-page > .landing-footer {
+    display: none;
+  }
+}
+
+@media (max-width: 380px) {
+  body.landing-page {
+    grid-template-rows: minmax(4.4rem, 17dvh) minmax(0, 1fr) minmax(7.4rem, 31dvh);
+  }
+
+  .landing-header .brand-text small,
+  .landing-header .teacher-entry-copy {
+    display: none;
+  }
+
+  .landing-header .brand-text strong {
+    font-size: .7rem;
+  }
+
+  .landing-hero .landing-cta {
+    min-height: 4.8rem;
+  }
+
+  .mobile-benefit-card {
+    min-height: 3.95rem;
+  }
+}
+
+@media (max-height: 620px) and (max-width: 900px) {
+  body.landing-page {
+    grid-template-rows: minmax(3.8rem, 16dvh) minmax(0, 1fr) minmax(6.6rem, 29dvh);
+  }
+
+  .landing-hero .landing-cta {
+    min-height: 4.5rem;
+  }
+
+  .mobile-benefit-card {
+    min-height: 3.6rem;
+    padding-block: .25rem;
+  }
+}
