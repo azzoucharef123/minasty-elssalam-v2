@@ -1549,3 +1549,51 @@ body.public-class-modal-open { overflow: hidden; }
   .desktop-benefits-list strong { display: block; color: #fff; font-size: .88rem; font-weight: 900; line-height: 1.4; }
   .desktop-benefits-list small { display: block; grid-column: 2; margin-top: .16rem; color: #cbd5e1; font-size: .7rem; line-height: 1.55; }
 }
+
+
+@media (min-width: 901px) {
+  .desktop-entry-button {
+    min-height: 4.15rem;
+    font-size: 2rem;
+    letter-spacing: -.02em;
+  }
+
+  .desktop-benefits-list small {
+    color: #e2e8f0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.45;
+  }
+
+  .desktop-schedule-image {
+    cursor: zoom-in;
+  }
+
+  .desktop-schedule-image-modal {
+    position: fixed;
+    z-index: 130;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 2rem;
+    background: rgba(2, 6, 23, .86);
+    backdrop-filter: blur(8px);
+    cursor: zoom-out;
+  }
+
+  .desktop-schedule-image-modal[hidden] { display: none; }
+
+  .desktop-schedule-image-modal img {
+    display: block;
+    width: min(94vw, 86rem);
+    height: min(88vh, 52rem);
+    object-fit: contain;
+    border: 2px solid rgba(191, 219, 254, .7);
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, .55);
+    cursor: zoom-out;
+  }
+
+  body.desktop-schedule-modal-open { overflow: hidden; }
+}

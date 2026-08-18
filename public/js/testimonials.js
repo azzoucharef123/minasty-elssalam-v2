@@ -33,6 +33,27 @@
   });
 })();
 
+const desktopScheduleImage = document.querySelector(".desktop-schedule-image");
+const desktopScheduleModal = document.getElementById("desktop-schedule-image-modal");
+const desktopScheduleModalImage = document.getElementById("desktop-schedule-image-modal-img");
+
+if (desktopScheduleImage && desktopScheduleModal && desktopScheduleModalImage) {
+  const closeScheduleImage = () => {
+    desktopScheduleModal.hidden = true;
+    document.body.classList.remove("desktop-schedule-modal-open");
+  };
+
+  desktopScheduleImage.addEventListener("click", () => {
+    desktopScheduleModal.hidden = false;
+    document.body.classList.add("desktop-schedule-modal-open");
+  });
+  desktopScheduleModal.addEventListener("click", closeScheduleImage);
+  desktopScheduleModalImage.addEventListener("click", closeScheduleImage);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !desktopScheduleModal.hidden) closeScheduleImage();
+  });
+}
+
 window.addEventListener("pagehide", () => {
   document.querySelectorAll("[data-testimonial-video]").forEach((video) => video.pause());
 });
