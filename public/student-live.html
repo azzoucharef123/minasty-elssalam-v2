@@ -2587,6 +2587,12 @@
         overflow: hidden;
       }
 
+      /* Keep the message composer visually unobstructed: its open state is
+         already toggled by the existing chat lifecycle functions. */
+      .student-live-page.student-chat-compose-open .viewer-actions-divider {
+        display: none !important;
+      }
+
       .chat-compose-modal {
         position: fixed;
         z-index: 40;
@@ -3442,6 +3448,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=rotate-pan-8"></script>
+    <script src="./js/student-live.js?v=rotate-pan-9"></script>
   </body>
 </html>
