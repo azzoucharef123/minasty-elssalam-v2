@@ -508,3 +508,99 @@
   .student-homework-instruction-image-wrap { margin-bottom: .85rem; }
   .student-homework-instruction-image { touch-action: pinch-zoom; }
 }
+
+
+/* Payment receipt actions */
+.payment-receipt-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .55rem;
+  margin-top: .75rem;
+}
+
+.payment-receipt-choice,
+.card-payment-button {
+  min-height: 2.8rem;
+  padding: .65rem .8rem;
+  border-radius: .72rem;
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform .16s ease, background .16s ease, box-shadow .16s ease, color .16s ease;
+}
+
+.payment-receipt-choice:active,
+.card-payment-button:active { transform: scale(.98); }
+
+.payment-receipt-choice.capture {
+  color: #ffffff;
+  background: #2563eb;
+  border: 1px solid #1d4ed8;
+}
+
+.payment-receipt-choice.upload {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+}
+
+.payment-receipt-choice:hover,
+.payment-receipt-choice:focus-visible {
+  box-shadow: 0 6px 16px rgba(37, 99, 235, .16);
+  outline: none;
+}
+
+.payment-receipt-choice.capture:hover,
+.payment-receipt-choice.capture:focus-visible { background: #1d4ed8; }
+.payment-receipt-choice.upload:hover,
+.payment-receipt-choice.upload:focus-visible { color: #1e40af; background: #dbeafe; }
+
+.payment-receipt-file-name {
+  grid-column: 1 / -1;
+  min-width: 0;
+  color: #64748b;
+  font-size: .7rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-payment-button {
+  width: 100%;
+  margin-top: .65rem;
+  color: #ffffff;
+  background: linear-gradient(135deg, #b8860b, #d4a017 55%, #b7791f);
+  border: 1px solid #9a6b08;
+  box-shadow: 0 5px 12px rgba(154, 103, 8, .15);
+}
+
+.card-payment-button:hover,
+.card-payment-button:focus-visible {
+  background: linear-gradient(135deg, #9a6b08, #b8860b 55%, #975a16);
+  outline: none;
+}
+
+.payment-receipt-choice:disabled,
+.card-payment-button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .payment-receipt-choice.capture { display: none; }
+  .payment-receipt-actions { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 560px) {
+  .payment-receipt-actions { grid-template-columns: 1fr; }
+  .payment-receipt-choice,
+  .card-payment-button { min-height: 3rem; font-size: .82rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .payment-receipt-choice,
+  .card-payment-button { transition: none; }
+}

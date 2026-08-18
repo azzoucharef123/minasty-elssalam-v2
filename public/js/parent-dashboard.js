@@ -47,6 +47,10 @@ const elements = {
   universityUpgradeButton: document.getElementById("university-upgrade-button"),
   universityPaymentTransfer: document.getElementById("university-payment-transfer"),
   parentPaymentReceiptInput: document.getElementById("parent-payment-receipt-input"),
+  parentPaymentCapture: document.getElementById("parent-payment-capture"),
+  parentPaymentUpload: document.getElementById("parent-payment-upload"),
+  parentPaymentFileName: document.getElementById("parent-payment-file-name"),
+  parentCardPaymentButton: document.getElementById("university-card-payment-button"),
   parentPaymentSubmit: document.getElementById("parent-payment-submit"),
   parentPaymentPending: document.getElementById("parent-payment-pending"),
   parentPaymentConfirmed: document.getElementById("parent-payment-confirmed"),
@@ -55,6 +59,10 @@ const elements = {
   secondaryPaymentTransfer: document.getElementById("secondary-payment-transfer"),
   secondarySubscriptionType: document.getElementById("secondary-subscription-type"),
   secondaryPaymentReceiptInput: document.getElementById("secondary-payment-receipt-input"),
+  secondaryPaymentCapture: document.getElementById("secondary-payment-capture"),
+  secondaryPaymentUpload: document.getElementById("secondary-payment-upload"),
+  secondaryPaymentFileName: document.getElementById("secondary-payment-file-name"),
+  secondaryCardPaymentButton: document.getElementById("secondary-card-payment-button"),
   secondaryPaymentSubmit: document.getElementById("secondary-payment-submit"),
   secondaryPaymentPending: document.getElementById("secondary-payment-pending"),
   parentScheduleCard: document.getElementById("parent-schedule-card"),
@@ -690,6 +698,36 @@ function closeDocumentFeedback() {
   if (elements.documentFeedbackModal) elements.documentFeedbackModal.hidden = true;
 }
 
+function updatePaymentReceiptFileName(input, label) {
+  if (!label) return;
+  const file = input?.files?.[0];
+  label.textContent = file ? `تم اختيار: ${file.name}` : "لم يتم اختيار وصل الدفع";
+}
+
+function openPaymentReceiptPicker(input, mode = "upload") {
+  if (!input) return;
+  if (mode === "capture") {
+    input.setAttribute("capture", "environment");
+  } else {
+    input.removeAttribute("capture");
+  }
+  input.click();
+}
+
+function showCardPaymentNotice() {
+  openDocumentFeedback(
+    "سيتم توجيهك إلى بوابة الدفع الإلكتروني الرسمية عند تفعيل الربط بالبطاقة الذهبية أو البطاقة البنكية. لا تُدخل بيانات بطاقتك في أي نافذة غير موثوقة.",
+    "الدفع بالبطاقة الذهبية أو البنكية"
+  );
+}
+
+function wirePaymentReceiptActions({ input, captureButton, uploadButton, fileName, cardPaymentButton }) {
+  captureButton?.addEventListener("click", () => openPaymentReceiptPicker(input, "capture"));
+  uploadButton?.addEventListener("click", () => openPaymentReceiptPicker(input, "upload"));
+  input?.addEventListener("change", () => updatePaymentReceiptFileName(input, fileName));
+  cardPaymentButton?.addEventListener("click", showCardPaymentNotice);
+}
+
 function openPaymentAccessModal(reason = "access") {
   if (!elements.paymentAccessModal) {
     return;
@@ -1193,6 +1231,9 @@ function renderUniversityPaymentUpgrade(student, isPaidSubscription) {
   if (elements.parentPaymentSubmit) {
     elements.parentPaymentSubmit.disabled = receiptPending;
   }
+  [elements.parentPaymentCapture, elements.parentPaymentUpload, elements.parentCardPaymentButton].forEach((button) => {
+    if (button) button.disabled = receiptPending;
+  });
   if (elements.parentPaymentPending) {
     elements.parentPaymentPending.hidden = !receiptPending;
     elements.parentPaymentPending.textContent = receiptPending
@@ -1227,6 +1268,9 @@ function renderSecondaryPaymentUpgrade(student) {
   if (elements.secondaryPaymentSubmit) {
     elements.secondaryPaymentSubmit.disabled = receiptPending;
   }
+  [elements.secondaryPaymentCapture, elements.secondaryPaymentUpload, elements.secondaryCardPaymentButton].forEach((button) => {
+    if (button) button.disabled = receiptPending;
+  });
   if (elements.secondaryPaymentPending) {
     elements.secondaryPaymentPending.hidden = !receiptPending;
     elements.secondaryPaymentPending.textContent = receiptPending
@@ -1951,6 +1995,7 @@ async function submitSecondaryPaymentReceipt() {
     }
 
     elements.secondaryPaymentReceiptInput.value = "";
+    updatePaymentReceiptFileName(elements.secondaryPaymentReceiptInput, elements.secondaryPaymentFileName);
     secondaryPaymentTransferRequested = true;
     await loadDashboard({ backgroundRefresh: true });
   } catch (error) {
@@ -1996,6 +2041,7 @@ async function submitUniversityPaymentReceipt() {
     }
 
     elements.parentPaymentReceiptInput.value = "";
+    updatePaymentReceiptFileName(elements.parentPaymentReceiptInput, elements.parentPaymentFileName);
     universityPaymentTransferRequested = true;
     await loadDashboard({ backgroundRefresh: true });
   } catch (error) {
@@ -2172,10 +2218,24 @@ if (!getParentToken()) {
     void enterLiveClass();
   });
   elements.universityUpgradeButton?.addEventListener("click", openUniversityPaymentTransfer);
+  wirePaymentReceiptActions({
+    input: elements.parentPaymentReceiptInput,
+    captureButton: elements.parentPaymentCapture,
+    uploadButton: elements.parentPaymentUpload,
+    fileName: elements.parentPaymentFileName,
+    cardPaymentButton: elements.parentCardPaymentButton,
+  });
   elements.parentPaymentSubmit?.addEventListener("click", () => {
     void submitUniversityPaymentReceipt();
   });
   elements.secondaryUpgradeButton?.addEventListener("click", openSecondaryPaymentTransfer);
+  wirePaymentReceiptActions({
+    input: elements.secondaryPaymentReceiptInput,
+    captureButton: elements.secondaryPaymentCapture,
+    uploadButton: elements.secondaryPaymentUpload,
+    fileName: elements.secondaryPaymentFileName,
+    cardPaymentButton: elements.secondaryCardPaymentButton,
+  });
   elements.secondaryPaymentSubmit?.addEventListener("click", () => {
     void submitSecondaryPaymentReceipt();
   });

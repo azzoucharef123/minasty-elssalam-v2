@@ -16,7 +16,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./css/style.css?v=next-class-state-1" />
-    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=homework-capture-1" />
+    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=payment-receipt-actions-1" />
     <link rel="stylesheet" href="./css/private-messages.css" />
     <link rel="stylesheet" href="./css/payment-feedback.css" />
 
@@ -1165,7 +1165,7 @@
         }
       }
     </style>
-    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=homework-capture-1" />
+    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=payment-receipt-actions-1" />
 </head>
   <body class="parent-dashboard-page">
     <div id="parent-sidebar-backdrop" class="parent-sidebar-backdrop" hidden></div>
@@ -1262,8 +1262,13 @@
             <div><dt>المفتاح</dt><dd>04</dd></div>
             <div><dt>BaridiMob</dt><dd>00799999001757032404</dd></div>
           </dl>
-          <label for="secondary-payment-receipt-input">ارفع وصل الدفع من البريد أو BaridiMob</label>
-          <input id="secondary-payment-receipt-input" class="parent-payment-receipt-input" type="file" accept="image/jpeg,image/png" capture="environment" />
+          <div class="payment-receipt-actions" aria-label="خيارات وصل الدفع">
+            <input id="secondary-payment-receipt-input" class="parent-payment-receipt-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden />
+            <button id="secondary-payment-capture" class="payment-receipt-choice capture" type="button">تصوير وصل الدفع</button>
+            <button id="secondary-payment-upload" class="payment-receipt-choice upload" type="button">تحميل وصل الدفع</button>
+            <span id="secondary-payment-file-name" class="payment-receipt-file-name" aria-live="polite">لم يتم اختيار وصل الدفع</span>
+          </div>
+          <button id="secondary-card-payment-button" class="card-payment-button" type="button">الدفع بالبطاقة الذهبية أو البنكية</button>
           <button id="secondary-payment-submit" class="parent-payment-submit" type="button">إرسال وصل الدفع للأستاذ</button>
           <p id="secondary-payment-pending" class="parent-payment-pending" hidden></p>
         </div>
@@ -1429,8 +1434,13 @@
               <div><dt>BaridiMob</dt><dd>00799999001757032404</dd></div>
               <div><dt>قيمة السداسي</dt><dd>2000 دج</dd></div>
             </dl>
-            <label for="parent-payment-receipt-input">ارفع وصل الدفع من البريد أو BaridiMob</label>
-            <input id="parent-payment-receipt-input" class="parent-payment-receipt-input" type="file" accept="image/jpeg,image/png" capture="environment" />
+            <div class="payment-receipt-actions" aria-label="خيارات وصل الدفع">
+              <input id="parent-payment-receipt-input" class="parent-payment-receipt-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden />
+              <button id="parent-payment-capture" class="payment-receipt-choice capture" type="button">تصوير وصل الدفع</button>
+              <button id="parent-payment-upload" class="payment-receipt-choice upload" type="button">تحميل وصل الدفع</button>
+              <span id="parent-payment-file-name" class="payment-receipt-file-name" aria-live="polite">لم يتم اختيار وصل الدفع</span>
+            </div>
+            <button id="university-card-payment-button" class="card-payment-button" type="button">الدفع بالبطاقة الذهبية أو البنكية</button>
             <button id="parent-payment-submit" class="parent-payment-submit" type="button">إرسال وصل الدفع للأستاذ</button>
             <p id="parent-payment-pending" class="parent-payment-pending" hidden></p>
           </div>
@@ -1524,7 +1534,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/parent-dashboard.js?v=next-class-state-1"></script>
+    <script src="./js/parent-dashboard.js?v=payment-receipt-actions-1"></script>
     <script src="./js/class-registry-parent.js?v=panel-scroll-1"></script>
 </body>
 </html>
