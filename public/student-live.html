@@ -3280,6 +3280,39 @@
         gap: .25rem !important;
       }
 
+      /* Root-level composer styles: the modal is teleported to body by JS. */
+      body > #chat-compose-modal {
+        position: fixed !important;
+        top: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100dvh !important;
+        z-index: 2147483647 !important;
+        display: grid !important;
+        place-items: center !important;
+        padding: 1rem !important;
+        background: rgba(2, 6, 23, 0.85) !important;
+        backdrop-filter: blur(10px) !important;
+        -webkit-backdrop-filter: blur(10px) !important;
+      }
+
+      body > #chat-compose-modal[hidden] {
+        display: none !important;
+      }
+
+      body > #chat-compose-modal .chat-compose-dialog {
+        position: relative !important;
+        z-index: 2147483647 !important;
+        width: min(100%, 30rem) !important;
+        max-height: 90dvh !important;
+        overflow-y: auto !important;
+        background: #0f172a !important;
+        border: 1px solid rgba(96, 165, 250, 0.3) !important;
+        border-radius: 1rem !important;
+      }
+
       /* Fallback for browsers that reject native orientation locking. The
          page remains a single visual surface; the existing lower control row
          stays inside it and no audio or button behavior is replaced. */
@@ -3491,6 +3524,6 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=rotate-pan-10"></script>
+    <script src="./js/student-live.js?v=rotate-pan-11"></script>
   </body>
 </html>

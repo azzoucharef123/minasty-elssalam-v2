@@ -1032,18 +1032,44 @@ function updateChatControls() {
   elements.chatSendButton.disabled = !canSend || (!normalizeChatMessage(elements.chatInput.value) && !hasQuestionImage);
 }
 
+function relocateStudentChatComposer() {
+  const modal = elements.chatComposeModal || document.getElementById("chat-compose-modal");
+  if (modal && modal.parentElement !== document.body) {
+    document.body.appendChild(modal);
+  }
+}
+
 function openStudentChatComposer() {
-  if (!elements.chatComposeModal || elements.openChatComposeButton?.disabled) return;
-  elements.chatComposeModal.hidden = false;
+  const modal = elements.chatComposeModal || document.getElementById("chat-compose-modal");
+  const actionToolbar = document.querySelector(".viewer-actions-divider");
+  const mobileControls = document.querySelector(".student-mobile-controls");
+  const viewerHeader = document.querySelector(".viewer-header");
+  if (!modal || elements.openChatComposeButton?.disabled) return;
+
+  relocateStudentChatComposer();
+  modal.hidden = false;
+  modal.style.setProperty("display", "grid", "important");
   document.body.classList.add("student-chat-compose-open");
+  actionToolbar?.style.setProperty("display", "none", "important");
+  mobileControls?.style.setProperty("display", "none", "important");
+  viewerHeader?.style.setProperty("display", "none", "important");
   updateChatControls();
   window.requestAnimationFrame(() => elements.chatInput?.focus({ preventScroll: true }));
 }
 
 function closeStudentChatComposer() {
-  if (!elements.chatComposeModal) return;
-  elements.chatComposeModal.hidden = true;
+  const modal = elements.chatComposeModal || document.getElementById("chat-compose-modal");
+  const actionToolbar = document.querySelector(".viewer-actions-divider");
+  const mobileControls = document.querySelector(".student-mobile-controls");
+  const viewerHeader = document.querySelector(".viewer-header");
+  if (!modal) return;
+
+  modal.hidden = true;
+  modal.style.setProperty("display", "none", "important");
   document.body.classList.remove("student-chat-compose-open");
+  actionToolbar?.style.removeProperty("display");
+  mobileControls?.style.removeProperty("display");
+  viewerHeader?.style.removeProperty("display");
   elements.chatInput?.blur();
 }
 
@@ -2321,6 +2347,7 @@ socket.on("disconnect", () => {
 
 // No manual join action is exposed in the viewer. The element is retained only
 // for compatibility with existing page markup and remains hidden at all times.
+relocateStudentChatComposer();
 elements.enableAudioButton?.addEventListener("click", enableTeacherAudio);
 elements.remoteVideo?.addEventListener("volumechange", updateRemoteAudioControl);
 elements.raiseHandButton.addEventListener("click", raiseHand);
