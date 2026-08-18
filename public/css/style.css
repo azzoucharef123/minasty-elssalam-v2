@@ -1307,3 +1307,68 @@ body.public-class-modal-open { overflow: hidden; }
     min-height: 5.25rem;
   }
 }
+
+
+/* In-app browser guidance */
+.in-app-browser-modal {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(2, 6, 23, .76);
+  backdrop-filter: blur(10px);
+}
+
+.in-app-browser-modal[hidden] { display: none; }
+
+.in-app-browser-card {
+  width: min(100%, 31rem);
+  padding: clamp(1.25rem, 5vw, 2rem);
+  color: #e2e8f0;
+  text-align: center;
+  background: linear-gradient(145deg, #142d55, #0b1c34 72%);
+  border: 1px solid rgba(147, 197, 253, .42);
+  border-radius: 1.2rem;
+  box-shadow: 0 25px 75px rgba(0, 0, 0, .46), 0 0 0 1px rgba(37, 99, 235, .12);
+}
+
+.in-app-browser-icon {
+  display: grid;
+  width: 3.3rem;
+  height: 3.3rem;
+  margin: 0 auto .8rem;
+  place-items: center;
+  color: #eff6ff;
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  border-radius: 1rem;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, .3);
+  font-size: 1.7rem;
+  font-weight: 900;
+}
+
+.in-app-browser-kicker { margin: 0 0 .35rem; color: #93c5fd; font-size: .72rem; font-weight: 900; }
+.in-app-browser-card h2 { margin: 0; color: #ffffff; font-size: clamp(1.1rem, 4vw, 1.5rem); }
+.in-app-browser-copy,
+.in-app-browser-instruction,
+.in-app-browser-status { margin: .7rem 0 0; color: #cbd5e1; font-size: .82rem; line-height: 1.8; }
+.in-app-browser-instruction { color: #bfdbfe; font-size: .76rem; font-weight: 700; }
+.in-app-browser-status { min-height: 1.4rem; color: #86efac; font-size: .72rem; font-weight: 800; }
+.in-app-browser-actions { display: grid; gap: .55rem; margin-top: 1rem; }
+.in-app-browser-actions button { min-height: 2.8rem; padding: .6rem .8rem; border-radius: .7rem; font: inherit; font-size: .8rem; font-weight: 900; cursor: pointer; transition: transform .16s ease, filter .16s ease, background .16s ease; }
+.in-app-browser-actions button:active { transform: scale(.97); }
+.in-app-browser-primary { color: #052e16; background: #4ade80; border: 1px solid #86efac; }
+.in-app-browser-secondary { color: #dbeafe; background: rgba(37, 99, 235, .24); border: 1px solid rgba(147, 197, 253, .42); }
+.in-app-browser-continue { color: #cbd5e1; background: transparent; border: 1px solid rgba(148, 163, 184, .3); }
+.in-app-browser-actions button:hover { filter: brightness(1.1); }
+
+@media (max-width: 480px) {
+  .in-app-browser-modal { padding: .75rem; }
+  .in-app-browser-card { padding: 1.15rem; border-radius: 1rem; }
+  .in-app-browser-copy { font-size: .78rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .in-app-browser-actions button { transition: none; }
+}

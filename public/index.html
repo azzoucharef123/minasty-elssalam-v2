@@ -14,7 +14,7 @@
       href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./css/style.css?v=landing-cleanup-1" />
+    <link rel="stylesheet" href="./css/style.css?v=landing-inapp-browser-1" />
 </head>
   <body class="landing-page">
     <div class="landing-background" aria-hidden="true">
@@ -165,7 +165,23 @@
       <p>الرياضيات × الفيزياء</p>
     </footer>
 
+    <div id="in-app-browser-modal" class="in-app-browser-modal" role="dialog" aria-modal="true" aria-labelledby="in-app-browser-title" hidden>
+      <section class="in-app-browser-card">
+        <div class="in-app-browser-icon" aria-hidden="true">↗</div>
+        <p class="in-app-browser-kicker">تنبيه لتحسين تجربة التصفح</p>
+        <h2 id="in-app-browser-title">افتح الموقع في متصفح كامل</h2>
+        <p class="in-app-browser-copy">للاستفادة من الكاميرا والميكروفون والحصص المباشرة بسلاسة، افتح الموقع في Google Chrome أو Safari بدل المتصفح الداخلي للتطبيق.</p>
+        <p id="in-app-browser-instruction" class="in-app-browser-instruction"></p>
+        <p id="in-app-browser-status" class="in-app-browser-status" role="status" aria-live="polite"></p>
+        <div class="in-app-browser-actions">
+          <button id="open-external-browser-btn" class="in-app-browser-primary" type="button">فتح في المتصفح</button>
+          <button id="copy-site-link-btn" class="in-app-browser-secondary" type="button">نسخ الرابط</button>
+          <button id="continue-in-app-browser-btn" class="in-app-browser-continue" type="button">متابعة هنا مؤقتًا</button>
+        </div>
+      </section>
+    </div>
 
     <script src="./js/testimonials.js" defer></script>
+    <script src="./js/in-app-browser-gate.js?v=1" defer></script>
 </body>
 </html>
