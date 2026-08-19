@@ -3686,6 +3686,22 @@
         }
         .viewer-actions-control-row { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
       }
+
+      /* Keep an arriving teacher video visible in portrait above the waiting layer. */
+      .student-live-page .video-frame { isolation: isolate; }
+      .student-live-page #remote-video {
+        position: relative !important;
+        z-index: 2 !important;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+      }
+      .student-live-page #remote-video.has-live-video {
+        visibility: visible !important;
+        opacity: 1 !important;
+      }
+      .student-live-page .video-placeholder { z-index: 1; }
+      .student-live-page .video-placeholder[hidden] { display: none !important; }
       </style>
   </head>
   <body class="student-live-page">
@@ -3874,7 +3890,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=phone-layout-1"></script>
+    <script src="./js/student-live.js?v=phone-layout-2"></script>
   <script src="./js/in-app-browser-gate.js?v=telegram-gate-2" defer></script>
   </body>
 </html>

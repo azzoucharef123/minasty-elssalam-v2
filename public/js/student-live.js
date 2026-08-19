@@ -1493,11 +1493,15 @@ function updateRemoteVideoPresentation() {
     remoteMediaStream?.getVideoTracks?.().some((track) => track.readyState === "live")
   );
   const showScreenShare = screenShareActive && hasLiveVideo;
+  const shouldShowRemoteVideo = hasLiveVideo;
   elements.remoteVideo.controls = showScreenShare;
   elements.remoteVideo.classList.toggle("is-screen-share", showScreenShare);
-  elements.placeholder.hidden = showScreenShare;
+  elements.remoteVideo.classList.toggle("has-live-video", shouldShowRemoteVideo);
+  // The placeholder must disappear as soon as a live video track arrives. The
+  // screen-share flag is a status signal and can arrive before the media track.
+  elements.placeholder.hidden = shouldShowRemoteVideo;
 
-  if (showScreenShare) {
+  if (shouldShowRemoteVideo) {
     hideConnectionOverlay();
     void elements.remoteVideo.play().catch(() => {});
   }
@@ -1512,7 +1516,7 @@ function resetRemoteMedia() {
   elements.remoteVideo.srcObject = null;
   elements.remoteVideo.muted = true;
   elements.remoteVideo.controls = false;
-  elements.remoteVideo.classList.remove("is-screen-share");
+  elements.remoteVideo.classList.remove("is-screen-share", "has-live-video");
   elements.placeholder.hidden = false;
   isAttemptingTeacherAudio = false;
   updateRemoteAudioControl();
