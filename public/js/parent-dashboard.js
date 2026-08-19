@@ -1359,7 +1359,7 @@ function renderUniversityPaymentUpgrade(student, isPaidSubscription) {
     elements.universityUpgradeButton.hidden = receiptPending;
   }
   if (elements.universityPaymentTransfer) {
-    elements.universityPaymentTransfer.hidden = !receiptPending && !universityPaymentTransferRequested;
+    elements.universityPaymentTransfer.hidden = receiptPending || !universityPaymentTransferRequested;
   }
   if (elements.parentPaymentReceiptInput) {
     elements.parentPaymentReceiptInput.disabled = receiptPending;
@@ -1396,7 +1396,7 @@ function renderSecondaryPaymentUpgrade(student) {
     elements.secondaryUpgradeButton.hidden = receiptPending;
   }
   if (elements.secondaryPaymentTransfer) {
-    elements.secondaryPaymentTransfer.hidden = !secondaryPaymentTransferRequested;
+    elements.secondaryPaymentTransfer.hidden = receiptPending || !secondaryPaymentTransferRequested;
   }
   if (elements.secondaryPaymentReceiptInput) {
     elements.secondaryPaymentReceiptInput.disabled = receiptPending;

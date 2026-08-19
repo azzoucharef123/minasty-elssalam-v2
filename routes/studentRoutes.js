@@ -17,6 +17,7 @@ const {
   submitPaymentReceipt,
   getStudentPaymentReceipt,
   confirmStudentPaymentReceipt,
+  rejectStudentPaymentReceipt,
   deleteStudent,
 } = require("../controllers/studentController");
 const {
@@ -115,6 +116,7 @@ router.put("/:id/confirm-card-identity", verifyToken, isTeacher, confirmStudentC
 // Teacher-only: payment receipts are private and can only be viewed or approved by the teacher.
 router.get("/:id/payment-receipt", verifyToken, isTeacher, getStudentPaymentReceipt);
 router.put("/:id/confirm-payment-receipt", verifyToken, isTeacher, confirmStudentPaymentReceipt);
+router.put("/:id/reject-payment-receipt", verifyToken, isTeacher, rejectStudentPaymentReceipt);
 
 // Parent-only: replacement is allowed only after the teacher requests it.
 router.post("/:id/card-photo", verifyToken, cardUpload.single("cardPhoto"), replaceStudentCard);

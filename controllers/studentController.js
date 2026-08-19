@@ -746,6 +746,79 @@ async function confirmStudentPaymentReceipt(req, res) {
   }
 }
 
+/** PUT /api/students/:id/reject-payment-receipt — teacher rejects an invalid payment proof. */
+async function rejectStudentPaymentReceipt(req, res) {
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        level: true,
+        paymentReceiptUrl: true,
+        paymentReceiptPending: true,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: "التلميذ غير موجود." });
+    }
+
+    if (!student.paymentReceiptUrl || !student.paymentReceiptPending) {
+      return res.status(400).json({ error: "لا يوجد وصل دفع جديد بانتظار الرفض." });
+    }
+
+    const oldReceiptUrl = student.paymentReceiptUrl;
+    const updatedStudent = await prisma.$transaction(async (tx) => {
+      await tx.studentDocument.deleteMany({
+        where: {
+          studentId: student.id,
+          kind: DOCUMENT_KINDS.PAYMENT_RECEIPT,
+        },
+      });
+      return tx.student.update({
+        where: { id: student.id },
+        data: {
+          paymentReceiptUrl: null,
+          paymentReceiptPending: false,
+          paymentReceiptSubmittedAt: null,
+        },
+      });
+    });
+
+    if (!oldReceiptUrl.startsWith("db:")) {
+      await removeUploadedCard(oldReceiptUrl);
+    }
+
+    notifyPaymentReceiptStatus(req, updatedStudent);
+    void prisma.paymentEvent.create({
+      data: {
+        studentId: student.id,
+        stage: "RECEIPT_REJECTED",
+        amount: 0,
+        actorRole: req.user?.role || "teacher",
+        actorId: req.user?.sessionId || null,
+        note: "تم رفض وصل الدفع المرفوع لأنه غير صالح أو لا يثبت عملية الدفع.",
+      },
+    }).catch(() => {});
+    void logAudit(req, {
+      action: "PAYMENT_RECEIPT_REJECTED",
+      entityType: "PaymentEvent",
+      entityId: student.id,
+      studentId: student.id,
+      metadata: { level: updatedStudent.level, stage: "RECEIPT_REJECTED" },
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: "تم رفض الوصل وحذفه. يمكن للولي إرسال وصل صحيح من جديد.",
+      data: updatedStudent,
+    });
+  } catch (error) {
+    console.error("Payment receipt rejection failed:", error);
+    return res.status(500).json({ error: "تعذر رفض وصل الدفع حالياً." });
+  }
+}
+
 /** DELETE /api/students/:id — teacher-only user deletion. */
 async function deleteStudent(req, res) {
   try {
@@ -925,5 +998,6 @@ module.exports = {
   submitPaymentReceipt,
   getStudentPaymentReceipt,
   confirmStudentPaymentReceipt,
+  rejectStudentPaymentReceipt,
   deleteStudent,
 };

@@ -1555,6 +1555,13 @@ function renderTable(studentsArray) {
         );
         confirmPaymentButton.title = "تأكيد الدفع وتفعيل اشتراك التلميذ";
         actionGroup.append(confirmPaymentButton);
+        const rejectPaymentButton = createButton(
+          "رفض الوصل",
+          "payment-receipt-reject-btn",
+          () => rejectPaymentReceipt(student.id)
+        );
+        rejectPaymentButton.title = "رفض الوصل غير الصحيح وإتاحة رفع وصل جديد";
+        actionGroup.append(rejectPaymentButton);
       }
     }
 
@@ -1748,12 +1755,22 @@ function renderManualPayments(studentsArray = currentStudents) {
       void viewStudentPaymentReceipt(student.id);
     });
     viewButton.title = "عرض وصل الدفع المرفوع من الولي";
+    const actionCell = document.createElement("td");
+    actionCell.className = "payment-actions-cell";
+    actionCell.append(viewButton);
+    if (student.paymentReceiptPending) {
+      const rejectButton = createButton("رفض الوصل", "payment-receipt-reject-btn", () => {
+        void rejectPaymentReceipt(student.id);
+      });
+      rejectButton.title = "رفض الوصل غير الصحيح وإتاحة رفع وصل جديد";
+      actionCell.append(rejectButton);
+    }
     row.append(
       createCell(student.studentName || "—", "payment-student-name"),
       createCell(student.parentPhone || "—"),
       createCell(status),
       createCell(formatTeacherPaymentDate(student.paymentReceiptSubmittedAt)),
-      createCell(viewButton),
+      actionCell,
     );
     tbody.append(row);
   });
@@ -2814,6 +2831,30 @@ async function confirmPaymentReceipt(studentId) {
     if (!/انتهت الجلسة/.test(error.message)) {
       console.error("Unable to confirm payment receipt:", error);
       showDashboardError(error.message || "تعذر تأكيد وصل الدفع.");
+    }
+  }
+}
+
+async function rejectPaymentReceipt(studentId) {
+  const confirmed = window.confirm("هل تريد رفض هذا الوصل وحذفه؟ سيتمكن الولي من إرسال وصل صحيح من جديد.");
+  if (!confirmed) return;
+
+  try {
+    const response = await teacherFetch(
+      `/api/students/${encodeURIComponent(studentId)}/reject-payment-receipt`,
+      { method: "PUT", headers: { Accept: "application/json" } }
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "تعذر رفض وصل الدفع.");
+    }
+
+    showToast(payload.message || "تم رفض الوصل وإتاحة رفع وصل جديد.");
+    await fetchStudents(currentLevel);
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) {
+      console.error("Unable to reject payment receipt:", error);
+      showDashboardError(error.message || "تعذر رفض وصل الدفع.");
     }
   }
 }

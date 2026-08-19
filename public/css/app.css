@@ -876,6 +876,25 @@ body.parent-login-modal-open {
   background: #16a34a;
 }
 
+.payment-receipt-reject-btn {
+  color: #b91c1c;
+  background: #fff1f2;
+  border: 1px solid #fda4af;
+}
+
+.payment-receipt-reject-btn:hover:not(:disabled) {
+  color: #ffffff;
+  background: #dc2626;
+}
+
+.payment-actions-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+}
+
 /* Teacher schedule manager */
 .schedule-manager {
   margin: 1rem 0;
@@ -1541,7 +1560,7 @@ body.parent-login-modal-open {
 .table-action-group button:hover:not(:disabled) { color: var(--primary-blue); background: #eff6ff; transform: translateY(-1px); }
 .table-action-group button.delete-student-btn:hover:not(:disabled) { color: #b91c1c; background: var(--danger-bg); }
 .table-action-group button:disabled { cursor: not-allowed; opacity: .55; }
-.student-document-drive-btn, .payment-receipt-view-btn, .payment-receipt-confirm-btn, .card-reupload-btn, .card-confirm-btn, .card-view-btn { min-height: 2rem; padding: .35rem .55rem; border-radius: var(--border-radius-button); font: inherit; font-size: .68rem; font-weight: 800; cursor: pointer; }
+.student-document-drive-btn, .payment-receipt-view-btn, .payment-receipt-confirm-btn, .payment-receipt-reject-btn, .card-reupload-btn, .card-confirm-btn, .card-view-btn { min-height: 2rem; padding: .35rem .55rem; border-radius: var(--border-radius-button); font: inherit; font-size: .68rem; font-weight: 800; cursor: pointer; }
 .confirm-delete-modal { z-index: 100; background: rgba(17, 24, 39, .6); backdrop-filter: blur(6px); }
 .confirm-delete-card { width: min(100%, 27rem); padding: 2rem 1.5rem 1.35rem; text-align: center; }
 .confirm-delete-icon { display: grid; width: 3.1rem; height: 3.1rem; margin: 0 auto .75rem; place-items: center; color: #b91c1c; border-radius: 50%; background: var(--danger-bg); font-size: 1.5rem; font-weight: 900; }
