@@ -4046,3 +4046,72 @@ body.parent-login-page {
     align-self: flex-start;
   }
 }
+.parent-login-page .auth-secondary-action,
+.force-pin-page .auth-secondary-action {
+  min-height: 2.2rem;
+  padding: .45rem .8rem;
+  color: #1d4ed8;
+  font: inherit;
+  font-size: .82rem;
+  font-weight: 800;
+  border: 1px solid #bfdbfe;
+  border-radius: .62rem;
+  background: #eff6ff;
+  cursor: pointer;
+}
+
+.parent-login-page .auth-secondary-action:hover,
+.force-pin-page .auth-secondary-action:hover {
+  background: #dbeafe;
+}
+
+.parent-login-page .form-success,
+.force-pin-page .form-success {
+  margin: .05rem 0;
+  padding: .5rem .65rem;
+  color: #166534;
+  font-size: .78rem;
+  line-height: 1.45;
+  text-align: center;
+  border-radius: .6rem;
+  background: #dcfce7;
+}
+
+.parent-login-page .form-success.is-error,
+.force-pin-page .form-success.is-error {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.force-pin-page .force-pin-intro {
+  margin: .2rem 0 .75rem;
+  color: #64748b;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.force-pin-page .auth-card {
+  width: min(100%, 520px);
+}
+
+.force-pin-page .stack-form input {
+  direction: ltr;
+  letter-spacing: .2em;
+  text-align: center;
+}
+
+.force-pin-page .stack-form .cta-button {
+  min-height: 2.65rem;
+}
+
+@media (max-width: 560px) {
+  .parent-login-page .auth-secondary-action,
+  .force-pin-page .auth-secondary-action {
+    min-height: 2rem;
+    font-size: .76rem;
+  }
+
+  .force-pin-page .force-pin-intro {
+    font-size: .8rem;
+  }
+}

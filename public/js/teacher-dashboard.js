@@ -87,6 +87,9 @@ const elements = {
   manualPaymentsTableBody: document.getElementById("manual-payments-table-body"),
   manualPaymentsEmpty: document.getElementById("manual-payments-empty"),
   manualPaymentsCount: document.getElementById("manual-payments-count"),
+  forgotPinRequestsTableBody: document.getElementById("forgot-pin-requests-table-body"),
+  forgotPinRequestsEmpty: document.getElementById("forgot-pin-requests-empty"),
+  forgotPinRequestsCount: document.getElementById("forgot-pin-requests-count"),
   cardPreviewModal: document.getElementById("student-card-preview-modal"),
   cardPreviewTitle: document.getElementById("student-card-preview-title"),
   cardPreviewStatus: document.getElementById("student-card-preview-status"),
@@ -212,6 +215,8 @@ let paymentReceiptPreviewRequestId = 0;
 let paymentReceiptPreviewStudentId = null;
 let electronicPayments = [];
 let electronicPaymentsLevel = "";
+let forgotPinRequests = [];
+let forgotPinRequestsLevel = "";
 let pendingDeleteStudentId = null;
 const driveFileUploadInProgress = new Set();
 
@@ -1808,6 +1813,72 @@ async function loadElectronicPayments(level = currentLevel) {
   }
 }
 
+function renderForgotPinRequests(requests = forgotPinRequests) {
+  const rows = Array.isArray(requests) ? requests : [];
+  const tbody = elements.forgotPinRequestsTableBody;
+  if (!tbody) return;
+
+  tbody.replaceChildren();
+  const studentRows = rows.flatMap((request) => (request.students || []).map((student) => ({ request, student })));
+  if (elements.forgotPinRequestsCount) {
+    elements.forgotPinRequestsCount.textContent = `${studentRows.length} طلب`;
+  }
+  if (elements.forgotPinRequestsEmpty) elements.forgotPinRequestsEmpty.hidden = studentRows.length > 0;
+
+  if (!studentRows.length) {
+    appendPaymentEmptyRow(tbody, 4, "لا توجد طلبات استرجاع لهذا المستوى.");
+    return;
+  }
+
+  studentRows.forEach(({ request, student }) => {
+    const row = document.createElement("tr");
+    const issueButton = createButton("إنشاء كلمة مرور مؤقتة", "payment-receipt-view-btn", async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        const response = await teacherFetch(`/api/auth/parent/forgot-requests/${encodeURIComponent(request.id)}/issue`, { method: "PUT", headers: { Accept: "application/json" } });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "تعذر إنشاء كلمة المرور المؤقتة.");
+        const temporaryPin = data.data?.temporaryPin || "";
+        window.alert(`كلمة المرور المؤقتة للحساب ${request.parentPhone}: ${temporaryPin}\\n\\nأعطها لصاحب الحساب هاتفيًا. ستنتهي صلاحيتها خلال 30 دقيقة، وسيُطلب منه تغييرها عند أول دخول.`);
+        await loadForgotPinRequests(currentLevel);
+      } catch (error) {
+        if (!/انتهت الجلسة/.test(error.message)) showDashboardError(error.message || "تعذر إنشاء كلمة المرور المؤقتة.");
+        button.disabled = false;
+      }
+    });
+    issueButton.title = "تُعرض الكلمة المؤقتة مرة واحدة فقط";
+    row.append(
+      createCell(student.studentName || "—", "payment-student-name"),
+      createCell(student.parentPhone || request.parentPhone || "—"),
+      createCell(formatTeacherPaymentDate(request.requestedAt)),
+      createCell(issueButton),
+    );
+    tbody.append(row);
+  });
+}
+
+async function loadForgotPinRequests(level = currentLevel) {
+  const requestedLevel = level;
+  try {
+    const response = await teacherFetch(`/api/auth/parent/forgot-requests?level=${encodeURIComponent(requestedLevel)}`, { headers: { Accept: "application/json" } });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "تعذر تحميل طلبات نسيان كلمة المرور.");
+    if (requestedLevel !== currentLevel) return;
+    forgotPinRequests = Array.isArray(data?.data) ? data.data : [];
+    forgotPinRequestsLevel = requestedLevel;
+    renderForgotPinRequests(forgotPinRequests);
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) {
+      console.error("Unable to fetch forgotten PIN requests:", error);
+      showDashboardError(error.message || "تعذر تحميل طلبات نسيان كلمة المرور.");
+      forgotPinRequests = [];
+      forgotPinRequestsLevel = "";
+      renderForgotPinRequests([]);
+    }
+  }
+}
+
 async function fetchStudents(level = currentLevel) {
   if (!getTeacherToken()) {
     return;
@@ -1837,12 +1908,18 @@ async function fetchStudents(level = currentLevel) {
     currentStudents = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
     electronicPayments = [];
     electronicPaymentsLevel = "";
+    forgotPinRequests = [];
+    forgotPinRequestsLevel = "";
     renderManualPayments(currentStudents);
+    renderForgotPinRequests([]);
     resetScheduleForm();
     await Promise.all([loadLevelSchedule(), loadLessonVideos(), loadAssignments()]);
     applyFilters();
     if (tabFromHash() === "electronic-payments") {
       void loadElectronicPayments(level);
+    }
+    if (tabFromHash() === "forgot-pin-requests") {
+      void loadForgotPinRequests(level);
     }
   } catch (error) {
     if (!/انتهت الجلسة/.test(error.message)) {
@@ -2733,6 +2810,7 @@ const DASHBOARD_TAB_HASHES = {
   quiz: "#quiz-panel",
   "electronic-payments": "#electronic-payments-panel",
   "manual-payments": "#manual-payments-panel",
+  "forgot-pin-requests": "#forgot-pin-requests-panel",
 };
 
 function tabFromHash(hash = window.location.hash) {
@@ -2768,6 +2846,13 @@ function setDashboardTab(tabName, { updateHash = true, focusSearch = false } = {
       renderElectronicPayments(electronicPayments);
     } else {
       void loadElectronicPayments(currentLevel);
+    }
+  }
+  if (tab === "forgot-pin-requests") {
+    if (forgotPinRequestsLevel === currentLevel) {
+      renderForgotPinRequests(forgotPinRequests);
+    } else {
+      void loadForgotPinRequests(currentLevel);
     }
   }
   if (focusSearch) {

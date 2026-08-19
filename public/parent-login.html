@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>دخول الولي | أكاديمية التفوق</title>
   <link rel="stylesheet" href="./css/style.css?v=login-fixed-layout-1" />
-  <link rel="stylesheet" href="./css/app.css?v=login-fixed-layout-1" />
+  <link rel="stylesheet" href="./css/app.css?v=forgot-pin-1" />
 </head>
 <body class="app-shell parent-login-page">
   <main class="auth-layout">
@@ -22,6 +22,8 @@
         <input id="parent-pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="••••" pattern="[0-9]{4}" minlength="4" maxlength="4" required />
         <p id="login-error" class="form-error" hidden aria-live="polite"></p>
         <button class="cta-button cta-secondary" type="submit">دخول</button>
+        <button id="forgot-parent-pin-btn" class="auth-secondary-action" type="button">نسيت كلمة المرور؟</button>
+        <p id="forgot-parent-pin-message" class="form-success" hidden aria-live="polite"></p>
       </form>
       <p class="muted">سجّل حسابًا جديدًا أولًا إذا لم يكن الرقم مسجلًا. للحسابات القديمة: اختر PIN من 4 أرقام عند أول دخول بعد هذا التحديث.</p>
     </section>
@@ -65,6 +67,6 @@
     </div>
   </main>
   <script src="./js/session-storage.js"></script>
-  <script src="./js/parent-login.js?v=login-fixed-layout-1"></script>
+  <script src="./js/parent-login.js?v=forgot-pin-1"></script>
 </body>
 </html>

@@ -17,6 +17,8 @@ const parentLoginModal = document.getElementById("parent-login-modal");
 const parentLoginModalCloseButtons = Array.from(document.querySelectorAll("[data-close-parent-modal]"));
 const parentLoginModalCloseButton = parentLoginModal?.querySelector(".parent-login-modal-close");
 const parentSubmitButton = parentLoginForm?.querySelector("button[type='submit'], input[type='submit']");
+const forgotParentPinButton = document.getElementById("forgot-parent-pin-btn");
+const forgotParentPinMessage = document.getElementById("forgot-parent-pin-message");
 const loginQuery = new URLSearchParams(window.location.search);
 const shouldAutoLogin = loginQuery.get("autologin") === "1";
 
@@ -59,6 +61,40 @@ function closeParentLoginModal() {
   parentLoginModal.hidden = true;
   document.body.classList.remove("parent-login-modal-open");
   parentPhoneInput?.focus();
+}
+
+function setForgotPinMessage(message = "", isError = false) {
+  if (!forgotParentPinMessage) return;
+  forgotParentPinMessage.textContent = message;
+  forgotParentPinMessage.hidden = !message;
+  forgotParentPinMessage.classList.toggle("is-error", isError);
+}
+
+async function requestForgottenParentPin() {
+  setForgotPinMessage();
+  const parentPhone = normalizeDigits(parentPhoneInput?.value, 10);
+  parentPhoneInput.value = parentPhone;
+  if (!isValidParentPhone(parentPhone)) {
+    setForgotPinMessage("أدخل رقم الهاتف المسجل أولًا.", true);
+    parentPhoneInput?.focus();
+    return;
+  }
+
+  forgotParentPinButton.disabled = true;
+  try {
+    const response = await fetch("/api/auth/parent/forgot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ parentPhone }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "تعذر تسجيل الطلب.");
+    setForgotPinMessage(data.message || "تم تسجيل طلبك. سيتواصل معك الأستاذ.");
+  } catch (error) {
+    setForgotPinMessage(error.message || "تعذر تسجيل الطلب.", true);
+  } finally {
+    forgotParentPinButton.disabled = false;
+  }
 }
 
 function setParentSubmitting(isSubmitting) {
@@ -129,7 +165,13 @@ async function handleParentLogin(event) {
     sessionStorage.setItem("parentToken", data.token);
     sessionStorage.setItem("parentPhone", data.parentPhone || parentPhone);
     sessionStorage.setItem("userRole", "parent");
-    window.location.replace("./parent-dashboard.html");
+    if (data.mustChangePin) {
+      sessionStorage.setItem("forceParentPinChange", "1");
+      window.location.replace("./force-pin.html");
+    } else {
+      sessionStorage.removeItem("forceParentPinChange");
+      window.location.replace("./parent-dashboard.html");
+    }
   } catch (error) {
     console.error("Parent JWT login failed:", error);
     setParentLoginError(error.message || "تعذر الاتصال بالخادم. حاول مرة أخرى.");
@@ -137,6 +179,8 @@ async function handleParentLogin(event) {
     setParentSubmitting(false);
   }
 }
+
+forgotParentPinButton?.addEventListener("click", () => void requestForgottenParentPin());
 
 parentLoginModalCloseButtons.forEach((button) => {
   button.addEventListener("click", closeParentLoginModal);
