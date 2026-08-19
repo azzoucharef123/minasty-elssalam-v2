@@ -1947,9 +1947,50 @@ async function loadElectronicPayments(level = currentLevel) {
   }
 }
 
+function requestSofizPayOrderNumber(payment) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "sofizpay-reconcile-overlay";
+    const dialog = document.createElement("div");
+    dialog.className = "sofizpay-reconcile-dialog";
+    const title = document.createElement("h3");
+    title.textContent = "التحقق من معاملة SofizPay";
+    const copy = document.createElement("p");
+    copy.textContent = `أدخل رقم المعاملة للتحقق من الدفع الخاص بـ ${payment?.student?.studentName || "التلميذ"}.`;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.inputMode = "numeric";
+    input.placeholder = "مثال: 4554614174";
+    input.value = payment?.providerOrderNumber || "";
+    input.autocomplete = "off";
+    const actions = document.createElement("div");
+    actions.className = "sofizpay-reconcile-actions";
+    const cancel = createButton("إلغاء", "sofizpay-reconcile-cancel", () => finish(""));
+    const confirm = createButton("تحقق الآن", "sofizpay-reconcile-confirm", () => finish(input.value.trim()));
+    actions.append(cancel, confirm);
+    dialog.append(title, copy, input, actions);
+    overlay.append(dialog);
+    document.body.append(overlay);
+    input.focus();
+
+    function finish(value) {
+      overlay.remove();
+      resolve(value);
+    }
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") finish("");
+      if (event.key === "Enter") finish(input.value.trim());
+    });
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) finish("");
+    });
+  });
+}
+
 async function reconcileElectronicPayment(payment) {
-  const providerOrderNumber = window.prompt("أدخل رقم معاملة SofizPay للتحقق:", payment?.providerOrderNumber || "");
-  if (!providerOrderNumber?.trim()) return;
+  const providerOrderNumber = await requestSofizPayOrderNumber(payment);
+  if (!providerOrderNumber) return;
 
   try {
     const response = await teacherFetch(`/api/payments/teacher/electronic/${encodeURIComponent(payment.id)}/reconcile`, {

@@ -4293,6 +4293,35 @@ body.parent-login-page {
 
 .payment-reconcile-btn:hover:not(:disabled) { color: #fff; background: #2563eb; }
 
+.sofizpay-reconcile-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, .62);
+  backdrop-filter: blur(4px);
+}
+
+.sofizpay-reconcile-dialog {
+  width: min(100%, 28rem);
+  padding: 1.25rem;
+  direction: rtl;
+  background: #fff;
+  border: 1px solid #bfdbfe;
+  border-radius: 1rem;
+  box-shadow: 0 1rem 3rem rgba(15, 23, 42, .25);
+}
+
+.sofizpay-reconcile-dialog h3 { margin: 0; color: #1e3a8a; font-size: 1rem; }
+.sofizpay-reconcile-dialog p { margin: .6rem 0 .9rem; color: #64748b; font-size: .8rem; line-height: 1.6; }
+.sofizpay-reconcile-dialog input { width: 100%; min-height: 2.7rem; padding: .65rem .75rem; direction: ltr; border: 1px solid #93c5fd; border-radius: .65rem; font: inherit; }
+.sofizpay-reconcile-actions { display: flex; gap: .55rem; justify-content: flex-start; margin-top: .9rem; }
+.sofizpay-reconcile-cancel, .sofizpay-reconcile-confirm { min-height: 2.35rem; padding: .45rem .8rem; border-radius: .6rem; font: inherit; font-size: .75rem; font-weight: 800; cursor: pointer; }
+.sofizpay-reconcile-cancel { color: #475569; background: #f1f5f9; border: 1px solid #cbd5e1; }
+.sofizpay-reconcile-confirm { color: #fff; background: #2563eb; border: 1px solid #2563eb; }
+
 .payment-attempt-dismiss-btn {
   min-height: 2.1rem;
   padding: .38rem .62rem;
