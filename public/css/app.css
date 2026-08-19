@@ -4231,3 +4231,21 @@ body.parent-login-page {
 .forgot-pin-call-action:focus-visible {
   background: linear-gradient(135deg, #15803d, #166534);
 }
+
+/* قائمة التلاميذ: عرض الجدول مباشرة دون الإطار العلوي أو زر بدء الحصة */
+.teacher-dashboard-page .teacher-roster.teacher-tab-panel.is-active .roster-heading {
+  display: none;
+}
+
+.teacher-dashboard-page .teacher-roster.teacher-tab-panel.is-active {
+  gap: .4rem;
+  padding: .55rem;
+}
+
+.teacher-dashboard-page .teacher-roster.teacher-tab-panel.is-active .roster-toolbar {
+  margin: 0;
+}
+
+.teacher-dashboard-page .teacher-roster.teacher-tab-panel.is-active .teacher-table-card {
+  margin-top: 0;
+}
