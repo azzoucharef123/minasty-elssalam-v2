@@ -338,13 +338,13 @@
     position: absolute !important;
     top: 52px !important;
     right: 0 !important;
-    bottom: calc(33.3333dvh - 17.3333px) !important;
+    bottom: calc(66.6667dvh - 34.6667px) !important;
     left: auto !important;
     z-index: 20 !important;
     display: flex !important;
     flex-direction: column !important;
     width: 20vw !important;
-    height: calc(66.6667dvh - 34.6667px) !important;
+    height: calc(33.3333dvh - 17.3333px) !important;
     min-width: 0 !important;
     min-height: 0 !important;
     max-height: none !important;
@@ -418,7 +418,7 @@
     justify-content: space-evenly !important;
     align-items: stretch !important;
     width: 20vw !important;
-    height: calc(33.3333dvh - 17.3333px) !important;
+    height: calc(66.6667dvh - 34.6667px) !important;
     min-width: 0 !important;
     min-height: 0 !important;
     max-height: none !important;
