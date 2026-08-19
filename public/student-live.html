@@ -3702,6 +3702,72 @@
       }
       .student-live-page .video-placeholder { z-index: 1; }
       .student-live-page .video-placeholder[hidden] { display: none !important; }
+
+      /* Virtual rotation: use a real flex column inside the rotated surface.
+         This prevents hidden portrait grid rows from contributing to the
+         measured height and cropping the lower part of the teacher display. */
+      @media screen and (max-width: 900px) {
+        html.student-virtual-landscape-mode .viewer-stage {
+          position: fixed !important;
+          top: 50% !important;
+          left: 50% !important;
+          inset: auto !important;
+          display: flex !important;
+          flex-direction: column !important;
+          width: 100vh !important;
+          height: 100vw !important;
+          min-width: 0 !important;
+          min-height: 0 !important;
+          max-width: none !important;
+          max-height: none !important;
+          transform: translate(-50%, -50%) rotate(90deg) !important;
+          transform-origin: center center !important;
+          overflow: hidden !important;
+          background: #000 !important;
+        }
+
+        html.student-virtual-landscape-mode .viewer-header,
+        html.student-virtual-landscape-mode .student-chat-panel,
+        html.student-virtual-landscape-mode .student-mobile-controls {
+          display: none !important;
+        }
+
+        html.student-virtual-landscape-mode .video-frame {
+          flex: 1 1 0 !important;
+          width: 100% !important;
+          height: auto !important;
+          min-width: 0 !important;
+          min-height: 0 !important;
+          max-width: 100% !important;
+          max-height: none !important;
+          overflow: hidden !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+        }
+
+        html.student-virtual-landscape-mode #remote-video,
+        html.student-virtual-landscape-mode #level-welcome-image {
+          display: block !important;
+          width: 100% !important;
+          height: 100% !important;
+          min-width: 0 !important;
+          min-height: 0 !important;
+          max-width: 100% !important;
+          max-height: 100% !important;
+          object-fit: contain !important;
+          object-position: center center !important;
+        }
+
+        html.student-virtual-landscape-mode .viewer-actions-divider {
+          flex: 0 0 1.2cm !important;
+          width: 100% !important;
+          height: 1.2cm !important;
+          min-height: 1.2cm !important;
+          max-height: 1.2cm !important;
+          overflow: hidden !important;
+        }
+      }
       </style>
   </head>
   <body class="student-live-page">
