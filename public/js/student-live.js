@@ -353,6 +353,9 @@ let mobileControlDragState = null;
 let ignoreNextRefreshClick = false;
 let mobileToastTimer = null;
 let studentVirtualLandscapeMode = false;
+let studentRotationRequested = false;
+let captureQuestionOriginalParent = null;
+let captureQuestionOriginalNextSibling = null;
 const studentZoomState = {
   scale: 1,
   translateX: 0,
@@ -483,16 +486,43 @@ function syncStudentZoomToViewport({ reset = false } = {}) {
   applyStudentZoom();
 }
 
+function syncLandscapeCaptureButton(isLandscape) {
+  const captureButton = elements.captureQuestionButton;
+  const toolbar = document.querySelector(".viewer-actions-control-row");
+  const chatActions = document.querySelector(".student-chat-actions");
+  if (!captureButton || !toolbar || !chatActions) return;
+
+  if (isLandscape) {
+    if (!captureQuestionOriginalParent) {
+      captureQuestionOriginalParent = chatActions;
+      captureQuestionOriginalNextSibling = elements.openChatComposeButton || null;
+    }
+    if (captureButton.parentElement !== toolbar) toolbar.append(captureButton);
+    return;
+  }
+
+  if (captureButton.parentElement === toolbar) {
+    if (captureQuestionOriginalNextSibling?.parentElement === chatActions) {
+      chatActions.insertBefore(captureButton, captureQuestionOriginalNextSibling);
+    } else {
+      chatActions.append(captureButton);
+    }
+  }
+  captureQuestionOriginalParent = null;
+  captureQuestionOriginalNextSibling = null;
+}
+
 function updateRotationControls() {
   // Use the current viewport as the source of truth. In some Chrome emulator
   // sessions screen.orientation.type can remain stale after a prior target.
   const nativeLandscape = window.matchMedia?.("(orientation: landscape)").matches || false;
   const isLandscape = nativeLandscape || studentVirtualLandscapeMode;
-  const wasLandscape = document.documentElement.classList.contains("student-landscape-mode");
+  const showUnrotate = Boolean(studentRotationRequested && isLandscape);
   if (elements.rotateButton) elements.rotateButton.hidden = isLandscape;
-  if (elements.unrotateButton) elements.unrotateButton.hidden = !isLandscape;
-  if (elements.centerRotateButton) elements.centerRotateButton.hidden = isLandscape;
-  if (elements.centerUnrotateButton) elements.centerUnrotateButton.hidden = !isLandscape;
+  if (elements.unrotateButton) elements.unrotateButton.hidden = !showUnrotate;
+  if (elements.centerRotateButton) elements.centerRotateButton.hidden = showUnrotate;
+  if (elements.centerUnrotateButton) elements.centerUnrotateButton.hidden = !showUnrotate;
+  syncLandscapeCaptureButton(showUnrotate);
   document.documentElement.classList.toggle("student-landscape-mode", isLandscape);
   document.documentElement.classList.toggle("student-virtual-landscape-mode", studentVirtualLandscapeMode);
   document.body.classList.toggle("hide-ui-for-rotation", studentVirtualLandscapeMode);
@@ -677,11 +707,13 @@ async function lockStudentOrientation(orientation) {
 }
 
 async function rotateStudentScreen() {
+  studentRotationRequested = true;
   await lockStudentOrientation("landscape");
 }
 
 async function unrotateStudentScreen() {
   try {
+    studentRotationRequested = false;
     studentVirtualLandscapeMode = false;
     document.documentElement.classList.remove("student-virtual-landscape-mode");
     document.body.classList.remove("hide-ui-for-rotation");
