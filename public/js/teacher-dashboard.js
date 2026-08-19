@@ -68,6 +68,7 @@ const elements = {
   overviewPromisedCount: document.getElementById("overview-promised-count"),
   overviewPendingReceipts: document.getElementById("overview-pending-receipts"),
   overviewPaymentAttempts: document.getElementById("overview-payment-attempts"),
+  overviewForgotPin: document.getElementById("overview-forgot-pin"),
   overviewClassTitle: document.getElementById("overview-class-title"),
   overviewClassCopy: document.getElementById("overview-class-copy"),
   bentoCurrentLevel: document.getElementById("bento-current-level"),
@@ -1724,6 +1725,7 @@ function updateBentoInsights(studentsArray = currentStudents) {
   if (elements.overviewPromisedCount) elements.overviewPromisedCount.textContent = String(promised.length);
   if (elements.overviewPendingReceipts) elements.overviewPendingReceipts.textContent = String(pendingReceipts.length);
   if (elements.overviewPaymentAttempts) elements.overviewPaymentAttempts.textContent = String(paymentAttempts);
+  if (elements.overviewForgotPin) elements.overviewForgotPin.textContent = String(forgotPinRequests.length);
   if (elements.bentoTotalCaption) elements.bentoTotalCaption.textContent = total ? `${total} تلميذ في العرض` : "بانتظار التلاميذ";
   if (elements.paymentProgressBar) elements.paymentProgressBar.style.width = `${paymentRate}%`;
   if (elements.paymentProgressCaption) elements.paymentProgressCaption.textContent = total ? `${paid.length} مدفوع، ${promised.length} وعد بالدفع، ${unpaid.length} دون دفع` : "ستظهر حالة الاشتراكات بعد تحميل القائمة.";
@@ -2079,7 +2081,7 @@ async function fetchStudents(level = currentLevel) {
     renderManualPayments(currentStudents);
     renderForgotPinRequests([]);
     resetScheduleForm();
-    await Promise.all([loadLevelSchedule(), loadLessonVideos(), loadAssignments(), loadElectronicPayments(level)]);
+    await Promise.all([loadLevelSchedule(), loadLessonVideos(), loadAssignments(), loadElectronicPayments(level), loadForgotPinRequests(level, { silent: true })]);
     updateBentoInsights(currentStudents);
     applyFilters();
     if (tabFromHash() === "electronic-payments") {
