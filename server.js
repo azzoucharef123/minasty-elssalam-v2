@@ -2156,8 +2156,11 @@ io.on("connection", (socket) => {
     const { role, level, name } = user;
 
     if (role === "student") {
-      setStudentMicrophoneOpen(level, socket.id, false);
-      setStudentWhiteboardAccess(level, socket.id, false);
+      // Global FREE classes keep the student's academic level in `level` but
+      // use classroomLevel="FREE" for the actual teacher room.
+      const classroomLevel = user.classroomLevel || socket.data.roomLevel || level;
+      setStudentMicrophoneOpen(classroomLevel, socket.id, false);
+      setStudentWhiteboardAccess(classroomLevel, socket.id, false);
 
       // Record final attendance duration for this session
       const attendanceId = socket.data.attendanceId;
@@ -2176,21 +2179,21 @@ io.on("connection", (socket) => {
       if (socket.data.micStartedAt) {
         const micDurationSeconds = Math.floor((Date.now() - socket.data.micStartedAt) / 1000);
         if (micDurationSeconds >= 10) {
-          const teacherSocketId = activeTeachersByLevel.get(level);
+          const teacherSocketId = activeTeachersByLevel.get(classroomLevel);
           const teacherSocket = teacherSocketId ? io.sockets.sockets.get(teacherSocketId) : null;
           const sessionKey = teacherSocket?.data?.classResumeToken;
           if (sessionKey) {
             void recordClassParticipation({
               studentId: socket.data.studentId,
               level: socket.data.studentAcademicLevel || level,
-              subject: activeSubjectByLevel.get(level),
+              subject: activeSubjectByLevel.get(classroomLevel),
               sessionKey,
             }).catch(err => console.error("Failed to record final mic participation on disconnect:", err));
           }
         }
       }
 
-      const teacherSocketId = activeTeachersByLevel.get(level);
+      const teacherSocketId = activeTeachersByLevel.get(classroomLevel);
       const teacherSocket = teacherSocketId
         ? io.sockets.sockets.get(teacherSocketId)
         : null;
