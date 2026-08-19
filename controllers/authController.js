@@ -230,6 +230,37 @@ async function revokeSession(req, res) {
   return res.json({ status: "success" });
 }
 
+async function revokeOtherSessions(req, res) {
+  const now = new Date();
+  const currentSessionId = req.user?.sessionId;
+  const result = await prisma.session.updateMany({
+    where: {
+      ...sessionOwnerWhere(req),
+      revokedAt: null,
+      expiresAt: { gt: now },
+      ...(currentSessionId ? { NOT: { tokenId: currentSessionId } } : {}),
+    },
+    data: { revokedAt: now },
+  });
+
+  void prisma.auditLog.create({
+    data: {
+      actorRole: req.user?.role || "unknown",
+      actorId: currentSessionId || null,
+      action: "OTHER_SESSIONS_REVOKED",
+      entityType: "Session",
+      entityId: null,
+      metadata: JSON.stringify({ revokedCount: result.count }),
+    },
+  }).catch(() => {});
+
+  return res.json({
+    status: "success",
+    revokedCount: result.count,
+    message: result.count ? "تم تسجيل الخروج من جميع الجلسات الأخرى." : "لا توجد جلسات أخرى مفتوحة.",
+  });
+}
+
 async function changeParentPin(req, res) {
   if (req.user?.role !== "parent" || !req.user.phone) return res.status(403).json({ error: "هذه العملية متاحة للولي فقط." });
 
@@ -430,6 +461,7 @@ module.exports = {
   logout,
   listSessions,
   revokeSession,
+  revokeOtherSessions,
   changeParentPin,
   requestParentPinReset,
   listParentPinResetRequests,

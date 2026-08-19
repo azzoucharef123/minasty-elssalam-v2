@@ -5,6 +5,7 @@ const {
   logout,
   listSessions,
   revokeSession,
+  revokeOtherSessions,
   changeParentPin,
   requestParentPinReset,
   listParentPinResetRequests,
@@ -22,6 +23,7 @@ router.get("/parent/forgot-requests", verifyToken, isTeacher, listParentPinReset
 router.put("/parent/forgot-requests/:id/issue", verifyToken, isTeacher, issueTemporaryParentPin);
 router.post("/logout", verifyToken, logout);
 router.get("/sessions", verifyToken, listSessions);
+router.delete("/sessions/others", verifyToken, revokeOtherSessions);
 router.delete("/sessions/:id", verifyToken, revokeSession);
 router.put("/parent/pin", verifyToken, changeParentPin);
 
