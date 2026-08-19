@@ -76,6 +76,8 @@ const elements = {
   placeholderDescription: document.getElementById("placeholder-description"),
   levelWelcomeImage: document.getElementById("level-welcome-image"),
   classLevelLabel: document.getElementById("class-level-label"),
+  classSubjectLabel: document.getElementById("class-subject-label"),
+  exitClassButton: document.getElementById("student-exit-class-btn"),
   liveStartNotice: document.getElementById("live-start-notice"),
   liveStartNoticeCopy: document.getElementById("live-start-notice-copy"),
   participationCount: document.getElementById("student-participation-count"),
@@ -292,6 +294,7 @@ function showLiveStartNotice(data = {}, resumed = false) {
 
   const levelLabel = data.globalFree ? "لجميع المستويات" : getLiveLevelLabel(data.level);
   const subjectLabel = data.subjectLabel || getLiveSubjectLabel(data.subject);
+  if (elements.classSubjectLabel) elements.classSubjectLabel.textContent = subjectLabel;
   elements.liveStartNoticeCopy.textContent = data.globalFree
     ? (resumed ? "استؤنفت الحصة المجانية الآن — ادخل للحصة" : "بدأت الحصة المجانية الآن — ادخل للحصة")
     : resumed
@@ -306,6 +309,24 @@ function hideLiveStartNotice() {
   if (!elements.liveStartNotice) return;
   elements.liveStartNotice.classList.remove("is-visible");
   elements.liveStartNotice.hidden = true;
+}
+
+function exitLiveClass() {
+  initialAutoJoinPending = false;
+  waitingForNextClass = true;
+  joinedClass = false;
+  sessionStorage.removeItem("joinLiveClassImmediately");
+  try {
+    localAudioStream?.getTracks().forEach((track) => track.stop());
+  } catch {
+    // The browser may have already released the local stream.
+  }
+  try {
+    socket.disconnect();
+  } catch {
+    // Navigation below still completes the exit.
+  }
+  window.location.replace("./parent-dashboard.html");
 }
 
 function refreshAudioVideo() {
@@ -2423,6 +2444,8 @@ if (!studentId || !studentName || !level) {
     "طالب جامعي": "طالب جامعي",
   };
   elements.classLevelLabel.textContent = levelDisplayLabels[level] || level;
+  if (elements.classSubjectLabel) elements.classSubjectLabel.textContent = "المادة";
+  elements.exitClassButton?.addEventListener("click", exitLiveClass);
   setLevelWelcomeImage();
   setPlaceholder("جاري تجهيز الدخول إلى الحصة", "ستظهر صورة مستواك وصوت الأستاذ بعد إكمال فحص الميكروفون.");
   updateMicControl();

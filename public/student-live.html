@@ -3606,6 +3606,86 @@
         html.student-landscape-mode .viewer-header,
         html.student-virtual-landscape-mode .viewer-header { display: none !important; }
       }
+
+      /* Final phone arrangement requested by the learner. */
+      @media screen and (max-width: 900px) and (orientation: portrait) {
+        .viewer-header {
+          display: flex !important;
+          flex-direction: row !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 100% !important;
+          height: 3.65rem !important;
+          min-height: 3.65rem !important;
+          padding: .42rem .45rem !important;
+          gap: .28rem !important;
+          direction: rtl !important;
+        }
+        .viewer-brand,
+        .viewer-header .live-start-notice,
+        .viewer-header .message-bell { display: none !important; }
+        .viewer-level,
+        .viewer-subject,
+        .student-participation-count {
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          min-width: 0 !important;
+          max-width: none !important;
+          height: 2.35rem !important;
+          min-height: 2.35rem !important;
+          padding: .25rem .32rem !important;
+          overflow: hidden !important;
+          border-radius: .62rem !important;
+          font-size: clamp(.54rem, 2.2vw, .7rem) !important;
+          font-weight: 900 !important;
+          line-height: 1.15 !important;
+          text-align: center !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+        }
+        .viewer-level { flex: 1.35 1 0 !important; }
+        .viewer-subject { flex: 1 1 0 !important; color: #dbeafe !important; background: rgba(30, 64, 175, .55) !important; border: 1px solid rgba(147, 197, 253, .35) !important; }
+        .student-participation-count { flex: .9 1 0 !important; }
+        .student-exit-class-button {
+          display: inline-grid !important;
+          width: 2.35rem !important;
+          height: 2.35rem !important;
+          min-width: 2.35rem !important;
+          min-height: 2.35rem !important;
+          place-items: center !important;
+          padding: 0 !important;
+          color: #fff1f2 !important;
+          background: #dc2626 !important;
+          border: 1px solid #fca5a5 !important;
+          border-radius: .62rem !important;
+          box-shadow: 0 4px 10px rgba(127, 29, 29, .35) !important;
+          font-size: .95rem !important;
+          font-weight: 1000 !important;
+          line-height: 1 !important;
+          cursor: pointer !important;
+          touch-action: manipulation !important;
+        }
+        .student-exit-class-button:active { transform: scale(.94); }
+        .student-exit-class-button:focus-visible { outline: 3px solid #fecaca; outline-offset: 2px; }
+
+        .viewer-stage {
+          grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) 3.25rem !important;
+          grid-template-areas: "video" "chat" "divider" !important;
+          height: calc(100svh - 3.65rem) !important;
+          overflow: hidden !important;
+        }
+        .video-frame { grid-area: video !important; height: 100% !important; min-height: 0 !important; aspect-ratio: auto !important; }
+        .student-chat-panel { grid-area: chat !important; height: 100% !important; min-height: 0 !important; max-height: none !important; }
+        .viewer-actions-divider {
+          grid-area: divider !important;
+          height: 3.25rem !important;
+          min-height: 3.25rem !important;
+          max-height: 3.25rem !important;
+          padding: .25rem .45rem !important;
+        }
+        .viewer-actions-control-row { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+      }
       </style>
   </head>
   <body class="student-live-page">
@@ -3662,6 +3742,8 @@
           <span id="live-start-notice-copy" class="live-start-notice-copy">بدأت الحصة الآن</span>
         </div>
         <span id="student-participation-count" class="student-participation-count" dir="rtl" lang="ar" aria-live="polite">مشاركاتي: 0</span>
+        <span id="class-subject-label" class="viewer-subject" dir="rtl" lang="ar">المادة</span>
+        <button id="student-exit-class-btn" class="student-exit-class-button" type="button" aria-label="الخروج من الحصة" title="الخروج من الحصة">X</button>
         <a class="message-bell" data-message-bell href="./student-chat.html" target="_blank" rel="noopener" aria-label="مراسلتي مع الأستاذ"><span aria-hidden="true">✉</span><b data-message-badge hidden>0</b></a>
       </header>
 
@@ -3732,7 +3814,7 @@
               <span aria-hidden="true">▣</span><span>تصوير</span>
             </button>
             <button id="open-chat-compose-btn" class="student-chat-message-button" type="button" disabled aria-label="إرسال رسالة">
-              <span aria-hidden="true">✉</span><span>إرسال رسالة</span>
+              <span aria-hidden="true">✉</span><span>إرسال</span>
             </button>
           </div>
           <div id="chat-compose-modal" class="chat-compose-modal" role="dialog" aria-modal="true" aria-labelledby="chat-compose-title" hidden>
@@ -3792,7 +3874,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/student-live.js?v=rotate-pan-12"></script>
+    <script src="./js/student-live.js?v=phone-layout-1"></script>
   <script src="./js/in-app-browser-gate.js?v=telegram-gate-2" defer></script>
   </body>
 </html>
