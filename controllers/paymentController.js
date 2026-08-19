@@ -166,7 +166,17 @@ async function verifyTransaction(transaction) {
   const { response, payload } = await fetchJson(checkUrl.toString());
 
   if (!response.ok || payload?.error) return { transaction, verified: false, pending: true, providerPayload: payload };
-  if (!providerPaymentAccepted(payload, transaction)) return { transaction, verified: false, pending: false, failed: true, providerPayload: payload };
+  if (!providerPaymentAccepted(payload, transaction)) {
+    const failedTransaction = await prisma.paymentTransaction.update({
+      where: { id: transaction.id },
+      data: {
+        status: "FAILED",
+        providerPayload: safeJson(payload),
+        verifiedAt: new Date(),
+      },
+    });
+    return { transaction: failedTransaction, verified: false, pending: false, failed: true, providerPayload: payload };
+  }
 
   const updated = await activatePaidTransaction(transaction, payload);
   return { transaction: updated, verified: true, pending: false, providerPayload: payload };
@@ -190,6 +200,9 @@ async function startSofizPayPayment(req, res) {
       orderBy: { createdAt: "desc" },
     });
     if (recent?.paymentUrl) {
+      if (recent.teacherDismissedAt) {
+        await prisma.paymentTransaction.update({ where: { id: recent.id }, data: { teacherDismissedAt: null } });
+      }
       return res.json({ status: "success", data: { paymentUrl: recent.paymentUrl, internalOrderId: recent.internalOrderId, amount: recent.amount, subscriptionType, reused: true } });
     }
 
@@ -250,10 +263,11 @@ async function getTeacherElectronicPayments(req, res) {
 
     const transactions = await prisma.paymentTransaction.findMany({
       where: {
-        status: "PAID",
+        teacherDismissedAt: null,
+        status: { in: ["PAID", "PENDING", "FAILED"] },
         student: { level },
       },
-      orderBy: [{ paidAt: "desc" }, { updatedAt: "desc" }],
+      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
       select: {
         id: true,
         studentId: true,
@@ -266,6 +280,7 @@ async function getTeacherElectronicPayments(req, res) {
         paidAt: true,
         verifiedAt: true,
         createdAt: true,
+        updatedAt: true,
         student: {
           select: {
             id: true,
@@ -279,10 +294,33 @@ async function getTeacherElectronicPayments(req, res) {
       },
     });
 
-    return res.json({ status: "success", data: transactions });
+    const summary = {
+      total: transactions.length,
+      successful: transactions.filter((transaction) => transaction.status === "PAID").length,
+      attempts: transactions.filter((transaction) => transaction.status !== "PAID").length,
+    };
+    return res.json({ status: "success", data: transactions, summary });
   } catch (error) {
     console.error("Teacher electronic payments lookup failed:", error);
     return res.status(500).json({ error: "تعذر تحميل الدفعات الإلكترونية حالياً." });
+  }
+}
+
+async function dismissTeacherElectronicPayment(req, res) {
+  try {
+    const transactionId = text(req.params?.id, 80);
+    const transaction = await prisma.paymentTransaction.findUnique({ where: { id: transactionId }, select: { id: true, status: true } });
+    if (!transaction) return res.status(404).json({ error: "محاولة الدفع غير موجودة." });
+    if (transaction.status === "PAID") return res.status(400).json({ error: "لا يمكن حذف إشعار دفعة ناجحة من السجل." });
+
+    await prisma.paymentTransaction.update({
+      where: { id: transaction.id },
+      data: { teacherDismissedAt: new Date() },
+    });
+    return res.json({ status: "success", message: "تم حذف إشعار محاولة الدفع." });
+  } catch (error) {
+    console.error("Teacher electronic payment dismissal failed:", error);
+    return res.status(500).json({ error: "تعذر حذف إشعار محاولة الدفع حالياً." });
   }
 }
 
@@ -304,5 +342,6 @@ module.exports = {
   startSofizPayPayment,
   getSofizPayPaymentStatus,
   getTeacherElectronicPayments,
+  dismissTeacherElectronicPayment,
   receiveSofizPayWebhook,
 };

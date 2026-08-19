@@ -84,6 +84,8 @@ const elements = {
   electronicPaymentsTableBody: document.getElementById("electronic-payments-table-body"),
   electronicPaymentsEmpty: document.getElementById("electronic-payments-empty"),
   electronicPaymentsCount: document.getElementById("electronic-payments-count"),
+  electronicPaymentsSuccessCount: document.getElementById("electronic-payments-success-count"),
+  electronicPaymentsAttemptCount: document.getElementById("electronic-payments-attempt-count"),
   manualPaymentsTableBody: document.getElementById("manual-payments-table-body"),
   manualPaymentsEmpty: document.getElementById("manual-payments-empty"),
   manualPaymentsCount: document.getElementById("manual-payments-count"),
@@ -1707,6 +1709,11 @@ function teacherPaymentCountLabel(count) {
   return `${value} ${value === 1 ? "تلميذ" : "تلاميذ"}`;
 }
 
+function teacherPaymentOperationCountLabel(count) {
+  const value = Number(count) || 0;
+  return `${value} ${value === 1 ? "عملية" : "عمليات"}`;
+}
+
 function electronicSubscriptionLabel(type) {
   return type === "BOTH"
     ? "الرياضيات والفيزياء"
@@ -1776,32 +1783,60 @@ function renderManualPayments(studentsArray = currentStudents) {
   });
 }
 
-function renderElectronicPayments(payments = electronicPayments) {
+function electronicPaymentStatusMeta(status) {
+  if (status === "PAID") return { label: "الدفع ناجح", className: "is-paid" };
+  if (status === "FAILED") return { label: "فشل الدفع", className: "is-failed" };
+  return { label: "حاول الدفع ولم يكتمل", className: "is-attempt" };
+}
+
+function renderElectronicPayments(payments = electronicPayments, summary = null) {
   const rows = Array.isArray(payments) ? payments : [];
   const tbody = elements.electronicPaymentsTableBody;
   if (!tbody) return;
 
+  const successfulCount = Number(summary?.successful ?? rows.filter((payment) => payment.status === "PAID").length);
+  const attemptCount = Number(summary?.attempts ?? rows.filter((payment) => payment.status !== "PAID").length);
   tbody.replaceChildren();
-  if (elements.electronicPaymentsCount) {
-    elements.electronicPaymentsCount.textContent = teacherPaymentCountLabel(rows.length);
-  }
+  if (elements.electronicPaymentsCount) elements.electronicPaymentsCount.textContent = teacherPaymentOperationCountLabel(rows.length);
+  if (elements.electronicPaymentsSuccessCount) elements.electronicPaymentsSuccessCount.textContent = `${successfulCount} ناجحة`;
+  if (elements.electronicPaymentsAttemptCount) elements.electronicPaymentsAttemptCount.textContent = `${attemptCount} محاولة`;
   if (elements.electronicPaymentsEmpty) elements.electronicPaymentsEmpty.hidden = rows.length > 0;
 
   if (!rows.length) {
-    appendPaymentEmptyRow(tbody, 6, "لا توجد دفعات إلكترونية مؤكدة لهذا المستوى.");
+    appendPaymentEmptyRow(tbody, 8, "لا توجد دفعات أو محاولات دفع إلكترونية لهذا المستوى.");
     return;
   }
 
   rows.forEach((payment) => {
     const student = payment.student || {};
     const row = document.createElement("tr");
+    const statusMeta = electronicPaymentStatusMeta(payment.status);
+    const status = document.createElement("span");
+    status.className = `payment-status-badge ${statusMeta.className}`;
+    status.textContent = statusMeta.label;
+    const actionCell = document.createElement("td");
+    actionCell.className = "payment-actions-cell";
+    if (payment.status !== "PAID") {
+      const dismissButton = createButton("حذف الإشعار", "payment-attempt-dismiss-btn", () => {
+        void dismissElectronicPayment(payment.id);
+      });
+      dismissButton.title = "حذف إشعار محاولة الدفع بعد الاطلاع عليه";
+      actionCell.append(dismissButton);
+    } else {
+      const retained = document.createElement("span");
+      retained.className = "payment-retained-label";
+      retained.textContent = "سجل محفوظ";
+      actionCell.append(retained);
+    }
     row.append(
       createCell(student.studentName || "—", "payment-student-name"),
       createCell(student.parentPhone || "—"),
       createCell(electronicSubscriptionLabel(payment.subscriptionType)),
       createCell(`${Number(payment.amount || 0).toLocaleString("ar-DZ")} ${payment.currency || "DZD"}`),
+      createCell(status),
       createCell(formatTeacherPaymentDate(payment.paidAt || payment.verifiedAt || payment.createdAt)),
       createCell(payment.providerOrderNumber || payment.internalOrderId || "—", "payment-muted"),
+      actionCell,
     );
     tbody.append(row);
   });
@@ -1819,7 +1854,7 @@ async function loadElectronicPayments(level = currentLevel) {
     if (requestedLevel !== currentLevel) return;
     electronicPayments = Array.isArray(data?.data) ? data.data : [];
     electronicPaymentsLevel = requestedLevel;
-    renderElectronicPayments(electronicPayments);
+    renderElectronicPayments(electronicPayments, data?.summary);
   } catch (error) {
     if (!/انتهت الجلسة/.test(error.message)) {
       console.error("Unable to fetch electronic payments:", error);
@@ -1827,6 +1862,27 @@ async function loadElectronicPayments(level = currentLevel) {
       electronicPayments = [];
       electronicPaymentsLevel = "";
       renderElectronicPayments([]);
+    }
+  }
+}
+
+async function dismissElectronicPayment(transactionId) {
+  const confirmed = window.confirm("هل تريد حذف إشعار محاولة الدفع هذه؟ لن يُحذف حساب التلميذ ولن تتأثر أي بيانات أخرى.");
+  if (!confirmed) return;
+
+  try {
+    const response = await teacherFetch(`/api/payments/teacher/electronic/${encodeURIComponent(transactionId)}`, {
+      method: "DELETE",
+      headers: { Accept: "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر حذف إشعار محاولة الدفع.");
+    showToast(payload.message || "تم حذف إشعار محاولة الدفع.");
+    await loadElectronicPayments(currentLevel);
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) {
+      console.error("Unable to dismiss electronic payment attempt:", error);
+      showDashboardError(error.message || "تعذر حذف إشعار محاولة الدفع.");
     }
   }
 }

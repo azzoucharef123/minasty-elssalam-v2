@@ -4,6 +4,7 @@ const {
   startSofizPayPayment,
   getSofizPayPaymentStatus,
   getTeacherElectronicPayments,
+  dismissTeacherElectronicPayment,
   receiveSofizPayWebhook,
 } = require("../controllers/paymentController");
 
@@ -14,6 +15,7 @@ router.post("/sofizpay/webhook", express.json({ limit: "64kb" }), receiveSofizPa
 
 // Teacher-only view of confirmed electronic payments, filtered by academic level.
 router.get("/teacher/electronic", verifyToken, isTeacher, getTeacherElectronicPayments);
+router.delete("/teacher/electronic/:id", verifyToken, isTeacher, dismissTeacherElectronicPayment);
 
 // The parent must own the student and the server verifies payment before access changes.
 router.post("/sofizpay/start", verifyToken, startSofizPayPayment);

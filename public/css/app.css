@@ -4249,3 +4249,51 @@ body.parent-login-page {
 .teacher-dashboard-page .teacher-roster.teacher-tab-panel.is-active .teacher-table-card {
   margin-top: 0;
 }
+
+/* الدفعات الإلكترونية: نجاح العملية ومحاولات الدفع غير المكتملة */
+.teacher-electronic-summary {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
+
+.electronic-summary-success,
+.electronic-summary-attempts {
+  display: inline-flex;
+  min-height: 1.9rem;
+  align-items: center;
+  padding: .35rem .6rem;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.electronic-summary-success { color: #166534; background: #dcfce7; border: 1px solid #86efac; }
+.electronic-summary-attempts { color: #92400e; background: #fef3c7; border: 1px solid #fcd34d; }
+
+.payment-status-badge.is-failed { color: #991b1b; background: #fee2e2; border-color: #fca5a5; }
+.payment-status-badge.is-attempt { color: #92400e; background: #fef3c7; border-color: #fcd34d; }
+.payment-status-badge.is-paid { color: #166534; background: #dcfce7; border-color: #86efac; }
+
+.payment-attempt-dismiss-btn {
+  min-height: 2.1rem;
+  padding: .38rem .62rem;
+  color: #991b1b;
+  background: #fff1f2;
+  border: 1px solid #fda4af;
+  border-radius: var(--border-radius-button);
+  font: inherit;
+  font-size: .67rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.payment-attempt-dismiss-btn:hover:not(:disabled) { color: #fff; background: #dc2626; }
+.payment-retained-label { color: #166534; font-size: .65rem; font-weight: 800; white-space: nowrap; }
+
+@media (max-width: 720px) {
+  .teacher-electronic-summary { order: 3; width: 100%; }
+  .teacher-payments-heading { flex-wrap: wrap; }
+}

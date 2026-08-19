@@ -182,6 +182,7 @@ model PaymentTransaction {
   updatedAt             DateTime @updatedAt
   paidAt                DateTime?
   verifiedAt            DateTime?
+  teacherDismissedAt    DateTime?
   student               Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId, createdAt(sort: Desc)])
