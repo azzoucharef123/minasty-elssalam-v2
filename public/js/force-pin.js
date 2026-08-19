@@ -4,7 +4,6 @@ const errorElement = document.getElementById("force-pin-error");
 const successElement = document.getElementById("force-pin-success");
 const submitButton = document.getElementById("force-pin-submit");
 const inputs = [
-  document.getElementById("current-pin"),
   document.getElementById("new-pin"),
   document.getElementById("confirm-pin"),
 ];
@@ -28,11 +27,11 @@ async function changeTemporaryPin(event) {
   showMessage(errorElement);
   showMessage(successElement);
 
-  const [currentPin, newPin, confirmPin] = inputs.map((input) => normalizePin(input.value));
-  inputs.forEach((input, index) => { input.value = [currentPin, newPin, confirmPin][index]; });
+  const [newPin, confirmPin] = inputs.map((input) => normalizePin(input.value));
+  inputs.forEach((input, index) => { input.value = [newPin, confirmPin][index]; });
 
-  if (!/^\d{4}$/.test(currentPin) || !/^\d{4}$/.test(newPin) || newPin !== confirmPin) {
-    showMessage(errorElement, "أدخل كلمات مرور من أربعة أرقام، وتأكد من تطابق الكلمة الجديدة.");
+  if (!/^\d{4}$/.test(newPin) || newPin !== confirmPin) {
+    showMessage(errorElement, "أدخل كلمة مرور جديدة من أربعة أرقام، وتأكد من تطابقها مع التأكيد.");
     return;
   }
 
@@ -47,7 +46,7 @@ async function changeTemporaryPin(event) {
     const response = await fetch("/api/auth/parent/pin", {
       method: "PUT",
       headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ currentPin, newPin, confirmPin }),
+      body: JSON.stringify({ newPin, confirmPin }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "تعذر تغيير كلمة المرور.");

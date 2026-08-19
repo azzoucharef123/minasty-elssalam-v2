@@ -232,12 +232,26 @@ async function revokeSession(req, res) {
 
 async function changeParentPin(req, res) {
   if (req.user?.role !== "parent" || !req.user.phone) return res.status(403).json({ error: "هذه العملية متاحة للولي فقط." });
-  const currentPin = normalizeParentPin(req.body?.currentPin);
+
   const newPin = normalizeParentPin(req.body?.newPin);
   const confirmPin = normalizeParentPin(req.body?.confirmPin);
-  if (!currentPin || !newPin || newPin !== confirmPin) return res.status(400).json({ error: "أدخل PIN الحالي وPIN جديدًا مطابقًا للتأكيد." });
+  if (!newPin || newPin !== confirmPin) {
+    return res.status(400).json({ error: "أدخل PIN جديدًا مطابقًا للتأكيد." });
+  }
+
   const credential = await prisma.parentCredential.findUnique({ where: { parentPhone: req.user.phone } });
-  if (!credential || !(await verifyParentPin(currentPin, credential.pinHash))) return res.status(401).json({ error: "PIN الحالي غير صحيح." });
+  if (!credential) return res.status(404).json({ error: "الحساب غير موجود." });
+
+  // After a successful temporary-PIN login, the authenticated session is sufficient
+  // to establish identity for the forced change. Regular PIN changes still require
+  // verification of the current PIN.
+  if (!credential.mustChangePin) {
+    const currentPin = normalizeParentPin(req.body?.currentPin);
+    if (!currentPin || !(await verifyParentPin(currentPin, credential.pinHash))) {
+      return res.status(401).json({ error: "PIN الحالي غير صحيح." });
+    }
+  }
+
   await prisma.parentCredential.update({
     where: { parentPhone: req.user.phone },
     data: {
