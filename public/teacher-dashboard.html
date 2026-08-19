@@ -9,7 +9,7 @@
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
 <link href="./css/style.css?v=homework-paste-1" rel="stylesheet"/>
-<link href="./css/app.css?v=roster-payment-order-1" rel="stylesheet"/>
+<link href="./css/app.css?v=overview-command-center-1" rel="stylesheet"/>
 <link href="./css/private-messages.css" rel="stylesheet"/>
 <link href="./css/payment-feedback.css" rel="stylesheet"/>
 </head>
@@ -62,13 +62,18 @@
 </div>
 </header>
 <main class="teacher-workspace">
-<section aria-labelledby="teacher-dashboard-title" class="teacher-welcome teacher-tab-panel" data-dashboard-panel="overview" id="overview">
-<div>
-<p class="eyebrow">لوحة التحكم الذكية</p>
-<h1 id="teacher-dashboard-title">إدارة أكاديميتك من مكان واحد</h1>
-<p>تابع التلاميذ والاشتراكات وصلاحيات الحصص المباشرة بوضوح وسرعة.</p>
+<section aria-labelledby="teacher-dashboard-title" class="teacher-welcome teacher-tab-panel overview-context-bar" data-dashboard-panel="overview" id="overview">
+<div class="overview-context-copy">
+<p class="eyebrow">لوحة قيادة الأكاديمية</p>
+<h1 id="teacher-dashboard-title">أكاديمية التفوق في أرقام واضحة</h1>
+<p>مؤشرات المستوى المختار، المداخيل المؤكدة، والتنبيهات التي تحتاج انتباهك اليوم.</p>
 </div>
-<div class="welcome-side"><span class="dashboard-date" id="dashboard-date"></span><a class="welcome-live-cta" href="./teacher-live.html">بدء حصة مباشرة <span aria-hidden="true">←</span></a></div>
+<div class="overview-context-meta">
+<span class="overview-academy-label">أكاديمية التفوق للفيزياء والرياضيات</span>
+<strong id="overview-selected-level">السنة الأولى متوسط</strong>
+<span class="dashboard-date" id="dashboard-date"></span>
+<span class="overview-class-state" id="overview-class-state">الحصة غير مفتوحة</span>
+</div>
 </section>
 <p class="form-error teacher-dashboard-error" hidden="" id="dashboard-error"></p>
 <nav aria-label="اختيار المستوى الدراسي" class="teacher-level-strip" id="teacher-level-strip"><button aria-current="true" aria-label="اختيار السنة الأولى متوسط" class="level-btn is-active" data-level="السنة الأولى" type="button">السنة الأولى متوسط</button><button aria-current="false" aria-label="اختيار السنة الثانية متوسط" class="level-btn" data-level="السنة الثانية" type="button">السنة الثانية متوسط</button><button aria-current="false" aria-label="اختيار السنة الثالثة متوسط" class="level-btn" data-level="السنة الثالثة" type="button">السنة الثالثة متوسط</button><button aria-current="false" aria-label="اختيار السنة الرابعة متوسط" class="level-btn" data-level="السنة الرابعة" type="button">السنة الرابعة متوسط</button><button aria-current="false" aria-label="اختيار طالب جامعي" class="level-btn" data-level="طالب جامعي" type="button">طالب جامعي</button></nav>
@@ -80,13 +85,16 @@
 <button aria-selected="false" class="teacher-tab-button" data-dashboard-tab="assignments" type="button">الواجبات</button>
 <button class="teacher-tab-button" data-dashboard-tab="lessons" type="button">فيديوهات مكملة</button><button aria-selected="false" class="teacher-tab-button" data-dashboard-tab="quiz" type="button">Quiz</button><button aria-selected="false" class="teacher-tab-button" data-dashboard-tab="electronic-payments" type="button">الدفعات الإلكترونية</button><button aria-selected="false" class="teacher-tab-button" data-dashboard-tab="manual-payments" type="button">الدفعات اليدوية</button><button aria-selected="false" class="teacher-tab-button" data-dashboard-tab="forgot-pin-requests" type="button">من نسي كلمة مروره</button>
 </nav>
-<section aria-label="مؤشرات الأكاديمية" class="teacher-bento-grid teacher-tab-panel" data-dashboard-panel="overview">
-<article class="bento-card bento-live-card"><div class="bento-card-heading"><span class="bento-kicker">الحصة المباشرة</span><span aria-label="الاستوديو جاهز" class="live-ready-dot"></span></div><h2>استوديو الحصة</h2><p id="bento-live-copy">اختر المستوى والمادة ثم ابدأ البث للتلاميذ المؤهلين.</p><a class="bento-primary-action" href="./teacher-live.html">فتح الاستوديو <span aria-hidden="true">←</span></a></article>
-<article class="bento-card bento-stats-card"><div class="bento-card-heading"><span class="bento-kicker">مؤشرات المستوى</span><span class="bento-level-pill" id="bento-current-level">السنة الأولى متوسط</span></div><div class="bento-stat-row"><div><span>إجمالي التلاميذ</span><strong id="summary-total">0</strong></div><div><span>الدخول مفتوح</span><strong id="bento-live-enabled">0</strong></div></div><div class="bento-mini-legend"><span><i class="legend-dot legend-blue"></i>المستوى المحدد</span><span id="bento-total-caption">جاهز للمتابعة</span></div></article>
-<article class="bento-card bento-payment-card"><div class="bento-card-heading"><span class="bento-kicker">متابعة الاشتراكات</span></div><div class="payment-bento-values"><div><span>اشتراك مدفوع</span><strong id="summary-paid">0</strong></div><div><span>اشتراك غير مدفوع</span><strong id="summary-unpaid">0</strong></div></div><div aria-hidden="true" class="payment-progress-track"><span id="payment-progress-bar"></span></div><p id="payment-progress-caption">ستظهر حالة الدفع بعد تحميل القائمة.</p></article>
-<article class="bento-card bento-subject-card"><div class="bento-card-heading"><span class="bento-kicker">توزيع الاشتراكات</span></div><h2>نظرة سريعة</h2><div class="subject-stat-list"><div><span class="subject-bullet subject-math"></span>مدفوع <strong id="bento-math-count">0</strong></div><div><span class="subject-bullet subject-physics"></span>غير مدفوع <strong id="bento-physics-count">0</strong></div></div><p>يمكن تعديل الاشتراك وصلاحية الحصة من بطاقة كل تلميذ.</p></article>
-<article class="bento-card bento-quick-card"><div class="bento-card-heading"><span class="bento-kicker">إجراءات سريعة</span></div><div class="quick-action-grid"><button id="focus-student-search" type="button">البحث عن تلميذ</button><a href="#students-panel">إدارة الاشتراكات</a><a href="./teacher-live.html">فتح الاستوديو</a><button id="jump-to-roster" type="button">قائمة التلاميذ</button></div></article>
-<article class="bento-card bento-activity-card"><div class="bento-card-heading"><span class="bento-kicker">آخر نشاط</span></div><h2 id="bento-latest-student">في انتظار تحميل البيانات</h2><p id="bento-latest-caption">سيظهر هنا آخر تلميذ مسجل في المستوى المختار.</p><div class="activity-footer"><span class="activity-pulse"></span><span id="bento-activity-status">تحديث مباشر للبيانات</span></div></article>
+<section aria-label="لوحة مؤشرات المستوى" class="teacher-bento-grid teacher-tab-panel overview-dashboard-grid" data-dashboard-panel="overview">
+<article class="bento-card overview-hero-card"><div class="bento-card-heading"><span class="bento-kicker">نظرة اليوم</span><span class="bento-level-pill" id="bento-current-level">السنة الأولى متوسط</span></div><h2>المستوى بين يديك</h2><p id="overview-hero-copy">تابع التسجيلات، الاشتراكات، والمداخيل المؤكدة لهذا المستوى في نظرة واحدة.</p><a class="bento-primary-action" href="./teacher-live.html">فتح الاستوديو <span aria-hidden="true">←</span></a></article>
+<article class="bento-card overview-kpi-card"><span class="overview-kpi-label">إجمالي التلاميذ</span><strong id="summary-total">0</strong><small id="overview-total-caption">في المستوى المختار</small></article>
+<article class="bento-card overview-kpi-card overview-kpi-green"><span class="overview-kpi-label">تسجيلات هذا الشهر</span><strong id="overview-monthly-registrations">0</strong><small>طلاب جدد منذ بداية الشهر</small></article>
+<article class="bento-card overview-kpi-card overview-kpi-blue"><span class="overview-kpi-label">الدخول المفتوح</span><strong id="bento-live-enabled">0</strong><small>تلاميذ مسموح لهم بالحصة</small></article>
+<article class="bento-card overview-revenue-card"><div class="bento-card-heading"><span class="bento-kicker">المداخيل المؤكدة</span><span class="overview-revenue-mark">دج</span></div><strong id="overview-confirmed-revenue">0 دج</strong><p id="overview-revenue-caption">من الاشتراكات المؤكدة لهذا المستوى</p><div class="overview-revenue-split"><span>مدفوع <b id="summary-paid">0</b></span><span>وعد بالدفع <b id="overview-promised-count">0</b></span></div></article>
+<article class="bento-card overview-attention-card"><div class="bento-card-heading"><span class="bento-kicker">تحتاج انتباهك</span><span class="attention-pulse"></span></div><div class="overview-attention-list"><div><span>وصلات تنتظر التأكيد</span><strong id="overview-pending-receipts">0</strong></div><div><span>محاولات دفع غير مكتملة</span><strong id="overview-payment-attempts">0</strong></div><div><span>لم يتم الدفع</span><strong id="summary-unpaid">0</strong></div></div></article>
+<article class="bento-card overview-class-card"><div class="bento-card-heading"><span class="bento-kicker">حالة الحصة</span><span class="live-ready-dot"></span></div><h2 id="overview-class-title">الحصة غير مفتوحة</h2><p id="overview-class-copy">يمكنك فتح الاستوديو لبدء حصة هذا المستوى.</p><a class="overview-secondary-action" href="./teacher-live.html">الذهاب إلى الاستوديو</a></article>
+<article class="bento-card overview-activity-card"><div class="bento-card-heading"><span class="bento-kicker">آخر نشاط</span></div><h2 id="bento-latest-student">في انتظار تحميل البيانات</h2><p id="bento-latest-caption">سيظهر هنا آخر تلميذ مسجل في المستوى المختار.</p><div class="activity-footer"><span class="activity-pulse"></span><span id="bento-activity-status">تحديث مباشر للبيانات</span></div></article>
+<article class="bento-card overview-quick-card"><div class="bento-card-heading"><span class="bento-kicker">إجراءات سريعة</span></div><div class="quick-action-grid"><button id="focus-student-search" type="button">البحث عن تلميذ</button><a href="#students-panel">إدارة الاشتراكات</a><a href="./teacher-live.html">فتح الاستوديو</a><button id="jump-to-roster" type="button">قائمة التلاميذ</button></div></article>
 </section>
 <section aria-labelledby="roster-title" class="teacher-roster teacher-tab-panel" data-dashboard-panel="students" id="students-panel">
 <div class="roster-heading"><div><p class="eyebrow">إدارة التلاميذ</p><h2 id="roster-title"><span>قائمة التلاميذ</span></h2><p>اختر المستوى وابحث أو عدّل إعدادات التلميذ دون مغادرة الصفحة.</p></div><a class="roster-studio-link" href="./teacher-live.html">بدء حصة مباشرة</a></div>
@@ -170,7 +178,7 @@
 <script src="/socket.io/socket.io.js"></script>
 <script src="./js/session-storage.js"></script>
 <script src="./js/message-notifications.js"></script>
-<script src="./js/teacher-dashboard.js?v=roster-payment-order-1"></script>
+<script src="./js/teacher-dashboard.js?v=overview-command-center-1"></script>
 <script defer="" src="./js/class-registry-teacher.js?v=registry-collapse-1"></script>
   <script src="./js/in-app-browser-gate.js?v=telegram-gate-2" defer></script>
 </body>

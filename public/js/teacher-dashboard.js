@@ -59,6 +59,17 @@ const elements = {
   subscriptionLiveAccess: document.getElementById("subscription-live-access"),
   closeSubscriptionButton: document.getElementById("close-subscription-modal"),
   dashboardDate: document.getElementById("dashboard-date"),
+  overviewSelectedLevel: document.getElementById("overview-selected-level"),
+  overviewClassState: document.getElementById("overview-class-state"),
+  overviewMonthlyRegistrations: document.getElementById("overview-monthly-registrations"),
+  overviewTotalCaption: document.getElementById("overview-total-caption"),
+  overviewConfirmedRevenue: document.getElementById("overview-confirmed-revenue"),
+  overviewRevenueCaption: document.getElementById("overview-revenue-caption"),
+  overviewPromisedCount: document.getElementById("overview-promised-count"),
+  overviewPendingReceipts: document.getElementById("overview-pending-receipts"),
+  overviewPaymentAttempts: document.getElementById("overview-payment-attempts"),
+  overviewClassTitle: document.getElementById("overview-class-title"),
+  overviewClassCopy: document.getElementById("overview-class-copy"),
   bentoCurrentLevel: document.getElementById("bento-current-level"),
   quizCurrentLevel: document.getElementById("quiz-current-level"),
   bentoLiveEnabled: document.getElementById("bento-live-enabled"),
@@ -786,6 +797,9 @@ function setCurrentLevelHeading(level) {
   if (elements.bentoCurrentLevel) {
     elements.bentoCurrentLevel.textContent = displayLevelLabel(level);
   }
+  if (elements.overviewSelectedLevel) {
+    elements.overviewSelectedLevel.textContent = displayLevelLabel(level);
+  }
   if (elements.quizCurrentLevel) {
     elements.quizCurrentLevel.textContent = displayLevelLabel(level);
   }
@@ -991,6 +1005,7 @@ async function loadGlobalTeacherAbsence() {
     if (!response.ok) throw new Error(payload.error || "تعذر تحميل حالة الغياب العامة.");
     globalTeacherAbsent = payload.data?.isAbsent === true;
     renderGlobalTeacherAbsence();
+    updateOverviewClassState();
   } catch (error) {
     console.error("Unable to load global teacher absence:", error);
     showDashboardError(error.message || "تعذر تحميل حالة الغياب العامة.");
@@ -1012,6 +1027,7 @@ async function toggleGlobalTeacherAbsence() {
 
     globalTeacherAbsent = payload.data?.isAbsent === true;
     renderGlobalTeacherAbsence();
+    updateOverviewClassState();
     showToast(payload.message || "تم تحديث حالة الغياب العامة.");
   } catch (error) {
     console.error("Unable to update global teacher absence:", error);
@@ -1038,6 +1054,7 @@ function renderTeacherAbsence() {
       ? "الأستاذ غائب اليوم. ستظهر هذه الرسالة لتلاميذ هذا المستوى."
       : "";
   }
+  updateOverviewClassState();
 }
 
 async function loadLevelSchedule() {
@@ -1640,42 +1657,82 @@ function updateSummary(studentsArray) {
     elements.filteredResultsLabel.textContent = `${total} نتيجة معروضة`;
   }
 
-  updateBentoInsights(studentsArray, { total, paid, unpaid });
+  updateBentoInsights(currentStudents);
 }
 
-function updateBentoInsights(studentsArray, summary) {
-  const total = summary?.total ?? studentsArray.length;
-  const paid = summary?.paid ?? studentsArray.filter((student) => student.paymentStatus === true).length;
-  const unpaid = summary?.unpaid ?? total - paid;
-  const liveEnabled = studentsArray.filter((student) => student.liveAccessEnabled).length;
-  const mathCount = paid;
-  const physicsCount = unpaid;
-  const paymentRate = total ? Math.round((paid / total) * 100) : 0;
-  const latestStudent = studentsArray[0];
+function formatOverviewMoney(value) {
+  return `${Math.max(0, Number(value) || 0).toLocaleString("ar-DZ")} دج`;
+}
+
+function isCurrentMonth(value) {
+  const date = new Date(value);
+  const now = new Date();
+  return Number.isFinite(date.getTime()) && date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+}
+
+function updateOverviewClassState() {
+  const absent = teacherAbsent || globalTeacherAbsent;
+  const nextClass = scheduledClasses
+    .map((scheduledClass) => ({ scheduledClass, timestamp: new Date(scheduledClass?.scheduledAt).getTime() }))
+    .filter(({ timestamp }) => Number.isFinite(timestamp) && timestamp >= Date.now())
+    .sort((left, right) => left.timestamp - right.timestamp)[0]?.scheduledClass;
+
+  if (absent) {
+    if (elements.overviewClassState) elements.overviewClassState.textContent = "الأستاذ غائب اليوم";
+    if (elements.overviewClassTitle) elements.overviewClassTitle.textContent = "إعلان غياب مفعل";
+    if (elements.overviewClassCopy) elements.overviewClassCopy.textContent = "تم تعميم إعلان الغياب على هذا المستوى.";
+    return;
+  }
+
+  if (nextClass) {
+    const subjectLabel = scheduleTypeLabel(currentLevel, nextClass.subject);
+    const formattedDate = formatScheduledDate(nextClass.scheduledAt);
+    if (elements.overviewClassState) elements.overviewClassState.textContent = "حصة مبرمجة";
+    if (elements.overviewClassTitle) elements.overviewClassTitle.textContent = `الحصة القادمة: ${subjectLabel}`;
+    if (elements.overviewClassCopy) elements.overviewClassCopy.textContent = formattedDate;
+    return;
+  }
+
+  if (elements.overviewClassState) elements.overviewClassState.textContent = "الحصة غير مبرمجة";
+  if (elements.overviewClassTitle) elements.overviewClassTitle.textContent = "لا توجد حصة قادمة";
+  if (elements.overviewClassCopy) elements.overviewClassCopy.textContent = "يمكنك برمجة حصة لهذا المستوى أو فتح الاستوديو مباشرة.";
+}
+
+function updateBentoInsights(studentsArray = currentStudents) {
+  const students = Array.isArray(studentsArray) ? studentsArray : [];
+  const stages = students.map(getStudentPaymentStage);
+  const total = students.length;
+  const paid = students.filter((student, index) => stages[index] === "PAID");
+  const promised = students.filter((student, index) => stages[index] === "PROMISED");
+  const pendingReceipts = students.filter((student) => Boolean(student.paymentReceiptPending && student.paymentReceiptUrl));
+  const unpaid = students.filter((student, index) => stages[index] === "UNPAID" && !pendingReceipts.includes(student));
+  const liveEnabled = students.filter((student) => student.liveAccessEnabled).length;
+  const confirmedRevenue = paid.reduce((sum, student) => sum + (Number(student.amountDue) || 0), 0);
+  const monthlyRegistrations = students.filter((student) => isCurrentMonth(student.createdAt)).length;
+  const paymentAttempts = electronicPayments.filter((payment) => String(payment?.status || "").toUpperCase() !== "PAID").length;
+  const paymentRate = total ? Math.round((paid.length / total) * 100) : 0;
+  const latestStudent = students[0];
 
   if (elements.bentoLiveEnabled) elements.bentoLiveEnabled.textContent = String(liveEnabled);
-  if (elements.bentoTotalCaption) {
-    elements.bentoTotalCaption.textContent = total ? `${total} تلميذ في العرض` : "بانتظار التلاميذ";
-  }
+  if (elements.summaryTotal) elements.summaryTotal.textContent = String(total);
+  if (elements.summaryPaid) elements.summaryPaid.textContent = String(paid.length);
+  if (elements.summaryUnpaid) elements.summaryUnpaid.textContent = String(unpaid.length);
+  if (elements.overviewMonthlyRegistrations) elements.overviewMonthlyRegistrations.textContent = String(monthlyRegistrations);
+  if (elements.overviewTotalCaption) elements.overviewTotalCaption.textContent = total ? `${total} تلميذ في العرض` : "لا يوجد تلاميذ بعد";
+  if (elements.overviewConfirmedRevenue) elements.overviewConfirmedRevenue.textContent = formatOverviewMoney(confirmedRevenue);
+  if (elements.overviewRevenueCaption) elements.overviewRevenueCaption.textContent = confirmedRevenue ? "إجمالي القيم المؤكدة قبل احتساب المصاريف" : "لا توجد مداخيل مؤكدة لهذا المستوى بعد";
+  if (elements.overviewPromisedCount) elements.overviewPromisedCount.textContent = String(promised.length);
+  if (elements.overviewPendingReceipts) elements.overviewPendingReceipts.textContent = String(pendingReceipts.length);
+  if (elements.overviewPaymentAttempts) elements.overviewPaymentAttempts.textContent = String(paymentAttempts);
+  if (elements.bentoTotalCaption) elements.bentoTotalCaption.textContent = total ? `${total} تلميذ في العرض` : "بانتظار التلاميذ";
   if (elements.paymentProgressBar) elements.paymentProgressBar.style.width = `${paymentRate}%`;
-  if (elements.paymentProgressCaption) {
-    elements.paymentProgressCaption.textContent = total
-      ? `${paid} اشتراك مدفوع و${unpaid} اشتراك مجاني`
-      : "ستظهر حالة الاشتراكات بعد تحميل القائمة.";
-  }
-  if (elements.bentoMathCount) elements.bentoMathCount.textContent = String(mathCount);
-  if (elements.bentoPhysicsCount) elements.bentoPhysicsCount.textContent = String(physicsCount);
-  if (elements.bentoLatestStudent) {
-    elements.bentoLatestStudent.textContent = latestStudent?.studentName || "لا يوجد تلاميذ في هذا المستوى";
-  }
-  if (elements.bentoLatestCaption) {
-    elements.bentoLatestCaption.textContent = latestStudent
-      ? `آخر تلميذ ظاهر: ${displayLevelLabel(latestStudent.level || currentLevel)}`
-      : "غيّر المستوى أو أضف تلميذًا جديدًا للبدء.";
-  }
-  if (elements.bentoActivityStatus) {
-    elements.bentoActivityStatus.textContent = total ? `تم تحديث ${total} تلميذ` : "تحديث مباشر للبيانات";
-  }
+  if (elements.paymentProgressCaption) elements.paymentProgressCaption.textContent = total ? `${paid.length} مدفوع، ${promised.length} وعد بالدفع، ${unpaid.length} دون دفع` : "ستظهر حالة الاشتراكات بعد تحميل القائمة.";
+  if (elements.bentoMathCount) elements.bentoMathCount.textContent = String(paid.length);
+  if (elements.bentoPhysicsCount) elements.bentoPhysicsCount.textContent = String(unpaid.length);
+  if (elements.bentoLatestStudent) elements.bentoLatestStudent.textContent = latestStudent?.studentName || "لا يوجد تلاميذ في هذا المستوى";
+  if (elements.bentoLatestCaption) elements.bentoLatestCaption.textContent = latestStudent ? `آخر تلميذ ظاهر: ${displayLevelLabel(latestStudent.level || currentLevel)}` : "غيّر المستوى أو أضف تلميذًا جديدًا للبدء.";
+  if (elements.bentoActivityStatus) elements.bentoActivityStatus.textContent = total ? `تم تحديث ${total} تلميذ` : "تحديث مباشر للبيانات";
+  updateOverviewClassState();
 }
 
 /** Applies both controls to the in-memory array; no extra API call is made. */
@@ -2022,7 +2079,8 @@ async function fetchStudents(level = currentLevel) {
     renderManualPayments(currentStudents);
     renderForgotPinRequests([]);
     resetScheduleForm();
-    await Promise.all([loadLevelSchedule(), loadLessonVideos(), loadAssignments()]);
+    await Promise.all([loadLevelSchedule(), loadLessonVideos(), loadAssignments(), loadElectronicPayments(level)]);
+    updateBentoInsights(currentStudents);
     applyFilters();
     if (tabFromHash() === "electronic-payments") {
       void loadElectronicPayments(level);
