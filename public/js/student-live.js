@@ -27,6 +27,7 @@ let localAudioStream;
 let remoteMediaStream;
 let screenShareActive = false;
 let screenShareRefreshScheduled = false;
+const SCREEN_SHARE_REFRESH_GUARD_KEY = "studentLiveScreenShareRefreshGuard:v1";
 let globalFreeClass = false;
 const pendingRemoteAudioTracks = [];
 
@@ -313,6 +314,7 @@ function hideLiveStartNotice() {
 
 function exitLiveClass() {
   initialAutoJoinPending = false;
+  clearScreenShareRefreshGuard();
   waitingForNextClass = true;
   joinedClass = false;
   sessionStorage.removeItem("joinLiveClassImmediately");
@@ -1669,6 +1671,7 @@ function closePeerConnection() {
  * the socket disconnects, or the browser starts unloading.
  */
 function resetViewerState({ message, mode = "neutral", showJoin = true } = {}) {
+  clearScreenShareRefreshGuard();
   clearHandResetTimer();
   clearRecoveryTimer();
   isRecoveringStream = false;
@@ -2143,8 +2146,27 @@ socket.on("room_joined", (data = {}) => {
   }
 });
 
+function clearScreenShareRefreshGuard() {
+  screenShareRefreshScheduled = false;
+  try {
+    sessionStorage.removeItem(SCREEN_SHARE_REFRESH_GUARD_KEY);
+  } catch {
+    // Storage may be unavailable in a restricted browser context.
+  }
+}
+
 function scheduleScreenSharePageRefresh() {
   if (!joinedClass || screenShareRefreshScheduled) return;
+
+  // A fresh page starts with screenShareActive=false. Without a session guard,
+  // the active state arriving after every reload schedules another reload loop.
+  try {
+    if (sessionStorage.getItem(SCREEN_SHARE_REFRESH_GUARD_KEY) === "1") return;
+    sessionStorage.setItem(SCREEN_SHARE_REFRESH_GUARD_KEY, "1");
+  } catch {
+    // The in-memory flag still prevents duplicate timers during this page load.
+  }
+
   screenShareRefreshScheduled = true;
   showMobileControlToast("بدأ الأستاذ مشاركة الشاشة. جارٍ تحديث البث تلقائيًا…");
   window.setTimeout(() => window.location.reload(), 450);
@@ -2158,8 +2180,11 @@ socket.on("screen_share_state", (data = {}) => {
   if (screenShareActive) {
     setViewerStatus("جارٍ عرض شاشة الأستاذ…", "live");
     if (!wasScreenShareActive) scheduleScreenSharePageRefresh();
-  } else if (joinedClass) {
-    setViewerStatus("صوت الأستاذ متصل. بانتظار مشاركة الشاشة…", "live");
+  } else {
+    clearScreenShareRefreshGuard();
+    if (joinedClass) {
+      setViewerStatus("صوت الأستاذ متصل. بانتظار مشاركة الشاشة…", "live");
+    }
   }
 });
 
