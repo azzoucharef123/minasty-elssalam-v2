@@ -4115,3 +4115,34 @@ body.parent-login-page {
     font-size: .8rem;
   }
 }
+.teacher-tab-button[data-dashboard-tab="forgot-pin-requests"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .42rem;
+}
+
+.forgot-pin-tab-badge {
+  display: inline-grid;
+  min-width: 1.3rem;
+  height: 1.3rem;
+  place-items: center;
+  padding: 0 .28rem;
+  color: #fff;
+  font-size: .68rem;
+  font-weight: 900;
+  line-height: 1;
+  border-radius: 999px;
+  background: #dc2626;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .7);
+}
+
+.forgot-pin-tab-badge[hidden] {
+  display: none;
+}
+
+.teacher-tab-button[data-dashboard-tab="forgot-pin-requests"].has-forgot-pin-requests {
+  color: #991b1b;
+  border-color: #fecaca;
+  background: #fff1f2;
+}

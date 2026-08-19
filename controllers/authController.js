@@ -11,6 +11,20 @@ const {
 const prisma = require("../lib/prisma");
 const { issueSession, JWT_EXPIRES_IN, revokeSessionByTokenId } = require("../utils/sessionAuth");
 
+const LEVEL_ALIASES = Object.freeze({
+  "السنة الأولى": "السنة الأولى متوسط",
+  "السنة الثانية": "السنة الثانية متوسط",
+  "السنة الثالثة": "السنة الثالثة متوسط",
+  "السنة الرابعة": "السنة الرابعة متوسط",
+});
+
+function academicLevelCandidates(value) {
+  const level = String(value || "").trim();
+  const longLevel = LEVEL_ALIASES[level];
+  const shortLevel = Object.entries(LEVEL_ALIASES).find(([, alias]) => alias === level)?.[0];
+  return [...new Set([level, longLevel, shortLevel].filter(Boolean))];
+}
+
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET;
 
@@ -281,6 +295,7 @@ async function listParentPinResetRequests(req, res) {
   if (req.user?.role !== "teacher") return res.status(403).json({ error: "هذه العملية متاحة للأستاذ فقط." });
   const level = String(req.query?.level || "").trim();
   if (!level) return res.status(400).json({ error: "المستوى الدراسي مطلوب." });
+  const levelCandidates = academicLevelCandidates(level);
 
   try {
     const requests = await prisma.passwordResetRequest.findMany({
@@ -297,7 +312,7 @@ async function listParentPinResetRequests(req, res) {
     const phones = requests.map((request) => request.parentPhone);
     const students = phones.length
       ? await prisma.student.findMany({
-          where: { parentPhone: { in: phones }, level },
+          where: { parentPhone: { in: phones }, level: { in: levelCandidates } },
           select: { id: true, studentName: true, parentPhone: true, level: true },
           orderBy: { createdAt: "desc" },
         })

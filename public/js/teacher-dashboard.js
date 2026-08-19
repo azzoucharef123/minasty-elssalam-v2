@@ -217,6 +217,7 @@ let electronicPayments = [];
 let electronicPaymentsLevel = "";
 let forgotPinRequests = [];
 let forgotPinRequestsLevel = "";
+let forgotPinPollTimer = null;
 let pendingDeleteStudentId = null;
 const driveFileUploadInProgress = new Set();
 
@@ -1813,6 +1814,22 @@ async function loadElectronicPayments(level = currentLevel) {
   }
 }
 
+function updateForgotPinTabBadge(count) {
+  const tabButton = document.querySelector('.teacher-tab-button[data-dashboard-tab="forgot-pin-requests"]');
+  if (!tabButton) return;
+  let badge = tabButton.querySelector(".forgot-pin-tab-badge");
+  if (!badge) {
+    badge = document.createElement("span");
+    badge.className = "forgot-pin-tab-badge";
+    badge.setAttribute("aria-label", "طلبات نسيان كلمة المرور");
+    tabButton.append(badge);
+  }
+  const safeCount = Number(count) || 0;
+  badge.textContent = safeCount > 99 ? "99+" : String(safeCount);
+  badge.hidden = safeCount === 0;
+  tabButton.classList.toggle("has-forgot-pin-requests", safeCount > 0);
+}
+
 function renderForgotPinRequests(requests = forgotPinRequests) {
   const rows = Array.isArray(requests) ? requests : [];
   const tbody = elements.forgotPinRequestsTableBody;
@@ -1821,8 +1838,9 @@ function renderForgotPinRequests(requests = forgotPinRequests) {
   tbody.replaceChildren();
   const studentRows = rows.flatMap((request) => (request.students || []).map((student) => ({ request, student })));
   if (elements.forgotPinRequestsCount) {
-    elements.forgotPinRequestsCount.textContent = `${studentRows.length} طلب`;
+    elements.forgotPinRequestsCount.textContent = `${rows.length} طلب`;
   }
+  updateForgotPinTabBadge(rows.length);
   if (elements.forgotPinRequestsEmpty) elements.forgotPinRequestsEmpty.hidden = studentRows.length > 0;
 
   if (!studentRows.length) {
@@ -1858,7 +1876,7 @@ function renderForgotPinRequests(requests = forgotPinRequests) {
   });
 }
 
-async function loadForgotPinRequests(level = currentLevel) {
+async function loadForgotPinRequests(level = currentLevel, { silent = false } = {}) {
   const requestedLevel = level;
   try {
     const response = await teacherFetch(`/api/auth/parent/forgot-requests?level=${encodeURIComponent(requestedLevel)}`, { headers: { Accept: "application/json" } });
@@ -1871,7 +1889,7 @@ async function loadForgotPinRequests(level = currentLevel) {
   } catch (error) {
     if (!/انتهت الجلسة/.test(error.message)) {
       console.error("Unable to fetch forgotten PIN requests:", error);
-      showDashboardError(error.message || "تعذر تحميل طلبات نسيان كلمة المرور.");
+      if (!silent) showDashboardError(error.message || "تعذر تحميل طلبات نسيان كلمة المرور.");
       forgotPinRequests = [];
       forgotPinRequestsLevel = "";
       renderForgotPinRequests([]);
@@ -2860,6 +2878,14 @@ function setDashboardTab(tabName, { updateHash = true, focusSearch = false } = {
   }
 }
 
+function startForgotPinPolling() {
+  window.clearInterval(forgotPinPollTimer);
+  forgotPinPollTimer = window.setInterval(() => {
+    if (!sessionStorage.getItem(TEACHER_TOKEN_KEY)) return;
+    void loadForgotPinRequests(currentLevel, { silent: true });
+  }, 15_000);
+}
+
 function initializeDashboardTabs() {
   document.querySelectorAll(".teacher-tab-button[data-dashboard-tab]").forEach((button) => {
     button.addEventListener("click", () => setDashboardTab(button.dataset.dashboardTab));
@@ -3270,4 +3296,6 @@ if (!getTeacherToken()) {
   renderGlobalTeacherAbsence();
   void loadGlobalTeacherAbsence();
   fetchStudents(currentLevel);
+  startForgotPinPolling();
+  void loadForgotPinRequests(currentLevel, { silent: true });
 }
