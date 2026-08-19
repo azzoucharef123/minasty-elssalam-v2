@@ -1186,6 +1186,31 @@
       .parent-dashboard-page #student-switcher {
         order: 3;
       }
+
+      /* Live-class banner position depends on the number of registered students. */
+      .parent-dashboard-page:not(.has-multiple-students) #live-class-banner {
+        order: 1;
+      }
+      .parent-dashboard-page:not(.has-multiple-students) #dashboard-content {
+        order: 2;
+      }
+      .parent-dashboard-page.has-multiple-students #active-student-bar {
+        order: 1;
+      }
+      .parent-dashboard-page.has-multiple-students #live-class-banner {
+        order: 2;
+      }
+      .parent-dashboard-page.has-multiple-students #dashboard-content {
+        order: 3;
+      }
+      .parent-dashboard-page.has-multiple-students #parent-schedule-card,
+      .parent-dashboard-page.has-multiple-students #secondary-payment-upgrade,
+      .parent-dashboard-page.has-multiple-students #level-schedule-card,
+      .parent-dashboard-page.has-multiple-students .dashboard-welcome,
+      .parent-dashboard-page.has-multiple-students #loading-state,
+      .parent-dashboard-page.has-multiple-students #student-switcher {
+        order: 4;
+      }
     </style>
     <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=student-picker-modal-1" />
 </head>

@@ -1236,6 +1236,7 @@ function closeStudentPicker() {
 
 function updateActiveStudentBar(student) {
   const hasMultipleStudents = currentStudents.length > 1;
+  document.body.classList.toggle("has-multiple-students", hasMultipleStudents);
   if (elements.activeStudentBar) {
     elements.activeStudentBar.hidden = !hasMultipleStudents;
   }
