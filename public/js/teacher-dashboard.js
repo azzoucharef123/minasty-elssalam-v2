@@ -2936,7 +2936,7 @@ function openDeleteConfirmation(studentId) {
   const student = currentStudents.find((item) => item.id === studentId);
   if (!student || !elements.deleteModal) return;
   pendingDeleteStudentId = studentId;
-  if (elements.deleteModalMessage) elements.deleteModalMessage.textContent = `سيتم حذف حساب ${student.studentName} وبياناته وسجل حضوره نهائيًا ولا يمكن التراجع عن هذا الإجراء.`;
+  if (elements.deleteModalMessage) elements.deleteModalMessage.textContent = `سيتم حذف التلميذ ${student.studentName} وبياناته وسجل حضوره نهائيًا. إذا كان آخر تلميذ مرتبط برقم الهاتف، سيُحذف حساب الولي وبيانات دخوله أيضًا. لا يمكن التراجع عن هذا الإجراء.`;
   elements.deleteModal.hidden = false;
   elements.deleteModal.classList.add("is-open");
   elements.deleteModalApprove?.focus();

@@ -749,35 +749,64 @@ async function confirmStudentPaymentReceipt(req, res) {
 /** DELETE /api/students/:id — teacher-only user deletion. */
 async function deleteStudent(req, res) {
   try {
-    const student = await prisma.student.findUnique({
-      where: { id: req.params.id },
-      select: {
-        id: true,
-        cardPhotoUrl: true,
-        paymentReceiptUrl: true,
-        studentName: true,
-        questionImages: { select: { fileName: true } },
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const student = await tx.student.findUnique({
+        where: { id: req.params.id },
+        select: {
+          id: true,
+          parentPhone: true,
+          cardPhotoUrl: true,
+          paymentReceiptUrl: true,
+          studentName: true,
+          questionImages: { select: { fileName: true } },
+        },
+      });
+
+      if (!student) return null;
+
+      await tx.student.delete({ where: { id: student.id } });
+      const remainingStudents = await tx.student.count({ where: { parentPhone: student.parentPhone } });
+      let parentAccountDeleted = false;
+
+      if (remainingStudents === 0) {
+        const now = new Date();
+        await tx.session.updateMany({
+          where: { role: "parent", subjectId: student.parentPhone, revokedAt: null },
+          data: { revokedAt: now },
+        });
+        await tx.passwordResetRequest.deleteMany({ where: { parentPhone: student.parentPhone } });
+        await tx.parentCredential.deleteMany({ where: { parentPhone: student.parentPhone } });
+        parentAccountDeleted = true;
+      }
+
+      return { student, remainingStudents, parentAccountDeleted };
     });
 
-    if (!student) {
+    if (!result) {
       return res.status(404).json({ error: "التلميذ غير موجود." });
     }
 
-    await prisma.student.delete({ where: { id: student.id } });
-    await removeUploadedCard(student.cardPhotoUrl);
-    await removeUploadedCard(student.paymentReceiptUrl);
-    await Promise.all(student.questionImages.map((image) => removeImageFile(image.fileName)));
+    await removeUploadedCard(result.student.cardPhotoUrl);
+    await removeUploadedCard(result.student.paymentReceiptUrl);
+    await Promise.all(result.student.questionImages.map((image) => removeImageFile(image.fileName)));
     void logAudit(req, {
       action: "STUDENT_DELETED",
       entityType: "Student",
-      entityId: student.id,
-      metadata: { studentName: student.studentName },
+      entityId: result.student.id,
+      metadata: {
+        studentName: result.student.studentName,
+        parentPhone: result.student.parentPhone,
+        remainingStudents: result.remainingStudents,
+        parentAccountDeleted: result.parentAccountDeleted,
+      },
     });
 
     return res.status(200).json({
       status: "success",
-      message: `تم حذف المستخدم ${student.studentName} بنجاح.`,
+      parentAccountDeleted: result.parentAccountDeleted,
+      message: result.parentAccountDeleted
+        ? `تم حذف التلميذ ${result.student.studentName} وحساب الولي المرتبط به نهائيًا.`
+        : `تم حذف التلميذ ${result.student.studentName}. بقي حساب الولي لأن لديه تلاميذ آخرين.`,
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
