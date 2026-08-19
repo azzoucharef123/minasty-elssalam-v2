@@ -48,6 +48,7 @@ const annotationSegments = [];
 let isDrawingAnnotation = false;
 let previousAnnotationPoint = null;
 const attendeeElements = new Map();
+const attendeeSocketByStudentId = new Map();
 const studentAudioElements = new Map();
 // This is the local authoritative mirror of the server's current teacher
 // approvals. A received student track is never mixed for the class unless its
@@ -1569,10 +1570,23 @@ function displayInitials(name) {
 }
 
 /** Add or refresh a student item without exposing their socket ID visibly. */
-function upsertAttendee(socketId, studentName = "تلميذ", participationCount = 0) {
+function upsertAttendee(socketId, studentId, studentName = "تلميذ", participationCount = 0) {
+  const stableStudentId = String(studentId || "").trim();
+  const previousSocketId = stableStudentId ? attendeeSocketByStudentId.get(stableStudentId) : null;
+  if (previousSocketId && previousSocketId !== socketId) {
+    // A reconnect may create a new socket before the old disconnect event reaches
+    // the teacher. Remove the stale peer and attendee row before rendering the
+    // student's new live presence.
+    removeStudentConnection(previousSocketId);
+  }
+
   let item = attendeeElements.get(socketId);
 
   if (item) {
+    if (stableStudentId) {
+      item.dataset.studentId = stableStudentId;
+      attendeeSocketByStudentId.set(stableStudentId, socketId);
+    }
     item.querySelector(".attendee-name").textContent = studentName;
     item.querySelector(".attendee-avatar").textContent = displayInitials(studentName);
     const participation = item.querySelector(".attendee-participation");
@@ -1583,6 +1597,7 @@ function upsertAttendee(socketId, studentName = "تلميذ", participationCount
   item = document.createElement("li");
   item.className = "attendee-item";
   item.dataset.socketId = socketId;
+  if (stableStudentId) item.dataset.studentId = stableStudentId;
 
   const avatar = document.createElement("span");
   avatar.className = "attendee-avatar";
@@ -1618,6 +1633,7 @@ function upsertAttendee(socketId, studentName = "تلميذ", participationCount
 
   elements.attendeesList.append(item);
   attendeeElements.set(socketId, item);
+  if (stableStudentId) attendeeSocketByStudentId.set(stableStudentId, socketId);
   updateAttendeeCount();
 
   return item;
@@ -1626,15 +1642,25 @@ function upsertAttendee(socketId, studentName = "تلميذ", participationCount
 function removeAttendee(socketId) {
   const item = attendeeElements.get(socketId);
   if (item) {
+    const studentId = item.dataset.studentId;
+    if (studentId && attendeeSocketByStudentId.get(studentId) === socketId) {
+      attendeeSocketByStudentId.delete(studentId);
+    }
     item.remove();
     attendeeElements.delete(socketId);
     updateAttendeeCount();
   }
 }
 
+function removeAttendeeByStudentId(studentId) {
+  const socketId = attendeeSocketByStudentId.get(String(studentId || "").trim());
+  if (socketId) removeAttendee(socketId);
+}
+
 function clearAttendees() {
   attendeeElements.forEach((item) => item.remove());
   attendeeElements.clear();
+  attendeeSocketByStudentId.clear();
   updateAttendeeCount();
 }
 
@@ -2789,13 +2815,13 @@ socket.on("room_ready", (data) => {
 });
 
 socket.on("student_joined", async (data = {}) => {
-  const { socketId, studentName, participationCount } = data;
+  const { socketId, studentId, studentName, participationCount } = data;
 
   if (!classActive || !socketId) {
     return;
   }
 
-  const attendee = upsertAttendee(socketId, studentName || "تلميذ", participationCount);
+  const attendee = upsertAttendee(socketId, studentId, studentName || "تلميذ", participationCount);
   syncStudentMicButton(attendee, socketId, false);
   await createAndSendOffer(socketId);
 });
@@ -2822,7 +2848,7 @@ socket.on("recovery_students", async (data = {}) => {
       continue;
     }
 
-    const attendee = upsertAttendee(student.socketId, student.studentName || "تلميذ", student.participationCount);
+    const attendee = upsertAttendee(student.socketId, student.studentId, student.studentName || "تلميذ", student.participationCount);
     syncStudentMicButton(attendee, student.socketId, Boolean(student.micEnabled));
     applyStudentMicrophoneState(student.socketId, Boolean(student.micEnabled));
     await createAndSendOffer(student.socketId);
@@ -2963,11 +2989,12 @@ socket.on("student_message_received", async (data = {}) => {
 });
 
 socket.on("student_left", (data = {}) => {
-  if (!data.socketId) {
+  const socketId = data.socketId || attendeeSocketByStudentId.get(String(data.studentId || "").trim());
+  if (socketId) {
+    removeStudentConnection(socketId);
     return;
   }
-
-  removeStudentConnection(data.socketId);
+  if (data.studentId) removeAttendeeByStudentId(data.studentId);
 });
 
 socket.on("class_ended", (data = {}) => {

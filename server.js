@@ -1205,6 +1205,7 @@ io.on("connection", (socket) => {
               const participation = await getClassParticipation(participant.data.studentId, resumeToken);
               return {
                 socketId: participant.id,
+                studentId: participant.data.studentId || null,
                 studentName: participant.data.studentName || "تلميذ",
                 micEnabled: isStudentMicrophoneOpen(level, participant.id),
                 participationCount: participation?.count || 0,
@@ -1450,6 +1451,7 @@ io.on("connection", (socket) => {
       if (!isAlreadyJoined || data.rejoin === true) {
         io.to(teacherSocketId).emit("student_joined", {
           socketId: socket.id,
+          studentId: student.id,
           studentName,
           participationCount,
           recovering: data.rejoin === true,
@@ -2196,6 +2198,7 @@ io.on("connection", (socket) => {
       if (teacherSocket && teacherSocket.id !== socket.id) {
         io.to(teacherSocket.id).emit("student_left", {
           socketId: socket.id,
+          studentId: socket.data.studentId || user.studentId || null,
           studentName: name,
         });
       }
