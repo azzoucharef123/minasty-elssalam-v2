@@ -4428,6 +4428,72 @@
             max-height: none !important;
           }
         }
+        /* Final desktop control-panel sizing for the 25vw sidebar. */
+        @media screen and (min-width: 901px) {
+          .student-live-page .student-chat-head {
+            padding: clamp(.45rem, .8vw, .75rem) !important;
+          }
+
+          .student-live-page .student-chat-head h2 {
+            max-width: 100% !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+            font-size: clamp(.78rem, 1vw, 1rem) !important;
+            line-height: 1.25 !important;
+          }
+
+          .student-live-page .student-chat-box {
+            font-size: clamp(.72rem, .85vw, .9rem) !important;
+            line-height: 1.45 !important;
+          }
+
+          .student-live-page .student-chat-actions {
+            gap: clamp(.25rem, .4vw, .45rem) !important;
+            padding: clamp(.35rem, .55vw, .55rem) !important;
+          }
+
+          .student-live-page .student-chat-capture,
+          .student-live-page .student-chat-message-button {
+            min-height: clamp(2.15rem, 3.8vh, 2.7rem) !important;
+            height: clamp(2.15rem, 3.8vh, 2.7rem) !important;
+            padding: 0 clamp(.15rem, .3vw, .35rem) !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+            font-size: clamp(.62rem, .78vw, .82rem) !important;
+            line-height: 1.1 !important;
+          }
+
+          .student-live-page .viewer-actions-control-row {
+            gap: clamp(.2rem, .35vw, .4rem) !important;
+          }
+
+          .student-live-page .viewer-actions-control-row button,
+          .student-live-page .viewer-actions-control-row .hand-waiting-label {
+            min-height: clamp(2.35rem, 5vh, 3.2rem) !important;
+            height: 100% !important;
+            padding: 0 clamp(.15rem, .3vw, .35rem) !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+            font-size: clamp(.58rem, .72vw, .78rem) !important;
+            line-height: 1.1 !important;
+          }
+
+          .student-live-page .viewer-actions-control-row .desktop-stage-button {
+            min-height: clamp(2.35rem, 5vh, 3.2rem) !important;
+            padding: 0 clamp(.15rem, .25vw, .3rem) !important;
+            font-size: clamp(.56rem, .68vw, .74rem) !important;
+          }
+
+          .student-live-page .viewer-header .viewer-level,
+          .student-live-page .viewer-header .viewer-subject,
+          .student-live-page .viewer-header .student-participation-count,
+          .student-live-page .viewer-header .student-exit-class-button {
+            font-size: clamp(.68rem, .82vw, .92rem) !important;
+          }
+        }
       </style>
   </head>
   <body class="student-live-page">
