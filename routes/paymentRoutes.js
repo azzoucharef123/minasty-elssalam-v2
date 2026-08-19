@@ -21,6 +21,7 @@ router.post("/teacher/electronic/:id/reconcile", verifyToken, isTeacher, reconci
 
 // The parent must own the student and the server verifies payment before access changes.
 router.post("/sofizpay/start", verifyToken, startSofizPayPayment);
+router.post("/sofizpay/reconcile", verifyToken, reconcileParentSofizPayPayment);
 router.get("/sofizpay/status", verifyToken, getSofizPayPaymentStatus);
 
 module.exports = router;

@@ -399,6 +399,45 @@ async function getTeacherElectronicPayments(req, res) {
   }
 }
 
+async function reconcileParentSofizPayPayment(req, res) {
+  try {
+    if (!isParent(req)) return res.status(403).json({ error: "هذه العملية متاحة للولي فقط." });
+    const providerOrderNumber = extractProviderOrderNumber(req.body || {}) || text(req.body?.providerOrderNumber, 120);
+    const subscriptionType = text(req.body?.subscriptionType, 20).toUpperCase();
+    if (!providerOrderNumber) return res.status(400).json({ error: "أدخل رقم معاملة SofizPay للتحقق." });
+    if (!VALID_SUBSCRIPTIONS.has(subscriptionType)) return res.status(400).json({ error: "اختر نوع الاشتراك أولاً." });
+
+    const student = await getOwnedStudent(req, req.body?.studentId);
+    if (!student || !studentBelongsToParent(student, req)) return res.status(403).json({ error: "لا تملك صلاحية هذا التلميذ." });
+
+    const existingProviderTransaction = await prisma.paymentTransaction.findUnique({ where: { providerOrderNumber } });
+    if (existingProviderTransaction && existingProviderTransaction.studentId !== student.id) {
+      return res.status(409).json({ error: "رقم المعاملة مرتبط بحساب آخر." });
+    }
+
+    const transaction = existingProviderTransaction || await prisma.paymentTransaction.findFirst({
+      where: { studentId: student.id, subscriptionType, status: { not: "PAID" } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!transaction) return res.status(404).json({ error: "لم نجد طلب دفع مفتوحًا مطابقًا لهذا الاشتراك." });
+
+    const linked = transaction.providerOrderNumber === providerOrderNumber
+      ? transaction
+      : await prisma.paymentTransaction.update({ where: { id: transaction.id }, data: { providerOrderNumber } });
+    const result = await verifyTransaction(linked);
+    return res.json({
+      status: "success",
+      data: {
+        paymentStatus: result.verified ? "PAID" : result.failed ? "FAILED" : "PENDING",
+        message: result.verified ? "تم التحقق من الدفع وتفعيل الاشتراك." : result.failed ? "لم يؤكد SofizPay نجاح العملية." : "العملية ما زالت قيد التحقق.",
+      },
+    });
+  } catch (error) {
+    console.error("Parent SofizPay reconciliation failed:", error);
+    return res.status(500).json({ error: "تعذر التحقق من المعاملة حاليًا." });
+  }
+}
+
 async function reconcileTeacherElectronicPayment(req, res) {
   try {
     const transactionId = text(req.params?.id, 80);
@@ -492,6 +531,7 @@ async function receiveSofizPayWebhook(req, res) {
 
 module.exports = {
   startSofizPayPayment,
+  reconcileParentSofizPayPayment,
   getSofizPayPaymentStatus,
   getTeacherElectronicPayments,
   dismissTeacherElectronicPayment,

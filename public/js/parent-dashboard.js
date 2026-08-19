@@ -69,6 +69,10 @@ const elements = {
   secondaryCardPaymentButton: document.getElementById("secondary-card-payment-button"),
   secondaryPaymentSubmit: document.getElementById("secondary-payment-submit"),
   secondaryPaymentPending: document.getElementById("secondary-payment-pending"),
+  secondarySofizPayReconcile: document.getElementById("secondary-sofizpay-reconcile"),
+  secondarySofizPayOrderNumber: document.getElementById("secondary-sofizpay-order-number"),
+  secondarySofizPayReconcileButton: document.getElementById("secondary-sofizpay-reconcile-button"),
+  secondarySofizPayReconcileMessage: document.getElementById("secondary-sofizpay-reconcile-message"),
   parentScheduleCard: document.getElementById("parent-schedule-card"),
   parentNextClassStatus: document.getElementById("parent-next-class-status"),
   parentNextClassState: document.getElementById("parent-next-class-state"),
@@ -2112,7 +2116,52 @@ function openSecondaryPaymentTransfer() {
   secondaryPaymentTransferRequested = true;
   if (elements.secondaryPaymentTransfer) {
     elements.secondaryPaymentTransfer.hidden = false;
+    elements.secondarySofizPayReconcile?.removeAttribute("hidden");
     elements.secondaryPaymentTransfer.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+async function reconcileParentSofizPay() {
+  const providerOrderNumber = elements.secondarySofizPayOrderNumber?.value.trim();
+  const subscriptionType = elements.secondarySubscriptionType?.value;
+  if (!currentStudent || !providerOrderNumber || !["BOTH", "MATH", "PHYSICS"].includes(subscriptionType)) {
+    if (elements.secondarySofizPayReconcileMessage) elements.secondarySofizPayReconcileMessage.textContent = "اختر نوع الاشتراك وأدخل رقم معاملة SofizPay أولاً.";
+    return;
+  }
+
+  const button = elements.secondarySofizPayReconcileButton;
+  if (button) {
+    button.disabled = true;
+    button.textContent = "جارٍ التحقق…";
+  }
+  if (elements.secondarySofizPayReconcileMessage) elements.secondarySofizPayReconcileMessage.textContent = "يتم الآن التحقق من الرقم لدى SofizPay…";
+
+  try {
+    const response = await parentFetch("/api/payments/sofizpay/reconcile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        providerOrderNumber,
+        subscriptionType,
+        studentId: currentStudent.id,
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر التحقق من رقم المعاملة.");
+    const status = payload?.data?.paymentStatus;
+    if (elements.secondarySofizPayReconcileMessage) {
+      elements.secondarySofizPayReconcileMessage.textContent = payload?.data?.message || "تم تحديث حالة المعاملة.";
+    }
+    if (status === "PAID") {
+      await loadDashboard({ backgroundRefresh: true });
+    }
+  } catch (error) {
+    if (elements.secondarySofizPayReconcileMessage) elements.secondarySofizPayReconcileMessage.textContent = error.message || "تعذر التحقق من رقم المعاملة.";
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "تحقق وتحديث";
+    }
   }
 }
 
@@ -2406,6 +2455,9 @@ if (!getParentToken()) {
   });
   elements.secondaryPaymentSubmit?.addEventListener("click", () => {
     void submitSecondaryPaymentReceipt();
+  });
+  elements.secondarySofizPayReconcileButton?.addEventListener("click", () => {
+    void reconcileParentSofizPay();
   });
   elements.replacementCardButton?.addEventListener("click", () => {
     elements.replacementCardInput?.click();

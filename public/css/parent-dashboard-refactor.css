@@ -687,3 +687,26 @@
   .student-switcher-modal .student-switcher-heading h2 { font-size: .96rem; }
 }
 .student-switcher-open { overflow: hidden; }
+
+
+/* SofizPay transaction-number correction */
+.parent-sofizpay-reconcile {
+  display: grid;
+  gap: .5rem;
+  margin-top: .85rem;
+  padding: .8rem;
+  border: 1px solid #bfdbfe;
+  border-radius: .75rem;
+  background: #eff6ff;
+}
+.parent-sofizpay-reconcile[hidden] { display: none; }
+.parent-sofizpay-reconcile > label { color: #1e3a8a; font-size: .76rem; font-weight: 900; }
+.parent-sofizpay-reconcile-row { display: flex; gap: .5rem; align-items: center; }
+.parent-sofizpay-reconcile-row input { min-width: 0; flex: 1; min-height: 2.5rem; padding: .55rem .7rem; direction: ltr; border: 1px solid #93c5fd; border-radius: .55rem; font: inherit; }
+.parent-sofizpay-reconcile-row button { min-height: 2.5rem; padding: .45rem .7rem; color: #fff; background: #2563eb; border: 1px solid #2563eb; border-radius: .55rem; font: inherit; font-size: .72rem; font-weight: 800; cursor: pointer; }
+.parent-sofizpay-reconcile-row button:disabled { opacity: .6; cursor: wait; }
+.parent-sofizpay-reconcile small { color: #475569; font-size: .68rem; line-height: 1.65; }
+@media (max-width: 520px) {
+  .parent-sofizpay-reconcile-row { align-items: stretch; flex-direction: column; }
+  .parent-sofizpay-reconcile-row input, .parent-sofizpay-reconcile-row button { width: 100%; }
+}

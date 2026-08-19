@@ -16,7 +16,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./css/style.css?v=next-class-state-1" />
-    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=student-picker-modal-1" />
+    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=sofizpay-parent-reconcile-1" />
     <link rel="stylesheet" href="./css/private-messages.css" />
     <link rel="stylesheet" href="./css/payment-feedback.css" />
 
@@ -1212,7 +1212,7 @@
         order: 4;
       }
     </style>
-    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=student-picker-modal-1" />
+    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=sofizpay-parent-reconcile-1" />
 </head>
   <body class="parent-dashboard-page">
     <div id="parent-sidebar-backdrop" class="parent-sidebar-backdrop" hidden></div>
@@ -1322,6 +1322,14 @@
           <p class="sofizpay-payment-help">الدفع الإلكتروني: المادتان معًا 2030 دج — مادة واحدة 1030 دج.</p>
           <button id="secondary-payment-submit" class="parent-payment-submit" type="button">إرسال وصل الدفع للأستاذ</button>
           <p id="secondary-payment-pending" class="parent-payment-pending" hidden></p>
+          <div id="secondary-sofizpay-reconcile" class="parent-sofizpay-reconcile" hidden>
+            <label for="secondary-sofizpay-order-number">تصحيح رقم معاملة SofizPay</label>
+            <div class="parent-sofizpay-reconcile-row">
+              <input id="secondary-sofizpay-order-number" type="text" inputmode="numeric" autocomplete="off" placeholder="أدخل رقم العملية" />
+              <button id="secondary-sofizpay-reconcile-button" type="button">تحقق وتحديث</button>
+            </div>
+            <small id="secondary-sofizpay-reconcile-message" aria-live="polite">إذا كان رقم العملية مختلفًا، أدخله هنا وسيتم التحقق منه لدى SofizPay.</small>
+          </div>
         </div>
       </section>
 
@@ -1591,7 +1599,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/parent-dashboard.js?v=student-picker-modal-1"></script>
+    <script src="./js/parent-dashboard.js?v=sofizpay-parent-reconcile-1"></script>
     <script src="./js/class-registry-parent.js?v=panel-scroll-1"></script>
   <script src="./js/in-app-browser-gate.js?v=telegram-gate-2" defer></script>
 </body>
