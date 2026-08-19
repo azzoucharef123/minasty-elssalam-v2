@@ -27,7 +27,6 @@ let localAudioStream;
 let remoteMediaStream;
 let screenShareActive = false;
 let screenShareRefreshScheduled = false;
-const SCREEN_SHARE_REFRESH_GUARD_KEY = "studentLiveScreenShareRefreshGuard:v1";
 let globalFreeClass = false;
 const pendingRemoteAudioTracks = [];
 
@@ -2148,28 +2147,15 @@ socket.on("room_joined", (data = {}) => {
 
 function clearScreenShareRefreshGuard() {
   screenShareRefreshScheduled = false;
-  try {
-    sessionStorage.removeItem(SCREEN_SHARE_REFRESH_GUARD_KEY);
-  } catch {
-    // Storage may be unavailable in a restricted browser context.
-  }
 }
 
 function scheduleScreenSharePageRefresh() {
   if (!joinedClass || screenShareRefreshScheduled) return;
 
-  // A fresh page starts with screenShareActive=false. Without a session guard,
-  // the active state arriving after every reload schedules another reload loop.
-  try {
-    if (sessionStorage.getItem(SCREEN_SHARE_REFRESH_GUARD_KEY) === "1") return;
-    sessionStorage.setItem(SCREEN_SHARE_REFRESH_GUARD_KEY, "1");
-  } catch {
-    // The in-memory flag still prevents duplicate timers during this page load.
-  }
-
+  // Screen-share state is applied in-place. Reloading the page would destroy
+  // the WebSocket and RTCPeerConnection and can turn a healthy stream black.
   screenShareRefreshScheduled = true;
-  showMobileControlToast("بدأ الأستاذ مشاركة الشاشة. جارٍ تحديث البث تلقائيًا…");
-  window.setTimeout(() => window.location.reload(), 450);
+  showMobileControlToast("بدأ الأستاذ مشاركة الشاشة. تم تحديث العرض دون إعادة تحميل الصفحة.");
 }
 
 socket.on("screen_share_state", (data = {}) => {
