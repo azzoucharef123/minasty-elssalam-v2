@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>دخول الولي | أكاديمية التفوق</title>
   <link rel="stylesheet" href="./css/style.css?v=login-fixed-layout-1" />
-  <link rel="stylesheet" href="./css/app.css?v=forgot-pin-1" />
+  <link rel="stylesheet" href="./css/app.css?v=forgot-pin-2" />
 </head>
 <body class="app-shell parent-login-page">
   <main class="auth-layout">
@@ -65,8 +65,40 @@
         </button>
       </section>
     </div>
+
+    <div id="forgot-pin-modal" class="parent-login-modal" hidden>
+      <div class="parent-login-modal-backdrop" data-close-forgot-pin-modal></div>
+      <section class="parent-login-dialog forgot-pin-dialog" role="dialog" aria-modal="true" aria-labelledby="forgot-pin-title" aria-describedby="forgot-pin-description">
+        <button class="parent-login-modal-close" type="button" aria-label="إغلاق نافذة استرجاع كلمة المرور" data-close-forgot-pin-modal>×</button>
+        <div class="parent-login-alert-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v10M12 17.5v.01"/><path d="M5 20h14a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0L3.3 17A2 2 0 0 0 5 20Z"/></svg>
+        </div>
+        <p class="parent-login-dialog-kicker">استرجاع الحساب</p>
+        <h2 id="forgot-pin-title">نسيت كلمة المرور؟</h2>
+        <p id="forgot-pin-description" class="parent-login-dialog-text">أدخل رقم الهاتف المسجل في الأكاديمية ثم اضغط «إرسال».</p>
+        <form id="forgot-pin-form" class="forgot-pin-form" novalidate>
+          <label for="forgot-parent-phone">رقم هاتف الولي</label>
+          <input id="forgot-parent-phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="0556960950" maxlength="10" required />
+          <p id="forgot-pin-modal-message" class="form-error" hidden aria-live="polite"></p>
+          <button id="forgot-pin-submit" class="parent-register-action forgot-pin-submit" type="submit"><span>إرسال</span><span aria-hidden="true">→</span></button>
+        </form>
+      </section>
+    </div>
+
+    <div id="forgot-pin-success-modal" class="parent-login-modal" hidden>
+      <div class="parent-login-modal-backdrop" data-close-forgot-pin-success></div>
+      <section class="parent-login-dialog forgot-pin-success-dialog" role="dialog" aria-modal="true" aria-labelledby="forgot-pin-success-title" aria-describedby="forgot-pin-success-description">
+        <button class="parent-login-modal-close" type="button" aria-label="إغلاق رسالة التأكيد" data-close-forgot-pin-success>×</button>
+        <div class="parent-login-alert-icon forgot-pin-success-icon" aria-hidden="true">✓</div>
+        <p class="parent-login-dialog-kicker">تم إرسال الطلب</p>
+        <h2 id="forgot-pin-success-title">تم إرسال طلبك للأستاذ</h2>
+        <p id="forgot-pin-success-description" class="parent-login-dialog-text">يرجى الاتصال بالأستاذ لإتمام مساعدتك في استرجاع كلمة المرور.</p>
+        <a class="parent-register-action forgot-pin-call-action" href="tel:0556960950"><span>اتصل بالأستاذ</span><span aria-hidden="true">☎</span></a>
+        <button class="parent-login-dialog-secondary" type="button" data-close-forgot-pin-success>إغلاق</button>
+      </section>
+    </div>
   </main>
   <script src="./js/session-storage.js"></script>
-  <script src="./js/parent-login.js?v=forgot-pin-1"></script>
+  <script src="./js/parent-login.js?v=forgot-pin-2"></script>
 </body>
 </html>

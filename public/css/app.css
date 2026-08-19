@@ -4146,3 +4146,69 @@ body.parent-login-page {
   border-color: #fecaca;
   background: #fff1f2;
 }
+.forgot-pin-dialog,
+.forgot-pin-success-dialog {
+  width: min(100%, 31rem);
+}
+
+.forgot-pin-form {
+  display: grid;
+  gap: .7rem;
+  margin-top: 1rem;
+  text-align: right;
+}
+
+.forgot-pin-form label {
+  color: #dbeafe;
+  font-size: .92rem;
+  font-weight: 800;
+}
+
+.forgot-pin-form input {
+  width: 100%;
+  min-height: 3.2rem;
+  padding: .75rem 1rem;
+  color: #0f172a;
+  font: inherit;
+  font-weight: 700;
+  text-align: center;
+  direction: ltr;
+  background: #fff;
+  border: 1px solid rgba(147, 197, 253, .7);
+  border-radius: .8rem;
+  outline: none;
+}
+
+.forgot-pin-form input:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 4px rgba(96, 165, 250, .2);
+}
+
+.forgot-pin-submit,
+.forgot-pin-call-action {
+  width: 100%;
+  min-height: 3.1rem;
+  margin-top: .35rem;
+  justify-content: center;
+}
+
+.forgot-pin-success-icon {
+  display: grid;
+  width: 3.2rem;
+  height: 3.2rem;
+  place-items: center;
+  color: #dcfce7;
+  font-size: 1.65rem;
+  font-weight: 900;
+  background: #16a34a;
+  border-radius: 50%;
+}
+
+.forgot-pin-call-action {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+}
+
+.forgot-pin-call-action:hover,
+.forgot-pin-call-action:focus-visible {
+  background: linear-gradient(135deg, #15803d, #166534);
+}
