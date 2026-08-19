@@ -90,6 +90,8 @@ const elements = {
   chatEmpty: document.getElementById("chat-empty"),
   chatForm: document.getElementById("chat-form"),
   chatInput: document.getElementById("chat-input"),
+  desktopChatDirectForm: document.getElementById("desktop-chat-direct-form"),
+  desktopChatInput: document.getElementById("desktop-chat-input"),
   chatSendButton: document.getElementById("chat-send-btn"),
   openChatComposeButton: document.getElementById("open-chat-compose-btn"),
   closeChatComposeButton: document.getElementById("close-chat-compose-btn"),
@@ -1080,9 +1082,14 @@ function updateChatControls() {
   const canSend = joinedClass && !isJoining && !isRecoveringStream && socket.connected;
   const hasQuestionImage = Boolean(selectedQuestionImageFile);
   elements.chatInput.disabled = !canSend;
+  if (elements.desktopChatInput) elements.desktopChatInput.disabled = !canSend;
   elements.questionImageInput.disabled = !canSend;
   elements.captureQuestionButton.disabled = !canSend;
-  if (elements.openChatComposeButton) elements.openChatComposeButton.disabled = !canSend;
+  const desktopMessage = normalizeChatMessage(elements.desktopChatInput?.value || "");
+  const activeMessage = isDesktopStudentView() ? desktopMessage : normalizeChatMessage(elements.chatInput.value);
+  if (elements.openChatComposeButton) {
+    elements.openChatComposeButton.disabled = !canSend || (isDesktopStudentView() && !activeMessage && !hasQuestionImage);
+  }
   elements.chatSendButton.disabled = !canSend || (!normalizeChatMessage(elements.chatInput.value) && !hasQuestionImage);
 }
 
@@ -1091,6 +1098,14 @@ function relocateStudentChatComposer() {
   if (modal && modal.parentElement !== document.body) {
     document.body.appendChild(modal);
   }
+}
+
+function handleChatMessageButtonClick() {
+  if (isDesktopStudentView()) {
+    elements.desktopChatDirectForm?.requestSubmit();
+    return;
+  }
+  openStudentChatComposer();
 }
 
 function openStudentChatComposer() {
@@ -1182,10 +1197,16 @@ async function uploadQuestionImage(file) {
   return payload.data.imageId;
 }
 
+function isDesktopStudentView() {
+  return window.matchMedia?.("(min-width: 901px)").matches || false;
+}
+
 async function sendStudentChatMessage(event) {
   event.preventDefault();
 
-  const message = normalizeChatMessage(elements.chatInput.value);
+  const desktopDirect = isDesktopStudentView() && elements.desktopChatInput;
+  const messageInput = desktopDirect ? elements.desktopChatInput : elements.chatInput;
+  const message = normalizeChatMessage(messageInput.value);
   const imageFile = selectedQuestionImageFile;
   if (!joinedClass || isJoining || (!message && !imageFile)) {
     return;
@@ -1212,8 +1233,9 @@ async function sendStudentChatMessage(event) {
 
     appendStudentChatMessage({ sender: "أنا", message, kind: "student", imageUrl: localImageUrl });
     elements.chatInput.value = "";
+    if (elements.desktopChatInput) elements.desktopChatInput.value = "";
     clearSelectedQuestionImage();
-    closeStudentChatComposer();
+    if (!desktopDirect) closeStudentChatComposer();
     // Keep the question controls unobstructed after sending. The chat itself
     // confirms delivery by displaying the submitted question or image.
   } catch (error) {
@@ -2421,7 +2443,9 @@ elements.remoteVideo?.addEventListener("volumechange", updateRemoteAudioControl)
 elements.raiseHandButton.addEventListener("click", raiseHand);
 elements.lowerHandButton?.addEventListener("click", lowerHand);
 elements.chatForm.addEventListener("submit", sendStudentChatMessage);
-elements.openChatComposeButton?.addEventListener("click", openStudentChatComposer);
+elements.desktopChatDirectForm?.addEventListener("submit", sendStudentChatMessage);
+elements.desktopChatInput?.addEventListener("input", updateChatControls);
+elements.openChatComposeButton?.addEventListener("click", handleChatMessageButtonClick);
 elements.closeChatComposeButton?.addEventListener("click", closeStudentChatComposer);
 elements.chatComposeModal?.addEventListener("click", (event) => {
   if (event.target === elements.chatComposeModal) closeStudentChatComposer();
@@ -2436,6 +2460,12 @@ elements.chatInput.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
     event.preventDefault();
     elements.chatForm.requestSubmit();
+  }
+});
+elements.desktopChatInput?.addEventListener("keydown", (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+    event.preventDefault();
+    elements.desktopChatDirectForm?.requestSubmit();
   }
 });
 elements.captureQuestionButton?.addEventListener("click", () => {

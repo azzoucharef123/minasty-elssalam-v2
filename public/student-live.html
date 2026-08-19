@@ -4889,6 +4889,10 @@
             <div class="question-image-preview-copy"><strong>صورة جاهزة للإرسال</strong><span>جارٍ تجهيز الصورة للإرسال.</span></div>
             <button id="remove-question-image-btn" type="button" aria-label="إلغاء الصورة">×</button>
           </div>
+          <form id="desktop-chat-direct-form" class="desktop-chat-direct-form" novalidate>
+            <label for="desktop-chat-input">رسالتك للأستاذ</label>
+            <textarea id="desktop-chat-input" rows="2" maxlength="800" placeholder="اكتب رسالتك مباشرة..." autocomplete="off" aria-label="رسالتك المباشرة للأستاذ" disabled></textarea>
+          </form>
           <div class="student-chat-actions" aria-label="أدوات التواصل مع الأستاذ">
             <input id="question-image-input" type="file" accept="image/jpeg,image/png,image/webp" capture="user" hidden disabled />
             <button id="capture-question-btn" class="student-chat-capture" type="button" disabled aria-label="تصوير">
@@ -4952,14 +4956,14 @@
 
     <link rel="stylesheet" href="./css/private-messages.css" />
     <link rel="stylesheet" href="./css/participation.css?v=participation-1" />
-    <link rel="stylesheet" href="./css/student-desktop.css?v=first-day-desktop-rebuild-1" />
+    <link rel="stylesheet" href="./css/student-desktop.css?v=desktop-direct-message-1" />
     <link rel="stylesheet" href="./css/student-portrait.css?v=portrait-module-1" />
     <link rel="stylesheet" href="./css/student-landscape.css?v=landscape-baseline-1" />
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
     <script src="./js/student-desktop.js?v=desktop-css-only-1"></script>
-    <script src="./js/student-live.js?v=screen-share-no-reload-1"></script>
+    <script src="./js/student-live.js?v=desktop-direct-message-1"></script>
   <script src="./js/in-app-browser-gate.js?v=telegram-gate-2" defer></script>
   </body>
 </html>

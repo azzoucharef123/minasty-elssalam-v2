@@ -751,3 +751,75 @@
     display: none !important;
   }
 }
+
+
+/* ======================================================================
+   DESKTOP DIRECT MESSAGE COMPOSER
+   ====================================================================== */
+@media screen and (max-width: 900px) {
+  .desktop-chat-direct-form {
+    display: none !important;
+  }
+}
+
+@media screen and (min-width: 901px) {
+  body.student-live-page.student-live-page .desktop-chat-direct-form {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 8px 10px 6px !important;
+    background: #0f172a !important;
+    border-top: 1px solid rgba(148, 163, 184, .12) !important;
+  }
+
+  body.student-live-page.student-live-page .desktop-chat-direct-form label {
+    display: block !important;
+    margin: 0 !important;
+    color: #cbd5e1 !important;
+    font-size: .72rem !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    text-align: right !important;
+  }
+
+  body.student-live-page.student-live-page #desktop-chat-input {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 54px !important;
+    height: 54px !important;
+    max-height: 90px !important;
+    margin: 0 !important;
+    padding: 8px 9px !important;
+    resize: vertical !important;
+    color: #f8fafc !important;
+    background: #020617 !important;
+    border: 1px solid rgba(96, 165, 250, .42) !important;
+    border-radius: 7px !important;
+    outline: none !important;
+    font: inherit !important;
+    font-size: 16px !important;
+    line-height: 1.35 !important;
+    direction: rtl !important;
+    text-align: right !important;
+  }
+
+  body.student-live-page.student-live-page #desktop-chat-input:focus {
+    border-color: #60a5fa !important;
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, .16) !important;
+  }
+
+  body.student-live-page.student-live-page .student-chat-actions {
+    flex: 0 0 auto !important;
+    min-height: 60px !important;
+    padding: 6px 10px 8px !important;
+  }
+
+  body.student-live-page.student-live-page .chat-compose-modal,
+  body.student-live-page.student-live-page #chat-compose-modal {
+    display: none !important;
+  }
+}
