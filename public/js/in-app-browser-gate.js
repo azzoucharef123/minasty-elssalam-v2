@@ -45,8 +45,15 @@
   }
 
   const userAgent = navigator.userAgent || "";
+  const referrer = document.referrer || "";
   const isAndroid = /Android/i.test(userAgent);
   const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+  const hasTelegramReferrer = /(?:telegram|org\.telegram\.messenger|t\.me)/i.test(referrer);
+  const hasTelegramRuntime = Boolean(
+    window.TelegramWebviewProxy ||
+    window.TelegramGameProxy ||
+    window.Telegram?.WebApp
+  );
   const isStandalone = Boolean(
     window.navigator.standalone === true ||
     window.matchMedia?.("(display-mode: standalone)").matches
@@ -57,7 +64,16 @@
     (/Version\/4\.0/i.test(userAgent) && /Chrome\//i.test(userAgent))
   );
   const isIOSWebView = isIOS && !/Safari\//i.test(userAgent) && !/CriOS|FxiOS|OPiOS/i.test(userAgent);
-  const isInAppBrowser = !isStandalone && (hasInAppToken || isAndroidWebView || isIOSWebView);
+  // Telegram may open the link in a Chrome Custom Tab whose User-Agent looks
+  // like ordinary Chrome. The Android referrer and Telegram runtime markers
+  // cover that case without storing any dismissal state.
+  const isInAppBrowser = !isStandalone && (
+    hasInAppToken ||
+    hasTelegramReferrer ||
+    hasTelegramRuntime ||
+    isAndroidWebView ||
+    isIOSWebView
+  );
 
   if (!isInAppBrowser) return;
 
