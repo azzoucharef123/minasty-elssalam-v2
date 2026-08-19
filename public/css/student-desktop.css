@@ -1,0 +1,276 @@
+/* Desktop-only visual module. The shared DOM and JavaScript bindings remain unchanged. */
+@media screen and (min-width: 901px) {
+  html,
+  body.student-live-page {
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #020617 !important;
+    direction: rtl !important;
+  }
+
+  .student-live-page .viewer-shell {
+    display: grid !important;
+    grid-template-columns: 80vw 20vw !important;
+    grid-template-rows: 52px minmax(0, 1fr) minmax(0, 1fr) !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    background: #020617 !important;
+  }
+
+  /* Flatten the shared stage so its existing children become grid items of the viewport. */
+  .student-live-page .viewer-stage {
+    display: contents !important;
+  }
+
+  .student-live-page .video-frame {
+    grid-column: 1 !important;
+    grid-row: 1 / 4 !important;
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #000 !important;
+    border: 0 !important;
+    border-left: 2px solid rgba(148, 163, 184, .2) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .student-live-page #remote-video,
+  .student-live-page #level-welcome-image {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+    object-position: center center !important;
+  }
+
+  .student-live-page .viewer-header {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    position: relative !important;
+    z-index: 30 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    max-height: 52px !important;
+    padding: 0 8px !important;
+    gap: 6px !important;
+    overflow: hidden !important;
+    background: #1e293b !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(148, 163, 184, .2) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    direction: rtl !important;
+  }
+
+  .student-live-page .viewer-brand,
+  .student-live-page .message-bell,
+  .student-live-page .viewer-subject,
+  .student-live-page .live-start-notice {
+    display: none !important;
+  }
+
+  .student-live-page .viewer-level {
+    display: inline-flex !important;
+    min-width: 0 !important;
+    max-width: 9rem !important;
+    padding: 5px 7px !important;
+    overflow: hidden !important;
+    font-size: clamp(.58rem, .8vw, .76rem) !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .student-live-page .student-participation-count {
+    min-width: 0 !important;
+    max-width: 6.2rem !important;
+    overflow: hidden !important;
+    font-size: clamp(.58rem, .75vw, .72rem) !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .student-live-page .student-exit-class-button {
+    flex: 0 0 32px !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
+    color: #fff !important;
+    background: #dc2626 !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    font-size: 1rem !important;
+    font-weight: 900 !important;
+  }
+
+  .student-live-page .student-chat-panel {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    background: #0b1329 !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(148, 163, 184, .2) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    direction: rtl !important;
+  }
+
+  .student-live-page .student-chat-head {
+    flex: 0 0 42px !important;
+    min-height: 42px !important;
+    padding: 8px 10px !important;
+    background: #0f172a !important;
+  }
+
+  .student-live-page .student-chat-head h2 {
+    overflow: hidden !important;
+    font-size: clamp(.68rem, .85vw, .82rem) !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .student-live-page .student-chat-box {
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    padding: 8px !important;
+    background: #0b1329 !important;
+  }
+
+  .student-live-page .student-chat-form {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    gap: 6px !important;
+    padding: 8px !important;
+    background: #1e293b !important;
+  }
+
+  .student-live-page .viewer-actions-divider {
+    grid-column: 2 !important;
+    grid-row: 3 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 12px !important;
+    overflow: hidden !important;
+    background: #0f172a !important;
+    border: 0 !important;
+    border-top: 2px solid rgba(59, 130, 246, .3) !important;
+    border-radius: 0 !important;
+    direction: rtl !important;
+  }
+
+  .student-live-page .viewer-actions-control-row {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-evenly !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    gap: 10px !important;
+    direction: rtl !important;
+  }
+
+  .student-live-page .student-inline-rotate-controls,
+  .student-live-page #student-center-rotate-btn,
+  .student-live-page #student-center-unrotate-btn,
+  .student-live-page .student-mobile-controls,
+  .student-live-page #desktop-fullscreen-capture-btn,
+  .student-live-page #desktop-fullscreen-message-btn {
+    display: none !important;
+  }
+
+  .student-live-page .viewer-actions-control-row .hand-request-controls,
+  .student-live-page .viewer-actions-control-row .refresh-media-button,
+  .student-live-page .viewer-actions-control-row .desktop-fullscreen-button,
+  .student-live-page .viewer-actions-control-row .desktop-fullscreen-exit-button {
+    display: flex !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    flex: 0 0 auto !important;
+  }
+
+  .student-live-page .viewer-actions-control-row button,
+  .student-live-page .viewer-actions-control-row .hand-waiting-label {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 44px !important;
+    height: 46px !important;
+    padding: 0 8px !important;
+    border-radius: 8px !important;
+    font-size: clamp(.66rem, .85vw, .82rem) !important;
+    font-weight: 700 !important;
+    line-height: 1.15 !important;
+    white-space: nowrap !important;
+  }
+
+  .student-live-page .viewer-actions-control-row .desktop-stage-button {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-height: 44px !important;
+    height: 46px !important;
+    font-size: clamp(.64rem, .8vw, .78rem) !important;
+  }
+
+  .student-live-page .student-chat-actions {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    gap: 6px !important;
+    padding: 6px 8px !important;
+  }
+
+  .student-live-page .student-chat-capture,
+  .student-live-page .student-chat-message-button {
+    min-width: 0 !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0 5px !important;
+    font-size: clamp(.58rem, .7vw, .68rem) !important;
+    white-space: nowrap !important;
+  }
+}

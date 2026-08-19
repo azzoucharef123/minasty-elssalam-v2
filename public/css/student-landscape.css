@@ -1,0 +1,174 @@
+/* Mobile landscape-only visual module. It relies on the existing mode classes from shared JS. */
+@media screen and (max-width: 900px) and (orientation: landscape),
+       screen and (max-width: 900px) and (min-height: 1px) {
+  html.student-landscape-mode,
+  html.student-virtual-landscape-mode,
+  html.student-landscape-mode body.student-live-page,
+  html.student-virtual-landscape-mode body.student-live-page {
+    width: 100vw !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    background: #000 !important;
+  }
+
+  html.student-landscape-mode .student-live-page .viewer-shell,
+  html.student-virtual-landscape-mode .student-live-page .viewer-shell {
+    display: block !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    background: #000 !important;
+  }
+
+  html.student-landscape-mode .student-live-page .viewer-header,
+  html.student-virtual-landscape-mode .student-live-page .viewer-header,
+  html.student-landscape-mode .student-live-page .student-chat-panel,
+  html.student-virtual-landscape-mode .student-live-page .student-chat-panel,
+  html.student-landscape-mode .student-live-page .student-mobile-controls,
+  html.student-virtual-landscape-mode .student-live-page .student-mobile-controls {
+    display: none !important;
+  }
+
+  html.student-landscape-mode .student-live-page .viewer-stage,
+  html.student-virtual-landscape-mode .student-live-page .viewer-stage {
+    position: fixed !important;
+    inset: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) 48px !important;
+    grid-template-areas: "video" "divider" !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    gap: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #000 !important;
+  }
+
+  html.student-landscape-mode .student-live-page .video-frame,
+  html.student-virtual-landscape-mode .student-live-page .video-frame {
+    grid-area: video !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #000 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  html.student-landscape-mode .student-live-page #remote-video,
+  html.student-landscape-mode .student-live-page #level-welcome-image,
+  html.student-virtual-landscape-mode .student-live-page #remote-video,
+  html.student-virtual-landscape-mode .student-live-page #level-welcome-image {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+    object-position: center center !important;
+    transform: none !important;
+  }
+
+  html.student-landscape-mode .student-live-page .viewer-actions-divider,
+  html.student-virtual-landscape-mode .student-live-page .viewer-actions-divider {
+    grid-area: divider !important;
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    max-height: 48px !important;
+    padding: 3px !important;
+    overflow: hidden !important;
+    background: #0f172a !important;
+    border: 0 !important;
+    border-top: 1px solid rgba(148, 163, 184, .34) !important;
+    border-radius: 0 !important;
+  }
+
+  html.student-landscape-mode .student-live-page .viewer-actions-control-row,
+  html.student-virtual-landscape-mode .student-live-page .viewer-actions-control-row {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    gap: 3px !important;
+    direction: rtl !important;
+  }
+
+  html.student-landscape-mode .student-live-page .hand-request-controls,
+  html.student-virtual-landscape-mode .student-live-page .hand-request-controls,
+  html.student-landscape-mode .student-live-page .refresh-media-button,
+  html.student-virtual-landscape-mode .student-live-page .refresh-media-button,
+  html.student-landscape-mode .student-live-page .student-inline-rotate-controls,
+  html.student-virtual-landscape-mode .student-live-page .student-inline-rotate-controls {
+    display: flex !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  html.student-landscape-mode .student-live-page .student-inline-rotate-button,
+  html.student-virtual-landscape-mode .student-live-page .student-inline-rotate-button {
+    display: none !important;
+  }
+
+  html.student-landscape-mode .student-live-page .student-inline-rotate-button.is-cancel,
+  html.student-virtual-landscape-mode .student-live-page .student-inline-rotate-button.is-cancel {
+    display: inline-flex !important;
+  }
+
+  html.student-landscape-mode .student-live-page .viewer-actions-control-row button,
+  html.student-virtual-landscape-mode .student-live-page .viewer-actions-control-row button,
+  html.student-landscape-mode .student-live-page .viewer-actions-control-row .hand-waiting-label,
+  html.student-virtual-landscape-mode .student-live-page .viewer-actions-control-row .hand-waiting-label {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0 3px !important;
+    border-radius: 6px !important;
+    font-size: clamp(.55rem, 1.7vw, .7rem) !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  html.student-landscape-mode .student-live-page .desktop-stage-button,
+  html.student-virtual-landscape-mode .student-live-page .desktop-stage-button,
+  html.student-landscape-mode .student-live-page .student-chat-actions,
+  html.student-virtual-landscape-mode .student-live-page .student-chat-actions {
+    display: none !important;
+  }
+}
+
+/* The virtual-rotation surface is rotated by the shared JS only after fallback. */
+@media screen and (max-width: 900px) {
+  html.student-virtual-landscape-mode .student-live-page .viewer-stage {
+    top: 50% !important;
+    left: 50% !important;
+    inset: auto !important;
+    width: 100vh !important;
+    height: 100vw !important;
+    transform: translate(-50%, -50%) rotate(90deg) !important;
+    transform-origin: center center !important;
+  }
+}
