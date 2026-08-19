@@ -526,3 +526,228 @@
     padding: .35rem !important;
   }
 }
+
+
+/* ======================================================================
+   FIRST-DAY DESKTOP BASELINE OVERRIDE
+   One stable visual layout: 80% broadcast + 20% right sidebar.
+   This block intentionally outranks legacy inline desktop rules in student-live.html.
+   ====================================================================== */
+@media screen and (min-width: 901px) {
+  body.student-live-page.student-live-page {
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #020617 !important;
+    direction: rtl !important;
+  }
+
+  body.student-live-page.student-live-page .viewer-shell {
+    position: relative !important;
+    display: block !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #020617 !important;
+    direction: ltr !important;
+  }
+
+  body.student-live-page.student-live-page .viewer-stage {
+    position: relative !important;
+    display: block !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #020617 !important;
+    direction: ltr !important;
+  }
+
+  body.student-live-page.student-live-page .viewer-stage > .video-frame {
+    position: absolute !important;
+    top: 0 !important;
+    right: 20vw !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 80vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #000 !important;
+    border: 0 !important;
+    border-right: 2px solid rgba(148, 163, 184, .2) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    direction: ltr !important;
+    z-index: 1 !important;
+  }
+
+  body.student-live-page.student-live-page .viewer-stage > .video-frame #remote-video,
+  body.student-live-page.student-live-page .viewer-stage > .video-frame #level-welcome-image {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 2 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+    object-position: center center !important;
+    background: #000 !important;
+  }
+
+  body.student-live-page.student-live-page .viewer-header {
+    position: absolute !important;
+    top: 0 !important;
+    right: 0 !important;
+    left: auto !important;
+    z-index: 30 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 20vw !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    max-height: 52px !important;
+    padding: 0 10px !important;
+    gap: 6px !important;
+    overflow: hidden !important;
+    background: #1e293b !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(148, 163, 184, .2) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    direction: rtl !important;
+  }
+
+  body.student-live-page.student-live-page .viewer-brand,
+  body.student-live-page.student-live-page .message-bell,
+  body.student-live-page.student-live-page .viewer-subject,
+  body.student-live-page.student-live-page .live-start-notice {
+    display: none !important;
+  }
+
+  body.student-live-page.student-live-page .student-chat-panel {
+    position: absolute !important;
+    top: 52px !important;
+    right: 0 !important;
+    bottom: calc(33.3333dvh - 17.3333px) !important;
+    left: auto !important;
+    z-index: 20 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 20vw !important;
+    height: calc(66.6667dvh - 34.6667px) !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    background: #0b1329 !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(148, 163, 184, .2) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    direction: rtl !important;
+  }
+
+  body.student-live-page.student-live-page .student-chat-box {
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  body.student-live-page.student-live-page .student-chat-actions {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    width: 100% !important;
+    min-height: 60px !important;
+    padding: 6px 8px !important;
+    gap: 6px !important;
+  }
+
+  body.student-live-page.student-live-page .viewer-actions-divider {
+    position: absolute !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: auto !important;
+    z-index: 20 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-evenly !important;
+    align-items: stretch !important;
+    width: 20vw !important;
+    height: calc(33.3333dvh - 17.3333px) !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 10px !important;
+    overflow: hidden !important;
+    background: #0f172a !important;
+    border: 0 !important;
+    border-top: 2px solid rgba(59, 130, 246, .3) !important;
+    border-radius: 0 !important;
+    direction: rtl !important;
+  }
+
+  body.student-live-page.student-live-page .viewer-actions-control-row {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-evenly !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    gap: 8px !important;
+    direction: rtl !important;
+  }
+
+  body.student-live-page.student-live-page .viewer-actions-control-row button,
+  body.student-live-page.student-live-page .viewer-actions-control-row .hand-waiting-label,
+  body.student-live-page.student-live-page .viewer-actions-control-row .desktop-stage-button {
+    position: static !important;
+    inset: auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 38px !important;
+    height: 40px !important;
+    margin: 0 !important;
+    padding: 0 8px !important;
+    border-radius: 8px !important;
+    font-size: clamp(.65rem, .8vw, .78rem) !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+  }
+
+  body.student-live-page.student-live-page .student-inline-rotate-controls,
+  body.student-live-page.student-live-page #student-center-rotate-btn,
+  body.student-live-page.student-live-page #student-center-unrotate-btn,
+  body.student-live-page.student-live-page .student-mobile-controls {
+    display: none !important;
+  }
+}
