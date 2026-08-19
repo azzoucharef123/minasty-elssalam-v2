@@ -1,4 +1,5 @@
-/* Desktop-only visual module. The shared DOM and JavaScript bindings remain unchanged. */
+/* Student Desktop — isolated visual module only.
+   Shared DOM IDs, event listeners, WebRTC, Socket.IO, audio, chat, and modals remain unchanged. */
 @media screen and (min-width: 901px) {
   html,
   body.student-live-page {
@@ -12,6 +13,7 @@
     direction: rtl !important;
   }
 
+  /* The shared stage is flattened only visually; its children retain their IDs and bindings. */
   .student-live-page .viewer-shell {
     display: grid !important;
     grid-template-columns: 80vw 20vw !important;
@@ -25,11 +27,11 @@
     background: #020617 !important;
   }
 
-  /* Flatten the shared stage so its existing children become grid items of the viewport. */
   .student-live-page .viewer-stage {
     display: contents !important;
   }
 
+  /* 80% main broadcast stage, full viewport height. */
   .student-live-page .video-frame {
     grid-column: 1 !important;
     grid-row: 1 / 4 !important;
@@ -64,6 +66,7 @@
     object-position: center center !important;
   }
 
+  /* 20% sidebar: header, chat, and actions span the entire viewport height. */
   .student-live-page .viewer-header {
     grid-column: 2 !important;
     grid-row: 1 !important;
@@ -129,6 +132,7 @@
     font-weight: 900 !important;
   }
 
+  /* Upper half of the sidebar: questions, messages, and input form. */
   .student-live-page .student-chat-panel {
     grid-column: 2 !important;
     grid-row: 2 !important;
@@ -180,6 +184,24 @@
     background: #1e293b !important;
   }
 
+  .student-live-page .student-chat-actions {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    gap: 6px !important;
+    padding: 6px 8px !important;
+  }
+
+  .student-live-page .student-chat-capture,
+  .student-live-page .student-chat-message-button {
+    min-width: 0 !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0 5px !important;
+    font-size: clamp(.58rem, .7vw, .68rem) !important;
+    white-space: nowrap !important;
+  }
+
+  /* Lower half of the sidebar: only hand, refresh, and fullscreen actions. */
   .student-live-page .viewer-actions-divider {
     grid-column: 2 !important;
     grid-row: 3 !important;
@@ -255,22 +277,5 @@
     min-height: 44px !important;
     height: 46px !important;
     font-size: clamp(.64rem, .8vw, .78rem) !important;
-  }
-
-  .student-live-page .student-chat-actions {
-    display: flex !important;
-    flex: 0 0 auto !important;
-    gap: 6px !important;
-    padding: 6px 8px !important;
-  }
-
-  .student-live-page .student-chat-capture,
-  .student-live-page .student-chat-message-button {
-    min-width: 0 !important;
-    min-height: 36px !important;
-    height: 36px !important;
-    padding: 0 5px !important;
-    font-size: clamp(.58rem, .7vw, .68rem) !important;
-    white-space: nowrap !important;
   }
 }
