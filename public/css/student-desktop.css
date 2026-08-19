@@ -70,7 +70,8 @@
   }
 
   .student-live-page .student-desktop-broadcast > .video-frame {
-    position: relative !important;
+    position: absolute !important;
+    inset: 0 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -91,6 +92,9 @@
 
   .student-live-page #remote-video,
   .student-live-page #level-welcome-image {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 2 !important;
     display: block !important;
     width: 100% !important;
     height: 100% !important;
@@ -98,6 +102,12 @@
     max-height: 100% !important;
     object-fit: contain !important;
     object-position: center center !important;
+  }
+
+  .student-live-page .student-desktop-broadcast .video-placeholder {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 1 !important;
   }
 
   .student-live-page .student-desktop-sidebar > .viewer-header {
