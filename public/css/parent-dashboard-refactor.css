@@ -629,3 +629,61 @@
 @media (max-width: 560px) {
   .payment-receipt-choice-menu { grid-template-columns: 1fr; }
 }
+
+/* Multi-student picker modal */
+.student-switcher-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 1rem;
+  background: rgba(15, 23, 42, .62);
+  backdrop-filter: blur(7px);
+}
+.student-switcher-modal[hidden] { display: none; }
+.student-switcher-modal-card {
+  position: relative;
+  width: min(100%, 38rem);
+  max-height: min(88vh, 42rem);
+  padding: 1.35rem;
+  overflow: auto;
+  border: 1px solid #bfdbfe;
+  border-radius: 1.25rem;
+  background: linear-gradient(145deg, #ffffff, #f8fbff);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .28);
+  animation: studentSwitcherRise .25s ease both;
+}
+.student-switcher-modal .student-switcher-heading { margin-bottom: 1rem; padding-left: 2.4rem; }
+.student-switcher-close {
+  position: absolute;
+  top: .75rem;
+  left: .75rem;
+  display: grid;
+  width: 2.2rem;
+  height: 2.2rem;
+  place-items: center;
+  color: #475569;
+  border: 0;
+  border-radius: 50%;
+  background: #e2e8f0;
+  font-size: 1.45rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: .2s ease;
+}
+.student-switcher-close:hover { color: #1d4ed8; background: #dbeafe; transform: rotate(8deg); }
+.student-switcher-modal .student-switcher-list { grid-template-columns: 1fr; max-height: 52vh; overflow: auto; padding: .2rem; }
+.student-switcher-modal .student-switcher-card { min-height: 3.7rem; padding: .8rem .9rem; }
+.student-switcher-modal .student-switcher-card:focus-visible,
+.student-switcher-close:focus-visible { outline: 3px solid rgba(37, 99, 235, .35); outline-offset: 3px; }
+@keyframes studentSwitcherRise { from { opacity: 0; transform: translateY(.7rem) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (max-width: 600px) {
+  .student-switcher-modal { padding: .7rem; }
+  .student-switcher-modal-card { width: 100%; max-height: 86dvh; padding: 1rem; border-radius: 1rem; }
+  .student-switcher-modal .student-switcher-heading { gap: .6rem; padding-left: 2.1rem; }
+  .student-switcher-modal .student-switcher-icon { width: 2.35rem; height: 2.35rem; font-size: 1.1rem; }
+  .student-switcher-modal .student-switcher-heading h2 { font-size: .96rem; }
+}
+.student-switcher-open { overflow: hidden; }

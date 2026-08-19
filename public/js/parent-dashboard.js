@@ -96,6 +96,7 @@ const elements = {
   homeworkCount: document.getElementById("homework-count"),
   studentSwitcher: document.getElementById("student-switcher"),
   studentSwitcherList: document.getElementById("student-switcher-list"),
+  studentSwitcherClose: document.getElementById("student-switcher-close"),
   activeStudentBar: document.getElementById("active-student-bar"),
   activeStudentName: document.getElementById("active-student-name"),
   changeStudentButton: document.getElementById("change-student-button"),
@@ -1222,10 +1223,15 @@ function openStudentPicker() {
   }
 
   elements.studentSwitcher.hidden = false;
-  if (elements.dashboardContent) elements.dashboardContent.hidden = true;
-  if (elements.activeStudentBar) elements.activeStudentBar.hidden = true;
   renderStudentSwitcher(currentStudents);
+  document.body.classList.add("student-switcher-open");
   elements.studentSwitcher.querySelector(".student-switcher-card")?.focus();
+}
+
+function closeStudentPicker() {
+  if (elements.studentSwitcher) elements.studentSwitcher.hidden = true;
+  document.body.classList.remove("student-switcher-open");
+  elements.changeStudentButton?.focus();
 }
 
 function updateActiveStudentBar(student) {
@@ -1290,7 +1296,7 @@ function selectStudent(studentId) {
   renderStudentSwitcher(currentStudents);
   updateActiveStudentBar(student);
   renderLevelScheduleCard(student);
-  if (elements.studentSwitcher) elements.studentSwitcher.hidden = true;
+  closeStudentPicker();
   renderStudent(student);
   elements.dashboardContent.hidden = false;
   clearError();
@@ -2407,6 +2413,10 @@ if (!getParentToken()) {
   elements.logoutButton?.addEventListener("click", logout);
   elements.parentSidebarLogout?.addEventListener("click", logout);
   elements.changeStudentButton?.addEventListener("click", openStudentPicker);
+  elements.studentSwitcherClose?.addEventListener("click", closeStudentPicker);
+  elements.studentSwitcher?.addEventListener("click", (event) => {
+    if (event.target === elements.studentSwitcher) closeStudentPicker();
+  });
   elements.parentSidebarToggle?.addEventListener("click", () => setParentSidebarOpen(!elements.parentSidebar?.classList.contains("is-open")));
   elements.parentSidebarClose?.addEventListener("click", () => setParentSidebarOpen(false));
   elements.parentSidebarBackdrop?.addEventListener("click", () => setParentSidebarOpen(false));
