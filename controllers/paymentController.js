@@ -3,8 +3,10 @@ const prisma = require("../lib/prisma");
 const { logAudit } = require("../utils/audit");
 
 const SOFIZPAY_ACCOUNT = process.env.SOFIZPAY_ACCOUNT || "GBYAJX2VUMCKQQMTQRKIHFL7GWKPXQGAQNNCJOIV232S3Q73NNYK6JF4";
+const SOFIZPAY_CREATE_URL = "https://sofizpay.com/make-cib-transaction/";
 const SOFIZPAY_CHECK_URL = "https://sofizpay.com/cib-transaction-check/";
 const PUBLIC_SITE_URL = String(process.env.PUBLIC_SITE_URL || "https://dr.africacold.fr").replace(/\/$/, "");
+const SOFIZPAY_WEBHOOK_URL = `${PUBLIC_SITE_URL}/api/payments/sofizpay/webhook`;
 const FIXED_PAYMENT_LINKS = Object.freeze({
   BOTH: process.env.SOFIZPAY_LINK_BOTH || "https://sofizpay.com/create-payment-link/?account=GBYAJX2VUMCKQQMTQRKIHFL7GWKPXQGAQNNCJOIV232S3Q73NNYK6JF4&amount=2030&memo=BOTH-2030&return_url=https%3A%2F%2Fdr.africacold.fr%2Fparent-dashboard.html%3Fpayment%3Dsofizpay%26subscription%3DBOTH",
   MATH: process.env.SOFIZPAY_LINK_MATH || "https://sofizpay.com/create-payment-link/?account=GBYAJX2VUMCKQQMTQRKIHFL7GWKPXQGAQNNCJOIV232S3Q73NNYK6JF4&amount=1030&memo=MATH-1030&return_url=https%3A%2F%2Fdr.africacold.fr%2Fparent-dashboard.html%3Fpayment%3Dsofizpay%26subscription%3DMATH",
@@ -28,6 +30,54 @@ function buildInternalOrderId() {
   return `MINA-${Date.now()}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
 }
 
+function buildSofizPayReturnUrl(internalOrderId, subscriptionType) {
+  const url = new URL(`${PUBLIC_SITE_URL}/parent-dashboard.html`);
+  url.searchParams.set("payment", "sofizpay");
+  url.searchParams.set("subscription", subscriptionType);
+  url.searchParams.set("internal_order_id", internalOrderId);
+  return url.toString();
+}
+
+function extractProviderTransactionId(payload) {
+  return text(
+    payload?.transaction_id ||
+    payload?.data?.transaction_id ||
+    payload?.id ||
+    payload?.data?.id,
+    120
+  ) || null;
+}
+
+async function createSofizPayPayment({ student, subscriptionType, amount, internalOrderId }) {
+  const phone = text(student.parentPhone, 40);
+  const email = `${phone.replace(/[^0-9]/g, "") || "parent"}@dr.africacold.fr`;
+  const params = new URLSearchParams({
+    account: SOFIZPAY_ACCOUNT,
+    amount: String(amount),
+    full_name: text(student.studentName, 120) || "Student",
+    phone,
+    email,
+    return_url: buildSofizPayReturnUrl(internalOrderId, subscriptionType),
+    webhook_url: SOFIZPAY_WEBHOOK_URL,
+    invoice_id: internalOrderId,
+    language: "ar",
+    memo: `${subscriptionType}-${amount}`,
+    redirect: "yes",
+    keep_return_url: "True",
+  });
+  const { response, payload } = await fetchJson(`${SOFIZPAY_CREATE_URL}?${params.toString()}`);
+  const paymentUrl = text(payload?.payment_url || payload?.data?.payment_url || payload?.formUrl || payload?.cib_response?.formUrl, 4000);
+  if (!response.ok || payload?.success === false || !paymentUrl) {
+    throw new Error(payload?.message || payload?.error || "تعذر إنشاء رابط SofizPay مخصص.");
+  }
+  return {
+    paymentUrl,
+    providerOrderNumber: extractProviderOrderNumber(payload),
+    providerTransactionId: extractProviderTransactionId(payload),
+    providerPayload: payload,
+  };
+}
+
 function amountAsNumber(value) {
   const amount = Number(String(value ?? "").replace(",", "."));
   return Number.isFinite(amount) ? amount : null;
@@ -42,6 +92,18 @@ function extractProviderOrderNumber(payload) {
     payload?.order_number ||
     payload?.orderNumber ||
     payload?.order,
+    120
+  ) || null;
+}
+
+function extractInternalOrderId(payload) {
+  return text(
+    payload?.invoice_id ||
+    payload?.data?.invoice_id ||
+    payload?.internal_order_id ||
+    payload?.data?.internal_order_id ||
+    payload?.order_id ||
+    payload?.data?.order_id,
     120
   ) || null;
 }
@@ -88,15 +150,25 @@ async function getOwnedStudent(req, studentId) {
 }
 
 function providerPaymentAccepted(payload, transaction) {
-  const orderStatus = Number(payload?.orderStatus ?? payload?.data?.orderStatus);
-  const responseCode = text(payload?.respCode ?? payload?.data?.respCode, 10);
-  const accepted = orderStatus === 2 || responseCode === "00";
+  const orderStatus = Number(payload?.orderStatus ?? payload?.data?.orderStatus ?? payload?.cib_response?.orderStatus);
+  const responseCode = text(
+    payload?.respCode ??
+    payload?.responseCode ??
+    payload?.data?.respCode ??
+    payload?.data?.responseCode ??
+    payload?.cib_response?.respCode ??
+    payload?.cib_response?.responseCode,
+    10
+  );
+  const status = text(payload?.status ?? payload?.data?.status, 60).toLowerCase();
+  const acceptedStatus = new Set(["paid", "completed", "complete", "success", "succeeded", "approved"]);
+  const accepted = orderStatus === 2 || responseCode === "00" || acceptedStatus.has(status);
   if (!accepted) return false;
 
-  const returnedAmount = amountAsNumber(payload?.Amount ?? payload?.amount ?? payload?.data?.Amount ?? payload?.data?.amount);
+  const returnedAmount = amountAsNumber(payload?.Amount ?? payload?.amount ?? payload?.data?.Amount ?? payload?.data?.amount ?? payload?.transaction?.amount);
   if (returnedAmount !== null && Math.round(returnedAmount) !== transaction.amount) return false;
 
-  const destination = text(payload?.destination_account ?? payload?.data?.destination_account, 120);
+  const destination = text(payload?.destination_account ?? payload?.data?.destination_account ?? payload?.destination, 120);
   if (destination && destination !== SOFIZPAY_ACCOUNT) return false;
   return true;
 }
@@ -187,8 +259,7 @@ async function startSofizPayPayment(req, res) {
     if (!isParent(req)) return res.status(403).json({ error: "هذه العملية متاحة للولي فقط." });
     const subscriptionType = text(req.body?.subscriptionType, 20).toUpperCase();
     const subscription = VALID_SUBSCRIPTIONS.get(subscriptionType);
-    const paymentUrl = FIXED_PAYMENT_LINKS[subscriptionType];
-    if (!subscription || !paymentUrl) return res.status(400).json({ error: "اختر الرياضيات أو الفيزياء أو المادتين معًا." });
+    if (!subscription) return res.status(400).json({ error: "اختر الرياضيات أو الفيزياء أو المادتين معًا." });
 
     const student = await getOwnedStudent(req, req.body?.studentId);
     if (!student || !studentBelongsToParent(student, req)) return res.status(403).json({ error: "لا تملك صلاحية الدفع لهذا التلميذ." });
@@ -213,13 +284,35 @@ async function startSofizPayPayment(req, res) {
         internalOrderId,
         subscriptionType,
         amount: subscription.amount,
-        paymentUrl,
-        returnUrl: `${PUBLIC_SITE_URL}/parent-dashboard.html?payment=sofizpay&subscription=${subscriptionType}`,
+        returnUrl: buildSofizPayReturnUrl(internalOrderId, subscriptionType),
         memo: `${subscriptionType}-${subscription.amount}`,
       },
     });
 
-    return res.json({ status: "success", data: { paymentUrl: transaction.paymentUrl, internalOrderId, amount: transaction.amount, subscriptionType, fixedLink: true } });
+    let providerPayment;
+    try {
+      providerPayment = await createSofizPayPayment({
+        student,
+        subscriptionType,
+        amount: subscription.amount,
+        internalOrderId,
+      });
+    } catch (error) {
+      await prisma.paymentTransaction.delete({ where: { id: transaction.id } }).catch(() => {});
+      throw error;
+    }
+
+    const updatedTransaction = await prisma.paymentTransaction.update({
+      where: { id: transaction.id },
+      data: {
+        paymentUrl: providerPayment.paymentUrl,
+        providerOrderNumber: providerPayment.providerOrderNumber,
+        providerTransactionId: providerPayment.providerTransactionId,
+        providerPayload: safeJson(providerPayment.providerPayload),
+      },
+    });
+
+    return res.json({ status: "success", data: { paymentUrl: updatedTransaction.paymentUrl, internalOrderId, amount: updatedTransaction.amount, subscriptionType, providerOrderNumber: updatedTransaction.providerOrderNumber } });
   } catch (error) {
     console.error("SofizPay fixed payment start failed:", error);
     return res.status(500).json({ error: "تعذر تجهيز رابط الدفع الإلكتروني حاليًا." });
@@ -306,6 +399,42 @@ async function getTeacherElectronicPayments(req, res) {
   }
 }
 
+async function reconcileTeacherElectronicPayment(req, res) {
+  try {
+    const transactionId = text(req.params?.id, 80);
+    const providerOrderNumber = extractProviderOrderNumber(req.body || {}) || text(req.body?.providerOrderNumber, 120);
+    if (!providerOrderNumber) return res.status(400).json({ error: "أدخل رقم معاملة SofizPay للتحقق." });
+
+    const transaction = await prisma.paymentTransaction.findUnique({ where: { id: transactionId } });
+    if (!transaction) return res.status(404).json({ error: "المعاملة المحلية غير موجودة." });
+    if (transaction.providerOrderNumber && transaction.providerOrderNumber !== providerOrderNumber) {
+      return res.status(409).json({ error: "المعاملة مرتبطة برقم SofizPay مختلف." });
+    }
+
+    const duplicate = await prisma.paymentTransaction.findFirst({ where: { providerOrderNumber, NOT: { id: transaction.id } }, select: { id: true } });
+    if (duplicate) return res.status(409).json({ error: "رقم SofizPay مرتبط بطلب آخر." });
+
+    const linked = transaction.providerOrderNumber === providerOrderNumber
+      ? transaction
+      : await prisma.paymentTransaction.update({
+          where: { id: transaction.id },
+          data: { providerOrderNumber },
+        });
+    const result = await verifyTransaction(linked);
+    return res.json({
+      status: "success",
+      data: {
+        paymentStatus: result.verified ? "PAID" : result.failed ? "FAILED" : "PENDING",
+        transaction: result.transaction,
+        message: result.verified ? "تم التحقق من الدفع وتفعيل الاشتراك." : result.failed ? "رفض SofizPay المعاملة." : "المعاملة ما زالت قيد التحقق.",
+      },
+    });
+  } catch (error) {
+    console.error("Teacher SofizPay reconciliation failed:", error);
+    return res.status(500).json({ error: "تعذر التحقق من المعاملة حاليًا." });
+  }
+}
+
 async function dismissTeacherElectronicPayment(req, res) {
   try {
     const transactionId = text(req.params?.id, 80);
@@ -326,11 +455,34 @@ async function dismissTeacherElectronicPayment(req, res) {
 
 async function receiveSofizPayWebhook(req, res) {
   try {
-    const providerOrderNumber = extractProviderOrderNumber(req.body || req.query || {});
-    if (!providerOrderNumber) return res.status(400).json({ error: "رقم معاملة SofizPay غير موجود." });
-    const transaction = await prisma.paymentTransaction.findUnique({ where: { providerOrderNumber } });
+    const payload = req.body || req.query || {};
+    const providerOrderNumber = extractProviderOrderNumber(payload);
+    const internalOrderId = extractInternalOrderId(payload);
+    if (!providerOrderNumber && !internalOrderId) return res.status(400).json({ error: "رقم معاملة SofizPay أو رقم الطلب الداخلي غير موجود." });
+
+    const transaction = await prisma.paymentTransaction.findFirst({
+      where: {
+        OR: [
+          ...(providerOrderNumber ? [{ providerOrderNumber }] : []),
+          ...(internalOrderId ? [{ internalOrderId }] : []),
+        ],
+      },
+    });
     if (!transaction) return res.status(404).json({ error: "المعاملة غير معروفة أو لم تعد مرتبطة بطلب مفتوح." });
-    const result = await verifyTransaction(transaction);
+
+    let linkedTransaction = transaction;
+    if (providerOrderNumber && transaction.providerOrderNumber !== providerOrderNumber) {
+      linkedTransaction = await prisma.paymentTransaction.update({
+        where: { id: transaction.id },
+        data: {
+          providerOrderNumber,
+          providerTransactionId: extractProviderTransactionId(payload) || transaction.providerTransactionId,
+          providerPayload: safeJson(payload),
+        },
+      });
+    }
+
+    const result = await verifyTransaction(linkedTransaction);
     return res.json({ status: result.verified ? "paid" : result.pending ? "pending" : "failed" });
   } catch (error) {
     console.error("SofizPay webhook failed:", error);
@@ -343,5 +495,6 @@ module.exports = {
   getSofizPayPaymentStatus,
   getTeacherElectronicPayments,
   dismissTeacherElectronicPayment,
+  reconcileTeacherElectronicPayment,
   receiveSofizPayWebhook,
 };

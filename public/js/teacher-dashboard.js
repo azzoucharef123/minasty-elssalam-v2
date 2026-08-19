@@ -1863,7 +1863,7 @@ function renderManualPayments(studentsArray = currentStudents) {
 function electronicPaymentStatusMeta(status) {
   if (status === "PAID") return { label: "الدفع ناجح", className: "is-paid" };
   if (status === "FAILED") return { label: "فشل الدفع", className: "is-failed" };
-  return { label: "حاول الدفع ولم يكتمل", className: "is-attempt" };
+  return { label: "قيد التحقق من SofizPay", className: "is-pending" };
 }
 
 function renderElectronicPayments(payments = electronicPayments, summary = null) {
@@ -1894,11 +1894,15 @@ function renderElectronicPayments(payments = electronicPayments, summary = null)
     const actionCell = document.createElement("td");
     actionCell.className = "payment-actions-cell";
     if (payment.status !== "PAID") {
+      const reconcileButton = createButton("تحقق من SofizPay", "payment-reconcile-btn", () => {
+        void reconcileElectronicPayment(payment);
+      });
+      reconcileButton.title = "أدخل رقم المعاملة للتحقق من حالتها وتفعيل الاشتراك إذا أكد SofizPay نجاحها";
       const dismissButton = createButton("حذف الإشعار", "payment-attempt-dismiss-btn", () => {
         void dismissElectronicPayment(payment.id);
       });
       dismissButton.title = "حذف إشعار محاولة الدفع بعد الاطلاع عليه";
-      actionCell.append(dismissButton);
+      actionCell.append(reconcileButton, dismissButton);
     } else {
       const retained = document.createElement("span");
       retained.className = "payment-retained-label";
@@ -1939,6 +1943,28 @@ async function loadElectronicPayments(level = currentLevel) {
       electronicPayments = [];
       electronicPaymentsLevel = "";
       renderElectronicPayments([]);
+    }
+  }
+}
+
+async function reconcileElectronicPayment(payment) {
+  const providerOrderNumber = window.prompt("أدخل رقم معاملة SofizPay للتحقق:", payment?.providerOrderNumber || "");
+  if (!providerOrderNumber?.trim()) return;
+
+  try {
+    const response = await teacherFetch(`/api/payments/teacher/electronic/${encodeURIComponent(payment.id)}/reconcile`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ providerOrderNumber: providerOrderNumber.trim() }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر التحقق من معاملة SofizPay.");
+    showToast(payload?.data?.message || "تم تحديث حالة معاملة SofizPay.");
+    await loadElectronicPayments(currentLevel);
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) {
+      console.error("Unable to reconcile SofizPay payment:", error);
+      showDashboardError(error.message || "تعذر التحقق من معاملة SofizPay.");
     }
   }
 }

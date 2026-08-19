@@ -4275,7 +4275,23 @@ body.parent-login-page {
 
 .payment-status-badge.is-failed { color: #991b1b; background: #fee2e2; border-color: #fca5a5; }
 .payment-status-badge.is-attempt { color: #92400e; background: #fef3c7; border-color: #fcd34d; }
+.payment-status-badge.is-pending { color: #1d4ed8; background: #dbeafe; border-color: #93c5fd; }
 .payment-status-badge.is-paid { color: #166534; background: #dcfce7; border-color: #86efac; }
+
+.payment-reconcile-btn {
+  min-height: 2.1rem;
+  padding: .38rem .62rem;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: var(--border-radius-button);
+  font: inherit;
+  font-size: .67rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.payment-reconcile-btn:hover:not(:disabled) { color: #fff; background: #2563eb; }
 
 .payment-attempt-dismiss-btn {
   min-height: 2.1rem;

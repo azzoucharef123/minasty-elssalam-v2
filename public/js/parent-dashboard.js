@@ -783,19 +783,21 @@ async function checkSofizPayReturn() {
   const params = new URLSearchParams(window.location.search);
   if (params.get("payment") !== "sofizpay") return;
   const subscriptionType = params.get("subscription");
+  const returnedInternalOrderId = params.get("internal_order_id") || params.get("invoice_id") || params.get("order_id") || "";
   let pending = null;
   try {
     pending = JSON.parse(sessionStorage.getItem("sofizpayPendingOrder") || "null");
   } catch {
     pending = null;
   }
-  if (!pending?.internalOrderId || pending.subscriptionType !== subscriptionType || (currentStudent?.id && pending.studentId !== currentStudent.id)) {
+  const internalOrderId = returnedInternalOrderId || pending?.internalOrderId || "";
+  if (!internalOrderId || (pending?.subscriptionType && pending.subscriptionType !== subscriptionType) || (currentStudent?.id && pending?.studentId && pending.studentId !== currentStudent.id)) {
     openDocumentFeedback("تعذر ربط العودة بطلب الدفع الخاص بهذا الحساب. أعد اختيار الاشتراك من بوابة الولي.", "تعذر مطابقة الدفع");
     return;
   }
 
   const providerOrderNumber = params.get("order_number") || params.get("cib_transaction_id") || params.get("orderNumber") || params.get("order") || "";
-  const query = new URLSearchParams({ internal_order_id: pending.internalOrderId });
+  const query = new URLSearchParams({ internal_order_id: internalOrderId });
   if (providerOrderNumber) query.set("order_number", providerOrderNumber);
 
   let result = null;
