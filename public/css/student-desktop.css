@@ -169,12 +169,11 @@
     display: none !important;
   }
 }
-
 /* ==========================================================================
-   DESKTOP 80/20 PURE CSS GRID MODULE (min-width: 901px)
+   DESKTOP 80/20 STABLE CSS MODULE (min-width: 901px)
+   Original DOM is preserved; no display:contents and no fixed children.
    ========================================================================== */
 @media screen and (min-width: 901px) {
-  /* 1. Viewport Root Lock */
   html,
   body.student-live-page {
     width: 100vw !important;
@@ -185,94 +184,113 @@
     padding: 0 !important;
     overflow: hidden !important;
     background: #020617 !important;
+    direction: rtl !important;
   }
 
-  /* 2. Master Two-Column Grid Shell */
   .student-live-page .viewer-shell {
+    position: relative !important;
     display: grid !important;
     grid-template-columns: 80vw 20vw !important;
-    grid-template-rows: 52px minmax(0, 2fr) minmax(0, 1fr) !important;
-    grid-template-areas:
-      "video header"
-      "video chat"
-      "video actions" !important;
+    grid-template-rows: 100dvh !important;
     width: 100vw !important;
     height: 100vh !important;
     height: 100dvh !important;
+    min-height: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
     background: #020617 !important;
-    direction: ltr !important; /* Left = 80% Video, Right = 20% Sidebar */
+    direction: ltr !important;
   }
 
-  /* 3. Unwrap .viewer-stage into Grid items */
+  /* The original DOM keeps chat/actions inside viewer-stage. The stage spans
+     the shell and its children are positioned absolutely within that stage. */
   .student-live-page .viewer-stage {
-    display: contents !important;
-  }
-
-  /* ==========================================================================
-     COLUMN 1: TEACHER BROADCAST STAGE (80% Width, Full 100vh Height)
-     ========================================================================== */
-  .student-live-page .video-frame {
-    grid-area: video !important;
     position: relative !important;
-    width: 80vw !important;
-    height: 100vh !important;
+    grid-column: 1 / -1 !important;
+    grid-row: 1 !important;
+    display: block !important;
+    width: 100vw !important;
     height: 100dvh !important;
     min-width: 0 !important;
     min-height: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
+    overflow: hidden !important;
+    background: #020617 !important;
+    direction: ltr !important;
+  }
+
+  .student-live-page .viewer-stage > .video-frame {
+    position: absolute !important;
+    top: 0 !important;
+    right: 20vw !important;
+    bottom: 0 !important;
+    left: 0 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    background: #000000 !important;
+    width: 80vw !important;
+    height: 100dvh !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #000 !important;
     border: 0 !important;
-    border-right: 2px solid rgba(148, 163, 184, 0.2) !important;
+    border-right: 2px solid rgba(148, 163, 184, .2) !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    overflow: hidden !important;
+    direction: ltr !important;
+    z-index: 1 !important;
   }
 
-  .student-live-page #remote-video,
-  .student-live-page #level-welcome-image {
+  .student-live-page .viewer-stage > .video-frame #remote-video,
+  .student-live-page .viewer-stage > .video-frame #level-welcome-image {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 2 !important;
+    display: block !important;
     width: 100% !important;
     height: 100% !important;
     max-width: 100% !important;
     max-height: 100% !important;
     object-fit: contain !important;
     object-position: center center !important;
-    background: #000000 !important;
+    background: #000 !important;
   }
 
-  .student-live-page .video-placeholder {
+  .student-live-page .viewer-stage > .video-frame .video-placeholder {
     position: absolute !important;
     inset: 0 !important;
     z-index: 1 !important;
   }
 
-  /* ==========================================================================
-     COLUMN 2 - ROW 1: TOP MINI HEADER (~52px)
-     ========================================================================== */
   .student-live-page .viewer-header {
-    grid-area: header !important;
-    position: static !important;
+    position: absolute !important;
+    top: 0 !important;
+    right: 0 !important;
+    left: auto !important;
+    z-index: 30 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
     width: 20vw !important;
     height: 52px !important;
     min-height: 52px !important;
     max-height: 52px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
     padding: 0 10px !important;
     gap: 6px !important;
+    overflow: hidden !important;
     background: #1e293b !important;
     border: 0 !important;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.2) !important;
+    border-bottom: 1px solid rgba(148, 163, 184, .2) !important;
     border-radius: 0 !important;
+    box-shadow: none !important;
     direction: rtl !important;
-    z-index: 10 !important;
   }
 
   .student-live-page .viewer-header .student-exit-class-button {
@@ -280,28 +298,33 @@
     width: 32px !important;
     height: 32px !important;
     min-width: 32px !important;
-    background: #dc2626 !important;
-    color: #ffffff !important;
-    font-size: 1rem !important;
-    font-weight: 900 !important;
-    border: none !important;
-    border-radius: 6px !important;
-    cursor: pointer !important;
+    min-height: 32px !important;
+    padding: 0 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    color: #fff !important;
+    background: #dc2626 !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    font-size: 1rem !important;
+    font-weight: 900 !important;
   }
 
   .student-live-page .viewer-header .viewer-level,
   .student-live-page .viewer-header .student-participation-count {
-    background: rgba(15, 23, 42, 0.7) !important;
-    border: 1px solid rgba(148, 163, 184, 0.2) !important;
-    color: #e2e8f0 !important;
-    padding: 4px 8px !important;
-    border-radius: 6px !important;
-    font-size: clamp(0.6rem, 0.8vw, 0.76rem) !important;
-    font-weight: 700 !important;
+    min-width: 0 !important;
+    max-width: 40% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
     white-space: nowrap !important;
+    padding: 4px 8px !important;
+    color: #e2e8f0 !important;
+    background: rgba(15, 23, 42, .7) !important;
+    border: 1px solid rgba(148, 163, 184, .2) !important;
+    border-radius: 6px !important;
+    font-size: clamp(.6rem, .8vw, .76rem) !important;
+    font-weight: 700 !important;
   }
 
   .student-live-page .viewer-brand,
@@ -311,23 +334,27 @@
     display: none !important;
   }
 
-  /* ==========================================================================
-     COLUMN 2 - ROW 2: CHAT & QUESTIONS AREA (Upper 2/3)
-     ========================================================================== */
-  .student-live-page aside.student-chat-panel {
-    grid-area: chat !important;
-    position: static !important;
-    width: 20vw !important;
-    height: 100% !important;
-    min-height: 0 !important;
+  .student-live-page .student-chat-panel {
+    position: absolute !important;
+    top: 52px !important;
+    right: 0 !important;
+    bottom: calc(33.3333dvh - 17.3333px) !important;
+    left: auto !important;
+    z-index: 20 !important;
     display: flex !important;
     flex-direction: column !important;
+    width: 20vw !important;
+    height: calc(66.6667dvh - 34.6667px) !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow: hidden !important;
     background: #0b1329 !important;
     border: 0 !important;
-    border-bottom: 2px solid rgba(59, 130, 246, 0.3) !important;
+    border-bottom: 2px solid rgba(59, 130, 246, .3) !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    overflow: hidden !important;
     direction: rtl !important;
   }
 
@@ -335,63 +362,72 @@
     flex: 0 0 36px !important;
     min-height: 36px !important;
     padding: 6px 10px !important;
-    background: #0f172a !important;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.1) !important;
     display: flex !important;
     align-items: center !important;
+    background: #0f172a !important;
+    border-bottom: 1px solid rgba(148, 163, 184, .1) !important;
   }
 
   .student-live-page .student-chat-head h2 {
     margin: 0 !important;
-    font-size: clamp(0.7rem, 0.85vw, 0.82rem) !important;
+    overflow: hidden !important;
     color: #94a3b8 !important;
+    font-size: clamp(.7rem, .85vw, .82rem) !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
   }
 
   .student-live-page .student-chat-box {
     flex: 1 1 0% !important;
     min-height: 0 !important;
-    overflow-y: auto !important;
     overflow-x: hidden !important;
+    overflow-y: auto !important;
     padding: 8px 10px !important;
     background: transparent !important;
   }
 
+  .student-live-page .student-chat-form,
   .student-live-page .student-chat-actions {
     flex: 0 0 auto !important;
     display: flex !important;
     gap: 6px !important;
-    padding: 8px 10px !important;
+    padding: 6px 8px !important;
     background: #0f172a !important;
-    border-top: 1px solid rgba(148, 163, 184, 0.15) !important;
   }
 
   .student-live-page .student-chat-capture,
   .student-live-page .student-chat-message-button {
     flex: 1 1 0% !important;
     min-width: 0 !important;
+    min-height: 34px !important;
     height: 36px !important;
-    font-size: clamp(0.62rem, 0.75vw, 0.72rem) !important;
+    padding: 0 5px !important;
     border-radius: 6px !important;
+    font-size: clamp(.58rem, .7vw, .68rem) !important;
+    white-space: nowrap !important;
   }
 
-  /* ==========================================================================
-     COLUMN 2 - ROW 3: ACTION CONTROLS (Lower 1/3 - 3 Buttons Vertically)
-     ========================================================================== */
   .student-live-page .viewer-actions-divider {
-    grid-area: actions !important;
-    position: static !important;
-    width: 20vw !important;
-    height: 100% !important;
-    min-height: 0 !important;
+    position: absolute !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: auto !important;
+    z-index: 20 !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-evenly !important;
     align-items: stretch !important;
+    width: 20vw !important;
+    height: calc(33.3333dvh - 17.3333px) !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-height: none !important;
     padding: 10px !important;
+    overflow: hidden !important;
     background: #0f172a !important;
     border: 0 !important;
+    border-top: 2px solid rgba(59, 130, 246, .3) !important;
     border-radius: 0 !important;
-    overflow: hidden !important;
     direction: rtl !important;
   }
 
@@ -407,38 +443,86 @@
     direction: rtl !important;
   }
 
-  /* Unify the 3 Desktop Action Buttons */
-  .student-live-page .hand-request-controls,
-  .student-live-page .hand-request-button,
-  .student-live-page #raise-hand-btn,
-  .student-live-page #hand-waiting-actions,
-  .student-live-page #lower-hand-btn,
-  .student-live-page #refresh-media-btn,
-  .student-live-page #desktop-fullscreen-btn,
-  .student-live-page #desktop-fullscreen-exit-btn {
+  .student-live-page .viewer-actions-control-row .hand-request-controls,
+  .student-live-page .viewer-actions-control-row .refresh-media-button,
+  .student-live-page .viewer-actions-control-row .desktop-fullscreen-button,
+  .student-live-page .viewer-actions-control-row .desktop-fullscreen-exit-button {
     position: static !important;
     inset: auto !important;
+    display: flex !important;
+    align-items: stretch !important;
     width: 100% !important;
+    min-width: 0 !important;
     max-width: 100% !important;
+    flex: 0 0 auto !important;
+  }
+
+  .student-live-page .viewer-actions-control-row button,
+  .student-live-page .viewer-actions-control-row .hand-waiting-label,
+  .student-live-page .viewer-actions-control-row .desktop-stage-button {
+    position: static !important;
+    inset: auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
     min-width: 0 !important;
     min-height: 38px !important;
     height: 40px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    border-radius: 8px !important;
-    font-size: clamp(0.65rem, 0.8vw, 0.78rem) !important;
-    font-weight: 700 !important;
     margin: 0 !important;
+    padding: 0 8px !important;
+    border-radius: 8px !important;
     box-shadow: none !important;
+    font-size: clamp(.65rem, .8vw, .78rem) !important;
+    font-weight: 700 !important;
+    line-height: 1.15 !important;
     white-space: nowrap !important;
   }
 
-  /* Strict Hide of Rotation and Unused Mobile Elements on Desktop */
   .student-live-page .student-inline-rotate-controls,
   .student-live-page #student-center-rotate-btn,
   .student-live-page #student-center-unrotate-btn,
   .student-live-page .student-mobile-controls {
     display: none !important;
+  }
+
+  /* Preserve Desktop fullscreen behavior with the original DOM. */
+  .student-live-page.student-desktop-fullscreen-mode .viewer-stage,
+  .student-desktop-fullscreen-mode .student-live-page .viewer-stage {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 2000 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    background: #020617 !important;
+  }
+
+  .student-live-page.student-desktop-fullscreen-mode .viewer-stage > .video-frame,
+  .student-desktop-fullscreen-mode .student-live-page .viewer-stage > .video-frame {
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+  }
+
+  .student-live-page.student-desktop-fullscreen-mode .viewer-header,
+  .student-live-page.student-desktop-fullscreen-mode .student-chat-panel,
+  .student-desktop-fullscreen-mode .student-live-page .viewer-header,
+  .student-desktop-fullscreen-mode .student-live-page .student-chat-panel {
+    display: none !important;
+  }
+
+  .student-live-page.student-desktop-fullscreen-mode .viewer-actions-divider,
+  .student-desktop-fullscreen-mode .student-live-page .viewer-actions-divider {
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 3.5rem !important;
+    min-height: 3.5rem !important;
+    max-height: 3.5rem !important;
+    padding: .35rem !important;
   }
 }
