@@ -4386,6 +4386,48 @@
             display: none !important;
           }
         }
+        /* Final desktop viewport sizing: the app occupies exactly the browser viewport. */
+        @media screen and (min-width: 901px) {
+          .student-live-page {
+            --desktop-header-height: clamp(3.5rem, 10dvh, 4.25rem);
+            --desktop-toolbar-height: clamp(4rem, 9dvh, 5.25rem);
+          }
+
+          .student-live-page .viewer-shell {
+            grid-template-rows: var(--desktop-header-height) minmax(0, 1fr) !important;
+            width: 100vw !important;
+            height: 100dvh !important;
+            min-height: 0 !important;
+            max-height: 100dvh !important;
+          }
+
+          .student-live-page .viewer-header {
+            height: var(--desktop-header-height) !important;
+            min-height: var(--desktop-header-height) !important;
+            max-height: var(--desktop-header-height) !important;
+          }
+
+          .student-live-page .viewer-stage {
+            width: 100vw !important;
+            height: 100% !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            grid-template-columns: 25vw 75vw !important;
+            grid-template-rows: minmax(0, 1fr) var(--desktop-toolbar-height) !important;
+          }
+
+          .student-live-page .viewer-actions-divider {
+            height: var(--desktop-toolbar-height) !important;
+            min-height: var(--desktop-toolbar-height) !important;
+            max-height: var(--desktop-toolbar-height) !important;
+          }
+
+          .student-live-page .video-frame,
+          .student-live-page .student-chat-panel {
+            min-height: 0 !important;
+            max-height: none !important;
+          }
+        }
       </style>
   </head>
   <body class="student-live-page">
