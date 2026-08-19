@@ -1415,6 +1415,23 @@ function openStudentActionsModal(student) {
   elements.studentActionsModalClose?.focus();
 }
 
+const PAYMENT_STAGE_PRIORITY = Object.freeze({ PROMISED: 0, PAID: 1, UNPAID: 2 });
+
+function getStudentPaymentStage(student) {
+  return student?.paymentStage || (student?.paymentStatus === true ? "PAID" : "UNPAID");
+}
+
+function sortStudentsByPaymentPriority(studentsArray) {
+  return (Array.isArray(studentsArray) ? studentsArray : [])
+    .map((student, index) => ({ student, index }))
+    .sort((left, right) => {
+      const leftPriority = PAYMENT_STAGE_PRIORITY[getStudentPaymentStage(left.student)] ?? PAYMENT_STAGE_PRIORITY.UNPAID;
+      const rightPriority = PAYMENT_STAGE_PRIORITY[getStudentPaymentStage(right.student)] ?? PAYMENT_STAGE_PRIORITY.UNPAID;
+      return leftPriority - rightPriority || left.index - right.index;
+    })
+    .map(({ student }) => student);
+}
+
 function renderTable(studentsArray) {
   const students = Array.isArray(studentsArray) ? studentsArray : [];
 
@@ -1689,8 +1706,9 @@ function applyFilters() {
     return matchesName && matchesPayment;
   });
 
-  renderTable(filteredStudents);
-  updateSummary(filteredStudents);
+  const orderedStudents = sortStudentsByPaymentPriority(filteredStudents);
+  renderTable(orderedStudents);
+  updateSummary(orderedStudents);
 }
 
 function formatTeacherPaymentDate(value) {
