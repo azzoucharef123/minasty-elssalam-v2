@@ -305,7 +305,7 @@ async function listParentPinResetRequests(req, res) {
         id: true,
         parentPhone: true,
         requestedAt: true,
-        temporaryPinExpiresAt: true,
+        temporaryExpiresAt: true,
       },
     });
 
