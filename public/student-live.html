@@ -4029,6 +4029,86 @@
         .student-live-page .desktop-fullscreen-button { display: none !important; }
         .student-live-page .student-mobile-controls { display: none !important; }
       }
+
+      /* Mobile chat composer: keep the complete dialog above the virtual keyboard. */
+      @media screen and (max-width: 900px) {
+        .chat-compose-modal,
+        #chat-compose-modal,
+        body > #chat-compose-modal {
+          position: fixed !important;
+          inset: 0 !important;
+          z-index: 2147483647 !important;
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          justify-content: flex-start !important;
+          width: 100vw !important;
+          height: 100dvh !important;
+          padding: max(12px, env(safe-area-inset-top)) 12px 12px !important;
+          overflow-y: auto !important;
+          background: rgba(2, 6, 23, .85) !important;
+          backdrop-filter: blur(10px) !important;
+          -webkit-backdrop-filter: blur(10px) !important;
+        }
+
+        .chat-compose-modal[hidden],
+        #chat-compose-modal[hidden],
+        body > #chat-compose-modal[hidden] {
+          display: none !important;
+        }
+
+        .chat-compose-dialog,
+        body > #chat-compose-modal .chat-compose-dialog {
+          position: relative !important;
+          z-index: 2147483647 !important;
+          width: min(94vw, 28rem) !important;
+          max-width: 100% !important;
+          max-height: calc(100dvh - 20px) !important;
+          margin-top: 6px !important;
+          overflow: hidden !important;
+          background: #0f172a !important;
+          border: 1px solid rgba(96, 165, 250, .3) !important;
+          border-radius: .9rem !important;
+          box-shadow: 0 16px 40px rgba(0, 0, 0, .6) !important;
+          display: flex !important;
+          flex-direction: column !important;
+        }
+
+        .chat-compose-head {
+          flex: 0 0 auto !important;
+          padding: .6rem .9rem !important;
+        }
+        .chat-compose-head h3 {
+          margin: 0 !important;
+          font-size: .95rem !important;
+        }
+
+        .student-chat-form {
+          flex: 0 0 auto !important;
+          display: flex !important;
+          flex-direction: column !important;
+          gap: .5rem !important;
+          padding: .6rem .9rem .8rem !important;
+          overflow: hidden !important;
+        }
+        #chat-input,
+        .student-chat-form textarea {
+          width: 100% !important;
+          min-height: 4.5rem !important;
+          height: 4.5rem !important;
+          max-height: 6rem !important;
+          box-sizing: border-box !important;
+          font-size: 16px !important;
+          padding: .5rem .7rem !important;
+        }
+        .student-chat-send,
+        #chat-send-btn {
+          width: 100% !important;
+          min-height: 2.4rem !important;
+          height: 2.4rem !important;
+          font-size: .85rem !important;
+        }
+      }
       </style>
   </head>
   <body class="student-live-page">
