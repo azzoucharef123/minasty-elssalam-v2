@@ -1164,6 +1164,28 @@
           transition-duration: 0.01ms !important;
         }
       }
+
+      /* Parent dashboard order: academy header, optional student switcher,
+         student/subscription card, then the remaining dashboard content. */
+      .parent-dashboard-page .parent-main {
+        display: flex;
+        flex-direction: column;
+      }
+      .parent-dashboard-page #dashboard-error { order: 0; }
+      .parent-dashboard-page #active-student-bar {
+        order: 1;
+        width: 100%;
+      }
+      .parent-dashboard-page #dashboard-content { order: 2; }
+      .parent-dashboard-page #live-class-banner,
+      .parent-dashboard-page #parent-schedule-card,
+      .parent-dashboard-page #secondary-payment-upgrade,
+      .parent-dashboard-page #level-schedule-card,
+      .parent-dashboard-page .dashboard-welcome,
+      .parent-dashboard-page #loading-state,
+      .parent-dashboard-page #student-switcher {
+        order: 3;
+      }
     </style>
     <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=student-picker-modal-1" />
 </head>
