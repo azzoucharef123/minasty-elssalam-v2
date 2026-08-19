@@ -703,6 +703,10 @@ function closeDocumentFeedback() {
   if (elements.documentFeedbackModal) elements.documentFeedbackModal.hidden = true;
 }
 
+function isValidPaymentReceiptImage(file) {
+  return Boolean(file && ["image/jpeg", "image/png", "image/webp"].includes(file.type));
+}
+
 function updatePaymentReceiptFileName(input, label) {
   if (!label) return;
   const file = input?.files?.[0];
@@ -855,8 +859,15 @@ function wirePaymentReceiptActions({ input, captureButton, fileChoiceButton, upl
     openPaymentReceiptPicker(input, "upload");
   });
   input?.addEventListener("change", () => {
+    const file = input.files?.[0];
+    if (file && !isValidPaymentReceiptImage(file)) {
+      input.value = "";
+      updatePaymentReceiptFileName(input, fileName);
+      openDocumentFeedback("يُقبل وصل الدفع بصيغة صورة فقط: JPG أو PNG أو WebP. لا يُقبل PDF.", "صيغة الوصل غير مقبولة");
+      return;
+    }
     updatePaymentReceiptFileName(input, fileName);
-    if (selectionMode === "capture" && input.files?.[0]) {
+    if (selectionMode === "capture" && file) {
       void submitAfterCapture?.();
     }
   });

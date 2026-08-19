@@ -44,7 +44,6 @@ const acceptedReceiptTypes = new Map([
   [".jpg", "image/jpeg"],
   [".jpeg", "image/jpeg"],
   [".webp", "image/webp"],
-  [".pdf", "application/pdf"],
 ]);
 
 const cardStorage = multer.diskStorage({
@@ -84,7 +83,7 @@ function receiptFileFilter(_req, file, callback) {
   const extension = path.extname(file.originalname).toLowerCase();
   const expectedMimeType = acceptedReceiptTypes.get(extension);
   if (!expectedMimeType || file.mimetype !== expectedMimeType) {
-    return callback(new Error("يسمح برفع وصل الدفع بصيغة PNG أو JPG/JPEG أو WebP أو PDF فقط."), false);
+    return callback(new Error("يسمح برفع صورة وصل الدفع بصيغة PNG أو JPG/JPEG أو WebP فقط، ولا يُقبل PDF."), false);
   }
   return callback(null, true);
 }
@@ -145,7 +144,7 @@ router.use((error, _req, res, next) => {
     return res.status(400).json({ error: "تعذر معالجة صورة البطاقة المرفوعة." });
   }
 
-  if (error.message === "يسمح برفع صورة البطاقة بصيغة PNG أو JPG/JPEG فقط." || error.message === "يسمح برفع وصل الدفع بصيغة PNG أو JPG/JPEG أو WebP أو PDF فقط.") {
+  if (error.message === "يسمح برفع صورة البطاقة بصيغة PNG أو JPG/JPEG فقط." || error.message === "يسمح برفع صورة وصل الدفع بصيغة PNG أو JPG/JPEG أو WebP فقط، ولا يُقبل PDF.") {
     return res.status(400).json({ error: error.message });
   }
 
