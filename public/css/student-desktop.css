@@ -187,19 +187,27 @@
 
   .student-live-page .viewer-shell {
     position: relative !important;
-    display: flex !important;
-    flex-direction: row !important;
+    display: grid !important;
+    grid-template-columns: 80vw 20vw !important;
+    grid-template-rows: 100dvh !important;
     width: 100vw !important;
     height: 100vh !important;
     height: 100dvh !important;
     min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
     overflow: hidden !important;
     background: #020617 !important;
+    direction: ltr !important;
   }
 
   .student-live-page .viewer-stage {
     position: relative !important;
-    flex: 0 0 80vw !important;
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     width: 80vw !important;
     height: 100% !important;
     min-width: 0 !important;
@@ -208,6 +216,8 @@
     padding: 0 !important;
     overflow: hidden !important;
     background: #000 !important;
+    border-left: 2px solid rgba(148, 163, 184, .2) !important;
+    direction: ltr !important;
   }
 
   .student-live-page .viewer-stage > .video-frame {
@@ -313,9 +323,10 @@
     left: auto !important;
     z-index: 25 !important;
     display: flex !important;
+    flex: 2 1 0% !important;
     flex-direction: column !important;
     width: 20vw !important;
-    height: calc((100dvh - 52px) / 2) !important;
+    height: calc(66.6667dvh - 34.6667px) !important;
     min-width: 0 !important;
     min-height: 0 !important;
     max-height: none !important;
@@ -376,11 +387,12 @@
     left: auto !important;
     z-index: 25 !important;
     display: flex !important;
+    flex: 1 1 0% !important;
     flex-direction: column !important;
-    justify-content: center !important;
+    justify-content: space-evenly !important;
     align-items: stretch !important;
     width: 20vw !important;
-    height: calc((100dvh - 52px) / 2) !important;
+    height: calc(33.3333dvh - 17.3333px) !important;
     min-width: 0 !important;
     min-height: 0 !important;
     max-height: none !important;
