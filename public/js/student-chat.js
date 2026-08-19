@@ -9,6 +9,7 @@ if (!studentChatToken || !studentChatId) {
 
 const studentChatElements = {
   name: document.getElementById("student-chat-name"),
+  avatar: document.getElementById("student-chat-avatar"),
   level: document.getElementById("student-chat-level"),
   messages: document.getElementById("student-chat-messages"),
   form: document.getElementById("student-chat-form"),
@@ -65,6 +66,7 @@ async function loadStudentConversation() {
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || "تعذر تحميل محادثتك مع الأستاذ.");
     studentChatElements.name.textContent = payload.student.studentName;
+    if (studentChatElements.avatar) studentChatElements.avatar.textContent = String(payload.student.studentName || "ت").slice(0, 1);
     studentChatElements.level.textContent = payload.student.level || "";
     studentChatElements.messages.replaceChildren();
     payload.messages.forEach(renderStudentMessage);
@@ -111,5 +113,11 @@ function connectStudentChatSocket() {
 }
 
 studentChatElements.form?.addEventListener("submit", (event) => { void sendStudentMessage(event); });
+studentChatElements.input?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    studentChatElements.form?.requestSubmit();
+  }
+});
 void loadStudentConversation();
 connectStudentChatSocket();

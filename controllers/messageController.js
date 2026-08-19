@@ -58,7 +58,6 @@ async function listTeacherConversations(req, res) {
 
   try {
     const students = await prisma.student.findMany({
-      where: { messages: { some: {} } },
       select: {
         id: true,
         studentName: true,
@@ -78,7 +77,11 @@ async function listTeacherConversations(req, res) {
         level: student.level,
         lastMessage: student.messages[0] || null,
       }))
-      .sort((a, b) => new Date(b.lastMessage?.createdAt || 0) - new Date(a.lastMessage?.createdAt || 0));
+      .sort((a, b) => {
+        const lastMessageDifference = new Date(b.lastMessage?.createdAt || 0) - new Date(a.lastMessage?.createdAt || 0);
+        if (lastMessageDifference !== 0) return lastMessageDifference;
+        return String(a.studentName || "").localeCompare(String(b.studentName || ""), "ar");
+      });
 
     return res.json({ conversations });
   } catch (error) {

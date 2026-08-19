@@ -9,9 +9,12 @@ const teacherChatElements = {
   list: document.getElementById("conversation-list"),
   empty: document.getElementById("conversation-empty"),
   count: document.getElementById("conversation-count"),
+  search: document.getElementById("conversation-search"),
+  newButton: document.querySelector(".conversation-new-button"),
   emptyState: document.getElementById("chat-empty-state"),
   panel: document.getElementById("chat-panel"),
   name: document.getElementById("chat-student-name"),
+  avatar: document.getElementById("chat-student-avatar"),
   level: document.getElementById("chat-student-level"),
   messages: document.getElementById("chat-messages"),
   form: document.getElementById("chat-form"),
@@ -55,18 +58,27 @@ function formatMessageTime(value) {
 function renderConversations() {
   const list = teacherChatElements.list;
   if (!list) return;
-  list.replaceChildren();
-  teacherChatElements.empty.hidden = teacherConversations.length > 0;
-  teacherChatElements.count.textContent = `${teacherConversations.length} طالب`;
+  const query = String(teacherChatElements.search?.value || "").trim().toLocaleLowerCase("ar");
+  const conversations = teacherConversations.filter((conversation) => {
+    if (!query) return true;
+    return `${conversation.studentName || ""} ${conversation.level || ""}`.toLocaleLowerCase("ar").includes(query);
+  });
 
-  teacherConversations.forEach((conversation) => {
+  list.replaceChildren();
+  teacherChatElements.count.textContent = `${teacherConversations.length} تلميذ`;
+  teacherChatElements.empty.hidden = conversations.length > 0;
+  teacherChatElements.empty.textContent = teacherConversations.length
+    ? "لا توجد نتائج مطابقة للبحث."
+    : "لا يوجد تلاميذ مسجلون بعد.";
+
+  conversations.forEach((conversation) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "conversation-item";
     button.classList.toggle("is-active", activeConversation?.id === conversation.id);
     const unread = conversation.lastMessage?.senderRole === "student" && conversation.lastMessage?.isRead === false;
     button.classList.toggle("has-unread", unread);
-    button.innerHTML = `<span class="conversation-avatar">${String(conversation.studentName || "ط").slice(0, 1)}</span>`;
+    button.innerHTML = `<span class="conversation-avatar">${String(conversation.studentName || "ط").slice(0, 1)}<i class="conversation-unread-dot" aria-hidden="true"></i></span>`;
     const copy = document.createElement("span");
     copy.className = "conversation-copy";
     const name = document.createElement("strong");
@@ -77,6 +89,7 @@ function renderConversations() {
     const time = document.createElement("time");
     if (conversation.lastMessage?.createdAt) time.textContent = formatMessageTime(conversation.lastMessage.createdAt);
     button.append(copy, time);
+    button.querySelector(".conversation-unread-dot")?.classList.toggle("is-visible", unread);
     button.addEventListener("click", () => { void openConversation(conversation.id); });
     list.append(button);
   });
@@ -113,6 +126,7 @@ async function openConversation(studentId) {
     teacherChatElements.emptyState.hidden = true;
     teacherChatElements.panel.hidden = false;
     teacherChatElements.name.textContent = payload.student.studentName;
+    if (teacherChatElements.avatar) teacherChatElements.avatar.textContent = String(payload.student.studentName || "ت").slice(0, 1);
     teacherChatElements.level.textContent = payload.student.level || "";
     teacherChatElements.messages.replaceChildren();
     renderedMessageIds = new Set();
@@ -183,5 +197,13 @@ function connectTeacherChatSocket() {
 }
 
 teacherChatElements.form?.addEventListener("submit", (event) => { void sendTeacherMessage(event); });
+teacherChatElements.search?.addEventListener("input", renderConversations);
+teacherChatElements.newButton?.addEventListener("click", () => teacherChatElements.search?.focus());
+teacherChatElements.input?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    teacherChatElements.form?.requestSubmit();
+  }
+});
 void loadConversations();
 connectTeacherChatSocket();

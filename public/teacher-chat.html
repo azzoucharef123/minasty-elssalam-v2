@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>الرسائل | أكاديمية التفوق</title>
   <link rel="stylesheet" href="./css/style.css" />
-  <link rel="stylesheet" href="./css/private-messages.css" />
+  <link rel="stylesheet" href="./css/private-messages.css?v=messenger-ui-1" />
 </head>
-<body class="private-messages-page">
+<body class="private-messages-page teacher-chat-page">
   <header class="private-chat-topbar">
     <a class="private-chat-brand" href="./teacher-dashboard.html">أكاديمية التفوق <small>رسائل الأستاذ</small></a>
     <div class="private-chat-topbar-actions">
@@ -17,18 +17,32 @@
       <a class="private-chat-back" href="./teacher-dashboard.html">العودة إلى لوحة الأستاذ</a>
     </div>
   </header>
-  <main class="private-chat-layout">
-    <aside class="conversation-sidebar" aria-label="قائمة الطلاب">
-      <div class="conversation-sidebar-head"><span>المحادثات</span><small id="conversation-count">0 طالب</small></div>
+  <main class="private-chat-layout messenger-layout">
+    <aside class="conversation-sidebar" aria-label="قائمة محادثات التلاميذ">
+      <div class="conversation-sidebar-head">
+        <div><strong>الدردشات</strong><small id="conversation-count">0 تلميذ</small></div>
+        <button class="conversation-new-button" type="button" aria-label="بدء محادثة جديدة">✎</button>
+      </div>
+      <label class="conversation-search" for="conversation-search">
+        <span aria-hidden="true">⌕</span>
+        <input id="conversation-search" type="search" placeholder="ابحث عن تلميذ…" autocomplete="off" />
+      </label>
       <div id="conversation-list" class="conversation-list"></div>
-      <p id="conversation-empty" class="conversation-empty">ستظهر هنا محادثات الطلاب عند وصول أول رسالة.</p>
+      <p id="conversation-empty" class="conversation-empty">لا توجد تلاميذ مطابقون للبحث.</p>
     </aside>
     <section class="conversation-main" aria-label="المحادثة">
-      <div id="chat-empty-state" class="chat-empty-state"><span>✦</span><h1>رسائل خاصة وآمنة</h1><p>اختر طالبًا من القائمة لعرض المحادثة والرد عليه.</p></div>
+      <div id="chat-empty-state" class="chat-empty-state"><span class="messenger-empty-icon">✦</span><h1>رسائلك مع التلاميذ</h1><p>اختر تلميذًا من القائمة، ثم أرسل له رسالة مباشرة.</p></div>
       <div id="chat-panel" class="chat-panel" hidden>
-        <header class="chat-panel-head"><div><strong id="chat-student-name">الطالب</strong><small id="chat-student-level"></small></div><span>محادثة خاصة مع الأستاذ</span></header>
+        <header class="chat-panel-head">
+          <div class="chat-contact-copy"><span id="chat-student-avatar" class="chat-contact-avatar">ت</span><span><strong id="chat-student-name">الطالب</strong><small id="chat-student-level"></small></span></div>
+          <div class="chat-panel-tools"><span class="chat-online-dot" aria-hidden="true"></span><span>محادثة خاصة</span></div>
+        </header>
         <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
-        <form id="chat-form" class="chat-compose"><textarea id="chat-input" rows="1" maxlength="4000" placeholder="اكتب رسالة للطالب…" required></textarea><button type="submit">إرسال</button></form>
+        <form id="chat-form" class="chat-compose">
+          <button class="chat-compose-tool" type="button" aria-label="إضافة">＋</button>
+          <textarea id="chat-input" rows="1" maxlength="4000" placeholder="اكتب رسالة للطالب…" autocomplete="off" required></textarea>
+          <button class="chat-send-button" type="submit" aria-label="إرسال الرسالة">إرسال</button>
+        </form>
       </div>
     </section>
   </main>
@@ -36,6 +50,6 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="./js/session-storage.js"></script>
   <script src="./js/message-notifications.js"></script>
-  <script src="./js/teacher-chat.js"></script>
+  <script src="./js/teacher-chat.js?v=messenger-ui-1"></script>
 </body>
 </html>

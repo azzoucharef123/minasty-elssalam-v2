@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>مراسلتي مع الأستاذ | أكاديمية التفوق</title>
   <link rel="stylesheet" href="./css/style.css" />
-  <link rel="stylesheet" href="./css/private-messages.css" />
+  <link rel="stylesheet" href="./css/private-messages.css?v=messenger-ui-1" />
 </head>
 <body class="private-messages-page student-chat-page">
   <header class="private-chat-topbar">
@@ -15,17 +15,24 @@
       <a class="private-chat-back" href="./parent-dashboard.html">العودة إلى حسابي</a>
     </div>
   </header>
-  <main class="student-chat-shell">
+  <main class="student-chat-shell messenger-layout">
     <section class="chat-panel student-chat-panel">
-      <header class="chat-panel-head"><div><strong id="student-chat-name">محادثتي مع الأستاذ</strong><small id="student-chat-level"></small></div><span>لا يمكن للطلاب مراسلة بعضهم</span></header>
+      <header class="chat-panel-head">
+        <div class="chat-contact-copy"><span id="student-chat-avatar" class="chat-contact-avatar">ت</span><span><strong id="student-chat-name">محادثتي مع الأستاذ</strong><small id="student-chat-level"></small></span></div>
+        <div class="chat-panel-tools"><span class="chat-online-dot" aria-hidden="true"></span><span>الأستاذ</span></div>
+      </header>
       <div id="student-chat-messages" class="chat-messages" aria-live="polite"></div>
-      <form id="student-chat-form" class="chat-compose"><textarea id="student-chat-input" rows="1" maxlength="4000" placeholder="اكتب رسالتك للأستاذ…" required></textarea><button type="submit">إرسال</button></form>
+      <form id="student-chat-form" class="chat-compose">
+        <button class="chat-compose-tool" type="button" aria-label="إضافة">＋</button>
+        <textarea id="student-chat-input" rows="1" maxlength="4000" placeholder="اكتب رسالتك للأستاذ…" autocomplete="off" required></textarea>
+        <button class="chat-send-button" type="submit" aria-label="إرسال الرسالة">إرسال</button>
+      </form>
     </section>
   </main>
   <div id="student-chat-error" class="chat-inline-error" hidden></div>
   <script src="/socket.io/socket.io.js"></script>
   <script src="./js/session-storage.js"></script>
   <script src="./js/message-notifications.js"></script>
-  <script src="./js/student-chat.js"></script>
+  <script src="./js/student-chat.js?v=messenger-ui-1"></script>
 </body>
 </html>
