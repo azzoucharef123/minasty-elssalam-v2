@@ -2477,7 +2477,7 @@ elements.questionImageInput?.addEventListener("change", () => {
   const file = elements.questionImageInput.files?.[0];
   if (!file) return;
   selectQuestionImage(file);
-  if (selectedQuestionImageFile === file) {
+  if (isDesktopStudentView() && selectedQuestionImageFile === file) {
     window.setTimeout(() => sendStudentChatMessage({ preventDefault() {} }), 0);
   }
 });
