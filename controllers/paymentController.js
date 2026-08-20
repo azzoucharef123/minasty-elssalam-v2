@@ -534,7 +534,12 @@ async function dismissTeacherElectronicPayment(req, res) {
 
 async function receiveSofizPayWebhook(req, res) {
   try {
-    const payload = req.body || req.query || {};
+    // SofizPay may deliver callbacks as JSON, form-urlencoded, or query data.
+    // Merge all sources so the automatic path never depends on one content type.
+    const payload = {
+      ...(req.query && typeof req.query === "object" ? req.query : {}),
+      ...(req.body && typeof req.body === "object" ? req.body : {}),
+    };
     const providerOrderNumber = extractProviderOrderNumber(payload);
     const internalOrderId = extractInternalOrderId(payload);
     if (!providerOrderNumber && !internalOrderId) return res.status(400).json({ error: "رقم معاملة SofizPay أو رقم الطلب الداخلي غير موجود." });

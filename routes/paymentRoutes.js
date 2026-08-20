@@ -13,7 +13,12 @@ const {
 const router = express.Router();
 
 // SofizPay sends this server-to-server notification without the parent's JWT.
-router.post("/sofizpay/webhook", express.json({ limit: "64kb" }), receiveSofizPayWebhook);
+router.post(
+  "/sofizpay/webhook",
+  express.urlencoded({ extended: false, limit: "64kb" }),
+  express.json({ limit: "64kb" }),
+  receiveSofizPayWebhook
+);
 
 // Teacher-only view of confirmed electronic payments, filtered by academic level.
 router.get("/teacher/electronic", verifyToken, isTeacher, getTeacherElectronicPayments);
