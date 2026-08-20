@@ -414,16 +414,32 @@ async function reconcileParentSofizPayPayment(req, res) {
     if (existingProviderTransaction && existingProviderTransaction.studentId !== student.id) {
       return res.status(409).json({ error: "رقم المعاملة مرتبط بحساب آخر." });
     }
+    if (existingProviderTransaction && existingProviderTransaction.subscriptionType !== subscriptionType) {
+      return res.status(409).json({ error: "رقم المعاملة مرتبط بنوع اشتراك مختلف." });
+    }
 
     const transaction = existingProviderTransaction || await prisma.paymentTransaction.findFirst({
       where: { studentId: student.id, subscriptionType, status: { not: "PAID" } },
       orderBy: { createdAt: "desc" },
     });
     if (!transaction) return res.status(404).json({ error: "لم نجد طلب دفع مفتوحًا مطابقًا لهذا الاشتراك." });
+    if (transaction.status === "PAID" && transaction.providerOrderNumber !== providerOrderNumber) {
+      return res.status(409).json({ error: "لا يمكن تغيير رقم معاملة تم تأكيدها ودفعها." });
+    }
 
-    const linked = transaction.providerOrderNumber === providerOrderNumber
-      ? transaction
-      : await prisma.paymentTransaction.update({ where: { id: transaction.id }, data: { providerOrderNumber } });
+    const numberChanged = transaction.providerOrderNumber !== providerOrderNumber;
+    const linked = numberChanged
+      ? await prisma.paymentTransaction.update({
+          where: { id: transaction.id },
+          data: {
+            providerOrderNumber,
+            status: "PENDING",
+            providerPayload: null,
+            verifiedAt: null,
+            paidAt: null,
+          },
+        })
+      : transaction;
     const result = await verifyTransaction(linked);
     return res.json({
       status: "success",
@@ -446,19 +462,26 @@ async function reconcileTeacherElectronicPayment(req, res) {
 
     const transaction = await prisma.paymentTransaction.findUnique({ where: { id: transactionId } });
     if (!transaction) return res.status(404).json({ error: "المعاملة المحلية غير موجودة." });
-    if (transaction.providerOrderNumber && transaction.providerOrderNumber !== providerOrderNumber) {
-      return res.status(409).json({ error: "المعاملة مرتبطة برقم SofizPay مختلف." });
+    if (transaction.status === "PAID" && transaction.providerOrderNumber !== providerOrderNumber) {
+      return res.status(409).json({ error: "لا يمكن تغيير رقم معاملة تم تأكيدها ودفعها." });
     }
 
     const duplicate = await prisma.paymentTransaction.findFirst({ where: { providerOrderNumber, NOT: { id: transaction.id } }, select: { id: true } });
     if (duplicate) return res.status(409).json({ error: "رقم SofizPay مرتبط بطلب آخر." });
 
-    const linked = transaction.providerOrderNumber === providerOrderNumber
-      ? transaction
-      : await prisma.paymentTransaction.update({
+    const numberChanged = transaction.providerOrderNumber !== providerOrderNumber;
+    const linked = numberChanged
+      ? await prisma.paymentTransaction.update({
           where: { id: transaction.id },
-          data: { providerOrderNumber },
-        });
+          data: {
+            providerOrderNumber,
+            status: "PENDING",
+            providerPayload: null,
+            verifiedAt: null,
+            paidAt: null,
+          },
+        })
+      : transaction;
     const result = await verifyTransaction(linked);
     return res.json({
       status: "success",
