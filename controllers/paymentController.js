@@ -298,8 +298,21 @@ async function startSofizPayPayment(req, res) {
         internalOrderId,
       });
     } catch (error) {
-      await prisma.paymentTransaction.delete({ where: { id: transaction.id } }).catch(() => {});
-      throw error;
+      // SofizPay's dynamic-link endpoint can be temporarily unavailable or can
+      // reject optional fields. Keep the local transaction and use the verified
+      // fixed link for this exact subscription instead of showing a dead-end.
+      const fallbackPaymentUrl = FIXED_PAYMENT_LINKS[subscriptionType];
+      if (!fallbackPaymentUrl) {
+        await prisma.paymentTransaction.delete({ where: { id: transaction.id } }).catch(() => {});
+        throw error;
+      }
+      console.warn("SofizPay dynamic link failed; using fixed payment link fallback:", error.message);
+      providerPayment = {
+        paymentUrl: fallbackPaymentUrl,
+        providerOrderNumber: null,
+        providerTransactionId: null,
+        providerPayload: { fallback: true, reason: text(error.message, 300), subscriptionType, amount: subscription.amount },
+      };
     }
 
     const updatedTransaction = await prisma.paymentTransaction.update({
