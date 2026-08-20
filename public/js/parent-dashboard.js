@@ -821,14 +821,14 @@ async function checkSofizPayReturn() {
   if (providerOrderNumber) query.set("order_number", providerOrderNumber);
 
   let result = null;
-  for (let attempt = 0; attempt < 5; attempt += 1) {
+  for (let attempt = 0; attempt < 15; attempt += 1) {
     try {
       const response = await parentFetch(`/api/payments/sofizpay/status?${query.toString()}`);
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "تعذر التحقق من الدفع.");
       result = payload.data;
       if (result?.paymentStatus !== "PENDING") break;
-      if (attempt < 4) await sleep(2000);
+      if (attempt < 14) await sleep(2000);
     } catch (error) {
       openDocumentFeedback(error.message || "تعذر التحقق من عملية الدفع.", "نتيجة الدفع الإلكتروني");
       return;

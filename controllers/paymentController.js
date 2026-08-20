@@ -42,6 +42,14 @@ function buildSofizPayReturnUrl(internalOrderId, subscriptionType) {
   return url.toString();
 }
 
+function buildFixedFallbackPaymentUrl(subscriptionType, internalOrderId) {
+  const baseUrl = FIXED_PAYMENT_LINKS[subscriptionType];
+  if (!baseUrl) return null;
+  const url = new URL(baseUrl);
+  url.searchParams.set("return_url", buildSofizPayReturnUrl(internalOrderId, subscriptionType));
+  return url.toString();
+}
+
 function extractProviderTransactionId(payload) {
   return text(
     payload?.transaction_id ||
@@ -346,7 +354,7 @@ async function startSofizPayPayment(req, res) {
       // SofizPay's dynamic-link endpoint can be temporarily unavailable or can
       // reject optional fields. Keep the local transaction and use the verified
       // fixed link for this exact subscription instead of showing a dead-end.
-      const fallbackPaymentUrl = FIXED_PAYMENT_LINKS[subscriptionType];
+      const fallbackPaymentUrl = buildFixedFallbackPaymentUrl(subscriptionType, internalOrderId);
       if (!fallbackPaymentUrl) {
         await prisma.paymentTransaction.delete({ where: { id: transaction.id } }).catch(() => {});
         throw error;
