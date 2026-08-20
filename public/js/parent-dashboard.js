@@ -2468,7 +2468,7 @@ if (!getParentToken()) {
     fileName: elements.secondaryPaymentFileName,
     cardPaymentButton: elements.secondaryCardPaymentButton,
     submitAfterCapture: submitSecondaryPaymentReceipt,
-    onCardPayment: openSofizPayInstruction,
+    onCardPayment: startSofizPayPayment,
   });
   elements.secondaryPaymentSubmit?.addEventListener("click", () => {
     void submitSecondaryPaymentReceipt();
