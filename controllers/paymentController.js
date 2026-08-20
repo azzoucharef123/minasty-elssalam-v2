@@ -153,7 +153,7 @@ async function getOwnedStudent(req, studentId) {
   });
 }
 
-function providerPaymentAccepted(payload, transaction) {
+function providerPaymentSignals(payload) {
   const orderStatus = Number(payload?.orderStatus ?? payload?.data?.orderStatus ?? payload?.cib_response?.orderStatus);
   const responseCode = text(
     payload?.respCode ??
@@ -165,6 +165,11 @@ function providerPaymentAccepted(payload, transaction) {
     10
   );
   const status = text(payload?.status ?? payload?.data?.status, 60).toLowerCase();
+  return { orderStatus, responseCode, status };
+}
+
+function providerPaymentAccepted(payload, transaction) {
+  const { orderStatus, responseCode, status } = providerPaymentSignals(payload);
   const acceptedStatus = new Set(["paid", "completed", "complete", "success", "succeeded", "approved"]);
   const accepted = orderStatus === 2 || responseCode === "00" || acceptedStatus.has(status);
   if (!accepted) return false;
@@ -175,6 +180,13 @@ function providerPaymentAccepted(payload, transaction) {
   const destination = text(payload?.destination_account ?? payload?.data?.destination_account ?? payload?.destination, 120);
   if (destination && destination !== SOFIZPAY_ACCOUNT) return false;
   return true;
+}
+
+function providerPaymentExplicitlyFailed(payload) {
+  const { orderStatus, responseCode, status } = providerPaymentSignals(payload);
+  const failedStatuses = new Set(["failed", "declined", "cancelled", "canceled", "rejected", "expired", "error", "refunded"]);
+  const failedResponseCodes = new Set(["05", "51", "54", "55", "57", "58", "91", "96"]);
+  return failedStatuses.has(status) || failedResponseCodes.has(responseCode) || (Number.isFinite(orderStatus) && orderStatus > 2);
 }
 
 async function activatePaidTransaction(transaction, providerPayload) {
@@ -243,6 +255,14 @@ async function verifyTransaction(transaction) {
 
   if (!response.ok || payload?.error) return { transaction, verified: false, pending: true, providerPayload: payload };
   if (!providerPaymentAccepted(payload, transaction)) {
+    if (!providerPaymentExplicitlyFailed(payload)) {
+      const pendingTransaction = await prisma.paymentTransaction.update({
+        where: { id: transaction.id },
+        data: { providerPayload: safeJson(payload) },
+      });
+      return { transaction: pendingTransaction, verified: false, pending: true, providerPayload: payload };
+    }
+
     const failedTransaction = await prisma.paymentTransaction.update({
       where: { id: transaction.id },
       data: {
@@ -256,6 +276,27 @@ async function verifyTransaction(transaction) {
 
   const updated = await activatePaidTransaction(transaction, payload);
   return { transaction: updated, verified: true, pending: false, providerPayload: payload };
+}
+
+async function reconcilePendingSofizPayPayments() {
+  const transactions = await prisma.paymentTransaction.findMany({
+    where: {
+      provider: "SOFIZPAY",
+      status: "PENDING",
+      providerOrderNumber: { not: null },
+      createdAt: { gte: new Date(Date.now() - 48 * 60 * 60 * 1000) },
+    },
+    orderBy: { updatedAt: "asc" },
+    take: 25,
+  });
+
+  for (const transaction of transactions) {
+    try {
+      await verifyTransaction(transaction);
+    } catch (error) {
+      console.error("Automatic SofizPay verification failed:", transaction.id, error.message);
+    }
+  }
 }
 
 async function startSofizPayPayment(req, res) {
@@ -576,6 +617,7 @@ async function receiveSofizPayWebhook(req, res) {
 
 module.exports = {
   startSofizPayPayment,
+  reconcilePendingSofizPayPayments,
   reconcileParentSofizPayPayment,
   getSofizPayPaymentStatus,
   getTeacherElectronicPayments,

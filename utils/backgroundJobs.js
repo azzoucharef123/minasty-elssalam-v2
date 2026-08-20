@@ -79,12 +79,26 @@ async function cleanExpiredSessions() {
   await prisma.session.deleteMany({ where: { expiresAt: { lt: new Date() } } });
 }
 
+async function reconcileSofizPayPayments() {
+  try {
+    const { reconcilePendingSofizPayPayments } = require("../controllers/paymentController");
+    await reconcilePendingSofizPayPayments();
+  } catch (error) {
+    console.error("SofizPay background reconciliation failed:", error.message);
+  }
+}
+
 function startBackgroundJobs() {
-  const run = () => Promise.allSettled([sendClassReminders(), sendWeeklyReports(), cleanExpiredSessions()]).catch(() => {});
+  const run = () => Promise.allSettled([
+    sendClassReminders(),
+    sendWeeklyReports(),
+    cleanExpiredSessions(),
+    reconcileSofizPayPayments(),
+  ]).catch(() => {});
   void run();
   const timer = setInterval(run, 60 * 1000);
   timer.unref();
   return () => clearInterval(timer);
 }
 
-module.exports = { sendClassReminders, sendWeeklyReports, cleanExpiredSessions, startBackgroundJobs };
+module.exports = { sendClassReminders, sendWeeklyReports, cleanExpiredSessions, reconcileSofizPayPayments, startBackgroundJobs };
