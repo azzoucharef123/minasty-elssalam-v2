@@ -1349,6 +1349,11 @@
       .parent-dashboard-page.has-payment-upgrade.has-multiple-students #dashboard-content {
         order: 4;
       }
+
+      /* Keep the level schedule as the final visible section in the parent page. */
+      .parent-dashboard-page #level-schedule-card {
+        order: 999;
+      }
     </style>
     <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=sofizpay-parent-reconcile-1" />
 </head>
