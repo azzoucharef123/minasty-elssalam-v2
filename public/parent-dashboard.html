@@ -825,6 +825,130 @@
         white-space: nowrap;
       }
 
+      .sofizpay-instruction-modal[hidden] {
+        display: none;
+      }
+
+      .sofizpay-instruction-modal {
+        position: fixed;
+        z-index: 220;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 1rem;
+        background: rgba(15, 23, 42, 0.72);
+        backdrop-filter: blur(7px);
+      }
+
+      .sofizpay-instruction-dialog {
+        display: grid;
+        width: min(100%, 31rem);
+        gap: 0.72rem;
+        padding: 1.3rem;
+        color: #0f172a;
+        text-align: right;
+        background: #ffffff;
+        border: 1px solid #bfdbfe;
+        border-radius: 1.15rem;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
+        animation: payment-dialog-enter 0.25s ease both;
+      }
+
+      .sofizpay-instruction-icon {
+        display: grid;
+        width: 2.5rem;
+        height: 2.5rem;
+        place-items: center;
+        color: #ffffff;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        border-radius: 0.8rem;
+        font-size: 1.2rem;
+        font-weight: 900;
+      }
+
+      .sofizpay-instruction-kicker {
+        margin: 0;
+        color: #2563eb;
+        font-size: 0.72rem;
+        font-weight: 900;
+      }
+
+      .sofizpay-instruction-dialog h2 {
+        margin: 0;
+        color: #0f172a;
+        font-size: clamp(1rem, 2.8vw, 1.25rem);
+      }
+
+      .sofizpay-instruction-copy,
+      .sofizpay-instruction-warning {
+        margin: 0;
+        color: #475569;
+        font-size: 0.8rem;
+        font-weight: 600;
+        line-height: 1.9;
+      }
+
+      .sofizpay-instruction-copy strong {
+        color: #1d4ed8;
+      }
+
+      .sofizpay-ref-example {
+        display: block;
+        direction: ltr;
+        padding: 0.62rem 0.75rem;
+        color: #1e3a8a;
+        text-align: center;
+        background: #eff6ff;
+        border: 1px dashed #60a5fa;
+        border-radius: 0.65rem;
+        font-size: 0.92rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+      }
+
+      .sofizpay-instruction-warning {
+        padding: 0.62rem 0.75rem;
+        color: #92400e;
+        background: #fffbeb;
+        border-right: 3px solid #f59e0b;
+        border-radius: 0.55rem;
+      }
+
+      .sofizpay-instruction-actions {
+        display: flex;
+        gap: 0.6rem;
+        margin-top: 0.2rem;
+      }
+
+      .sofizpay-instruction-actions button {
+        min-height: 2.65rem;
+        flex: 1;
+        padding: 0.55rem 0.8rem;
+        border-radius: 0.68rem;
+        font: inherit;
+        font-size: 0.76rem;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .sofizpay-instruction-cancel {
+        color: #475569;
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+      }
+
+      .sofizpay-instruction-continue {
+        color: #ffffff;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        border: 1px solid #1d4ed8;
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+      }
+
+      @media (max-width: 30rem) {
+        .sofizpay-instruction-dialog { padding: 1rem; }
+        .sofizpay-instruction-actions { flex-direction: column-reverse; }
+      }
+
       .payment-access-modal[hidden] {
         display: none;
       }
@@ -1578,6 +1702,22 @@
     </section>
   </div>
   <div id="document-feedback-modal" class="document-feedback-modal" role="dialog" aria-modal="true" aria-labelledby="document-feedback-title" hidden><section class="document-feedback-dialog"><div class="document-feedback-head"><span class="document-feedback-icon" aria-hidden="true">!</span><div><h2 id="document-feedback-title">تعذر إتمام العملية</h2><p>راجع البيانات والوثيقة ثم حاول مرة أخرى.</p></div></div><div id="document-feedback-message" class="document-feedback-body"></div><button id="document-feedback-close" class="document-feedback-close" type="button">إغلاق</button></section></div>
+
+  <div id="sofizpay-instruction-modal" class="sofizpay-instruction-modal" role="dialog" aria-modal="true" aria-labelledby="sofizpay-instruction-title" hidden>
+    <section class="sofizpay-instruction-dialog">
+      <div class="sofizpay-instruction-icon" aria-hidden="true">₿</div>
+      <p class="sofizpay-instruction-kicker">مهم قبل الدفع الإلكتروني</p>
+      <h2 id="sofizpay-instruction-title">احتفظ برقم العملية بعد الدفع</h2>
+      <p class="sofizpay-instruction-copy">بعد إتمام الدفع بنجاح في SofizPay، سيظهر لك <strong>رقم العملية</strong>. انسخه وارجع إلى منصة الأكاديمية، ثم ضعه في الخانة الموجودة تحت زر <strong>وصل الدفع</strong> واضغط على «تحقق وتحديث».</p>
+      <p class="sofizpay-instruction-copy">يمكنك أيضًا العثور على الرقم في الرسالة النصية التي تصلك على الرقم المرتبط بالبطاقة، ويظهر عادة بصيغة:</p>
+      <code class="sofizpay-ref-example">REF:xxxxxxxxxxx</code>
+      <p class="sofizpay-instruction-warning">لا تغلق صفحة تفاصيل الدفع قبل نسخ الرقم أو الاحتفاظ بالرسالة النصية.</p>
+      <div class="sofizpay-instruction-actions">
+        <button id="sofizpay-instruction-cancel" class="sofizpay-instruction-cancel" type="button">إلغاء</button>
+        <button id="sofizpay-instruction-continue" class="sofizpay-instruction-continue" type="button">فهمت، انتقل إلى الدفع</button>
+      </div>
+    </section>
+  </div>
 
   <div id="payment-access-modal" class="payment-access-modal" role="dialog" aria-modal="true" aria-labelledby="payment-access-title" hidden>
       <section class="payment-access-dialog">

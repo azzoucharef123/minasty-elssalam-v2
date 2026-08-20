@@ -130,6 +130,9 @@ const elements = {
   documentFeedbackTitle: document.getElementById("document-feedback-title"),
   documentFeedbackMessage: document.getElementById("document-feedback-message"),
   documentFeedbackClose: document.getElementById("document-feedback-close"),
+  sofizpayInstructionModal: document.getElementById("sofizpay-instruction-modal"),
+  sofizpayInstructionContinue: document.getElementById("sofizpay-instruction-continue"),
+  sofizpayInstructionCancel: document.getElementById("sofizpay-instruction-cancel"),
 };
 
 let socket = null;
@@ -777,6 +780,19 @@ function showCardPaymentNotice() {
     "الدفع الإلكتروني للطالب الجامعي غير متاح بهذه الخطة حاليًا. يمكنك إرسال وصل الدفع ليؤكده الأستاذ.",
     "الدفع بالبطاقة الذهبية أو البنكية"
   );
+}
+
+function closeSofizPayInstruction() {
+  if (elements.sofizpayInstructionModal) elements.sofizpayInstructionModal.hidden = true;
+}
+
+function openSofizPayInstruction() {
+  if (!elements.sofizpayInstructionModal) {
+    void startSofizPayPayment();
+    return;
+  }
+  elements.sofizpayInstructionModal.hidden = false;
+  elements.sofizpayInstructionContinue?.focus();
 }
 
 function sleep(milliseconds) {
@@ -2451,7 +2467,7 @@ if (!getParentToken()) {
     fileName: elements.secondaryPaymentFileName,
     cardPaymentButton: elements.secondaryCardPaymentButton,
     submitAfterCapture: submitSecondaryPaymentReceipt,
-    onCardPayment: startSofizPayPayment,
+    onCardPayment: openSofizPayInstruction,
   });
   elements.secondaryPaymentSubmit?.addEventListener("click", () => {
     void submitSecondaryPaymentReceipt();
@@ -2477,6 +2493,14 @@ if (!getParentToken()) {
   elements.parentSidebarBackdrop?.addEventListener("click", () => setParentSidebarOpen(false));
   elements.parentNavLinks.forEach((link) => link.addEventListener("click", () => { setParentActiveNav(link); setParentSidebarOpen(false); }));
   elements.documentFeedbackClose?.addEventListener("click", closeDocumentFeedback);
+  elements.sofizpayInstructionCancel?.addEventListener("click", closeSofizPayInstruction);
+  elements.sofizpayInstructionContinue?.addEventListener("click", () => {
+    closeSofizPayInstruction();
+    void startSofizPayPayment();
+  });
+  elements.sofizpayInstructionModal?.addEventListener("click", (event) => {
+    if (event.target === elements.sofizpayInstructionModal) closeSofizPayInstruction();
+  });
   elements.studentHomeworkFileClose?.addEventListener("click", closeStudentHomeworkFile);
   elements.studentHomeworkFileModal?.addEventListener("click", (event) => {
     if (event.target === elements.studentHomeworkFileModal) closeStudentHomeworkFile();

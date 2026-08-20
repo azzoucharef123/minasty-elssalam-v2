@@ -26,6 +26,10 @@ function isParent(req) {
   return req.user?.role === "parent" && Boolean(req.user.phone);
 }
 
+function normalizeProviderOrderNumber(value) {
+  return text(value, 120).replace(/^REF\s*[:#-]?\s*/i, "").trim();
+}
+
 function buildInternalOrderId() {
   return `MINA-${Date.now()}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
 }
@@ -336,7 +340,7 @@ async function getSofizPayPaymentStatus(req, res) {
   try {
     if (!isParent(req)) return res.status(403).json({ error: "هذه العملية متاحة للولي فقط." });
     const internalOrderId = text(req.query?.internal_order_id || req.query?.order_id, 120);
-    const providerOrderNumber = extractProviderOrderNumber(req.query || {});
+    const providerOrderNumber = normalizeProviderOrderNumber(extractProviderOrderNumber(req.query || {}));
     if (!internalOrderId) return res.status(400).json({ error: "رقم طلب الموقع غير موجود." });
 
     let transaction = await prisma.paymentTransaction.findUnique({ where: { internalOrderId } });
@@ -415,7 +419,7 @@ async function getTeacherElectronicPayments(req, res) {
 async function reconcileParentSofizPayPayment(req, res) {
   try {
     if (!isParent(req)) return res.status(403).json({ error: "هذه العملية متاحة للولي فقط." });
-    const providerOrderNumber = extractProviderOrderNumber(req.body || {}) || text(req.body?.providerOrderNumber, 120);
+    const providerOrderNumber = normalizeProviderOrderNumber(extractProviderOrderNumber(req.body || {}) || req.body?.providerOrderNumber);
     const subscriptionType = text(req.body?.subscriptionType, 20).toUpperCase();
     if (!providerOrderNumber) return res.status(400).json({ error: "أدخل رقم معاملة SofizPay للتحقق." });
     if (!VALID_SUBSCRIPTIONS.has(subscriptionType)) return res.status(400).json({ error: "اختر نوع الاشتراك أولاً." });
@@ -470,7 +474,7 @@ async function reconcileParentSofizPayPayment(req, res) {
 async function reconcileTeacherElectronicPayment(req, res) {
   try {
     const transactionId = text(req.params?.id, 80);
-    const providerOrderNumber = extractProviderOrderNumber(req.body || {}) || text(req.body?.providerOrderNumber, 120);
+    const providerOrderNumber = normalizeProviderOrderNumber(extractProviderOrderNumber(req.body || {}) || req.body?.providerOrderNumber);
     if (!providerOrderNumber) return res.status(400).json({ error: "أدخل رقم معاملة SofizPay للتحقق." });
 
     const transaction = await prisma.paymentTransaction.findUnique({ where: { id: transactionId } });
