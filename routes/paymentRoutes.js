@@ -6,6 +6,7 @@ const {
   getTeacherElectronicPayments,
   dismissTeacherElectronicPayment,
   reconcileTeacherElectronicPayment,
+  reconcileParentSofizPayPayment,
   receiveSofizPayWebhook,
 } = require("../controllers/paymentController");
 
