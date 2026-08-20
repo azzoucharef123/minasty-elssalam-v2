@@ -1424,6 +1424,7 @@ function renderSecondaryPaymentUpgrade(student) {
   const showUpgrade = isSecondaryStudent && paymentStage === "UNPAID";
   const receiptPending = Boolean(student?.paymentReceiptPending);
 
+  document.body.classList.toggle("has-payment-upgrade", showUpgrade);
   if (elements.secondaryPaymentUpgrade) {
     elements.secondaryPaymentUpgrade.hidden = !showUpgrade;
   }

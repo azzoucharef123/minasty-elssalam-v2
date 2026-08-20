@@ -1335,6 +1335,20 @@
       .parent-dashboard-page.has-multiple-students #student-switcher {
         order: 4;
       }
+
+      /* An unpaid student's upgrade action must be seen before the account card. */
+      .parent-dashboard-page.has-payment-upgrade:not(.has-multiple-students) #secondary-payment-upgrade {
+        order: 2;
+      }
+      .parent-dashboard-page.has-payment-upgrade:not(.has-multiple-students) #dashboard-content {
+        order: 3;
+      }
+      .parent-dashboard-page.has-payment-upgrade.has-multiple-students #secondary-payment-upgrade {
+        order: 3;
+      }
+      .parent-dashboard-page.has-payment-upgrade.has-multiple-students #dashboard-content {
+        order: 4;
+      }
     </style>
     <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=sofizpay-parent-reconcile-1" />
 </head>
@@ -1739,7 +1753,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/parent-dashboard.js?v=sofizpay-parent-reconcile-1"></script>
+    <script src="./js/parent-dashboard.js?v=payment-upgrade-first-1"></script>
     <script src="./js/class-registry-parent.js?v=panel-scroll-1"></script>
   <script src="./js/in-app-browser-gate.js?v=telegram-gate-2" defer></script>
 </body>
