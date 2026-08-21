@@ -3,7 +3,7 @@ const prisma = require("../lib/prisma");
 const { logAudit } = require("../utils/audit");
 
 const SOFIZPAY_BASE_URL = String(process.env.SOFIZPAY_BASE_URL || "https://sofizpay.com").replace(/\/$/, "");
-const SOFIZPAY_ACCOUNT = process.env.SOFIZPAY_ACCOUNT || "GBYAJX2VUMCKQQMTQRKIHFL7GWKPXQGAQNNCJOIV232S3Q73NNYK6JF4";
+const SOFIZPAY_ACCOUNT = String(process.env.SOFIZPAY_ACCOUNT || "GBYAJX2VUMCKQQMTQRKIHFL7GWKPXQGAQNNCJOIV232S3Q73NNYK6JF4").trim();
 const SOFIZPAY_CREATE_URL = `${SOFIZPAY_BASE_URL}/make-cib-transaction/`;
 const SOFIZPAY_CHECK_URL = `${SOFIZPAY_BASE_URL}/cib-transaction-check/`;
 const SOFIZPAY_OPERATION_DETAILS_URL = `${SOFIZPAY_BASE_URL}/operation-details/`;
@@ -100,13 +100,37 @@ async function createSofizPayPayment({ student, subscriptionType, amount, intern
     invoice_id: internalOrderId,
     language: "ar",
     memo: `${subscriptionType}-${amount}`,
-    redirect: "yes",
+    // The server must receive JSON with the payment URL and redirect the browser itself.
+    // redirect=yes can make the provider redirect fetch() to SATIM instead of returning JSON.
+    redirect: "no",
     keep_return_url: "True",
   });
-  const { response, payload } = await fetchJson(`${SOFIZPAY_CREATE_URL}?${params.toString()}`);
-  const paymentUrl = text(payload?.payment_url || payload?.data?.payment_url || payload?.formUrl || payload?.cib_response?.formUrl, 4000);
+  const { response, payload, rawText, contentType } = await fetchJson(`${SOFIZPAY_CREATE_URL}?${params.toString()}`);
+  const paymentUrl = text(
+    payload?.payment_url ||
+    payload?.data?.payment_url ||
+    payload?.checkout_url ||
+    payload?.data?.checkout_url ||
+    payload?.redirect_url ||
+    payload?.data?.redirect_url ||
+    payload?.formUrl ||
+    payload?.data?.formUrl ||
+    payload?.cib_response?.formUrl ||
+    payload?.data?.cib_response?.formUrl ||
+    payload?.url ||
+    payload?.data?.url,
+    4000
+  );
   if (!response.ok || payload?.success === false || !paymentUrl) {
-    throw new Error(payload?.message || payload?.error || "تعذر إنشاء رابط SofizPay مخصص.");
+    const providerMessage = text(payload?.message || payload?.error || payload?.detail, 500);
+    console.error("SofizPay create response rejected", {
+      httpStatus: response.status,
+      contentType,
+      providerMessage: providerMessage || null,
+      responseKeys: payload && typeof payload === "object" ? Object.keys(payload).slice(0, 30) : [],
+      rawPrefix: providerMessage ? null : text(rawText, 500),
+    });
+    throw new Error(providerMessage || "تعذر إنشاء رابط SofizPay مخصص.");
   }
   return {
     paymentUrl,
@@ -159,9 +183,20 @@ async function fetchJson(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
   try {
-    const response = await fetch(url, { signal: controller.signal, headers: { Accept: "application/json" } });
-    const payload = await response.json().catch(() => ({}));
-    return { response, payload };
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { Accept: "application/json" },
+      redirect: "follow",
+    });
+    const rawText = await response.text();
+    const contentType = response.headers.get("content-type") || "";
+    let payload = {};
+    try {
+      payload = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      payload = {};
+    }
+    return { response, payload, rawText, contentType };
   } finally {
     clearTimeout(timer);
   }
