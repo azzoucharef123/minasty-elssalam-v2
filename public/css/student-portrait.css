@@ -141,13 +141,13 @@
     position: relative !important;
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) !important;
-    grid-template-rows: minmax(0, 1fr) minmax(10.5rem, 37dvh) !important;
+    grid-template-rows: minmax(0, 1fr) minmax(11rem, 22dvh) !important;
     grid-template-areas: "video" "chat" !important;
     width: 100% !important;
     height: calc(100svh - 3.8rem) !important;
     min-height: 0 !important;
-    gap: .45rem !important;
-    padding: .45rem .45rem 3.85rem !important;
+    gap: 0 !important;
+    padding: 0 0 3.85rem !important;
     overflow: hidden !important;
     background: #070b14 !important;
   }
@@ -164,8 +164,8 @@
     place-items: center !important;
     background: #000 !important;
     border: 1px solid rgba(96, 165, 250, .23) !important;
-    border-radius: .9rem !important;
-    box-shadow: 0 12px 28px rgba(0, 0, 0, .3) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
     contain: layout paint !important;
     touch-action: pinch-zoom !important;
   }
@@ -257,7 +257,7 @@
     display: flex !important;
     flex-direction: column !important;
     min-height: 0 !important;
-    padding: .4rem .5rem !important;
+    padding: .4rem .5rem 3.35rem !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
     overscroll-behavior: contain !important;
@@ -322,8 +322,11 @@
   }
 
   body.student-live-page .student-chat-actions {
-    position: relative !important;
-    z-index: 8 !important;
+    position: fixed !important;
+    right: 0 !important;
+    bottom: 3.85rem !important;
+    left: 0 !important;
+    z-index: 110 !important;
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     align-items: stretch !important;
@@ -333,6 +336,11 @@
     padding: .38rem .45rem calc(.38rem + env(safe-area-inset-bottom)) !important;
     background: #101827 !important;
     border-top: 1px solid rgba(148, 163, 184, .16) !important;
+    box-shadow: 0 -6px 16px rgba(0, 0, 0, .2) !important;
+  }
+
+  body.student-live-page.student-chat-compose-open .student-chat-actions {
+    display: none !important;
   }
 
   body.student-live-page .student-chat-capture,
