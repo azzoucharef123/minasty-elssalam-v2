@@ -8,8 +8,9 @@ const SOFIZPAY_CREATE_URL = `${SOFIZPAY_BASE_URL}/make-cib-transaction/`;
 const SOFIZPAY_CHECK_URL = `${SOFIZPAY_BASE_URL}/cib-transaction-check/`;
 const SOFIZPAY_OPERATION_DETAILS_URL = `${SOFIZPAY_BASE_URL}/operation-details/`;
 const SOFIZPAY_ENCRYPTED_SECRET_KEY = String(process.env.SOFIZPAY_ENCRYPTED_SECRET_KEY || "").trim();
+const SOFIZPAY_WEBHOOK_SECRET = String(process.env.SOFIZPAY_WEBHOOK_SECRET || "").trim();
 const PUBLIC_SITE_URL = String(process.env.APP_BASE_URL || process.env.PUBLIC_SITE_URL || "https://dr.africacold.fr").replace(/\/$/, "");
-const SOFIZPAY_WEBHOOK_URL = `${PUBLIC_SITE_URL}/api/payments/sofizpay/webhook`;
+const SOFIZPAY_WEBHOOK_URL = `${PUBLIC_SITE_URL}/api/payments/sofizpay/webhook?secret=${encodeURIComponent(SOFIZPAY_WEBHOOK_SECRET)}`;
 const VALID_SUBSCRIPTIONS = new Map([
   ["BOTH", { amount: 2030, mathEnrollment: true, physicsEnrollment: true, label: "الرياضيات والفيزياء" }],
   ["MATH", { amount: 1030, mathEnrollment: true, physicsEnrollment: false, label: "الرياضيات فقط" }],
@@ -326,7 +327,12 @@ async function reconcilePendingSofizPayPayments() {
     try {
       await verifyTransaction(transaction);
     } catch (error) {
-      console.error("Automatic SofizPay verification failed:", transaction.id, error.message);
+      console.error("Automatic SofizPay verification failed", {
+        paymentTransactionId: transaction.id,
+        internalOrderId: transaction.internalOrderId,
+        providerOrderNumber: transaction.providerOrderNumber,
+        error: error.message,
+      });
     }
   }
 }
@@ -610,6 +616,11 @@ async function dismissTeacherElectronicPayment(req, res) {
 
 async function receiveSofizPayWebhook(req, res) {
   try {
+    if (SOFIZPAY_WEBHOOK_SECRET && text(req.query?.secret, 240) !== SOFIZPAY_WEBHOOK_SECRET) {
+      console.warn("SofizPay webhook rejected: invalid secret");
+      return res.status(401).json({ status: "unauthorized", message: "Invalid webhook secret." });
+    }
+
     // SofizPay may deliver callbacks as JSON, form-urlencoded, or query data.
     // Merge all sources so the automatic path never depends on one content type.
     const payload = {
@@ -619,7 +630,10 @@ async function receiveSofizPayWebhook(req, res) {
     let providerOrderNumber = extractProviderOrderNumber(payload);
     const internalOrderId = extractInternalOrderId(payload);
     const providerTransactionId = extractProviderTransactionId(payload);
-    if (!providerOrderNumber && !internalOrderId && !providerTransactionId) return res.status(400).json({ error: "رقم معاملة SofizPay أو رقم الطلب الداخلي غير موجود." });
+    if (!providerOrderNumber && !internalOrderId && !providerTransactionId) {
+      console.warn("SofizPay webhook ignored: no transaction identifiers");
+      return res.status(200).json({ status: "ignored", message: "Transaction not found or invalid payload." });
+    }
 
     const transaction = await prisma.paymentTransaction.findFirst({
       where: {
@@ -630,7 +644,14 @@ async function receiveSofizPayWebhook(req, res) {
         ],
       },
     });
-    if (!transaction) return res.status(404).json({ error: "المعاملة غير معروفة أو لم تعد مرتبطة بطلب مفتوح." });
+    if (!transaction) {
+      console.warn("SofizPay webhook ignored: transaction not found", {
+        providerOrderNumber,
+        internalOrderId,
+        providerTransactionId,
+      });
+      return res.status(200).json({ status: "ignored", message: "Transaction not found or invalid payload." });
+    }
 
     let operationDetails = null;
     if (!providerOrderNumber && providerTransactionId) {
