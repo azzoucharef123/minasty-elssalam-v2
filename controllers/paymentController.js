@@ -11,6 +11,16 @@ const SOFIZPAY_ENCRYPTED_SECRET_KEY = String(process.env.SOFIZPAY_ENCRYPTED_SECR
 const SOFIZPAY_WEBHOOK_SECRET = String(process.env.SOFIZPAY_WEBHOOK_SECRET || "").trim();
 const PUBLIC_SITE_URL = String(process.env.APP_BASE_URL || process.env.PUBLIC_SITE_URL || "https://dr.africacold.fr").replace(/\/$/, "");
 const SOFIZPAY_WEBHOOK_URL = `${PUBLIC_SITE_URL}/api/payments/sofizpay/webhook?secret=${encodeURIComponent(SOFIZPAY_WEBHOOK_SECRET)}`;
+
+if (!SOFIZPAY_WEBHOOK_SECRET) {
+  console.warn("SofizPay configuration warning: SOFIZPAY_WEBHOOK_SECRET is not configured.");
+}
+if (!SOFIZPAY_ENCRYPTED_SECRET_KEY) {
+  console.warn("SofizPay configuration warning: SOFIZPAY_ENCRYPTED_SECRET_KEY is not configured.");
+}
+
+let sofizPayReconciliationRunning = false;
+
 const VALID_SUBSCRIPTIONS = new Map([
   ["BOTH", { amount: 2030, mathEnrollment: true, physicsEnrollment: true, label: "الرياضيات والفيزياء" }],
   ["MATH", { amount: 1030, mathEnrollment: true, physicsEnrollment: false, label: "الرياضيات فقط" }],
@@ -312,28 +322,40 @@ async function verifyTransaction(transaction) {
 }
 
 async function reconcilePendingSofizPayPayments() {
-  const transactions = await prisma.paymentTransaction.findMany({
-    where: {
-      provider: "SOFIZPAY",
-      status: "PENDING",
-      providerOrderNumber: { not: null },
-      createdAt: { gte: new Date(Date.now() - 48 * 60 * 60 * 1000) },
-    },
-    orderBy: { updatedAt: "asc" },
-    take: 25,
-  });
+  if (sofizPayReconciliationRunning) {
+    console.warn("SofizPay reconciliation skipped: previous cycle is still running.");
+    return { skipped: true };
+  }
 
-  for (const transaction of transactions) {
-    try {
-      await verifyTransaction(transaction);
-    } catch (error) {
-      console.error("Automatic SofizPay verification failed", {
-        paymentTransactionId: transaction.id,
-        internalOrderId: transaction.internalOrderId,
-        providerOrderNumber: transaction.providerOrderNumber,
-        error: error.message,
-      });
+  sofizPayReconciliationRunning = true;
+  try {
+    const transactions = await prisma.paymentTransaction.findMany({
+      where: {
+        provider: "SOFIZPAY",
+        status: "PENDING",
+        providerOrderNumber: { not: null },
+        createdAt: { gte: new Date(Date.now() - 3 * 60 * 60 * 1000) },
+      },
+      orderBy: { updatedAt: "asc" },
+      take: 25,
+    });
+
+    for (const transaction of transactions) {
+      try {
+        await verifyTransaction(transaction);
+      } catch (error) {
+        console.error("Automatic SofizPay verification failed", {
+          paymentTransactionId: transaction.id,
+          internalOrderId: transaction.internalOrderId,
+          providerOrderNumber: transaction.providerOrderNumber,
+          error: error.message,
+        });
+      }
     }
+
+    return { skipped: false, checked: transactions.length };
+  } finally {
+    sofizPayReconciliationRunning = false;
   }
 }
 
@@ -616,9 +638,14 @@ async function dismissTeacherElectronicPayment(req, res) {
 
 async function receiveSofizPayWebhook(req, res) {
   try {
-    if (SOFIZPAY_WEBHOOK_SECRET && text(req.query?.secret, 240) !== SOFIZPAY_WEBHOOK_SECRET) {
-      console.warn("SofizPay webhook rejected: invalid secret");
-      return res.status(401).json({ status: "unauthorized", message: "Invalid webhook secret." });
+    if (SOFIZPAY_WEBHOOK_SECRET) {
+      const providedSecret = Buffer.from(text(req.query?.secret, 240), "utf8");
+      const expectedSecret = Buffer.from(SOFIZPAY_WEBHOOK_SECRET, "utf8");
+      const isValidSecret = providedSecret.length === expectedSecret.length && crypto.timingSafeEqual(providedSecret, expectedSecret);
+      if (!isValidSecret) {
+        console.warn("SofizPay webhook rejected: invalid secret");
+        return res.status(401).json({ status: "unauthorized", message: "Invalid webhook secret." });
+      }
     }
 
     // SofizPay may deliver callbacks as JSON, form-urlencoded, or query data.
