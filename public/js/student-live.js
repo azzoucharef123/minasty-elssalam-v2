@@ -477,8 +477,12 @@ function initializeRefreshFab() {
   });
 }
 
+function isStudentPortraitZoomEnabled() {
+  return window.matchMedia?.("(max-width: 900px) and (orientation: portrait)").matches || false;
+}
+
 function syncStudentZoomToViewport({ reset = false } = {}) {
-  if (reset || document.documentElement.classList.contains("student-landscape-mode")) {
+  if (reset || document.documentElement.classList.contains("student-landscape-mode") || !isStudentPortraitZoomEnabled()) {
     resetStudentZoom();
     return;
   }
@@ -530,15 +534,12 @@ function updateRotationControls() {
   document.documentElement.classList.toggle("student-virtual-landscape-mode", studentVirtualLandscapeMode);
   document.body.classList.toggle("hide-ui-for-rotation", studentVirtualLandscapeMode);
 
-  // A rotated viewport is a new coordinate system. Clear any stale transform
-  // before the first landscape frame is painted, otherwise its edges remain
-  // clipped by the video frame after the orientation change.
-  // Never carry a transform into or through landscape. CSS object-fit: contain
-  // is responsible for fitting the stream; JavaScript must not auto-scale it.
-  if (isLandscape) {
+  // Landscape uses its original fit behavior. Portrait keeps the interactive
+  // zoom state and clamps it to the current broadcast-card dimensions.
+  if (isLandscape || !isStudentPortraitZoomEnabled()) {
     resetStudentZoom();
   } else {
-    resetStudentZoom();
+    syncStudentZoomToViewport();
   }
 }
 
@@ -584,7 +585,7 @@ function getStudentPointerCenter() {
 }
 
 function handleStudentZoomPointerDown(event) {
-  if (!document.documentElement.classList.contains("student-landscape-mode")) return;
+  if (!isStudentPortraitZoomEnabled()) return;
   studentZoomState.pointers.set(event.pointerId, event);
   event.currentTarget.setPointerCapture?.(event.pointerId);
 
@@ -799,9 +800,7 @@ function initializeMobileControls() {
       });
     }
     updateRotationControls();
-    if (document.documentElement.classList.contains("student-landscape-mode")) {
-      window.requestAnimationFrame(() => syncStudentZoomToViewport());
-    }
+    window.requestAnimationFrame(() => syncStudentZoomToViewport());
   });
   updateRotationControls();
 }

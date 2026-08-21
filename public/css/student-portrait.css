@@ -175,7 +175,7 @@
     border-radius: 0 !important;
     box-shadow: none !important;
     contain: layout paint !important;
-    touch-action: pinch-zoom !important;
+    touch-action: none !important;
   }
 
   body.student-live-page #remote-video,
@@ -188,8 +188,10 @@
     max-height: 100% !important;
     object-fit: contain !important;
     object-position: center center !important;
+    transform-origin: center center !important;
+    will-change: transform !important;
     background: #000 !important;
-    touch-action: pinch-zoom !important;
+    touch-action: none !important;
   }
 
   /* Never let an empty remote <video> cover the waiting artwork with black. */
