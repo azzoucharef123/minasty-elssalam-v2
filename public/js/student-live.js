@@ -2477,7 +2477,10 @@ elements.questionImageInput?.addEventListener("change", () => {
   const file = elements.questionImageInput.files?.[0];
   if (!file) return;
   selectQuestionImage(file);
-  if (isDesktopStudentView() && selectedQuestionImageFile === file) {
+  // Choosing a file or confirming the camera capture is the student's
+  // confirmation. Send the image immediately in every view; text messages
+  // continue to use their existing send button/modal flow.
+  if (selectedQuestionImageFile === file) {
     window.setTimeout(() => sendStudentChatMessage({ preventDefault() {} }), 0);
   }
 });
