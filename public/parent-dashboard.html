@@ -1360,6 +1360,11 @@
       .parent-dashboard-page .parent-sidebar-nav a[href="#parent-schedule-card"] {
         display: none !important;
       }
+
+      /* With multiple students, keep the selected-student bar above live-class entry. */
+      .parent-dashboard-page.has-multiple-students #live-classes-entry-card {
+        order: 2;
+      }
     </style>
     <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=sofizpay-parent-reconcile-1" />
     <link rel="stylesheet" href="./css/live-classes-entry.css?v=live-entry-1" />
