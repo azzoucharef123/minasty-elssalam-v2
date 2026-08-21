@@ -1354,6 +1354,12 @@
       .parent-dashboard-page #level-schedule-card {
         order: 999;
       }
+
+      /* The next-class card is retired from the parent UI; schedule data remains available to the live-entry flow. */
+      .parent-dashboard-page #parent-schedule-card,
+      .parent-dashboard-page .parent-sidebar-nav a[href="#parent-schedule-card"] {
+        display: none !important;
+      }
     </style>
     <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=sofizpay-parent-reconcile-1" />
     <link rel="stylesheet" href="./css/live-classes-entry.css?v=live-entry-1" />

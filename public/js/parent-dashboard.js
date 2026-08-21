@@ -1174,7 +1174,10 @@ function renderParentSchedule() {
   const nextClass = getNextParentScheduledClass();
   renderLiveClassesEntry(nextClass);
   scheduleParentScheduleAdvance(nextClass);
-  if (elements.parentScheduleCard) elements.parentScheduleCard.hidden = !currentStudent;
+  if (elements.parentScheduleCard) {
+    elements.parentScheduleCard.hidden = true;
+    elements.parentScheduleCard.setAttribute("aria-hidden", "true");
+  }
   const isLiveNow = Boolean(activeLiveClassType);
   if (elements.parentNextClassStatus) {
     elements.parentNextClassStatus.textContent = isLiveNow
