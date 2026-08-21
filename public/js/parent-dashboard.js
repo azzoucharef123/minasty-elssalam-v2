@@ -837,7 +837,13 @@ async function checkSofizPayReturn() {
 
   const terminal = result?.paymentStatus === "PAID" || result?.paymentStatus === "FAILED";
   if (result?.paymentStatus === "PAID") {
-    openDocumentFeedback(result.message || "مبروك، تم تسجيلك بنجاح.", "مبروك، تم تأكيد الدفع");
+    const paidSubscriptionMessages = {
+      MATH: "مبروك انضمامك إلى الأستاذ شارف عزالدين. لقد تم الدفع بنجاح، وتم تفعيل مادة الرياضيات.",
+      PHYSICS: "مبروك انضمامك إلى الأستاذ شارف عزالدين. لقد تم الدفع بنجاح، وتم تفعيل مادة الفيزياء.",
+      BOTH: "مبروك انضمامك إلى الأستاذ شارف عزالدين. لقد تم الدفع بنجاح، وتم تفعيل مادتي الرياضيات والفيزياء.",
+    };
+    const paidMessage = paidSubscriptionMessages[result.subscriptionType] || result.message || "مبروك، تم تسجيلك بنجاح.";
+    openDocumentFeedback(paidMessage, "مبروك، تم تأكيد الدفع");
     sessionStorage.removeItem("sofizpayPendingOrder");
     await loadDashboard({ backgroundRefresh: true });
   } else if (result?.paymentStatus === "FAILED") {
