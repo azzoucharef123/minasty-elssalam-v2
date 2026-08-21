@@ -1,0 +1,232 @@
+/*
+ * Student manual landscape UI v2
+ * This file is intentionally scoped to the mobile landscape state only.
+ * It does not change portrait, desktop, WebRTC, audio, video, or chat logic.
+ */
+
+@media screen and (max-width: 900px) {
+  html.student-landscape-mode body.student-live-page,
+  html.student-virtual-landscape-mode body.student-live-page {
+    width: 100%;
+    height: 100%;
+    min-height: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    background: #020617 !important;
+  }
+
+  html.student-landscape-mode body.student-live-page .viewer-shell,
+  html.student-virtual-landscape-mode body.student-live-page .viewer-shell {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 2147483000 !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-template-rows: minmax(0, 7fr) minmax(0, 1fr) !important;
+    grid-template-areas:
+      "broadcast broadcast broadcast broadcast"
+      "cancel capture refresh message" !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    overflow: hidden !important;
+    background: #020617 !important;
+    isolation: isolate !important;
+  }
+
+  /* The seven upper eighths are reserved for the teacher's broadcast. */
+  html.student-landscape-mode body.student-live-page .viewer-stage,
+  html.student-virtual-landscape-mode body.student-live-page .viewer-stage {
+    position: relative !important;
+    display: contents !important;
+    grid-area: broadcast !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    transform: none !important;
+  }
+
+  html.student-landscape-mode body.student-live-page .video-frame,
+  html.student-virtual-landscape-mode body.student-live-page .video-frame {
+    position: relative !important;
+    display: flex !important;
+    grid-column: 1 / -1 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+    background: #000 !important;
+  }
+
+  html.student-landscape-mode body.student-live-page #remote-video,
+  html.student-virtual-landscape-mode body.student-live-page #remote-video,
+  html.student-landscape-mode body.student-live-page #video-placeholder,
+  html.student-virtual-landscape-mode body.student-live-page #video-placeholder {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    object-fit: contain !important;
+    border-radius: 0 !important;
+  }
+
+  html.student-landscape-mode body.student-live-page .viewer-header,
+  html.student-virtual-landscape-mode body.student-live-page .viewer-header,
+  html.student-landscape-mode body.student-live-page .student-chat-head,
+  html.student-virtual-landscape-mode body.student-live-page .student-chat-head,
+  html.student-landscape-mode body.student-live-page .student-chat-box,
+  html.student-virtual-landscape-mode body.student-live-page .student-chat-box,
+  html.student-landscape-mode body.student-live-page .question-image-preview,
+  html.student-virtual-landscape-mode body.student-live-page .question-image-preview,
+  html.student-landscape-mode body.student-live-page .desktop-chat-direct-form,
+  html.student-virtual-landscape-mode body.student-live-page .desktop-chat-direct-form,
+  html.student-landscape-mode body.student-live-page #chat-compose-modal,
+  html.student-virtual-landscape-mode body.student-live-page #chat-compose-modal {
+    display: none !important;
+  }
+
+  /* Flatten the existing containers without moving DOM nodes. */
+  html.student-landscape-mode body.student-live-page .viewer-actions-divider,
+  html.student-virtual-landscape-mode body.student-live-page .viewer-actions-divider,
+  html.student-landscape-mode body.student-live-page .viewer-actions-control-row,
+  html.student-virtual-landscape-mode body.student-live-page .viewer-actions-control-row,
+  html.student-landscape-mode body.student-live-page .student-chat-panel,
+  html.student-virtual-landscape-mode body.student-live-page .student-chat-panel,
+  html.student-landscape-mode body.student-live-page .student-chat-actions,
+  html.student-virtual-landscape-mode body.student-live-page .student-chat-actions,
+  html.student-landscape-mode body.student-live-page .student-inline-rotate-controls,
+  html.student-virtual-landscape-mode body.student-live-page .student-inline-rotate-controls,
+  html.student-landscape-mode body.student-live-page .student-mobile-controls,
+  html.student-virtual-landscape-mode body.student-live-page .student-mobile-controls {
+    display: contents !important;
+  }
+
+  /* Exactly four compact controls occupy the bottom eighth. */
+  html.student-landscape-mode body.student-live-page #student-center-unrotate-btn,
+  html.student-virtual-landscape-mode body.student-live-page #student-center-unrotate-btn {
+    display: inline-flex !important;
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+  }
+
+  html.student-landscape-mode body.student-live-page #capture-question-btn,
+  html.student-virtual-landscape-mode body.student-live-page #capture-question-btn {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+  }
+
+  html.student-landscape-mode body.student-live-page #refresh-media-btn,
+  html.student-virtual-landscape-mode body.student-live-page #refresh-media-btn {
+    display: inline-flex !important;
+    grid-column: 3 !important;
+    grid-row: 2 !important;
+  }
+
+  html.student-landscape-mode body.student-live-page #open-chat-compose-btn,
+  html.student-virtual-landscape-mode body.student-live-page #open-chat-compose-btn {
+    display: inline-flex !important;
+    grid-column: 4 !important;
+    grid-row: 2 !important;
+  }
+
+  html.student-landscape-mode body.student-live-page .hand-request-controls,
+  html.student-virtual-landscape-mode body.student-live-page .hand-request-controls,
+  html.student-landscape-mode body.student-live-page #student-center-rotate-btn,
+  html.student-virtual-landscape-mode body.student-live-page #student-center-rotate-btn,
+  html.student-landscape-mode body.student-live-page #student-rotate-btn,
+  html.student-virtual-landscape-mode body.student-live-page #student-rotate-btn,
+  html.student-landscape-mode body.student-live-page #student-unrotate-btn,
+  html.student-virtual-landscape-mode body.student-live-page #student-unrotate-btn,
+  html.student-landscape-mode body.student-live-page #student-refresh-fab,
+  html.student-virtual-landscape-mode body.student-live-page #student-refresh-fab,
+  html.student-landscape-mode body.student-live-page #raise-hand-btn,
+  html.student-virtual-landscape-mode body.student-live-page #raise-hand-btn,
+  html.student-landscape-mode body.student-live-page #hand-waiting-actions,
+  html.student-virtual-landscape-mode body.student-live-page #hand-waiting-actions,
+  html.student-landscape-mode body.student-live-page .desktop-stage-button,
+  html.student-virtual-landscape-mode body.student-live-page .desktop-stage-button,
+  html.student-landscape-mode body.student-live-page #question-image-input,
+  html.student-virtual-landscape-mode body.student-live-page #question-image-input {
+    display: none !important;
+  }
+
+  html.student-landscape-mode body.student-live-page #student-center-unrotate-btn,
+  html.student-virtual-landscape-mode body.student-live-page #student-center-unrotate-btn,
+  html.student-landscape-mode body.student-live-page #capture-question-btn,
+  html.student-virtual-landscape-mode body.student-live-page #capture-question-btn,
+  html.student-landscape-mode body.student-live-page #refresh-media-btn,
+  html.student-virtual-landscape-mode body.student-live-page #refresh-media-btn,
+  html.student-landscape-mode body.student-live-page #open-chat-compose-btn,
+  html.student-virtual-landscape-mode body.student-live-page #open-chat-compose-btn {
+    align-items: center !important;
+    justify-content: center !important;
+    align-self: stretch !important;
+    justify-self: stretch !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 0.25rem !important;
+    border: 1px solid rgba(148, 163, 184, 0.28) !important;
+    border-radius: 0.45rem !important;
+    box-shadow: none !important;
+    font-size: clamp(0.58rem, 1.65vw, 0.82rem) !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  html.student-landscape-mode body.student-live-page .refresh-media-button svg,
+  html.student-virtual-landscape-mode body.student-live-page .refresh-media-button svg {
+    width: 1rem !important;
+    height: 1rem !important;
+    flex: 0 0 auto !important;
+  }
+
+  html.student-landscape-mode body.student-live-page .refresh-media-label,
+  html.student-virtual-landscape-mode body.student-live-page .refresh-media-label {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Cancel, capture, refresh, and message are the only visible bottom items. */
+  html.student-landscape-mode body.student-live-page .viewer-actions-control-row > *,
+  html.student-virtual-landscape-mode body.student-live-page .viewer-actions-control-row > *,
+  html.student-landscape-mode body.student-live-page .student-chat-actions > *,
+  html.student-virtual-landscape-mode body.student-live-page .student-chat-actions > *,
+  html.student-landscape-mode body.student-live-page .student-inline-rotate-controls > *,
+  html.student-virtual-landscape-mode body.student-live-page .student-inline-rotate-controls > *,
+  html.student-landscape-mode body.student-live-page .student-mobile-controls > * {
+    min-width: 0 !important;
+  }
+
+  /* If the browser remains in portrait after the manual action, rotate the
+     complete app surface as one unit instead of rotating only the video. */
+  @media screen and (orientation: portrait) {
+    html.student-virtual-landscape-mode body.student-live-page .viewer-shell {
+      width: 100dvh !important;
+      height: 100vw !important;
+      transform: rotate(90deg) translateY(-100%) !important;
+      transform-origin: top left !important;
+    }
+  }
+}
