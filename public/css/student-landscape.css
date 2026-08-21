@@ -178,8 +178,12 @@
   }
 
   html.student-landscape-mode body.student-live-page #capture-question-btn,
-  html.student-virtual-landscape-mode body.student-live-page #capture-question-btn {
+  html.student-virtual-landscape-mode body.student-live-page #capture-question-btn,
+  html.student-landscape-mode body.student-live-page .viewer-actions-control-row > #capture-question-btn.is-landscape-toolbar-item,
+  html.student-virtual-landscape-mode body.student-live-page .viewer-actions-control-row > #capture-question-btn.is-landscape-toolbar-item {
     display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
     order: 3 !important;
   }
 

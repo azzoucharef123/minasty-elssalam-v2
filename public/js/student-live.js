@@ -509,10 +509,13 @@ function syncLandscapeCaptureButton(isLandscape) {
       captureQuestionOriginalNextSibling = elements.openChatComposeButton || null;
     }
     if (captureButton.parentElement !== toolbar) toolbar.append(captureButton);
+    captureButton.classList.add("is-landscape-toolbar-item");
+    captureButton.hidden = false;
     return;
   }
 
   if (captureButton.parentElement === toolbar) {
+    captureButton.classList.remove("is-landscape-toolbar-item");
     if (captureQuestionOriginalNextSibling?.parentElement === chatActions) {
       chatActions.insertBefore(captureButton, captureQuestionOriginalNextSibling);
     } else {
