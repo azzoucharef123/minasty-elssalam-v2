@@ -408,6 +408,12 @@
     transform: scale(.97) !important;
   }
 
+  /* Portrait mode uses one rotate action; hide both cancel-rotate controls. */
+  body.student-live-page #student-center-unrotate-btn,
+  body.student-live-page #student-unrotate-btn {
+    display: none !important;
+  }
+
   /* Fixed bottom action strip: raise hand, rotate and refresh only. */
   body.student-live-page .viewer-actions-divider {
     position: fixed !important;
