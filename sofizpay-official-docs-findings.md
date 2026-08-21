@@ -16,3 +16,12 @@ Source 2: https://docs.sofizpay.com/en/api/v1/endpoints/cibtransactioncheck/
 - Successful response example: `orderStatus: 2`, `errorCode: 0`, `respCode: "00"`, `destination_account`, and `Amount`.
 - Not found response is an error such as `CIB transaction not found`.
 - Official security guidance: validate amount and receiving account, implement idempotency for repeated callbacks, and log verification attempts.
+
+
+Source 3: https://docs.sofizpay.com/en/api/v1/endpoints/operationdetails/
+
+- Operation Details endpoint: GET https://sofizpay.com/operation-details/{operation_id}/?encrypted_sk={encrypted_sk}
+- It retrieves operation status and detailed external provider logs by the UUID operation_id.
+- Required authentication is the merchant encrypted secret key (`encrypted_sk`).
+- Documented statuses include Pending, Processing, Completed, and Failed.
+- This endpoint is the documented fallback for resolving an operation UUID into provider details when a webhook does not include the CIB order number directly.
