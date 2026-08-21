@@ -285,7 +285,7 @@
   html.student-landscape-mode .student-live-page .viewer-actions-control-row,
   html.student-virtual-landscape-mode .student-live-page .viewer-actions-control-row {
     display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     align-items: stretch !important;
     width: 100% !important;
     height: 50px !important;
@@ -296,6 +296,8 @@
 
   html.student-landscape-mode .student-live-page .hand-request-controls,
   html.student-virtual-landscape-mode .student-live-page .hand-request-controls,
+  html.student-landscape-mode .student-live-page .student-chat-capture,
+  html.student-virtual-landscape-mode .student-live-page .student-chat-capture,
   html.student-landscape-mode .student-live-page .refresh-media-button,
   html.student-virtual-landscape-mode .student-live-page .refresh-media-button,
   html.student-landscape-mode .student-live-page .student-inline-rotate-controls,
@@ -305,6 +307,16 @@
     width: 100% !important;
     min-width: 0 !important;
   }
+
+  /* RTL order: cancel rotation, raise hand, capture, refresh. */
+  html.student-landscape-mode .student-live-page .student-inline-rotate-controls,
+  html.student-virtual-landscape-mode .student-live-page .student-inline-rotate-controls { order: 1 !important; }
+  html.student-landscape-mode .student-live-page .hand-request-controls,
+  html.student-virtual-landscape-mode .student-live-page .hand-request-controls { order: 2 !important; }
+  html.student-landscape-mode .student-live-page .student-chat-capture,
+  html.student-virtual-landscape-mode .student-live-page .student-chat-capture { order: 3 !important; }
+  html.student-landscape-mode .student-live-page .refresh-media-button,
+  html.student-virtual-landscape-mode .student-live-page .refresh-media-button { order: 4 !important; }
 
   html.student-landscape-mode .student-live-page .student-inline-rotate-button,
   html.student-virtual-landscape-mode .student-live-page .student-inline-rotate-button {

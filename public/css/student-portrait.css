@@ -411,8 +411,8 @@
   }
 
   /* Portrait mode uses one rotate action; hide both cancel-rotate controls. */
-  body.student-live-page #student-center-unrotate-btn,
-  body.student-live-page #student-unrotate-btn {
+  html:not(.student-landscape-mode):not(.student-virtual-landscape-mode) body.student-live-page #student-center-unrotate-btn,
+  html:not(.student-landscape-mode):not(.student-virtual-landscape-mode) body.student-live-page #student-unrotate-btn {
     display: none !important;
   }
 

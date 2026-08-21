@@ -524,7 +524,7 @@ function updateRotationControls() {
   // sessions screen.orientation.type can remain stale after a prior target.
   const nativeLandscape = window.matchMedia?.("(orientation: landscape)").matches || false;
   const isLandscape = nativeLandscape || studentVirtualLandscapeMode;
-  const showUnrotate = Boolean(studentRotationRequested && isLandscape);
+  const showUnrotate = isLandscape;
   if (elements.rotateButton) elements.rotateButton.hidden = isLandscape;
   if (elements.unrotateButton) elements.unrotateButton.hidden = !showUnrotate;
   if (elements.centerRotateButton) elements.centerRotateButton.hidden = showUnrotate;
