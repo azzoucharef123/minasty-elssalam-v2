@@ -4,7 +4,7 @@
  * It does not change portrait, desktop, WebRTC, audio, video, or chat logic.
  */
 
-@media screen and (max-width: 900px) {
+@media screen and (max-width: 1200px) {
   html.student-landscape-mode body.student-live-page,
   html.student-virtual-landscape-mode body.student-live-page {
     width: 100%;
@@ -219,14 +219,20 @@
     min-width: 0 !important;
   }
 
-  /* If the browser remains in portrait after the manual action, rotate the
-     complete app surface as one unit instead of rotating only the video. */
-  @media screen and (orientation: portrait) {
-    html.student-virtual-landscape-mode body.student-live-page .viewer-shell {
-      width: 100dvh !important;
-      height: 100vw !important;
-      transform: rotate(90deg) translateY(-100%) !important;
-      transform-origin: top left !important;
-    }
+}
+
+/* Portrait fallback: swap the shell dimensions before rotating it. This keeps
+   the transformed app surface inside the physical portrait viewport. */
+@media screen and (max-width: 1200px) and (orientation: portrait) {
+  html.student-virtual-landscape-mode body.student-live-page .viewer-shell {
+    inset: auto !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 100dvh !important;
+    height: 100vw !important;
+    transform: translateX(100vw) rotate(90deg) !important;
+    transform-origin: top left !important;
   }
 }
