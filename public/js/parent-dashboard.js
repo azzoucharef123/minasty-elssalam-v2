@@ -79,6 +79,13 @@ const elements = {
   parentNextClassStateTitle: document.getElementById("parent-next-class-state-title"),
   parentNextClassStateCopy: document.getElementById("parent-next-class-state-copy"),
   parentScheduleList: document.getElementById("parent-schedule-list"),
+  liveClassesEntryCard: document.getElementById("live-classes-entry-card"),
+  liveClassesEntryButton: document.getElementById("live-classes-entry-button"),
+  liveClassesEntryCaption: document.getElementById("live-classes-entry-caption"),
+  liveClassesWaitingPanel: document.getElementById("live-classes-waiting-panel"),
+  liveClassesWaitingTime: document.getElementById("live-classes-waiting-time"),
+  liveClassesWaitingSubject: document.getElementById("live-classes-waiting-subject"),
+  liveClassesWaitingExit: document.getElementById("live-classes-waiting-exit"),
   teacherAbsenceNotice: document.getElementById("teacher-absence-notice"),
   logoutButton: document.getElementById("logout-btn"),
   lessonVideoList: document.getElementById("lesson-video-list"),
@@ -1123,8 +1130,49 @@ function scheduleParentScheduleAdvance(nextClass) {
   }, delay + 100);
 }
 
+function getLiveClassesEntrySubject(student, nextClass) {
+  if (nextClass?.subject) return nextClass.subject;
+  if (student?.mathEnrollment && student?.physicsEnrollment) return "BOTH";
+  if (student?.physicsEnrollment) return "PHYSICS";
+  if (student?.mathEnrollment) return "MATH";
+  return "";
+}
+
+function openLiveClassesEntryPage() {
+  if (!currentStudent) return;
+  const nextClass = getNextParentScheduledClass();
+  const params = new URLSearchParams({
+    studentId: currentStudent.id || "",
+    studentName: currentStudent.studentName || "",
+    level: currentStudent.level || "",
+    subject: getLiveClassesEntrySubject(currentStudent, nextClass),
+    scheduledAt: nextClass?.scheduledAt || "",
+  });
+  persistStudentSession(currentStudent);
+  window.location.assign(`./student-live-times-level.html?${params.toString()}`);
+}
+
+function renderLiveClassesEntry(nextClass) {
+  if (!elements.liveClassesEntryCard) return;
+  const hasStudent = Boolean(currentStudent);
+  const isLiveNow = Boolean(activeLiveClassType || globalFreeClassActive);
+  elements.liveClassesEntryCard.hidden = !hasStudent || isLiveNow;
+  if (elements.liveClassesWaitingPanel) elements.liveClassesWaitingPanel.hidden = true;
+  if (!hasStudent || isLiveNow) return;
+
+  const subject = getLiveClassesEntrySubject(currentStudent, nextClass);
+  if (elements.liveClassesEntryCaption) {
+    elements.liveClassesEntryCaption.textContent = `${displayLevelLabel(currentStudent.level)} — ${scheduleTypeLabel(currentStudent.level, subject)}`;
+  }
+  if (elements.liveClassesEntryButton) {
+    elements.liveClassesEntryButton.disabled = false;
+    elements.liveClassesEntryButton.title = "فتح صفحة انتظار الحصة المباشرة";
+  }
+}
+
 function renderParentSchedule() {
   const nextClass = getNextParentScheduledClass();
+  renderLiveClassesEntry(nextClass);
   scheduleParentScheduleAdvance(nextClass);
   if (elements.parentScheduleCard) elements.parentScheduleCard.hidden = !currentStudent;
   const isLiveNow = Boolean(activeLiveClassType);
@@ -2449,6 +2497,10 @@ if (!getParentToken()) {
 } else {
   elements.joinLiveClassButton?.addEventListener("click", () => {
     void enterLiveClass();
+  });
+  elements.liveClassesEntryButton?.addEventListener("click", openLiveClassesEntryPage);
+  elements.liveClassesWaitingExit?.addEventListener("click", () => {
+    if (elements.liveClassesWaitingPanel) elements.liveClassesWaitingPanel.hidden = true;
   });
   elements.universityUpgradeButton?.addEventListener("click", openUniversityPaymentTransfer);
   wirePaymentReceiptActions({

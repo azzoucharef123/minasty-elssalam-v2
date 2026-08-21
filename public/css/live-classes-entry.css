@@ -1,0 +1,206 @@
+/* Live classes entry card on the parent dashboard */
+.live-classes-entry-card {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 1rem;
+  color: #172033;
+  background: linear-gradient(145deg, #ffffff, #f8fafc);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 1rem;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.live-classes-entry-card[hidden],
+.live-classes-waiting-panel[hidden] {
+  display: none !important;
+}
+
+.live-classes-entry-head {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.live-classes-entry-kicker {
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.live-classes-entry-head h2 {
+  margin: 0;
+  color: #1e293b;
+  font-size: clamp(1rem, 2vw, 1.35rem);
+}
+
+.live-classes-entry-caption {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.65;
+}
+
+.live-classes-entry-button {
+  justify-self: start;
+  min-height: 2.25rem;
+  padding: 0.52rem 0.9rem;
+  color: #b91c1c;
+  background: #fff1f2;
+  border: 1px solid #fca5a5;
+  border-radius: 0.62rem;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.live-classes-entry-button:hover {
+  color: #ffffff;
+  background: #dc2626;
+}
+
+.live-classes-entry-button:active {
+  transform: scale(0.98);
+}
+
+/* Standalone waiting page */
+.live-classes-page {
+  min-height: 100vh;
+  margin: 0;
+  overflow: hidden;
+  color: #e2e8f0;
+  background: #020617;
+  font-family: "Cairo", system-ui, sans-serif;
+}
+
+.live-classes-page *,
+.live-classes-page *::before,
+.live-classes-page *::after {
+  box-sizing: border-box;
+}
+
+.live-classes-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: 100vw;
+  height: 100vh;
+  min-height: 100dvh;
+}
+
+.live-classes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 4.1rem;
+  padding: 0.7rem clamp(0.8rem, 3vw, 2rem);
+  background: rgba(15, 23, 42, 0.95);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.live-classes-brand {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.live-classes-brand strong {
+  color: #f8fafc;
+  font-size: 0.95rem;
+}
+
+.live-classes-brand span {
+  overflow: hidden;
+  color: #94a3b8;
+  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-classes-exit {
+  min-width: 4rem;
+  min-height: 2.25rem;
+  padding: 0.4rem 0.75rem;
+  color: #ffffff;
+  background: #dc2626;
+  border: 1px solid #f87171;
+  border-radius: 0.6rem;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.live-classes-stage {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  padding: clamp(1rem, 5vw, 3rem);
+  background: #000000;
+}
+
+.live-classes-frame {
+  display: grid;
+  place-items: center;
+  width: min(100%, 70rem);
+  min-height: min(62vh, 34rem);
+  padding: clamp(1.5rem, 6vw, 4rem);
+  text-align: center;
+  background: #ffffff;
+  border: 2px solid #fecaca;
+  border-radius: 1.25rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.live-classes-frame-copy {
+  display: grid;
+  gap: 0.65rem;
+  max-width: 50rem;
+}
+
+.live-classes-frame-kicker {
+  color: #b91c1c;
+  font-size: clamp(0.8rem, 2vw, 1rem);
+  font-weight: 900;
+}
+
+.live-classes-frame-time {
+  color: #dc2626;
+  font-size: clamp(1.25rem, 4vw, 2.6rem);
+  font-weight: 900;
+  line-height: 1.45;
+}
+
+.live-classes-frame-subject {
+  color: #991b1b;
+  font-size: clamp(0.8rem, 2vw, 1.05rem);
+  font-weight: 800;
+}
+
+.live-classes-frame-note {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+  font-size: clamp(0.68rem, 1.8vw, 0.86rem);
+  line-height: 1.75;
+}
+
+@media (max-width: 700px) {
+  .live-classes-entry-button {
+    width: 100%;
+  }
+
+  .live-classes-header {
+    min-height: 3.6rem;
+  }
+
+  .live-classes-stage {
+    padding: 0.8rem;
+  }
+
+  .live-classes-frame {
+    min-height: min(64vh, 30rem);
+    padding: 1.2rem;
+    border-radius: 0.9rem;
+  }
+}
