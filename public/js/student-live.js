@@ -355,8 +355,12 @@ const STUDENT_MAX_ZOOM = 4;
 let mobileControlDragState = null;
 let ignoreNextRefreshClick = false;
 let mobileToastTimer = null;
-let studentVirtualLandscapeMode = false;
-let studentRotationRequested = false;
+window.__studentRotationState ||= { virtual: false, requested: false };
+
+function getStudentRotationState() {
+  window.__studentRotationState ||= { virtual: false, requested: false };
+  return window.__studentRotationState;
+}
 let captureQuestionOriginalParent = null;
 let captureQuestionOriginalNextSibling = null;
 const studentZoomState = {
@@ -523,7 +527,8 @@ function updateRotationControls() {
   // Use the current viewport as the source of truth. In some Chrome emulator
   // sessions screen.orientation.type can remain stale after a prior target.
   const nativeLandscape = window.matchMedia?.("(orientation: landscape)").matches || false;
-  const isLandscape = nativeLandscape || studentVirtualLandscapeMode;
+  const rotationState = getStudentRotationState();
+  const isLandscape = nativeLandscape || rotationState.virtual;
   const showUnrotate = isLandscape;
   if (elements.rotateButton) elements.rotateButton.hidden = isLandscape;
   if (elements.unrotateButton) elements.unrotateButton.hidden = !showUnrotate;
@@ -531,8 +536,8 @@ function updateRotationControls() {
   if (elements.centerUnrotateButton) elements.centerUnrotateButton.hidden = !showUnrotate;
   syncLandscapeCaptureButton(showUnrotate);
   document.documentElement.classList.toggle("student-landscape-mode", isLandscape);
-  document.documentElement.classList.toggle("student-virtual-landscape-mode", studentVirtualLandscapeMode);
-  document.body.classList.toggle("hide-ui-for-rotation", studentVirtualLandscapeMode);
+  document.documentElement.classList.toggle("student-virtual-landscape-mode", rotationState.virtual);
+  document.body.classList.toggle("hide-ui-for-rotation", rotationState.virtual);
 
   // Landscape uses its original fit behavior. Portrait keeps the interactive
   // zoom state and clamps it to the current broadcast-card dimensions.
@@ -692,14 +697,14 @@ async function lockStudentOrientation(orientation) {
       throw new Error("Screen Orientation API is unavailable");
     }
     await screen.orientation.lock(orientation);
-    studentVirtualLandscapeMode = false;
+    getStudentRotationState().virtual = false;
     updateRotationControls();
     showMobileControlToast(orientation.startsWith("landscape") ? "تم تدوير الشاشة." : "تم إلغاء تدوير الشاشة.");
     return true;
   } catch (error) {
     console.warn("Unable to lock student screen orientation; using visual fallback:", error);
     if (orientation.startsWith("landscape")) {
-      studentVirtualLandscapeMode = true;
+      getStudentRotationState().virtual = true;
       updateRotationControls();
       showMobileControlToast("تم تفعيل وضع التدوير.");
       return true;
@@ -711,14 +716,14 @@ async function lockStudentOrientation(orientation) {
 }
 
 async function rotateStudentScreen() {
-  studentRotationRequested = true;
+  getStudentRotationState().requested = true;
   await lockStudentOrientation("landscape");
 }
 
 async function unrotateStudentScreen() {
   try {
-    studentRotationRequested = false;
-    studentVirtualLandscapeMode = false;
+    getStudentRotationState().requested = false;
+    getStudentRotationState().virtual = false;
     document.documentElement.classList.remove("student-virtual-landscape-mode");
     document.body.classList.remove("hide-ui-for-rotation");
     if (screen.orientation?.lock) {
