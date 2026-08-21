@@ -527,11 +527,11 @@ function syncLandscapeCaptureButton(isLandscape) {
 }
 
 function updateRotationControls() {
-  // Use the current viewport as the source of truth. In some Chrome emulator
-  // sessions screen.orientation.type can remain stale after a prior target.
-  const nativeLandscape = window.matchMedia?.("(orientation: landscape)").matches || false;
+  // The phone sensor must not change this page by itself. The in-app rotate
+  // button is the only control that enables the landscape interface.
   const rotationState = getStudentRotationState();
-  const isLandscape = nativeLandscape || rotationState.virtual;
+  const nativeLandscape = rotationState.requested && (window.matchMedia?.("(orientation: landscape)").matches || false);
+  const isLandscape = rotationState.requested && (nativeLandscape || rotationState.virtual);
   const showUnrotate = isLandscape;
   if (elements.rotateButton) elements.rotateButton.hidden = isLandscape;
   if (elements.unrotateButton) elements.unrotateButton.hidden = !showUnrotate;
@@ -696,23 +696,29 @@ async function lockStudentOrientation(orientation) {
     if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
       await document.documentElement.requestFullscreen();
     }
-    if (!screen.orientation?.lock) {
-      throw new Error("Screen Orientation API is unavailable");
-    }
-    await screen.orientation.lock(orientation);
-    getStudentRotationState().virtual = false;
-    updateRotationControls();
-    showMobileControlToast(orientation.startsWith("landscape") ? "تم تدوير الشاشة." : "تم إلغاء تدوير الشاشة.");
-    return true;
-  } catch (error) {
-    console.warn("Unable to lock student screen orientation; using visual fallback:", error);
+
+    // Deliberately do not call screen.orientation.lock(). The phone sensor must
+    // not control this page; the in-app button controls the visual landscape UI.
     if (orientation.startsWith("landscape")) {
       getStudentRotationState().virtual = true;
       updateRotationControls();
-      showMobileControlToast("تم تفعيل وضع التدوير.");
+      showMobileControlToast("تم تفعيل التدوير اليدوي داخل المنصة.");
       return true;
     }
-    showMobileControlToast("لم يسمح المتصفح بالتدوير التلقائي. أدر الهاتف يدويًا.");
+
+    getStudentRotationState().virtual = false;
+    updateRotationControls();
+    showMobileControlToast("تم إلغاء تدوير الشاشة.");
+    return true;
+  } catch (error) {
+    console.warn("Unable to enter student fullscreen; keeping manual visual rotation:", error);
+    if (orientation.startsWith("landscape")) {
+      getStudentRotationState().virtual = true;
+      updateRotationControls();
+      showMobileControlToast("تم تفعيل التدوير اليدوي داخل المنصة.");
+      return true;
+    }
+    showMobileControlToast("تعذر تغيير واجهة التدوير.");
     updateRotationControls();
     return false;
   }
@@ -729,11 +735,8 @@ async function unrotateStudentScreen() {
     getStudentRotationState().virtual = false;
     document.documentElement.classList.remove("student-virtual-landscape-mode");
     document.body.classList.remove("hide-ui-for-rotation");
-    if (screen.orientation?.lock) {
-      await screen.orientation.lock("portrait-primary");
-    } else if (screen.orientation?.unlock) {
-      screen.orientation.unlock();
-    }
+    // Do not call screen.orientation.lock/unlock. Phone rotation is controlled
+    // only by the student's in-app button and visual state.
     if (document.fullscreenElement && document.exitFullscreen) {
       await document.exitFullscreen();
     }
@@ -742,7 +745,6 @@ async function unrotateStudentScreen() {
     showMobileControlToast("تم إلغاء تدوير الشاشة.");
   } catch (error) {
     console.warn("Unable to unlock student screen orientation:", error);
-    if (screen.orientation?.unlock) screen.orientation.unlock();
     updateRotationControls();
     showMobileControlToast("أدر الهاتف يدويًا إلى الوضع العمودي.");
   }
