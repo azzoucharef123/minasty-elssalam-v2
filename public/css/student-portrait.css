@@ -192,8 +192,30 @@
     touch-action: pinch-zoom !important;
   }
 
+  /* Never let an empty remote <video> cover the waiting artwork with black. */
   body.student-live-page .video-placeholder {
+    position: absolute !important;
+    z-index: 3 !important;
     background: #000 !important;
+  }
+
+  body.student-live-page #remote-video:not(.has-live-video) {
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    background: transparent !important;
+  }
+
+  body.student-live-page #remote-video.has-live-video {
+    position: relative !important;
+    z-index: 2 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: #000 !important;
+  }
+
+  body.student-live-page .video-placeholder[hidden] {
+    display: none !important;
   }
 
   body.student-live-page .video-placeholder-copy {
