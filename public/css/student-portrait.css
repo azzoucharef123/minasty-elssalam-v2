@@ -148,7 +148,7 @@
     position: relative !important;
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) !important;
-    grid-template-rows: minmax(0, 1fr) minmax(11rem, 22dvh) !important;
+    grid-template-rows: minmax(0, 1fr) minmax(11rem, 44dvh) !important;
     grid-template-areas: "video" "chat" !important;
     width: 100% !important;
     height: calc(100svh - 3.8rem) !important;
