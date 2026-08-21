@@ -241,3 +241,137 @@
     height: 56px !important;
   }
 }
+
+
+/* Native Android/Chrome Fullscreen surface for mobile landscape. The OS hint
+   is not editable by web CSS; these rules control the app surface behind it. */
+@media screen and (max-width: 900px) {
+  html:fullscreen body.student-live-page .viewer-shell {
+    position: fixed !important;
+    inset: 0 !important;
+    display: grid !important;
+    grid-template-rows: minmax(0, 1fr) 56px !important;
+    grid-template-areas: "stage" "toolbar" !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #000 !important;
+  }
+
+  html:fullscreen body.student-live-page .viewer-header,
+  html:fullscreen body.student-live-page .student-chat-panel,
+  html:fullscreen body.student-live-page .student-mobile-controls {
+    display: none !important;
+  }
+
+  html:fullscreen body.student-live-page .viewer-stage {
+    position: fixed !important;
+    inset: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) 56px !important;
+    grid-template-areas: "video" "toolbar" !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #000 !important;
+  }
+
+  html:fullscreen body.student-live-page .video-frame {
+    position: relative !important;
+    inset: auto !important;
+    display: grid !important;
+    grid-area: video !important;
+    width: 100vw !important;
+    height: calc(100dvh - 56px) !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    background: #000 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  html:fullscreen body.student-live-page .viewer-actions-divider {
+    position: relative !important;
+    inset: auto !important;
+    z-index: 200 !important;
+    display: flex !important;
+    grid-area: toolbar !important;
+    align-items: center !important;
+    width: 100vw !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    max-height: 56px !important;
+    margin: 0 !important;
+    padding: 3px !important;
+    overflow: hidden !important;
+    background: #0f172a !important;
+  }
+
+  html:fullscreen body.student-live-page .viewer-actions-control-row {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-auto-flow: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    height: 50px !important;
+    min-height: 0 !important;
+    gap: 4px !important;
+    direction: rtl !important;
+  }
+
+  html:fullscreen body.student-live-page .hand-request-controls,
+  html:fullscreen body.student-live-page .student-inline-rotate-controls,
+  html:fullscreen body.student-live-page .student-chat-actions {
+    display: contents !important;
+  }
+
+  html:fullscreen body.student-live-page .student-chat-actions > input,
+  html:fullscreen body.student-live-page .student-chat-message-button,
+  html:fullscreen body.student-live-page .desktop-stage-button,
+  html:fullscreen body.student-live-page .hand-waiting-actions {
+    display: none !important;
+  }
+
+  html:fullscreen body.student-live-page .student-inline-rotate-button {
+    display: none !important;
+    order: 1 !important;
+  }
+
+  html:fullscreen body.student-live-page .student-inline-rotate-button.is-cancel,
+  html:fullscreen body.student-live-page #raise-hand-btn,
+  html:fullscreen body.student-live-page #capture-question-btn.is-landscape-toolbar-item,
+  html:fullscreen body.student-live-page #refresh-media-btn {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 50px !important;
+    min-height: 50px !important;
+    max-height: 50px !important;
+    margin: 0 !important;
+    padding: 0 4px !important;
+    order: 2 !important;
+    overflow: hidden !important;
+    border-radius: 8px !important;
+    font-size: clamp(.58rem, 1.7vw, .78rem) !important;
+    white-space: nowrap !important;
+  }
+
+  html:fullscreen body.student-live-page .student-inline-rotate-button.is-cancel { order: 1 !important; }
+  html:fullscreen body.student-live-page #raise-hand-btn { order: 2 !important; }
+  html:fullscreen body.student-live-page #capture-question-btn.is-landscape-toolbar-item { order: 3 !important; }
+  html:fullscreen body.student-live-page #refresh-media-btn { order: 4 !important; }
+}
