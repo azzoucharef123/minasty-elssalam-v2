@@ -22,14 +22,20 @@
   body.student-live-page {
     position: fixed !important;
     inset: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   body.student-live-page .viewer-shell {
+    position: fixed !important;
+    inset: 0 !important;
     display: grid !important;
     grid-template-rows: 3.8rem minmax(0, 1fr) !important;
     width: 100vw !important;
     height: 100svh !important;
     min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
     overflow: hidden !important;
     background: #070b14 !important;
   }
@@ -45,6 +51,7 @@
     width: 100% !important;
     height: 3.8rem !important;
     min-height: 3.8rem !important;
+    margin: 0 !important;
     padding: .5rem .6rem !important;
     gap: .38rem !important;
     overflow: hidden !important;
@@ -146,6 +153,7 @@
     width: 100% !important;
     height: calc(100svh - 3.8rem) !important;
     min-height: 0 !important;
+    margin: 0 !important;
     gap: 0 !important;
     padding: 0 0 3.85rem !important;
     overflow: hidden !important;
