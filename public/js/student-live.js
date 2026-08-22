@@ -481,12 +481,15 @@ function initializeRefreshFab() {
   });
 }
 
-function isStudentPortraitZoomEnabled() {
-  return window.matchMedia?.("(max-width: 900px) and (orientation: portrait)").matches || false;
+function isStudentMobileZoomEnabled() {
+  const mobileViewport = window.matchMedia?.("(max-width: 900px)").matches || false;
+  const root = document.documentElement;
+  const mobileLandscapeFallback = root.classList.contains("student-landscape-mode") || root.classList.contains("student-virtual-landscape-mode");
+  return mobileViewport || mobileLandscapeFallback;
 }
 
 function syncStudentZoomToViewport({ reset = false } = {}) {
-  if (reset || document.documentElement.classList.contains("student-landscape-mode") || !isStudentPortraitZoomEnabled()) {
+  if (reset || !isStudentMobileZoomEnabled()) {
     resetStudentZoom();
     return;
   }
@@ -542,9 +545,9 @@ function updateRotationControls() {
   document.documentElement.classList.toggle("student-virtual-landscape-mode", rotationState.virtual);
   document.body.classList.toggle("hide-ui-for-rotation", rotationState.virtual);
 
-  // Landscape uses its original fit behavior. Portrait keeps the interactive
-  // zoom state and clamps it to the current broadcast-card dimensions.
-  if (isLandscape || !isStudentPortraitZoomEnabled()) {
+  // Keep zoom and one-finger panning available in both mobile orientations.
+  // Desktop remains excluded by isStudentMobileZoomEnabled().
+  if (!isStudentMobileZoomEnabled()) {
     resetStudentZoom();
   } else {
     syncStudentZoomToViewport();
@@ -555,7 +558,7 @@ function applyStudentZoom() {
   const transform = `translate3d(${studentZoomState.translateX}px, ${studentZoomState.translateY}px, 0) scale(${studentZoomState.scale})`;
   [elements.remoteVideo, elements.levelWelcomeImage].forEach((target) => {
     if (!target) return;
-    target.style.transform = transform;
+    target.style.setProperty("transform", transform, "important");
     target.classList.toggle("student-video-zoomed", studentZoomState.scale > 1.01);
   });
 }
@@ -574,7 +577,7 @@ function resetStudentZoom() {
   studentZoomState.panStartTranslateY = 0;
   [elements.remoteVideo, elements.levelWelcomeImage].forEach((target) => {
     if (!target) return;
-    target.style.transform = "none";
+    target.style.setProperty("transform", "none", "important");
     target.classList.remove("student-video-zoomed");
   });
 }
@@ -593,7 +596,7 @@ function getStudentPointerCenter() {
 }
 
 function handleStudentZoomPointerDown(event) {
-  if (!isStudentPortraitZoomEnabled()) return;
+  if (!isStudentMobileZoomEnabled()) return;
   studentZoomState.pointers.set(event.pointerId, event);
   event.currentTarget.setPointerCapture?.(event.pointerId);
 
@@ -1109,6 +1112,20 @@ function relocateStudentChatComposer() {
   }
 }
 
+function syncStudentKeyboardOffset() {
+  const viewport = window.visualViewport;
+  if (!viewport) {
+    document.documentElement.style.setProperty("--student-keyboard-offset", "0px");
+    return;
+  }
+  const keyboardOffset = Math.max(0, Math.round(window.innerHeight - viewport.height - viewport.offsetTop));
+  document.documentElement.style.setProperty("--student-keyboard-offset", `${keyboardOffset}px`);
+}
+
+function resetStudentKeyboardOffset() {
+  document.documentElement.style.setProperty("--student-keyboard-offset", "0px");
+}
+
 function handleChatMessageButtonClick() {
   if (isDesktopStudentView()) {
     elements.desktopChatDirectForm?.requestSubmit();
@@ -1119,8 +1136,6 @@ function handleChatMessageButtonClick() {
 
 function openStudentChatComposer() {
   const modal = elements.chatComposeModal || document.getElementById("chat-compose-modal");
-  const actionToolbar = document.querySelector(".viewer-actions-divider");
-  const mobileControls = document.querySelector(".student-mobile-controls");
   const viewerHeader = document.querySelector(".viewer-header");
   if (!modal || elements.openChatComposeButton?.disabled) return;
 
@@ -1128,26 +1143,23 @@ function openStudentChatComposer() {
   modal.hidden = false;
   modal.style.setProperty("display", "grid", "important");
   document.body.classList.add("student-chat-compose-open");
-  actionToolbar?.style.setProperty("display", "none", "important");
-  mobileControls?.style.setProperty("display", "none", "important");
-  viewerHeader?.style.setProperty("display", "none", "important");
   updateChatControls();
-  window.requestAnimationFrame(() => elements.chatInput?.focus({ preventScroll: true }));
+  syncStudentKeyboardOffset();
+  window.requestAnimationFrame(() => {
+    elements.chatInput?.focus({ preventScroll: true });
+    syncStudentKeyboardOffset();
+  });
 }
 
 function closeStudentChatComposer() {
   const modal = elements.chatComposeModal || document.getElementById("chat-compose-modal");
-  const actionToolbar = document.querySelector(".viewer-actions-divider");
-  const mobileControls = document.querySelector(".student-mobile-controls");
   const viewerHeader = document.querySelector(".viewer-header");
   if (!modal) return;
-
   modal.hidden = true;
   modal.style.setProperty("display", "none", "important");
   document.body.classList.remove("student-chat-compose-open");
-  actionToolbar?.style.removeProperty("display");
-  mobileControls?.style.removeProperty("display");
   viewerHeader?.style.removeProperty("display");
+  resetStudentKeyboardOffset();
   elements.chatInput?.blur();
 }
 
@@ -1209,6 +1221,7 @@ async function uploadQuestionImage(file) {
 function isDesktopStudentView() {
   return window.matchMedia?.("(min-width: 901px)").matches || false;
 }
+
 
 async function sendStudentChatMessage(event) {
   event.preventDefault();
@@ -2465,12 +2478,16 @@ document.addEventListener("keydown", (event) => {
   }
 });
 elements.chatInput.addEventListener("input", updateChatControls);
+elements.chatInput.addEventListener("focus", syncStudentKeyboardOffset);
 elements.chatInput.addEventListener("keydown", (event) => {
-  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+  if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
     event.preventDefault();
     elements.chatForm.requestSubmit();
   }
 });
+window.visualViewport?.addEventListener("resize", syncStudentKeyboardOffset);
+window.visualViewport?.addEventListener("scroll", syncStudentKeyboardOffset);
+window.addEventListener("resize", syncStudentKeyboardOffset);
 elements.desktopChatInput?.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
     event.preventDefault();

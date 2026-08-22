@@ -54,6 +54,8 @@
   html.student-landscape-mode body.student-live-page .video-frame,
   html.student-virtual-landscape-mode body.student-live-page .video-frame {
     position: relative !important;
+    touch-action: none !important;
+    cursor: grab !important;
     display: flex !important;
     grid-column: 1 / -1 !important;
     grid-row: 1 !important;
@@ -71,6 +73,8 @@
 
   html.student-landscape-mode body.student-live-page #remote-video,
   html.student-virtual-landscape-mode body.student-live-page #remote-video,
+  html.student-landscape-mode body.student-live-page #level-welcome-image,
+  html.student-virtual-landscape-mode body.student-live-page #level-welcome-image,
   html.student-landscape-mode body.student-live-page #video-placeholder,
   html.student-virtual-landscape-mode body.student-live-page #video-placeholder {
     width: 100% !important;
@@ -81,6 +85,9 @@
     max-height: none !important;
     object-fit: contain !important;
     border-radius: 0 !important;
+    touch-action: none !important;
+    user-select: none !important;
+    -webkit-user-drag: none !important;
   }
 
   html.student-landscape-mode body.student-live-page .viewer-header,
