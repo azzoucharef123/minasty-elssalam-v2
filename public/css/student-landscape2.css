@@ -283,3 +283,22 @@
     pointer-events: none !important;
   }
 }
+
+@media screen and (max-width: 1200px) {
+  html.student-landscape-mode body.student-live-page .video-placeholder,
+  html.student-virtual-landscape-mode body.student-live-page .video-placeholder {
+    z-index: 3 !important;
+  }
+
+  html.student-landscape-mode body.student-live-page .video-placeholder[hidden],
+  html.student-virtual-landscape-mode body.student-live-page .video-placeholder[hidden] {
+    display: none !important;
+  }
+}
+
+@media screen and (max-width: 1200px) {
+  html.student-landscape-mode.student-desktop-mode body.student-live-page .viewer-stage > .video-frame #video-placeholder,
+  html.student-virtual-landscape-mode.student-desktop-mode body.student-live-page .viewer-stage > .video-frame #video-placeholder {
+    z-index: 3 !important;
+  }
+}

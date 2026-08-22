@@ -566,7 +566,10 @@ function syncLandscapeCaptureButton(isLandscape) {
 
 function syncLandscapeComposerVisibility(isLandscape) {
   const modal = elements.chatComposeModal || document.getElementById("chat-compose-modal");
-  if (!modal || isDesktopStudentView()) return;
+  // A phone in landscape can be wider than 900px in CSS pixels and may also
+  // receive student-desktop-mode. The active manual landscape state must still
+  // hide the portrait composer; desktop behavior is preserved when not rotating.
+  if (!modal || (isDesktopStudentView() && !isLandscape)) return;
 
   if (isLandscape) {
     // The landscape2 toolbar must remain visible; the portrait composer would
