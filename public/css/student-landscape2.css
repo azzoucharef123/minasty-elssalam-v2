@@ -54,13 +54,19 @@
   html.student-landscape-mode body.student-live-page .video-frame,
   html.student-virtual-landscape-mode body.student-live-page .video-frame {
     position: relative !important;
+    inset: auto !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
     touch-action: none !important;
     cursor: grab !important;
     display: flex !important;
     grid-column: 1 / -1 !important;
     grid-row: 1 !important;
-    width: 100% !important;
-    height: 100% !important;
+    align-self: stretch !important;
+    width: 100vw !important;
+    height: auto !important;
     min-width: 0 !important;
     min-height: 0 !important;
     max-height: none !important;
@@ -187,7 +193,7 @@
     justify-self: stretch !important;
     width: 100% !important;
     min-width: 0 !important;
-    height: 100% !important;
+    height: auto !important;
     min-height: 0 !important;
     max-height: none !important;
     margin: 0 !important;
@@ -200,6 +206,8 @@
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
+    position: relative !important;
+    z-index: 5 !important;
   }
 
   html.student-landscape-mode body.student-live-page .refresh-media-button svg,
@@ -239,7 +247,39 @@
     bottom: auto !important;
     width: 100dvh !important;
     height: 100vw !important;
-    transform: translateX(100vw) rotate(90deg) !important;
+    /* Rotate the landscape canvas into a portrait viewport without shifting it off-screen. */
+    transform: rotate(90deg) translateY(-100%) !important;
     transform-origin: top left !important;
+  }
+}
+
+/* Final precedence guard: a wide phone viewport can also receive
+   student-desktop-mode. The manual landscape UI must still be full-width. */
+@media screen and (max-width: 1200px) {
+  html.student-landscape-mode.student-desktop-mode body.student-live-page .viewer-stage > .video-frame,
+  html.student-virtual-landscape-mode.student-desktop-mode body.student-live-page .viewer-stage > .video-frame {
+    position: relative !important;
+    inset: 0 auto auto 0 !important;
+    width: 100vw !important;
+    height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    grid-column: 1 / -1 !important;
+    grid-row: 1 !important;
+  }
+}
+
+@media screen and (max-width: 1200px) {
+  html.student-landscape-mode.student-desktop-mode body.student-live-page #desktop-fullscreen-btn,
+  html.student-landscape-mode.student-desktop-mode body.student-live-page #desktop-fullscreen-exit-btn,
+  html.student-landscape-mode.student-desktop-mode body.student-live-page #desktop-fullscreen-capture-btn,
+  html.student-landscape-mode.student-desktop-mode body.student-live-page #desktop-fullscreen-message-btn,
+  html.student-virtual-landscape-mode.student-desktop-mode body.student-live-page #desktop-fullscreen-btn,
+  html.student-virtual-landscape-mode.student-desktop-mode body.student-live-page #desktop-fullscreen-exit-btn,
+  html.student-virtual-landscape-mode.student-desktop-mode body.student-live-page #desktop-fullscreen-capture-btn,
+  html.student-virtual-landscape-mode.student-desktop-mode body.student-live-page #desktop-fullscreen-message-btn {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
 }
