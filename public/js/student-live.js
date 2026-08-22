@@ -7,7 +7,25 @@
  * never receives, renders, or requests a list of any other students.
  */
 
-const socket = io();
+function createUnavailableStudentSocket() {
+  return {
+    connected: false,
+    id: null,
+    on() { return this; },
+    emit(eventName, payload, acknowledgement) {
+      if (typeof acknowledgement === "function") {
+        acknowledgement({ ok: false, message: "الاتصال بخادم الحصة غير متاح حالياً." });
+      }
+      return this;
+    },
+    disconnect() { this.connected = false; return this; },
+    connect() { return this; },
+  };
+}
+
+// Keep the viewer controls initialized even when a static/local preview does
+// not expose Socket.io. Production still uses the real Socket.io connection.
+const socket = typeof window.io === "function" ? window.io() : createUnavailableStudentSocket();
 
 const rtcConfig = {
   iceServers: [
@@ -334,7 +352,18 @@ function exitLiveClass() {
 }
 
 function refreshAudioVideo() {
-  if (!joinedClass || isJoining || isRecoveringStream) return;
+  if (!joinedClass) {
+    showMobileControlToast("يعمل تحديث الصوت والصورة بعد الانضمام إلى الحصة.");
+    return;
+  }
+  if (isJoining || isRecoveringStream) {
+    showMobileControlToast("جارٍ استعادة الحصة، انتظر لحظة ثم حاول مرة أخرى.");
+    return;
+  }
+  if (!socket.connected) {
+    showMobileControlToast("الاتصال بالخادم غير متاح حالياً.");
+    return;
+  }
 
   const button = elements.refreshMediaButton;
   if (!button || button.disabled) return;
@@ -2152,7 +2181,16 @@ async function joinClass({ rejoin = false, prepareMicrophone = false } = {}) {
 }
 
 function raiseHand() {
-  if (!joinedClass || !socket.connected) {
+  if (!joinedClass) {
+    showMobileControlToast("يعمل رفع اليد بعد الانضمام إلى الحصة.");
+    return;
+  }
+  if (!socket.connected) {
+    showMobileControlToast("الاتصال بالخادم غير متاح حالياً.");
+    return;
+  }
+  if (isRecoveringStream || isJoining) {
+    showMobileControlToast("انتظر اكتمال اتصال الحصة ثم حاول مرة أخرى.");
     return;
   }
 
