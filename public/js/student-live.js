@@ -318,6 +318,7 @@ function exitLiveClass() {
   clearScreenShareRefreshGuard();
   waitingForNextClass = true;
   joinedClass = false;
+  setStudentSessionActive(false);
   sessionStorage.removeItem("joinLiveClassImmediately");
   try {
     localAudioStream?.getTracks().forEach((track) => track.stop());
@@ -1481,9 +1482,15 @@ function setStudentPrejoinHidden(hidden) {
   const overlay = elements.prejoinOverlay;
   if (!overlay) return;
   overlay.hidden = hidden;
+  overlay.style.display = hidden ? "none" : "grid";
   overlay.style.pointerEvents = hidden ? "none" : "auto";
   overlay.style.visibility = hidden ? "hidden" : "visible";
   overlay.setAttribute("aria-hidden", hidden ? "true" : "false");
+}
+
+function setStudentSessionActive(active) {
+  document.body.classList.toggle("student-session-active", active);
+  if (active) setStudentPrejoinHidden(true);
 }
 
 async function continueFromStudentPrejoin() {
@@ -1751,6 +1758,7 @@ function resetViewerState({ message, mode = "neutral", showJoin = true } = {}) {
   stopLocalAudio();
   joinedClass = false;
   isJoining = false;
+  setStudentSessionActive(false);
   globalFreeClass = false;
   setParticipationCount(0);
 
@@ -2047,7 +2055,7 @@ async function joinClass({ rejoin = false, prepareMicrophone = false } = {}) {
   joinedClass = true;
   isJoining = true;
   // Once joining starts, the pre-join layer must stop intercepting controls.
-  setStudentPrejoinHidden(true);
+  setStudentSessionActive(true);
   if (!rejoin) {
     clearStudentChat();
   }
@@ -2101,6 +2109,7 @@ async function joinClass({ rejoin = false, prepareMicrophone = false } = {}) {
       recoveryAttempts += 1;
       joinedClass = true;
       isRecoveringStream = true;
+      setStudentSessionActive(true);
       elements.joinButton.hidden = true;
       setViewerStatus("الأستاذ يعيد الاتصال. جارٍ إعادة المحاولة تلقائياً…", "warning");
       showConnectionOverlay("الأستاذ يعيد الاتصال. جارٍ إعادة المحاولة تلقائياً…", "warning");
@@ -2110,6 +2119,7 @@ async function joinClass({ rejoin = false, prepareMicrophone = false } = {}) {
 
     joinedClass = false;
     isRecoveringStream = false;
+    setStudentSessionActive(false);
 
     // `room_unavailable` already switches the page into its automatic waiting
     // lobby. Do not overwrite that state with a manual join button here.

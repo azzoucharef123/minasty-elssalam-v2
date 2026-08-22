@@ -590,7 +590,8 @@
   }
 
   body.student-live-page .student-prejoin-overlay[hidden],
-  body.student-live-page .student-prejoin-overlay[aria-hidden="true"] {
+  body.student-live-page .student-prejoin-overlay[aria-hidden="true"],
+  body.student-live-page.student-session-active .student-prejoin-overlay {
     display: none !important;
     visibility: hidden !important;
     pointer-events: none !important;
