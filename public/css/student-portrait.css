@@ -802,15 +802,15 @@
   /* Keep both bottom toolbars visible while the composer is open. */
   body.student-live-page:not(.student-times-level-page).student-chat-compose-open .student-chat-actions {
     right: 0 !important;
-    left: auto !important;
-    bottom: calc(var(--student-keyboard-offset, 0px) + env(safe-area-inset-bottom)) !important;
+    left: 0 !important;
+    bottom: calc(3.7rem + var(--student-keyboard-offset, 0px) + env(safe-area-inset-bottom)) !important;
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
   }
 
   body.student-live-page:not(.student-times-level-page).student-chat-compose-open .viewer-actions-divider {
-    right: auto !important;
+    right: 0 !important;
     left: 0 !important;
     bottom: calc(var(--student-keyboard-offset, 0px) + env(safe-area-inset-bottom)) !important;
     display: flex !important;
@@ -825,14 +825,14 @@
 
   /* Match the approved waiting-page mobile dimensions exactly. */
   body.student-live-page:not(.student-times-level-page) .viewer-stage {
-    padding-bottom: calc(3.7rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(7.4rem + env(safe-area-inset-bottom)) !important;
   }
 
   body.student-live-page:not(.student-times-level-page) .student-chat-actions {
     right: 0 !important;
-    left: auto !important;
-    bottom: env(safe-area-inset-bottom) !important;
-    width: 40vw !important;
+    left: 0 !important;
+    bottom: calc(3.7rem + env(safe-area-inset-bottom)) !important;
+    width: 100% !important;
     height: 3.7rem !important;
     min-height: 3.7rem !important;
     max-height: 3.7rem !important;
@@ -844,10 +844,10 @@
 
   body.student-live-page:not(.student-times-level-page) .viewer-actions-divider {
     box-sizing: border-box !important;
-    right: auto !important;
+    right: 0 !important;
     bottom: env(safe-area-inset-bottom) !important;
     left: 0 !important;
-    width: 60vw !important;
+    width: 100% !important;
     height: 3.7rem !important;
     min-height: 3.7rem !important;
     max-height: 3.7rem !important;
