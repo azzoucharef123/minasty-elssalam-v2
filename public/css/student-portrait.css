@@ -356,23 +356,24 @@
   body.student-live-page .student-chat-actions {
     position: fixed !important;
     right: 0 !important;
-    bottom: 3.85rem !important;
-    left: 0 !important;
-    z-index: 110 !important;
+    bottom: 0 !important;
+    left: auto !important;
+    z-index: 121 !important;
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     align-items: stretch !important;
     gap: .38rem !important;
-    width: 100% !important;
+    width: 40vw !important;
     min-height: 2.8rem !important;
     padding: .38rem .45rem calc(.38rem + env(safe-area-inset-bottom)) !important;
     background: #101827 !important;
     border-top: 1px solid rgba(148, 163, 184, .16) !important;
+    border-left: 1px solid rgba(148, 163, 184, .16) !important;
     box-shadow: 0 -6px 16px rgba(0, 0, 0, .2) !important;
   }
 
   body.student-live-page.student-chat-compose-open .student-chat-actions {
-    display: none !important;
+    display: grid !important;
   }
 
   body.student-live-page .student-chat-capture,
@@ -419,13 +420,13 @@
   /* Fixed bottom action strip: raise hand, rotate and refresh only. */
   body.student-live-page .viewer-actions-divider {
     position: fixed !important;
-    right: 0 !important;
+    right: auto !important;
     bottom: 0 !important;
     left: 0 !important;
     z-index: 120 !important;
     display: flex !important;
     align-items: center !important;
-    width: 100vw !important;
+    width: 60vw !important;
     height: 3.85rem !important;
     min-height: 3.85rem !important;
     max-height: 3.85rem !important;
@@ -660,7 +661,7 @@
   body.student-live-page:not(.student-times-level-page) .chat-compose-modal,
   body.student-live-page:not(.student-times-level-page) #chat-compose-modal {
     position: fixed !important;
-    inset: auto 0 calc(7.7rem + var(--student-keyboard-offset, 0px)) 0 !important;
+    inset: auto 0 calc(3.85rem + var(--student-keyboard-offset, 0px)) 0 !important;
     z-index: 2147483647 !important;
     display: flex !important;
     align-items: stretch !important;
@@ -800,14 +801,18 @@
 
   /* Keep both bottom toolbars visible while the composer is open. */
   body.student-live-page:not(.student-times-level-page).student-chat-compose-open .student-chat-actions {
-    bottom: calc(3.85rem + var(--student-keyboard-offset, 0px)) !important;
+    right: 0 !important;
+    left: auto !important;
+    bottom: calc(var(--student-keyboard-offset, 0px) + env(safe-area-inset-bottom)) !important;
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
   }
 
   body.student-live-page:not(.student-times-level-page).student-chat-compose-open .viewer-actions-divider {
-    bottom: var(--student-keyboard-offset, 0px) !important;
+    right: auto !important;
+    left: 0 !important;
+    bottom: calc(var(--student-keyboard-offset, 0px) + env(safe-area-inset-bottom)) !important;
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
@@ -820,11 +825,14 @@
 
   /* Match the approved waiting-page mobile dimensions exactly. */
   body.student-live-page:not(.student-times-level-page) .viewer-stage {
-    padding-bottom: calc(7.4rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(3.7rem + env(safe-area-inset-bottom)) !important;
   }
 
   body.student-live-page:not(.student-times-level-page) .student-chat-actions {
-    bottom: calc(3.7rem + env(safe-area-inset-bottom)) !important;
+    right: 0 !important;
+    left: auto !important;
+    bottom: env(safe-area-inset-bottom) !important;
+    width: 40vw !important;
     height: 3.7rem !important;
     min-height: 3.7rem !important;
     max-height: 3.7rem !important;
@@ -836,9 +844,10 @@
 
   body.student-live-page:not(.student-times-level-page) .viewer-actions-divider {
     box-sizing: border-box !important;
-    right: 0 !important;
+    right: auto !important;
     bottom: env(safe-area-inset-bottom) !important;
     left: 0 !important;
+    width: 60vw !important;
     height: 3.7rem !important;
     min-height: 3.7rem !important;
     max-height: 3.7rem !important;
