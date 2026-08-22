@@ -333,7 +333,7 @@ function exitLiveClass() {
 }
 
 function refreshAudioVideo() {
-  if (!joinedClass || isJoining) return;
+  if (!joinedClass || isJoining || isRecoveringStream) return;
 
   const button = elements.refreshMediaButton;
   if (!button || button.disabled) return;
@@ -341,12 +341,17 @@ function refreshAudioVideo() {
   button.disabled = true;
   button.classList.add("is-refreshing");
   const label = button.querySelector(".refresh-media-label");
-  if (label) label.textContent = "جارٍ تحديث الصفحة…";
-  showMobileControlToast("جارٍ تحديث الصوت والصورة…");
+  if (label) label.textContent = "جارٍ تحديث الصوت والصورة…";
+  showMobileControlToast("جارٍ تحديث الصوت والصورة دون مغادرة الحصة…");
 
-  // A full page reload rebuilds the Socket.io/WebRTC session and runs the
-  // browser-scoped microphone pre-join flow without changing its permission.
-  window.setTimeout(() => window.location.reload(), 350);
+  // Rebuild only the peer connection and request a fresh offer. Avoiding a
+  // full-page reload prevents the mobile browser from showing a black screen.
+  beginStreamRecovery("جارٍ استعادة الصوت والصورة دون تحديث الصفحة…");
+  window.setTimeout(() => {
+    button.disabled = false;
+    button.classList.remove("is-refreshing");
+    if (label) label.textContent = "تحديث الصوت والصورة";
+  }, 1_500);
 }
 
 const MOBILE_CONTROLS_POSITION_KEY = "studentMobileControlsPosition";
@@ -1472,6 +1477,15 @@ async function testOptionalStudentCamera() {
   }
 }
 
+function setStudentPrejoinHidden(hidden) {
+  const overlay = elements.prejoinOverlay;
+  if (!overlay) return;
+  overlay.hidden = hidden;
+  overlay.style.pointerEvents = hidden ? "none" : "auto";
+  overlay.style.visibility = hidden ? "hidden" : "visible";
+  overlay.setAttribute("aria-hidden", hidden ? "true" : "false");
+}
+
 async function continueFromStudentPrejoin() {
   if (!microphonePrepared) {
     const ready = await prepareStudentMicrophone();
@@ -1487,7 +1501,7 @@ async function continueFromStudentPrejoin() {
 async function completeStudentPrejoinAndJoin() {
   prejoinCompleted = true;
   initialAutoJoinPending = true;
-  if (elements.prejoinOverlay) elements.prejoinOverlay.hidden = true;
+  setStudentPrejoinHidden(true);
   setPlaceholder("جاري الدخول إلى الحصة", "سيظهر بث الأستاذ تلقائياً عند توفر الحصة.");
   setViewerStatus("جارٍ الدخول إلى الحصة…", "warning");
   if (socket.connected) {
@@ -1502,7 +1516,7 @@ async function initializeStudentPrejoin() {
   initialAutoJoinPending = false;
 
   const rememberedPermission = hasRememberedStudentMicrophonePermission();
-  elements.prejoinOverlay.hidden = rememberedPermission;
+  setStudentPrejoinHidden(rememberedPermission);
   updatePrejoinControls("يجب تفعيل الميكروفون أولاً قبل دخول الحصة.");
 
   const browserPermission = await readBrowserMicrophonePermission();
@@ -1517,7 +1531,9 @@ async function initializeStudentPrejoin() {
     clearRememberedStudentMicrophonePermission();
   }
 
-  elements.prejoinOverlay.hidden = false;
+  // A completed or in-progress join must never reopen the click-blocking layer.
+  if (joinedClass || isJoining || prejoinCompleted) return;
+  setStudentPrejoinHidden(false);
   const micWasPreparedDuringEntry = sessionStorage.getItem("studentMicPreflight") === "granted";
   sessionStorage.removeItem("studentMicPreflight");
   if (micWasPreparedDuringEntry) {
@@ -2030,6 +2046,8 @@ async function joinClass({ rejoin = false, prepareMicrophone = false } = {}) {
   // returns to this browser.
   joinedClass = true;
   isJoining = true;
+  // Once joining starts, the pre-join layer must stop intercepting controls.
+  setStudentPrejoinHidden(true);
   if (!rejoin) {
     clearStudentChat();
   }

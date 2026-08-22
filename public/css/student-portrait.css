@@ -589,6 +589,13 @@
     z-index: 1000 !important;
   }
 
+  body.student-live-page .student-prejoin-overlay[hidden],
+  body.student-live-page .student-prejoin-overlay[aria-hidden="true"] {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
   /* Pre-join and access dialogs retain their purpose but match the app shell. */
   body.student-live-page .student-prejoin-card {
     width: min(92vw, 25rem) !important;
