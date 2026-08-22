@@ -143,19 +143,19 @@
     line-height: 1 !important;
   }
 
-  /* Main content: broadcast card above communication card. */
+  /* Main content: broadcast card, class controls, then communication card. */
   body.student-live-page .viewer-stage {
     position: relative !important;
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) !important;
-    grid-template-rows: minmax(0, 1fr) minmax(11rem, 44dvh) !important;
-    grid-template-areas: "video" "chat" !important;
+    grid-template-rows: minmax(0, 1fr) 3.85rem minmax(11rem, 44dvh) !important;
+    grid-template-areas: "video" "class-actions" "chat" !important;
     width: 100% !important;
     height: calc(100svh - 3.8rem) !important;
     min-height: 0 !important;
     margin: 0 !important;
     gap: 0 !important;
-    padding: 0 0 3.85rem !important;
+    padding: 0 !important;
     overflow: hidden !important;
     background: #070b14 !important;
   }
@@ -416,12 +416,13 @@
     display: none !important;
   }
 
-  /* Fixed bottom action strip: raise hand, rotate and refresh only. */
+  /* Class controls sit directly above the question panel in portrait mode. */
   body.student-live-page .viewer-actions-divider {
-    position: fixed !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    left: 0 !important;
+    position: relative !important;
+    grid-area: class-actions !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
     z-index: 120 !important;
     display: flex !important;
     align-items: center !important;
@@ -436,6 +437,10 @@
     border-top: 1px solid rgba(96, 165, 250, .26) !important;
     border-radius: 0 !important;
     box-shadow: 0 -8px 22px rgba(0, 0, 0, .24) !important;
+  }
+
+  body.student-live-page.student-session-active .viewer-actions-divider {
+    pointer-events: auto !important;
   }
 
   body.student-live-page .viewer-actions-control-row {
@@ -640,7 +645,8 @@
     }
 
     body.student-live-page .viewer-stage {
-      padding-bottom: 3.7rem !important;
+      grid-template-rows: minmax(0, 1fr) 3.7rem minmax(11rem, 44dvh) !important;
+      padding-bottom: 0 !important;
     }
 
     body.student-live-page .viewer-actions-control-row {
