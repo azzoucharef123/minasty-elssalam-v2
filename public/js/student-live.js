@@ -1131,13 +1131,17 @@ function handleChatMessageButtonClick() {
     elements.desktopChatDirectForm?.requestSubmit();
     return;
   }
-  openStudentChatComposer();
+  // On mobile the composer is already visible; the green button sends the text.
+  if (elements.chatComposeModal?.hidden) {
+    openStudentChatComposer();
+    return;
+  }
+  elements.chatForm?.requestSubmit();
 }
 
-function openStudentChatComposer() {
+function openStudentChatComposer({ focus = true } = {}) {
   const modal = elements.chatComposeModal || document.getElementById("chat-compose-modal");
-  const viewerHeader = document.querySelector(".viewer-header");
-  if (!modal || elements.openChatComposeButton?.disabled) return;
+  if (!modal) return;
 
   relocateStudentChatComposer();
   modal.hidden = false;
@@ -1145,20 +1149,29 @@ function openStudentChatComposer() {
   document.body.classList.add("student-chat-compose-open");
   updateChatControls();
   syncStudentKeyboardOffset();
-  window.requestAnimationFrame(() => {
-    elements.chatInput?.focus({ preventScroll: true });
-    syncStudentKeyboardOffset();
-  });
+  if (focus) {
+    window.requestAnimationFrame(() => {
+      elements.chatInput?.focus({ preventScroll: true });
+      syncStudentKeyboardOffset();
+    });
+  }
 }
 
 function closeStudentChatComposer() {
   const modal = elements.chatComposeModal || document.getElementById("chat-compose-modal");
-  const viewerHeader = document.querySelector(".viewer-header");
   if (!modal) return;
+  // The mobile composer is a permanent inline bar, not a dismissible modal.
+  if (!isDesktopStudentView()) {
+    modal.hidden = false;
+    modal.style.setProperty("display", "grid", "important");
+    document.body.classList.add("student-chat-compose-open");
+    resetStudentKeyboardOffset();
+    elements.chatInput?.blur();
+    return;
+  }
   modal.hidden = true;
   modal.style.setProperty("display", "none", "important");
   document.body.classList.remove("student-chat-compose-open");
-  viewerHeader?.style.removeProperty("display");
   resetStudentKeyboardOffset();
   elements.chatInput?.blur();
 }
@@ -1257,8 +1270,7 @@ async function sendStudentChatMessage(event) {
     elements.chatInput.value = "";
     if (elements.desktopChatInput) elements.desktopChatInput.value = "";
     clearSelectedQuestionImage();
-    if (!desktopDirect) closeStudentChatComposer();
-    // Keep the question controls unobstructed after sending. The chat itself
+    // Keep the permanent mobile composer visible after sending. The chat itself
     // confirms delivery by displaying the submitted question or image.
   } catch (error) {
     console.error("Unable to send student chat message:", error);
@@ -2460,6 +2472,7 @@ socket.on("disconnect", () => {
 // No manual join action is exposed in the viewer. The element is retained only
 // for compatibility with existing page markup and remains hidden at all times.
 relocateStudentChatComposer();
+if (!isDesktopStudentView()) openStudentChatComposer({ focus: false });
 elements.enableAudioButton?.addEventListener("click", enableTeacherAudio);
 elements.remoteVideo?.addEventListener("volumechange", updateRemoteAudioControl);
 elements.raiseHandButton.addEventListener("click", raiseHand);

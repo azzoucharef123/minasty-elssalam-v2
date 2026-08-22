@@ -866,6 +866,14 @@
     inset: auto 0 calc(7.4rem + .5rem + var(--student-keyboard-offset, 0px) + env(safe-area-inset-bottom)) 0 !important;
     padding: 0 .45rem .25rem !important;
   }
+
+  /* The mobile composer is always available; [hidden] must not remove it. */
+  body.student-live-page:not(.student-times-level-page) .chat-compose-modal[hidden],
+  body.student-live-page:not(.student-times-level-page) #chat-compose-modal[hidden] {
+    display: grid !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
 }
 
 /* No rules outside the portrait media query: desktop remains untouched. */
