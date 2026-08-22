@@ -896,6 +896,40 @@
     visibility: visible !important;
     opacity: 1 !important;
   }
+
+  /* Safe click protection: icons and text must never intercept button clicks. */
+  body.student-live-page:not(.student-times-level-page) #raise-hand-btn *,
+  body.student-live-page:not(.student-times-level-page) #student-center-rotate-btn *,
+  body.student-live-page:not(.student-times-level-page) #refresh-media-btn *,
+  body.student-live-page:not(.student-times-level-page) #capture-question-btn *,
+  body.student-live-page:not(.student-times-level-page) #open-chat-compose-btn * {
+    pointer-events: none !important;
+  }
+
+  body.student-live-page:not(.student-times-level-page) #raise-hand-btn,
+  body.student-live-page:not(.student-times-level-page) #student-center-rotate-btn,
+  body.student-live-page:not(.student-times-level-page) #refresh-media-btn,
+  body.student-live-page:not(.student-times-level-page) #capture-question-btn,
+  body.student-live-page:not(.student-times-level-page) #open-chat-compose-btn {
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+  }
+
+  /* The connection alert is informative and must not intercept any pointer. */
+  body.student-live-page:not(.student-times-level-page) #connection-loss-overlay {
+    pointer-events: none !important;
+  }
+
+  /* Hidden prejoin must be absent from hit testing after session activation. */
+  body.student-live-page:not(.student-times-level-page).student-session-active #student-prejoin-overlay,
+  body.student-live-page:not(.student-times-level-page) #student-prejoin-overlay[hidden],
+  body.student-live-page:not(.student-times-level-page) #student-prejoin-overlay[aria-hidden="true"] {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    opacity: 0 !important;
+    z-index: -1 !important;
+  }
 }
 
 /* No rules outside the portrait media query: desktop remains untouched. */
