@@ -1369,17 +1369,33 @@ function setButtonLabel(button, label) {
 }
 
 function setRaisedHandState({ waiting = false } = {}) {
-  const canRequest = joinedClass && !microphonePermissionGranted;
-  elements.raiseHandButton.hidden = !canRequest || waiting;
-  elements.raiseHandButton.disabled = !canRequest;
-  elements.raiseHandButton.classList.toggle("hand-raised", waiting);
-  // The raised state is rendered only by handWaitingActions. Keep the main
-  // request button label stable so a hidden control can never duplicate it.
-  setButtonLabel(elements.raiseHandButton, "رفع اليد");
-  elements.handWaitingActions.hidden = !waiting;
-  elements.handWaitingActions.classList.toggle("hand-raised", waiting);
+  const canInteract = joinedClass && !microphonePermissionGranted;
+  const button = elements.raiseHandButton;
+  button.hidden = !canInteract;
+  button.disabled = !canInteract;
+  button.classList.toggle("hand-raised", waiting);
+  button.setAttribute("aria-pressed", String(waiting));
+  button.setAttribute(
+    "aria-label",
+    waiting ? "تنزيل اليد وإلغاء طلب التحدث" : "رفع اليد وطلب التحدث"
+  );
+  button.title = waiting ? "تنزيل اليد وإلغاء طلب التحدث" : "رفع اليد وطلب التحدث";
+  setButtonLabel(button, waiting ? "تنزيل اليد" : "رفع اليد");
+
+  // The same primary button is the complete toggle. Keep the legacy waiting
+  // wrapper hidden so no second or third hand-control button can appear.
+  elements.handWaitingActions.hidden = true;
+  elements.handWaitingActions.classList.remove("hand-raised");
   const waitingLabel = elements.handWaitingActions.querySelector(".hand-waiting-label");
-  if (waitingLabel) waitingLabel.textContent = waiting ? "مرفوعة ✋" : "انتظار";
+  if (waitingLabel) waitingLabel.textContent = "";
+}
+
+function toggleRaisedHand() {
+  if (elements.raiseHandButton.classList.contains("hand-raised")) {
+    lowerHand();
+    return;
+  }
+  raiseHand();
 }
 
 function updateMicControl() {
@@ -2584,7 +2600,7 @@ relocateStudentChatComposer();
 if (!isDesktopStudentView()) openStudentChatComposer({ focus: false });
 elements.enableAudioButton?.addEventListener("click", enableTeacherAudio);
 elements.remoteVideo?.addEventListener("volumechange", updateRemoteAudioControl);
-elements.raiseHandButton.addEventListener("click", raiseHand);
+elements.raiseHandButton.addEventListener("click", toggleRaisedHand);
 elements.lowerHandButton?.addEventListener("click", lowerHand);
 elements.chatForm.addEventListener("submit", sendStudentChatMessage);
 elements.desktopChatDirectForm?.addEventListener("submit", sendStudentChatMessage);
