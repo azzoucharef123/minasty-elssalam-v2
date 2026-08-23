@@ -410,7 +410,14 @@ async function startSofizPayPayment(req, res) {
     const student = await getOwnedStudent(req, req.body?.studentId);
     if (!student || !studentBelongsToParent(student, req)) return res.status(403).json({ error: "لا تملك صلاحية الدفع لهذا التلميذ." });
     if (student.level === "طالب جامعي") return res.status(400).json({ error: "الدفع الإلكتروني بهذه الروابط متاح لتلاميذ التعليم المتوسط فقط حاليًا." });
-    if (student.paymentStage === "PAID" || student.paymentStatus) return res.status(400).json({ error: "هذا الحساب لديه اشتراك مدفوع بالفعل." });
+    const requestedSubjectAlreadyEnabled = subscriptionType === "MATH"
+      ? student.mathEnrollment
+      : subscriptionType === "PHYSICS"
+        ? student.physicsEnrollment
+        : student.mathEnrollment && student.physicsEnrollment;
+    if (requestedSubjectAlreadyEnabled && (student.paymentStage === "PAID" || student.paymentStatus)) {
+      return res.status(400).json({ error: "هذه المادة مفعلة ومدفوعة لهذا الحساب بالفعل." });
+    }
 
     const recent = await prisma.paymentTransaction.findFirst({
       where: { studentId: student.id, subscriptionType, status: "PENDING", createdAt: { gt: new Date(Date.now() - 15 * 60 * 1000) } },
