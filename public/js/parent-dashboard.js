@@ -849,15 +849,18 @@ async function checkSofizPayReturn() {
 
   const terminal = result?.paymentStatus === "PAID" || result?.paymentStatus === "FAILED";
   if (result?.paymentStatus === "PAID") {
-    const paidSubscriptionMessages = {
-      MATH: "مبروك انضمامك إلى الأستاذ شارف عزالدين. لقد تم الدفع بنجاح، وتم تفعيل مادة الرياضيات.",
-      PHYSICS: "مبروك انضمامك إلى الأستاذ شارف عزالدين. لقد تم الدفع بنجاح، وتم تفعيل مادة الفيزياء.",
-      BOTH: "مبروك انضمامك إلى الأستاذ شارف عزالدين. لقد تم الدفع بنجاح، وتم تفعيل مادتي الرياضيات والفيزياء.",
-    };
-    const paidMessage = paidSubscriptionMessages[result.subscriptionType] || result.message || "مبروك، تم تسجيلك بنجاح.";
-    openDocumentFeedback(paidMessage, "مبروك، تم تأكيد الدفع");
     sessionStorage.removeItem("sofizpayPendingOrder");
     await loadDashboard({ backgroundRefresh: true });
+    const hasBothSubjects = Boolean(currentStudent?.mathEnrollment && currentStudent?.physicsEnrollment);
+    const paidSubscriptionMessages = {
+      MATH: "مبروك انضمامك إلى الأستاذ شارف عزالدين. تم الدفع بنجاح وتفعيل مادة الرياضيات.",
+      PHYSICS: "مبروك انضمامك إلى الأستاذ شارف عزالدين. تم الدفع بنجاح وتفعيل مادة الفيزياء.",
+      BOTH: "مبروك انضمامك إلى الأستاذ شارف عزالدين. تم الدفع بنجاح وتفعيل مادتي الرياضيات والفيزياء.",
+    };
+    const paidMessage = hasBothSubjects
+      ? "مبروك انضمامك إلى الأستاذ شارف عزالدين. تم الدفع بنجاح، وأصبح اشتراكك وصلاحيتك مفعّلين في الرياضيات والفيزياء معًا."
+      : paidSubscriptionMessages[result.subscriptionType] || result.message || "مبروك، تم تأكيد الدفع وتحديث حسابك بنجاح.";
+    openDocumentFeedback(paidMessage, "مبروك، تم تأكيد الدفع");
   } else if (result?.paymentStatus === "FAILED") {
     openDocumentFeedback(result.message || "لم يتم تأكيد عملية الدفع.", "لم يكتمل الدفع");
     sessionStorage.removeItem("sofizpayPendingOrder");
