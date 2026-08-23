@@ -44,7 +44,7 @@ async function listCertificates(req, res) {
 
     const certificates = await prisma.studentBadge.findMany({
       where: { studentId: student.id },
-      orderBy: [{ awardedAt: "desc" }, { createdAt: "desc" }],
+      orderBy: { awardedAt: "desc" },
       select: {
         id: true,
         title: true,
