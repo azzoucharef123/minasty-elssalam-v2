@@ -339,6 +339,11 @@ const ANNOUNCEMENT_PAYMENT_FILTERS = new Set(["ALL", "FREE", "PAID"]);
 const ANNOUNCEMENT_SUBJECT_FILTERS = new Set(["ALL", "MATH", "PHYSICS", "BOTH"]);
 const ANNOUNCEMENT_DELIVERY_MODES = new Set(["IMMEDIATE", "SCHEDULED"]);
 let scheduledAnnouncementLock = false;
+let socketNotificationSender = null;
+
+function setSocketNotificationSender(sender) {
+  socketNotificationSender = typeof sender === "function" ? sender : null;
+}
 
 function announcementWhere(payload) {
   const level = normalizeAssignmentLevel(payload.targetLevel);
@@ -363,7 +368,8 @@ function announcementSummary(campaign) {
   };
 }
 
-async function deliverTeacherAnnouncement(campaign) {
+async function deliverTeacherAnnouncement(campaign, options = {}) {
+  const sendSocketNotification = options.sendSocketNotification || socketNotificationSender;
   const students = await prisma.student.findMany({
     where: announcementWhere(campaign),
     select: { id: true, parentPhone: true },
@@ -391,6 +397,19 @@ async function deliverTeacherAnnouncement(campaign) {
       sentCount += 1;
     } catch (error) {
       if (error?.code !== "P2002") throw error;
+    }
+    try {
+      sendSocketNotification?.({
+        role: "parent",
+        recipientId: parentPhone,
+        title: campaign.title,
+        body: campaign.body,
+        link: campaign.link || "./parent-dashboard.html",
+        tag: `teacher-announcement-${campaign.id}`,
+        data: { type: "TEACHER_ANNOUNCEMENT", campaignId: campaign.id },
+      });
+    } catch (socketError) {
+      console.warn("Optional browser notification failed:", parentPhone, socketError.message);
     }
     try {
       await sendPushToRecipient("parent", parentPhone, {
@@ -602,4 +621,5 @@ module.exports = {
   receiveSubmission,
   deleteAssignment,
   processScheduledTeacherAnnouncements,
+  setSocketNotificationSender,
 };

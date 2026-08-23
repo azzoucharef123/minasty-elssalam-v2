@@ -24,6 +24,8 @@ const { createDatabaseSnapshot } = require("./utils/backup");
 const { createRateLimiter } = require("./middleware/rateLimit");
 const { startBackgroundJobs } = require("./utils/backgroundJobs");
 const { ensurePublicArchive, recordPublicAttendance, finishPublicArchive, appendPublicChat } = require("./utils/publicArchive");
+const { verifySessionToken } = require("./utils/sessionAuth");
+const { createSocketNotificationSender, notificationRoom } = require("./utils/socketNotifications");
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -284,8 +286,12 @@ privateMessagesNamespace.on("connection", (socket) => {
 
 // REST controllers use this server-owned reference only to publish minimal
 // non-sensitive dashboard refresh events after a teacher changes a student.
+const sendSocketNotification = createSocketNotificationSender(io);
+const { setSocketNotificationSender } = require("./controllers/academicController");
+setSocketNotificationSender(sendSocketNotification);
 app.set("io", io);
 app.set("privateMessagesNamespace", privateMessagesNamespace);
+app.set("sendSocketNotification", sendSocketNotification);
 
 /**
  * Maps each study level to its active teacher socket ID.
@@ -735,6 +741,29 @@ io.on("connection", (socket) => {
   socket.data.publicApproved = false;
   socket.data.publicHandRaised = false;
   socket.data.publicMicOpen = false;
+  socket.data.notificationRole = null;
+  socket.data.notificationRecipientId = null;
+
+  socket.on("register_notification_socket", async (data = {}, acknowledgement) => {
+    try {
+      const token = typeof data.token === "string" ? data.token.trim() : "";
+      if (!token) throw new Error("AUTH_REQUIRED");
+      const user = await verifySessionToken(token);
+      const role = user.role === "teacher" ? "teacher" : user.role === "parent" ? "parent" : "";
+      const recipientId = role === "parent" ? String(user.phone || "") : role === "teacher" ? "teacher" : "";
+      const room = notificationRoom(role, recipientId);
+      if (!room) throw new Error("INVALID_RECIPIENT");
+      if (socket.data.notificationRole && socket.data.notificationRecipientId) {
+        await socket.leave(notificationRoom(socket.data.notificationRole, socket.data.notificationRecipientId));
+      }
+      socket.data.notificationRole = role;
+      socket.data.notificationRecipientId = recipientId;
+      await socket.join(room);
+      acknowledge?.({ ok: true, role, recipientId });
+    } catch (error) {
+      acknowledge?.({ ok: false, error: "تعذر تسجيل قناة تنبيهات المتصفح." });
+    }
+  });
 
   /**
    * Public invite room: independent from all academic level, payment, subject,

@@ -54,19 +54,46 @@
     return value;
   };
 
-  window.enablePushNotifications = async function enablePushNotifications() {
+  window.enablePushNotifications = async function enablePushNotifications({ requestPermission = true } = {}) {
     if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) throw new Error("هذا المتصفح لا يدعم إشعارات الهاتف.");
+    if (!window.isSecureContext) throw new Error("تفعيل التنبيهات يحتاج إلى اتصال HTTPS.");
     const token = sessionStorage.getItem("teacherToken") || sessionStorage.getItem("parentToken");
     if (!token) throw new Error("سجّل الدخول أولاً.");
-    const registration = await navigator.serviceWorker.register("/sw.js");
-    const keyResponse = await fetch("/api/push/public-key", { headers: { Authorization: `Bearer ${token}` } });
-    const keyData = await keyResponse.json();
-    if (!keyResponse.ok) throw new Error(keyData.error || "إشعارات الهاتف غير مفعلة بعد.");
-    const permission = await Notification.requestPermission();
+
+    const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+    let publicKey = "";
+
+    // Validate the server configuration before opening the native browser prompt.
+    // This prevents asking the parent for permission when the platform cannot yet save a subscription.
+    if (!subscription) {
+      const keyResponse = await fetch("/api/push/public-key", { headers: { Authorization: `Bearer ${token}` } });
+      const keyData = await keyResponse.json().catch(() => ({}));
+      if (!keyResponse.ok || !keyData.publicKey) throw new Error(keyData.error || "إشعارات الهاتف غير مفعلة بعد.");
+      publicKey = keyData.publicKey;
+    }
+
+    let permission = Notification.permission;
+    if (permission !== "granted") {
+      if (permission === "denied") throw new Error("لم يسمح المتصفح بإشعارات الهاتف. غيّر الإذن من إعدادات الموقع ثم حاول مرة أخرى.");
+      if (!requestPermission) throw new Error("لم يتم طلب إذن التنبيهات بعد.");
+      permission = await Notification.requestPermission();
+    }
     if (permission !== "granted") throw new Error("لم تسمح بإشعارات الهاتف.");
-    const applicationServerKey = Uint8Array.from(atob(keyData.publicKey.replace(/-/g, "+").replace(/_/g, "/")), (char) => char.charCodeAt(0));
-    const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
-    const response = await fetch("/api/push/subscribe", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(subscription.toJSON()) });
+
+    if (!subscription) {
+      const base64 = publicKey.replace(/-/g, "+").replace(/_/g, "/");
+      const paddedBase64 = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+      const applicationServerKey = Uint8Array.from(atob(paddedBase64), (char) => char.charCodeAt(0));
+      subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+    }
+
+    const response = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(subscription.toJSON()),
+    });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "تعذر تفعيل الإشعارات.");
     return data;

@@ -2648,5 +2648,8 @@ if (!getParentToken()) {
     }
   });
   initializeLobbySocket();
-  void loadDashboard().then(() => checkSofizPayReturn());
+  void loadDashboard().then(() => {
+    checkSofizPayReturn();
+    window.dispatchEvent(new Event("parent-dashboard-ready"));
+  });
 }
