@@ -4411,3 +4411,64 @@ body.parent-login-page {
   .overview-context-meta { min-width: 0; }
   .overview-hero-card,.overview-kpi-card,.overview-revenue-card,.overview-attention-card,.overview-class-card,.overview-activity-card,.overview-quick-card { grid-column: span 12; }
 }
+
+/* Teacher notification campaigns */
+.teacher-dashboard-page .teacher-notifications-panel.teacher-tab-panel.is-active { display: block; margin-top: 1.25rem; }
+.teacher-notifications-card { padding: 1.35rem; border: 1px solid var(--border-color); border-radius: var(--border-radius-card); background: var(--surface-white); box-shadow: var(--shadow-card); }
+.teacher-notifications-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding-bottom: 1.1rem; border-bottom: 1px solid var(--border-color); }
+.teacher-notifications-heading h2 { margin: .2rem 0 .35rem; font-size: clamp(1.15rem, 2vw, 1.45rem); }
+.teacher-notifications-heading p { margin: 0; color: var(--text-muted); font-size: .82rem; }
+.teacher-notifications-status { display: inline-flex; align-items: center; padding: .42rem .72rem; border-radius: 999px; color: #047857; background: #ecfdf5; font-size: .75rem; font-weight: 800; white-space: nowrap; }
+.teacher-notification-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: .65rem; margin: 1.1rem 0; }
+.teacher-notification-steps span { padding: .62rem .7rem; border: 1px solid var(--border-color); border-radius: .7rem; color: var(--text-muted); background: #f8fafc; font-size: .75rem; font-weight: 700; text-align: center; }
+.teacher-notification-steps span.is-done { color: #047857; border-color: #a7f3d0; background: #ecfdf5; }
+.teacher-notification-steps span.is-current { color: #1d4ed8; border-color: #bfdbfe; background: #eff6ff; }
+.teacher-notification-form fieldset { min-width: 0; margin: 0; padding: .9rem; border: 1px solid var(--border-color); border-radius: .85rem; }
+.teacher-notification-form legend { padding: 0 .3rem; color: var(--text-main); font-size: .84rem; font-weight: 800; }
+.teacher-notification-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.teacher-notification-option { display: flex; align-items: flex-start; gap: .55rem; margin-top: .5rem; padding: .65rem .7rem; border: 1px solid #e2e8f0; border-radius: .65rem; background: #fff; cursor: pointer; }
+.teacher-notification-option:hover { border-color: #93c5fd; background: #f8fbff; }
+.teacher-notification-option input { flex: 0 0 auto; margin-top: .2rem; accent-color: #2563eb; }
+.teacher-notification-option strong, .teacher-notification-option small { display: block; }
+.teacher-notification-option strong { font-size: .78rem; }
+.teacher-notification-option small { margin-top: .15rem; color: var(--text-muted); font-size: .68rem; line-height: 1.45; }
+.teacher-notification-fields { display: grid; grid-template-columns: 1fr 1fr; gap: .85rem; margin-top: 1rem; }
+.teacher-notification-fields label { display: grid; gap: .35rem; color: var(--text-main); font-size: .78rem; font-weight: 800; }
+.teacher-notification-fields .teacher-notification-body-label { grid-column: 1 / -1; }
+.teacher-notification-fields input, .teacher-notification-fields select, .teacher-notification-fields textarea, .teacher-notification-schedule-fields input { width: 100%; border: 1px solid #cbd5e1; border-radius: .65rem; padding: .7rem .75rem; color: var(--text-main); background: #fff; font: inherit; font-size: .78rem; }
+.teacher-notification-fields textarea { min-height: 6.2rem; resize: vertical; }
+.teacher-notification-fields input:focus, .teacher-notification-fields select:focus, .teacher-notification-fields textarea:focus, .teacher-notification-schedule-fields input:focus { border-color: #2563eb; outline: 0; box-shadow: 0 0 0 3px #2563eb1a; }
+.teacher-notification-audience { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1rem; padding: .8rem .95rem; border: 1px solid #a7f3d0; border-radius: .75rem; background: #ecfdf5; }
+.teacher-notification-audience strong, .teacher-notification-audience small { display: block; }
+.teacher-notification-audience strong { color: #065f46; font-size: .78rem; }
+.teacher-notification-audience small { margin-top: .16rem; color: #047857; font-size: .68rem; }
+.teacher-notification-audience b { color: #065f46; font-size: 1rem; white-space: nowrap; }
+.teacher-notification-delivery { margin-top: 1rem !important; }
+.teacher-notification-schedule-fields { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; margin-top: .65rem; padding: .7rem; border: 1px solid #fed7aa; border-radius: .65rem; background: #fff7ed; }
+.teacher-notification-schedule-fields[hidden] { display: none; }
+.teacher-notification-schedule-fields label { display: grid; gap: .3rem; color: #9a3412; font-size: .72rem; font-weight: 800; }
+.teacher-notification-form-actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color); }
+.teacher-notification-session { display: flex; align-items: flex-start; gap: .55rem; color: var(--text-main); font-size: .75rem; }
+.teacher-notification-session input { flex: 0 0 auto; margin-top: .2rem; accent-color: #059669; }
+.teacher-notification-session strong, .teacher-notification-session small { display: block; }
+.teacher-notification-session small { margin-top: .18rem; color: var(--text-muted); font-size: .67rem; }
+.teacher-notification-form-actions button:disabled { cursor: wait; opacity: .6; }
+.teacher-notification-feedback { margin: .75rem 0 0; padding: .65rem .75rem; border-radius: .6rem; color: #065f46; background: #ecfdf5; font-size: .75rem; font-weight: 700; }
+.teacher-notification-feedback.is-error { color: #991b1b; background: #fef2f2; }
+.teacher-notification-history { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border-color); }
+.teacher-notification-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.teacher-notification-history-heading h3 { margin: 0; font-size: .95rem; }
+.teacher-notification-refresh, .teacher-notification-cancel { border: 1px solid #cbd5e1; border-radius: .55rem; padding: .42rem .65rem; color: #334155; background: #fff; font: inherit; font-size: .7rem; font-weight: 800; cursor: pointer; }
+.teacher-notification-history-item { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: .7rem; margin-top: .6rem; padding: .7rem .75rem; border: 1px solid #e2e8f0; border-radius: .65rem; background: #fbfdff; }
+.teacher-notification-history-item strong, .teacher-notification-history-item small { display: block; }
+.teacher-notification-history-item strong { font-size: .76rem; }
+.teacher-notification-history-item small { margin-top: .12rem; color: var(--text-muted); font-size: .65rem; }
+.teacher-notification-history-status { color: #1d4ed8; font-size: .68rem; font-weight: 800; white-space: nowrap; }
+.teacher-notification-history-status.status-sent { color: #047857; }
+.teacher-notification-history-status.status-failed { color: #b91c1c; }
+.teacher-notification-history-status.status-cancelled { color: #64748b; }
+.teacher-notification-history-date { text-align: left; white-space: nowrap; }
+.teacher-notification-empty { margin: .8rem 0 0; color: var(--text-muted); font-size: .75rem; }
+.teacher-notifications-tab { color: #047857; }
+.teacher-dashboard-page .teacher-tab-button.teacher-notifications-tab.is-active { color: #fff; background: #059669; border-color: #059669; }
+@media (max-width: 720px) { .teacher-notification-grid, .teacher-notification-fields { grid-template-columns: 1fr; } .teacher-notification-fields .teacher-notification-body-label { grid-column: auto; } .teacher-notification-form-actions, .teacher-notification-audience { align-items: stretch; flex-direction: column; } .teacher-notification-form-actions .cta-button { width: 100%; } .teacher-notification-steps { grid-template-columns: 1fr; } .teacher-notification-history-item { grid-template-columns: 1fr auto; } .teacher-notification-history-date { grid-column: 1 / -1; text-align: right; } }

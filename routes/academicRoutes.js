@@ -18,6 +18,9 @@ const {
   updateLessonProgress,
   listNotifications,
   markNotificationRead,
+  listTeacherAnnouncements,
+  createTeacherAnnouncement,
+  cancelTeacherAnnouncement,
   getTeacherAnalytics,
   listPaymentHistory,
   listAuditLogs,
@@ -61,6 +64,9 @@ router.post("/assessments", createAssessment);
 
 router.get("/notifications", listNotifications);
 router.put("/notifications/:id/read", markNotificationRead);
+router.get("/teacher-announcements", isTeacher, listTeacherAnnouncements);
+router.post("/teacher-announcements", isTeacher, createTeacherAnnouncement);
+router.post("/teacher-announcements/:id/cancel", isTeacher, cancelTeacherAnnouncement);
 router.get("/analytics", getTeacherAnalytics);
 router.get("/audit-logs", listAuditLogs);
 router.put("/students/bulk", bulkUpdateStudents);

@@ -1,7 +1,7 @@
 const prisma = require("../lib/prisma");
 
 const modelNames = [
-  "student", "message", "scheduledClass", "teacherAbsence", "parentCredential", "liveQuestionImage", "attendance", "material", "lessonVideo", "session", "auditLog", "notification", "paymentEvent", "lessonProgress", "assignment", "assignmentSubmission", "question", "assessment", "assessmentQuestion", "assessmentAttempt", "learningPathItem", "studentBadge", "grade", "publicRoomArchive", "publicRoomAttendance", "analyticsEvent",
+  "student", "message", "scheduledClass", "teacherAbsence", "parentCredential", "liveQuestionImage", "attendance", "material", "lessonVideo", "session", "auditLog", "notification", "notificationCampaign", "paymentEvent", "lessonProgress", "assignment", "assignmentSubmission", "question", "assessment", "assessmentQuestion", "assessmentAttempt", "learningPathItem", "studentBadge", "grade", "publicRoomArchive", "publicRoomAttendance", "analyticsEvent",
 ];
 
 function serializeValue(value, includeDocuments) {

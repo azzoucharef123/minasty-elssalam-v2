@@ -146,6 +146,28 @@ model Notification {
   @@index([studentId, createdAt(sort: Desc)])
 }
 
+model NotificationCampaign {
+  id              String   @id @default(uuid()) @db.Uuid
+  targetLevel     String
+  recipientType   String   @default("PARENTS")
+  paymentFilter   String   @default("ALL")
+  subjectFilter   String   @default("ALL")
+  title           String
+  body            String   @db.Text
+  link            String?
+  deliveryMode    String   @default("IMMEDIATE")
+  scheduledAt     DateTime?
+  status          String   @default("PENDING")
+  recipientCount  Int      @default(0)
+  sentAt          DateTime?
+  lastError       String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status, scheduledAt])
+  @@index([targetLevel, createdAt(sort: Desc)])
+}
+
 model PaymentEvent {
   id        String   @id @default(uuid()) @db.Uuid
   studentId String   @db.Uuid

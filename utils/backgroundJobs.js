@@ -79,6 +79,15 @@ async function cleanExpiredSessions() {
   await prisma.session.deleteMany({ where: { expiresAt: { lt: new Date() } } });
 }
 
+async function processTeacherAnnouncements() {
+  try {
+    const { processScheduledTeacherAnnouncements } = require("../controllers/academicController");
+    await processScheduledTeacherAnnouncements();
+  } catch (error) {
+    console.error("Teacher announcements background job failed:", error.message);
+  }
+}
+
 async function reconcileSofizPayPayments() {
   try {
     const { reconcilePendingSofizPayPayments } = require("../controllers/paymentController");
@@ -94,6 +103,7 @@ function startBackgroundJobs() {
     sendWeeklyReports(),
     cleanExpiredSessions(),
     reconcileSofizPayPayments(),
+    processTeacherAnnouncements(),
   ]).catch(() => {});
   void run();
   const timer = setInterval(run, 60 * 1000);
@@ -101,4 +111,4 @@ function startBackgroundJobs() {
   return () => clearInterval(timer);
 }
 
-module.exports = { sendClassReminders, sendWeeklyReports, cleanExpiredSessions, reconcileSofizPayPayments, startBackgroundJobs };
+module.exports = { sendClassReminders, sendWeeklyReports, cleanExpiredSessions, reconcileSofizPayPayments, processTeacherAnnouncements, startBackgroundJobs };

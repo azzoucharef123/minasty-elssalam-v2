@@ -104,6 +104,21 @@ const elements = {
   forgotPinRequestsTableBody: document.getElementById("forgot-pin-requests-table-body"),
   forgotPinRequestsEmpty: document.getElementById("forgot-pin-requests-empty"),
   forgotPinRequestsCount: document.getElementById("forgot-pin-requests-count"),
+  teacherNotificationForm: document.getElementById("teacher-notification-form"),
+  teacherNotificationSubject: document.getElementById("teacher-notification-subject"),
+  teacherNotificationTitle: document.getElementById("teacher-notification-title-input"),
+  teacherNotificationBody: document.getElementById("teacher-notification-body-input"),
+  teacherNotificationImmediate: document.getElementById("teacher-notification-immediate"),
+  teacherNotificationScheduled: document.getElementById("teacher-notification-scheduled"),
+  teacherNotificationScheduleFields: document.getElementById("teacher-notification-schedule-fields"),
+  teacherNotificationScheduledDate: document.getElementById("teacher-notification-scheduled-date"),
+  teacherNotificationScheduledTime: document.getElementById("teacher-notification-scheduled-time"),
+  teacherNotificationSubmit: document.getElementById("teacher-notification-submit"),
+  teacherNotificationFeedback: document.getElementById("teacher-notification-feedback"),
+  teacherNotificationAudienceText: document.getElementById("teacher-notification-audience-text"),
+  teacherNotificationRecipientCount: document.getElementById("teacher-notification-recipient-count"),
+  teacherNotificationHistoryList: document.getElementById("teacher-notification-history-list"),
+  teacherNotificationRefresh: document.getElementById("teacher-notification-refresh"),
   cardPreviewModal: document.getElementById("student-card-preview-modal"),
   cardPreviewTitle: document.getElementById("student-card-preview-title"),
   cardPreviewStatus: document.getElementById("student-card-preview-status"),
@@ -2141,6 +2156,7 @@ async function fetchStudents(level = currentLevel) {
     // Phase 15 returns { status, data, meta }; retain the legacy array fallback
     // so this dashboard remains compatible during a staged deployment.
     currentStudents = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+    updateTeacherNotificationAudience();
     electronicPayments = [];
     electronicPaymentsLevel = "";
     forgotPinRequests = [];
@@ -3060,6 +3076,173 @@ async function rejectPaymentReceipt(studentId) {
   }
 }
 
+const ANNOUNCEMENT_PAYMENT_LABELS = { ALL: "كل الحسابات", FREE: "الحسابات المجانية", PAID: "الحسابات المدفوعة" };
+const ANNOUNCEMENT_SUBJECT_LABELS = { ALL: "كل المواد", MATH: "الرياضيات", PHYSICS: "الفيزياء", BOTH: "الرياضيات والفيزياء" };
+const ANNOUNCEMENT_STATUS_LABELS = { PENDING: "مجدول", PROCESSING: "جارٍ الإرسال", SENT: "تم الإرسال", FAILED: "فشل الإرسال", CANCELLED: "ملغى" };
+
+function announcementFormValue(name, fallback = "") {
+  return document.querySelector(`input[name="${name}"]:checked`)?.value || fallback;
+}
+
+function updateTeacherNotificationAudience() {
+  const paymentFilter = announcementFormValue("notification-payment", "ALL");
+  const subjectFilter = elements.teacherNotificationSubject?.value || "ALL";
+  const uniqueParents = new Set();
+  for (const student of currentStudents) {
+    if (paymentFilter === "FREE" && student.paymentStatus) continue;
+    if (paymentFilter === "PAID" && !student.paymentStatus) continue;
+    if (subjectFilter === "MATH" && !student.mathEnrollment) continue;
+    if (subjectFilter === "PHYSICS" && !student.physicsEnrollment) continue;
+    if (subjectFilter === "BOTH" && !(student.mathEnrollment && student.physicsEnrollment)) continue;
+    if (student.parentPhone) uniqueParents.add(student.parentPhone);
+  }
+  const textValue = `أولياء الأمور · ${displayLevelLabel(currentLevel)} · ${ANNOUNCEMENT_PAYMENT_LABELS[paymentFilter] || ANNOUNCEMENT_PAYMENT_LABELS.ALL} · ${ANNOUNCEMENT_SUBJECT_LABELS[subjectFilter] || ANNOUNCEMENT_SUBJECT_LABELS.ALL}`;
+  if (elements.teacherNotificationAudienceText) elements.teacherNotificationAudienceText.textContent = textValue;
+  if (elements.teacherNotificationRecipientCount) elements.teacherNotificationRecipientCount.textContent = currentStudents.length ? `${uniqueParents.size} حسابًا` : "سيتم حساب العدد";
+}
+
+function setTeacherNotificationFeedback(message, isError = false) {
+  if (!elements.teacherNotificationFeedback) return;
+  elements.teacherNotificationFeedback.hidden = !message;
+  elements.teacherNotificationFeedback.textContent = message;
+  elements.teacherNotificationFeedback.classList.toggle("is-error", isError);
+}
+
+function formatAnnouncementDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("ar-DZ", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Algiers" }).format(date);
+}
+
+function renderTeacherAnnouncementHistory(campaigns = []) {
+  const container = elements.teacherNotificationHistoryList;
+  if (!container) return;
+  container.replaceChildren();
+  if (!campaigns.length) {
+    const empty = document.createElement("p");
+    empty.className = "teacher-notification-empty";
+    empty.textContent = "لا توجد تنبيهات بعد.";
+    container.append(empty);
+    return;
+  }
+  campaigns.forEach((campaign) => {
+    const item = document.createElement("article");
+    item.className = "teacher-notification-history-item";
+    const heading = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = campaign.title || "تنبيه";
+    const details = document.createElement("small");
+    details.textContent = `${campaign.targetLevel || "المستوى"} · ${ANNOUNCEMENT_PAYMENT_LABELS[campaign.paymentFilter] || "كل الحسابات"} · ${ANNOUNCEMENT_SUBJECT_LABELS[campaign.subjectFilter] || "كل المواد"}`;
+    heading.append(title, details);
+    const meta = document.createElement("span");
+    meta.className = `teacher-notification-history-status status-${String(campaign.status || "").toLowerCase()}`;
+    meta.textContent = `${ANNOUNCEMENT_STATUS_LABELS[campaign.status] || campaign.status || "—"} · ${campaign.recipientCount || 0} حساب`;
+    item.append(heading, meta);
+    if (campaign.status === "PENDING" && campaign.deliveryMode === "SCHEDULED") {
+      const cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.className = "teacher-notification-cancel";
+      cancel.textContent = "إلغاء";
+      cancel.addEventListener("click", () => void cancelTeacherAnnouncement(campaign.id));
+      item.append(cancel);
+    }
+    const date = document.createElement("small");
+    date.className = "teacher-notification-history-date";
+    date.textContent = campaign.deliveryMode === "SCHEDULED" ? `موعد الإرسال: ${formatAnnouncementDate(campaign.scheduledAt)}` : `تاريخ الإرسال: ${formatAnnouncementDate(campaign.sentAt || campaign.createdAt)}`;
+    item.append(date);
+    container.append(item);
+  });
+}
+
+async function loadTeacherAnnouncements() {
+  try {
+    const response = await teacherFetch("/api/academic/teacher-announcements", { headers: { Accept: "application/json" } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر تحميل سجل التنبيهات.");
+    renderTeacherAnnouncementHistory(Array.isArray(payload.data) ? payload.data : []);
+  } catch (error) {
+    if (!/انتهت الجلسة/.test(error.message)) console.error("Unable to load teacher announcements:", error);
+  }
+}
+
+function syncTeacherNotificationDelivery() {
+  const scheduled = Boolean(elements.teacherNotificationScheduled?.checked);
+  if (elements.teacherNotificationScheduleFields) elements.teacherNotificationScheduleFields.hidden = !scheduled;
+  if (elements.teacherNotificationSubmit) elements.teacherNotificationSubmit.textContent = scheduled ? "حفظ التنبيه المبرمج" : "إرسال التنبيه الآن";
+}
+
+function scheduledAnnouncementDate() {
+  const date = elements.teacherNotificationScheduledDate?.value;
+  const time = elements.teacherNotificationScheduledTime?.value;
+  if (!date || !time) return "";
+  const local = new Date(`${date}T${time}`);
+  return Number.isNaN(local.getTime()) ? "" : local.toISOString();
+}
+
+async function submitTeacherAnnouncement(event) {
+  event.preventDefault();
+  const scheduled = Boolean(elements.teacherNotificationScheduled?.checked);
+  const payload = {
+    targetLevel: currentLevel,
+    recipientType: "PARENTS",
+    paymentFilter: announcementFormValue("notification-payment", "ALL"),
+    subjectFilter: elements.teacherNotificationSubject?.value || "ALL",
+    title: elements.teacherNotificationTitle?.value?.trim() || "",
+    body: elements.teacherNotificationBody?.value?.trim() || "",
+    deliveryMode: scheduled ? "SCHEDULED" : "IMMEDIATE",
+  };
+  if (scheduled) payload.scheduledAt = scheduledAnnouncementDate();
+  if (!payload.title || !payload.body) {
+    setTeacherNotificationFeedback("اكتب عنوان التنبيه ونص الرسالة أولًا.", true);
+    return;
+  }
+  if (scheduled && !payload.scheduledAt) {
+    setTeacherNotificationFeedback("اختر تاريخًا ووقتًا مستقبليين صالحين.", true);
+    return;
+  }
+  if (elements.teacherNotificationSubmit) elements.teacherNotificationSubmit.disabled = true;
+  setTeacherNotificationFeedback(scheduled ? "جارٍ حفظ التنبيه المبرمج…" : "جارٍ إرسال التنبيه…");
+  try {
+    const response = await teacherFetch("/api/academic/teacher-announcements", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(payload) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "تعذر تنفيذ التنبيه.");
+    setTeacherNotificationFeedback(scheduled ? `تمت برمجة التنبيه بنجاح في ${formatAnnouncementDate(result.data?.scheduledAt)}.` : `تم إرسال التنبيه إلى ${result.recipientCount || 0} حسابًا بنجاح.`);
+    if (!scheduled) {
+      elements.teacherNotificationTitle.value = "";
+      elements.teacherNotificationBody.value = "";
+    }
+    await loadTeacherAnnouncements();
+  } catch (error) {
+    setTeacherNotificationFeedback(error.message || "تعذر تنفيذ التنبيه.", true);
+  } finally {
+    if (elements.teacherNotificationSubmit) elements.teacherNotificationSubmit.disabled = false;
+  }
+}
+
+async function cancelTeacherAnnouncement(id) {
+  try {
+    const response = await teacherFetch(`/api/academic/teacher-announcements/${encodeURIComponent(id)}/cancel`, { method: "POST", headers: { Accept: "application/json" } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر إلغاء التنبيه.");
+    setTeacherNotificationFeedback(payload.message || "تم إلغاء التنبيه المبرمج.");
+    await loadTeacherAnnouncements();
+  } catch (error) {
+    setTeacherNotificationFeedback(error.message || "تعذر إلغاء التنبيه.", true);
+  }
+}
+
+function initializeTeacherNotifications() {
+  elements.teacherNotificationForm?.addEventListener("submit", submitTeacherAnnouncement);
+  elements.teacherNotificationImmediate?.addEventListener("change", syncTeacherNotificationDelivery);
+  elements.teacherNotificationScheduled?.addEventListener("change", syncTeacherNotificationDelivery);
+  elements.teacherNotificationSubject?.addEventListener("change", updateTeacherNotificationAudience);
+  document.querySelectorAll('input[name="notification-payment"]').forEach((input) => input.addEventListener("change", updateTeacherNotificationAudience));
+  elements.teacherNotificationRefresh?.addEventListener("click", () => void loadTeacherAnnouncements());
+  syncTeacherNotificationDelivery();
+  updateTeacherNotificationAudience();
+}
+
 const DASHBOARD_TAB_HASHES = {
   overview: "#overview",
   students: "#students-panel",
@@ -3071,6 +3254,7 @@ const DASHBOARD_TAB_HASHES = {
   "electronic-payments": "#electronic-payments-panel",
   "manual-payments": "#manual-payments-panel",
   "forgot-pin-requests": "#forgot-pin-requests-panel",
+  notifications: "#teacher-notifications-panel",
 };
 
 function tabFromHash(hash = window.location.hash) {
@@ -3107,6 +3291,10 @@ function setDashboardTab(tabName, { updateHash = true, focusSearch = false } = {
     } else {
       void loadElectronicPayments(currentLevel);
     }
+  }
+  if (tab === "notifications") {
+    updateTeacherNotificationAudience();
+    void loadTeacherAnnouncements();
   }
   if (tab === "forgot-pin-requests") {
     if (forgotPinRequestsLevel === currentLevel) {
@@ -3534,6 +3722,7 @@ if (!getTeacherToken()) {
   elements.jumpToRosterButton?.addEventListener("click", jumpToRoster);
 
   initializeDashboardTabs();
+  initializeTeacherNotifications();
   updateDashboardDate();
   renderGlobalTeacherAbsence();
   void loadGlobalTeacherAbsence();

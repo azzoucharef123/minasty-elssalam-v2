@@ -38,6 +38,10 @@ function assignmentLevelCandidates(value) {
   return legacy ? [canonical, legacy] : [canonical];
 }
 
+function displayLevelLabel(value) {
+  return normalizeAssignmentLevel(value) || "المستوى الدراسي";
+}
+
 function text(value, max = 5000) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
@@ -331,6 +335,148 @@ async function updateLessonProgress(req, res) {
   return res.json({ status: "success", data: progress });
 }
 
+const ANNOUNCEMENT_PAYMENT_FILTERS = new Set(["ALL", "FREE", "PAID"]);
+const ANNOUNCEMENT_SUBJECT_FILTERS = new Set(["ALL", "MATH", "PHYSICS", "BOTH"]);
+const ANNOUNCEMENT_DELIVERY_MODES = new Set(["IMMEDIATE", "SCHEDULED"]);
+let scheduledAnnouncementLock = false;
+
+function announcementWhere(payload) {
+  const level = normalizeAssignmentLevel(payload.targetLevel);
+  const where = { level: { in: assignmentLevelCandidates(level) }, accountActive: true };
+  if (payload.paymentFilter === "FREE") where.paymentStatus = false;
+  if (payload.paymentFilter === "PAID") where.paymentStatus = true;
+  if (payload.subjectFilter === "MATH") where.mathEnrollment = true;
+  if (payload.subjectFilter === "PHYSICS") where.physicsEnrollment = true;
+  if (payload.subjectFilter === "BOTH") {
+    where.mathEnrollment = true;
+    where.physicsEnrollment = true;
+  }
+  return where;
+}
+
+function announcementSummary(campaign) {
+  return {
+    ...campaign,
+    targetLevel: displayLevelLabel(campaign.targetLevel),
+    scheduledAt: campaign.scheduledAt?.toISOString?.() || null,
+    sentAt: campaign.sentAt?.toISOString?.() || null,
+  };
+}
+
+async function deliverTeacherAnnouncement(campaign) {
+  const students = await prisma.student.findMany({
+    where: announcementWhere(campaign),
+    select: { id: true, parentPhone: true },
+  });
+  const recipients = new Map();
+  for (const student of students) {
+    if (!recipients.has(student.parentPhone)) recipients.set(student.parentPhone, student);
+  }
+  const sendPushToRecipient = require("../utils/push").sendPushToRecipient;
+  let sentCount = 0;
+  for (const [parentPhone, student] of recipients) {
+    try {
+      await prisma.notification.create({
+        data: {
+          studentId: student.id,
+          recipientRole: "parent",
+          recipientId: parentPhone,
+          type: "TEACHER_ANNOUNCEMENT",
+          title: campaign.title,
+          body: campaign.body,
+          link: campaign.link || "./parent-dashboard.html",
+          dedupeKey: `TEACHER_ANNOUNCEMENT:${campaign.id}:${parentPhone}`,
+        },
+      });
+      sentCount += 1;
+    } catch (error) {
+      if (error?.code !== "P2002") throw error;
+    }
+    try {
+      await sendPushToRecipient("parent", parentPhone, {
+        title: campaign.title,
+        body: campaign.body,
+        link: campaign.link || "./parent-dashboard.html",
+      });
+    } catch (pushError) {
+      console.warn("Optional announcement push failed:", parentPhone, pushError.message);
+    }
+  }
+  const updated = await prisma.notificationCampaign.update({
+    where: { id: campaign.id },
+    data: { status: "SENT", recipientCount: recipients.size, sentAt: new Date(), lastError: null },
+  });
+  return { campaign: updated, recipientCount: recipients.size, sentCount };
+}
+
+async function listTeacherAnnouncements(req, res) {
+  if (!requireTeacher(req, res)) return;
+  const campaigns = await prisma.notificationCampaign.findMany({ orderBy: { createdAt: "desc" }, take: 100 });
+  return res.json({ status: "success", data: campaigns.map(announcementSummary) });
+}
+
+async function createTeacherAnnouncement(req, res) {
+  if (!requireTeacher(req, res)) return;
+  const targetLevel = normalizeAssignmentLevel(text(req.body?.targetLevel || req.body?.level, 100));
+  const recipientType = text(req.body?.recipientType, 20).toUpperCase() || "PARENTS";
+  const paymentFilter = text(req.body?.paymentFilter, 20).toUpperCase() || "ALL";
+  const subjectFilter = text(req.body?.subjectFilter, 20).toUpperCase() || "ALL";
+  const deliveryMode = text(req.body?.deliveryMode, 20).toUpperCase() || "IMMEDIATE";
+  const title = text(req.body?.title, 160);
+  const body = text(req.body?.body, 10000);
+  const scheduledAt = req.body?.scheduledAt ? new Date(req.body.scheduledAt) : null;
+  if (!ASSIGNMENT_CANONICAL_LEVELS.has(targetLevel) || recipientType !== "PARENTS" || !ANNOUNCEMENT_PAYMENT_FILTERS.has(paymentFilter) || !ANNOUNCEMENT_SUBJECT_FILTERS.has(subjectFilter) || !ANNOUNCEMENT_DELIVERY_MODES.has(deliveryMode) || !title || !body) {
+    return res.status(400).json({ error: "بيانات التنبيه غير صحيحة." });
+  }
+  if (deliveryMode === "SCHEDULED" && (!scheduledAt || Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date())) {
+    return res.status(400).json({ error: "اختر موعدًا مستقبليًا صالحًا للتنبيه." });
+  }
+  const campaign = await prisma.notificationCampaign.create({
+    data: { targetLevel, recipientType, paymentFilter, subjectFilter, title, body, link: "./parent-dashboard.html", deliveryMode, scheduledAt: deliveryMode === "SCHEDULED" ? scheduledAt : null },
+  });
+  if (deliveryMode === "IMMEDIATE") {
+    const delivered = await deliverTeacherAnnouncement(campaign);
+    void logAudit(req, { action: "TEACHER_ANNOUNCEMENT_SENT", entityType: "NotificationCampaign", entityId: campaign.id, metadata: { targetLevel, paymentFilter, subjectFilter, recipientCount: delivered.recipientCount } });
+    return res.status(201).json({ status: "success", mode: "IMMEDIATE", recipientCount: delivered.recipientCount, data: announcementSummary(delivered.campaign) });
+  }
+  void logAudit(req, { action: "TEACHER_ANNOUNCEMENT_SCHEDULED", entityType: "NotificationCampaign", entityId: campaign.id, metadata: { targetLevel, paymentFilter, subjectFilter, scheduledAt } });
+  return res.status(201).json({ status: "success", mode: "SCHEDULED", recipientCount: 0, data: announcementSummary(campaign) });
+}
+
+async function cancelTeacherAnnouncement(req, res) {
+  if (!requireTeacher(req, res)) return;
+  const id = text(req.params.id, 80);
+  const result = await prisma.notificationCampaign.updateMany({ where: { id, status: "PENDING", deliveryMode: "SCHEDULED" }, data: { status: "CANCELLED" } });
+  if (!result.count) return res.status(404).json({ error: "التنبيه غير موجود أو تم تنفيذه بالفعل." });
+  void logAudit(req, { action: "TEACHER_ANNOUNCEMENT_CANCELLED", entityType: "NotificationCampaign", entityId: id });
+  return res.json({ status: "success", message: "تم إلغاء التنبيه المبرمج." });
+}
+
+async function processScheduledTeacherAnnouncements(now = new Date()) {
+  if (scheduledAnnouncementLock) return { processed: 0, locked: true };
+  scheduledAnnouncementLock = true;
+  let processed = 0;
+  try {
+    const staleBefore = new Date(now.getTime() - 15 * 60 * 1000);
+    const campaigns = await prisma.notificationCampaign.findMany({ where: { OR: [{ status: "PENDING", deliveryMode: "SCHEDULED", scheduledAt: { lte: now } }, { status: "PROCESSING", updatedAt: { lt: staleBefore } }] }, orderBy: { scheduledAt: "asc" }, take: 50 });
+    for (const candidate of campaigns) {
+      const claimed = await prisma.notificationCampaign.updateMany({ where: { id: candidate.id, OR: [{ status: "PENDING" }, { status: "PROCESSING", updatedAt: { lt: staleBefore } }] }, data: { status: "PROCESSING" } });
+      if (!claimed.count) continue;
+      const campaign = await prisma.notificationCampaign.findUnique({ where: { id: candidate.id } });
+      try {
+        await deliverTeacherAnnouncement(campaign);
+        processed += 1;
+      } catch (error) {
+        await prisma.notificationCampaign.update({ where: { id: candidate.id }, data: { status: "FAILED", lastError: text(error?.message, 2000) } }).catch(() => {});
+        console.error("Scheduled teacher announcement failed:", candidate.id, error);
+      }
+    }
+    return { processed, locked: false };
+  } finally {
+    scheduledAnnouncementLock = false;
+  }
+}
+
 async function listNotifications(req, res) {
   const recipientId = isTeacher(req) ? "teacher" : req.user.phone;
   const notifications = await prisma.notification.findMany({ where: { recipientRole: isTeacher(req) ? "teacher" : "parent", recipientId }, orderBy: { createdAt: "desc" }, take: 100 });
@@ -443,6 +589,9 @@ module.exports = {
   updateLessonProgress,
   listNotifications,
   markNotificationRead,
+  listTeacherAnnouncements,
+  createTeacherAnnouncement,
+  cancelTeacherAnnouncement,
   getTeacherAnalytics,
   listPaymentHistory,
   listAuditLogs,
@@ -452,4 +601,5 @@ module.exports = {
   getSubmissionFile,
   receiveSubmission,
   deleteAssignment,
+  processScheduledTeacherAnnouncements,
 };
