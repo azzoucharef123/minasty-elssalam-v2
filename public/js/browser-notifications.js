@@ -14,6 +14,26 @@
   const notificationSocket = window.io({ transports: ["websocket", "polling"] });
   window.minasatyNotificationSocket = notificationSocket;
 
+  async function markNotificationRead(notificationId) {
+    if (!notificationId || !token) return;
+    try {
+      await fetch(`/api/academic/notifications/${encodeURIComponent(notificationId)}/read`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      });
+    } catch {
+      // Reading metrics are best-effort and must never block notification navigation.
+    }
+  }
+
+  const pendingNotificationId = new URLSearchParams(window.location.search).get("notificationId");
+  if (pendingNotificationId) {
+    void markNotificationRead(pendingNotificationId);
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete("notificationId");
+    window.history.replaceState({}, document.title, cleanUrl.href);
+  }
+
   function showBrowserNotification(payload = {}) {
     if (!("Notification" in window) || Notification.permission !== "granted") return;
     const title = String(payload.title || "أكاديمية التفوق").slice(0, 160);
@@ -26,6 +46,7 @@
     });
     notification.onclick = () => {
       const target = notification.data?.link || "/parent-dashboard.html";
+      void markNotificationRead(notification.data?.notificationId || payload.notificationId);
       window.focus();
       window.location.assign(new URL(target, window.location.origin).href);
       notification.close();

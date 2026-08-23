@@ -4472,3 +4472,15 @@ body.parent-login-page {
 .teacher-notifications-tab { color: #047857; }
 .teacher-dashboard-page .teacher-tab-button.teacher-notifications-tab.is-active { color: #fff; background: #059669; border-color: #059669; }
 @media (max-width: 720px) { .teacher-notification-grid, .teacher-notification-fields { grid-template-columns: 1fr; } .teacher-notification-fields .teacher-notification-body-label { grid-column: auto; } .teacher-notification-form-actions, .teacher-notification-audience { align-items: stretch; flex-direction: column; } .teacher-notification-form-actions .cta-button { width: 100%; } .teacher-notification-steps { grid-template-columns: 1fr; } .teacher-notification-history-item { grid-template-columns: 1fr auto; } .teacher-notification-history-date { grid-column: 1 / -1; text-align: right; } }
+
+/* Notification delivery and read statistics */
+.teacher-notification-statistics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; margin: 1rem 0; }
+.teacher-notification-stat { display: grid; gap: .18rem; padding: .75rem .85rem; border: 1px solid #bfdbfe; border-radius: .75rem; background: #eff6ff; }
+.teacher-notification-stat strong { color: #1d4ed8; font-size: 1.35rem; line-height: 1; }
+.teacher-notification-stat span { color: #475569; font-size: .7rem; font-weight: 700; }
+.teacher-notification-stat-read { border-color: #a7f3d0; background: #ecfdf5; }
+.teacher-notification-stat-read strong { color: #047857; }
+.teacher-notification-stat-unread { border-color: #fed7aa; background: #fff7ed; }
+.teacher-notification-stat-unread strong { color: #c2410c; }
+.teacher-notification-history-statistics { grid-column: 1 / -1; margin-top: -.15rem !important; color: #475569 !important; font-size: .68rem !important; font-weight: 700; }
+@media (max-width: 560px) { .teacher-notification-statistics { grid-template-columns: 1fr; } }

@@ -117,6 +117,9 @@ const elements = {
   teacherNotificationFeedback: document.getElementById("teacher-notification-feedback"),
   teacherNotificationAudienceText: document.getElementById("teacher-notification-audience-text"),
   teacherNotificationRecipientCount: document.getElementById("teacher-notification-recipient-count"),
+  teacherNotificationSentCount: document.getElementById("teacher-notification-sent-count"),
+  teacherNotificationReadCount: document.getElementById("teacher-notification-read-count"),
+  teacherNotificationUnreadCount: document.getElementById("teacher-notification-unread-count"),
   teacherNotificationHistoryList: document.getElementById("teacher-notification-history-list"),
   teacherNotificationRefresh: document.getElementById("teacher-notification-refresh"),
   cardPreviewModal: document.getElementById("student-card-preview-modal"),
@@ -3138,6 +3141,10 @@ function renderTeacherAnnouncementHistory(campaigns = []) {
     meta.className = `teacher-notification-history-status status-${String(campaign.status || "").toLowerCase()}`;
     meta.textContent = `${ANNOUNCEMENT_STATUS_LABELS[campaign.status] || campaign.status || "—"} · ${campaign.recipientCount || 0} حساب`;
     item.append(heading, meta);
+    const statistics = document.createElement("small");
+    statistics.className = "teacher-notification-history-statistics";
+    statistics.textContent = `مرسل: ${Number(campaign.sentCount) || 0} · مقروء: ${Number(campaign.readCount) || 0} · غير مقروء: ${Number(campaign.unreadCount) || 0}`;
+    item.append(statistics);
     if (campaign.status === "PENDING" && campaign.deliveryMode === "SCHEDULED") {
       const cancel = document.createElement("button");
       cancel.type = "button";
@@ -3159,6 +3166,10 @@ async function loadTeacherAnnouncements() {
     const response = await teacherFetch("/api/academic/teacher-announcements", { headers: { Accept: "application/json" } });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || "تعذر تحميل سجل التنبيهات.");
+    const summary = payload.summary || {};
+    if (elements.teacherNotificationSentCount) elements.teacherNotificationSentCount.textContent = String(Number(summary.sentCount) || 0);
+    if (elements.teacherNotificationReadCount) elements.teacherNotificationReadCount.textContent = String(Number(summary.readCount) || 0);
+    if (elements.teacherNotificationUnreadCount) elements.teacherNotificationUnreadCount.textContent = String(Number(summary.unreadCount) || 0);
     renderTeacherAnnouncementHistory(Array.isArray(payload.data) ? payload.data : []);
   } catch (error) {
     if (!/انتهت الجلسة/.test(error.message)) console.error("Unable to load teacher announcements:", error);
@@ -3238,10 +3249,12 @@ function initializeTeacherNotifications() {
   elements.teacherNotificationSubject?.addEventListener("change", updateTeacherNotificationAudience);
   document.querySelectorAll('input[name="notification-payment"]').forEach((input) => input.addEventListener("change", updateTeacherNotificationAudience));
   elements.teacherNotificationRefresh?.addEventListener("click", () => void loadTeacherAnnouncements());
-  syncTeacherNotificationDelivery();
+    syncTeacherNotificationDelivery();
   updateTeacherNotificationAudience();
+  window.setInterval(() => {
+    if (!document.hidden) void loadTeacherAnnouncements();
+  }, 30_000);
 }
-
 const DASHBOARD_TAB_HASHES = {
   overview: "#overview",
   students: "#students-panel",

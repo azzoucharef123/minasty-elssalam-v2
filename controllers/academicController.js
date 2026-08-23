@@ -359,12 +359,17 @@ function announcementWhere(payload) {
   return where;
 }
 
-function announcementSummary(campaign) {
+function announcementSummary(campaign, deliveryStats = {}) {
+  const sentCount = Number(deliveryStats.sentCount ?? campaign.recipientCount ?? 0) || 0;
+  const readCount = Number(deliveryStats.readCount ?? 0) || 0;
   return {
     ...campaign,
     targetLevel: displayLevelLabel(campaign.targetLevel),
     scheduledAt: campaign.scheduledAt?.toISOString?.() || null,
     sentAt: campaign.sentAt?.toISOString?.() || null,
+    sentCount,
+    readCount,
+    unreadCount: Math.max(0, sentCount - readCount),
   };
 }
 
@@ -381,8 +386,10 @@ async function deliverTeacherAnnouncement(campaign, options = {}) {
   const sendPushToRecipient = require("../utils/push").sendPushToRecipient;
   let sentCount = 0;
   for (const [parentPhone, student] of recipients) {
+    const dedupeKey = `TEACHER_ANNOUNCEMENT:${campaign.id}:${parentPhone}`;
+    let notificationId = null;
     try {
-      await prisma.notification.create({
+      const notification = await prisma.notification.create({
         data: {
           studentId: student.id,
           recipientRole: "parent",
@@ -391,12 +398,16 @@ async function deliverTeacherAnnouncement(campaign, options = {}) {
           title: campaign.title,
           body: campaign.body,
           link: campaign.link || "./parent-dashboard.html",
-          dedupeKey: `TEACHER_ANNOUNCEMENT:${campaign.id}:${parentPhone}`,
+          dedupeKey,
         },
+        select: { id: true },
       });
+      notificationId = notification.id;
       sentCount += 1;
     } catch (error) {
       if (error?.code !== "P2002") throw error;
+      const existing = await prisma.notification.findUnique({ where: { dedupeKey }, select: { id: true } });
+      notificationId = existing?.id || null;
     }
     try {
       sendSocketNotification?.({
@@ -406,7 +417,8 @@ async function deliverTeacherAnnouncement(campaign, options = {}) {
         body: campaign.body,
         link: campaign.link || "./parent-dashboard.html",
         tag: `teacher-announcement-${campaign.id}`,
-        data: { type: "TEACHER_ANNOUNCEMENT", campaignId: campaign.id },
+        data: { type: "TEACHER_ANNOUNCEMENT", campaignId: campaign.id, notificationId },
+        notificationId,
       });
     } catch (socketError) {
       console.warn("Optional browser notification failed:", parentPhone, socketError.message);
@@ -416,6 +428,7 @@ async function deliverTeacherAnnouncement(campaign, options = {}) {
         title: campaign.title,
         body: campaign.body,
         link: campaign.link || "./parent-dashboard.html",
+        notificationId,
       });
     } catch (pushError) {
       console.warn("Optional announcement push failed:", parentPhone, pushError.message);
@@ -431,7 +444,32 @@ async function deliverTeacherAnnouncement(campaign, options = {}) {
 async function listTeacherAnnouncements(req, res) {
   if (!requireTeacher(req, res)) return;
   const campaigns = await prisma.notificationCampaign.findMany({ orderBy: { createdAt: "desc" }, take: 100 });
-  return res.json({ status: "success", data: campaigns.map(announcementSummary) });
+  const campaignIds = new Set(campaigns.map((campaign) => campaign.id));
+  const notificationRows = campaignIds.size
+    ? await prisma.notification.findMany({
+        where: { dedupeKey: { startsWith: "TEACHER_ANNOUNCEMENT:" } },
+        select: { dedupeKey: true, isRead: true },
+      })
+    : [];
+  const statsByCampaign = new Map();
+  for (const row of notificationRows) {
+    const match = /^TEACHER_ANNOUNCEMENT:([^:]+):/.exec(row.dedupeKey || "");
+    if (!match || !campaignIds.has(match[1])) continue;
+    const stats = statsByCampaign.get(match[1]) || { sentCount: 0, readCount: 0 };
+    stats.sentCount += 1;
+    if (row.isRead) stats.readCount += 1;
+    statsByCampaign.set(match[1], stats);
+  }
+  const data = campaigns.map((campaign) => announcementSummary(campaign, statsByCampaign.get(campaign.id)));
+  const summary = data.reduce((totals, campaign) => ({
+    sentCount: totals.sentCount + campaign.sentCount,
+    readCount: totals.readCount + campaign.readCount,
+  }), { sentCount: 0, readCount: 0 });
+  return res.json({
+    status: "success",
+    data,
+    summary: { ...summary, unreadCount: Math.max(0, summary.sentCount - summary.readCount) },
+  });
 }
 
 async function createTeacherAnnouncement(req, res) {
