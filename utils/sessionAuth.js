@@ -4,8 +4,12 @@ const prisma = require("../lib/prisma");
 
 const JWT_ISSUER = "online-tutoring-platform";
 const JWT_AUDIENCE = "online-tutoring-platform-web";
-const JWT_EXPIRES_IN = "365d";
-const SESSION_DURATION_MS = 365 * 24 * 60 * 60 * 1000;
+// Keep sessions effectively persistent for the user while retaining a server-side
+// expiry and explicit revocation controls. A literal infinite bearer token would
+// remain usable forever if copied from the browser.
+const SESSION_DURATION_DAYS = 36500;
+const JWT_EXPIRES_IN = `${SESSION_DURATION_DAYS}d`;
+const SESSION_DURATION_MS = SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000;
 
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET;
