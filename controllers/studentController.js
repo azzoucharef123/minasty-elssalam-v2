@@ -901,6 +901,7 @@ async function updateStudentStatusAndNotes(req, res) {
       mathEnrollment,
       physicsEnrollment,
       liveAccessEnabled,
+      accountActive,
       mathNote,
       physicsNote,
     } = req.body || {};
@@ -916,6 +917,7 @@ async function updateStudentStatusAndNotes(req, res) {
       typeof physicsEnrollment !== "boolean" ||
       (!mathEnrollment && !physicsEnrollment) ||
       typeof liveAccessEnabled !== "boolean" ||
+      (accountActive !== undefined && typeof accountActive !== "boolean") ||
       typeof mathNote !== "string" ||
       typeof physicsNote !== "string"
     ) {
@@ -934,6 +936,7 @@ async function updateStudentStatusAndNotes(req, res) {
         mathEnrollment,
         physicsEnrollment,
         liveAccessEnabled,
+        ...(accountActive !== undefined ? { accountActive } : {}),
         mathNote: mathNote.trim(),
         physicsNote: physicsNote.trim(),
       },
@@ -963,9 +966,11 @@ async function updateStudentStatusAndNotes(req, res) {
         mathEnrollment,
         physicsEnrollment,
         liveAccessEnabled,
+        ...(accountActive !== undefined ? { accountActive } : {}),
       },
     });
 
+    if (accountActive !== undefined) notifyAccountStatus(req, student);
     const io = req.app.get("io");
     io?.to(`${student.level}_lobby`).emit("student_live_access_updated", {
       studentId: student.id,

@@ -334,13 +334,6 @@ function secondaryPaymentStatusMeta(student) {
 }
 
 function accountStatusMeta(student) {
-  if (student.level !== "طالب جامعي") {
-    const stage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");
-    return ["PAID", "PROMISED"].includes(stage)
-      ? { label: "حساب مدفوع", className: "is-active" }
-      : { label: "حساب مجاني", className: "is-inactive" };
-  }
-
   if (student.level === "طالب جامعي") {
     if (student.cardReuploadRequested) {
       return { label: "إعادة رفع البطاقة مطلوبة", className: "is-inactive" };
@@ -352,8 +345,8 @@ function accountStatusMeta(student) {
   }
 
   return student.accountActive !== false
-    ? { label: "حساب مفعل", className: "is-active" }
-    : { label: "حساب غير مفعل", className: "is-inactive" };
+    ? { label: "حساب مفعّل", className: "is-active" }
+    : { label: "حساب غير مفعّل", className: "is-inactive" };
 }
 
 function showToast(message) {
@@ -2600,6 +2593,7 @@ async function updateStudent(studentId, updates) {
       typeof updates.liveAccessEnabled === "boolean"
         ? updates.liveAccessEnabled
         : Boolean(student.liveAccessEnabled),
+    ...(typeof updates.accountActive === "boolean" ? { accountActive: updates.accountActive } : {}),
     physicsNote: "",
     mathNote: "",
   };
@@ -2671,8 +2665,13 @@ async function toggleLiveAccess(studentId) {
 
   try {
     const nextValue = !Boolean(student.liveAccessEnabled);
-    await updateStudent(studentId, { liveAccessEnabled: nextValue });
-    showToast(nextValue ? "تم السماح للتلميذ بدخول الحصة." : "تم منع التلميذ من دخول الحصة.");
+    await updateStudent(studentId, {
+      liveAccessEnabled: nextValue,
+      ...(nextValue ? { accountActive: true } : {}),
+    });
+    showToast(nextValue
+      ? "تم تفعيل الحساب والسماح للتلميذ بدخول الحصة مع بقاء الاشتراك مجانيًا."
+      : "تم منع التلميذ من دخول الحصة، ولم يتغير نوع الاشتراك.");
     await fetchStudents(currentLevel);
   } catch (error) {
     if (!/انتهت الجلسة/.test(error.message)) {
