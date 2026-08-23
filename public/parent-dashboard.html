@@ -965,6 +965,7 @@
       }
 
       .payment-access-dialog {
+        position: relative;
         width: min(100%, 25rem);
         overflow: hidden;
         background: #ffffff;
@@ -978,6 +979,38 @@
         padding: 1.25rem 1.25rem 1rem;
         color: #ffffff;
         background: linear-gradient(135deg, #b91c1c, #dc2626);
+      }
+
+      .payment-access-close {
+        position: absolute;
+        z-index: 2;
+        top: 0.8rem;
+        left: 0.8rem;
+        display: grid;
+        width: 2.55rem;
+        height: 2.55rem;
+        place-items: center;
+        color: #ffffff;
+        background: #dc2626;
+        border: 0;
+        border-radius: 0.55rem;
+        font: inherit;
+        font-size: 1.15rem;
+        font-weight: 900;
+        line-height: 1;
+        cursor: pointer;
+        box-shadow: 0 6px 14px rgba(220, 38, 38, 0.24);
+        transition: transform 0.2s ease, background 0.2s ease;
+      }
+
+      .payment-access-close:hover {
+        background: #b91c1c;
+        transform: scale(1.05);
+      }
+
+      .payment-access-close:focus-visible {
+        outline: 3px solid rgba(220, 38, 38, 0.3);
+        outline-offset: 3px;
       }
 
       .payment-access-dialog-icon {
@@ -1049,17 +1082,24 @@
         transform: translateY(-0.1rem);
       }
 
-      .payment-access-action.call {
+      .payment-access-action.upgrade {
         color: #ffffff;
         background: linear-gradient(135deg, #059669, #16a34a);
         border: 1px solid transparent;
         box-shadow: 0 8px 16px rgba(5, 150, 105, 0.2);
       }
 
-      .payment-access-action.cancel {
-        color: #b91c1c;
-        background: #fff5f5;
-        border: 1px solid #fecaca;
+      .payment-access-action.promise {
+        min-height: 3.35rem;
+        color: #111827;
+        background: #facc15;
+        border: 1px solid #eab308;
+        font-size: 18px;
+        box-shadow: 0 8px 16px rgba(234, 179, 8, 0.2);
+      }
+
+      .payment-access-action.promise:hover {
+        background: #eab308;
       }
 
       .lesson-repository-card {
@@ -1753,16 +1793,17 @@
 
   <div id="payment-access-modal" class="payment-access-modal" role="dialog" aria-modal="true" aria-labelledby="payment-access-title" hidden>
       <section class="payment-access-dialog">
+        <button id="decline-registration-btn" class="payment-access-close" type="button" aria-label="إغلاق النافذة والعودة إلى الصفحة الرئيسية">X</button>
         <div class="payment-access-dialog-head">
           <span class="payment-access-dialog-icon" aria-hidden="true">!</span>
           <h2 id="payment-access-title">الدخول للحصة يحتاج إلى تفعيل</h2>
           <p id="payment-access-head-message">لم يتم تأكيد الدفع أو إبلاغ الأستاذ بموعد الدفع.</p>
         </div>
         <div class="payment-access-dialog-body">
-          <p id="payment-access-message">إذا كنت تريد الدفع، اضغط على الزر الأخضر واتصل بالأستاذ مباشرة على الرقم <strong>0556960950</strong>.</p>
+          <p id="payment-access-message">اختر طريقة تفعيل المادة المطلوبة.</p>
           <div class="payment-access-actions">
-            <a id="call-teacher-now-btn" class="payment-access-action call" href="tel:0556960950">اتصل بالأستاذ الآن</a>
-            <button id="decline-registration-btn" class="payment-access-action cancel" type="button">لا أريد التسجيل</button>
+            <a id="upgrade-subject-btn" class="payment-access-action upgrade" href="#">ترقية حسابي والتسجيل في المادة</a>
+            <a id="call-teacher-now-btn" class="payment-access-action promise" href="tel:0556960950">اتصل بالأستاذ للوعد بالدفع</a>
           </div>
         </div>
       </section>
@@ -1792,7 +1833,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
-    <script src="./js/parent-dashboard.js?v=parent-push-ready-1"></script>
+    <script src="./js/parent-dashboard.js?v=subject-upgrade-1"></script>
     <script src="./js/parent-push-prompt.js?v=parent-push-prompt-1"></script>
     <script src="./js/browser-notifications.js?v=browser-notifications-1"></script>
     <script src="./js/class-registry-parent.js?v=panel-scroll-1"></script>

@@ -123,6 +123,7 @@ const elements = {
   paymentAccessHeadMessage: document.getElementById("payment-access-head-message"),
   paymentAccessMessage: document.getElementById("payment-access-message"),
   callTeacherNowButton: document.getElementById("call-teacher-now-btn"),
+  upgradeSubjectButton: document.getElementById("upgrade-subject-btn"),
   declineRegistrationButton: document.getElementById("decline-registration-btn"),
   parentKpiSubscription: document.getElementById("parent-kpi-subscription"),
   parentKpiNextClass: document.getElementById("parent-kpi-next-class"),
@@ -627,6 +628,7 @@ let lessonZoomPinchStartDistance = 0;
 let lessonZoomPinchStartScale = 1;
 let lessonZoomPanStart = null;
 let lessonUpgradeContext = null;
+let paymentAccessUpgradeType = null;
 let parentScheduledClasses = [];
 let parentScheduleAdvanceTimer = null;
 let parentNextClassStateTimer = null;
@@ -738,8 +740,11 @@ function openPaymentReceiptPicker(input, mode = "upload") {
   input.click();
 }
 
-async function startSofizPayPayment() {
-  const subscriptionType = elements.secondarySubscriptionType?.value;
+async function startSofizPayPayment(subscriptionTypeOverride = "") {
+  const subscriptionType = subscriptionTypeOverride || elements.secondarySubscriptionType?.value;
+  if (subscriptionTypeOverride && elements.secondarySubscriptionType) {
+    elements.secondarySubscriptionType.value = subscriptionTypeOverride;
+  }
   if (!currentStudent) {
     openDocumentFeedback("تعذر تحديد حساب التلميذ الحالي. أعد فتح لوحة الولي وحاول مرة أخرى.", "تعذر تحديد الحساب");
     return;
@@ -750,7 +755,7 @@ async function startSofizPayPayment() {
     return;
   }
 
-  const button = elements.secondaryCardPaymentButton;
+  const button = subscriptionTypeOverride ? elements.upgradeSubjectButton : elements.secondaryCardPaymentButton;
   const originalLabel = button?.textContent || "الدفع بالبطاقة الذهبية أو البنكية";
   if (button) {
     button.disabled = true;
@@ -910,64 +915,65 @@ function wirePaymentReceiptActions({ input, captureButton, fileChoiceButton, upl
   cardPaymentButton?.addEventListener("click", () => { void onCardPayment?.(); });
 }
 
-function openPaymentAccessModal(reason = "access") {
-  if (!elements.paymentAccessModal) {
-    return;
-  }
+function openPaymentAccessModal(reason = "access", subjectOverride = null) {
+  if (!elements.paymentAccessModal) return;
 
   const subscriptionUpgrade = reason === "subscription-upgrade";
   const subjectUpgrade = reason === "subject-upgrade";
   const lessonUpgrade = reason.startsWith("lesson-");
   const lessonFreeOnly = reason === "lesson-free-only";
+  const targetSubject = subjectOverride || (subjectUpgrade ? activeLiveClassType : null)
+    || (reason === "lesson-math-only" ? "PHYSICS" : null)
+    || (reason === "lesson-physics-only" ? "MATH" : null);
+  paymentAccessUpgradeType = ["MATH", "PHYSICS"].includes(targetSubject) ? targetSubject : null;
   if (!lessonUpgrade) lessonUpgradeContext = null;
-  const lessonSubject = reason === "lesson-math-only" ? "الفيزياء" : "الرياضيات";
-  const requiredSubject = activeLiveClassType === "PHYSICS" ? "الفيزياء" : "الرياضيات";
-  const currentSubject = activeLiveClassType === "PHYSICS" ? "الرياضيات" : "الفيزياء";
+
+  const targetLabel = targetSubject === "PHYSICS" ? "الفيزياء" : "الرياضيات";
+  const currentSubscription = currentStudent?.mathEnrollment && !currentStudent?.physicsEnrollment
+    ? "الرياضيات فقط"
+    : currentStudent?.physicsEnrollment && !currentStudent?.mathEnrollment
+      ? "الفيزياء فقط"
+      : "الاشتراك الحالي";
+
   if (elements.paymentAccessTitle) {
     elements.paymentAccessTitle.textContent = lessonUpgrade
       ? reason === "lesson-unpaid"
         ? "أنت غير مشترك حالياً"
         : lessonFreeOnly
           ? "هذا الدرس مخصص للاشتراك المدفوع"
-          : `هذا الدرس في ${lessonSubject}`
-      : subscriptionUpgrade
-        ? "هذه الحصة مخصصة للاشتراك المدفوع"
-        : subjectUpgrade
-          ? `حصة اليوم ${requiredSubject}`
+          : `هذا الدرس في ${targetLabel}`
+      : subjectUpgrade
+        ? `هذا المحتوى مخصص لـ${targetLabel}`
+        : subscriptionUpgrade
+          ? "هذه الحصة مخصصة للاشتراك المدفوع"
           : "الدخول للحصة يحتاج إلى تفعيل";
   }
   if (elements.paymentAccessHeadMessage) {
-    elements.paymentAccessHeadMessage.textContent = lessonUpgrade
-      ? reason === "lesson-unpaid"
-        ? "أنت لست مشتركاً حالياً، وحسابك مجاني. اضغط على الزر للترقية والوصول إلى الدروس."
-        : lessonFreeOnly
-          ? "أنت مشترك في الحساب المجاني فقط، وهذا الدرس مخصص للاشتراك المدفوع."
-          : `أنت مشترك في ${lessonSubject === "الفيزياء" ? "الرياضيات" : "الفيزياء"} فقط، ولا يشمل اشتراكك هذا الدرس.`
-      : subscriptionUpgrade
-        ? "أنت مشترك في المجاني فقط وهذه الحصة المدفوعة الآن للطلبة ذوي الاشتراك المدفوع."
-        : subjectUpgrade
-          ? `حصة اليوم ${requiredSubject} وأنت مشترك في ${currentSubject} فقط.`
-          : "لم يتم تأكيد الدفع أو إبلاغ الأستاذ بموعد الدفع.";
+    elements.paymentAccessHeadMessage.textContent = targetSubject && currentStudent
+      ? `أنت مسجل في ${currentSubscription}، وهذا المحتوى مخصص لـ${targetLabel}.`
+      : lessonUpgrade && reason === "lesson-unpaid"
+        ? "أنت لست مشتركاً حاليًا، وحسابك مجاني."
+        : subscriptionUpgrade
+          ? "أنت مشترك في الحساب المجاني فقط وهذه الحصة مخصصة للاشتراك المدفوع."
+          : "لم يتم تفعيل صلاحية الدخول إلى هذا المحتوى بعد.";
   }
   if (elements.paymentAccessMessage) {
-    elements.paymentAccessMessage.textContent = lessonUpgrade
-      ? "للوصول إلى هذا الدرس، اضغط على زر «ترقية حسابي الآن» واختر المادة أو الاشتراك المناسب."
-      : subscriptionUpgrade
-        ? "للترقية إلى الاشتراك المدفوع، اضغط على الزر الأخضر واتصل بالأستاذ مباشرة على الرقم 0556960950."
-        : subjectUpgrade
-          ? `إذا كنت تريد الاشتراك في ${requiredSubject}، اتصل بالأستاذ مباشرة على الرقم 0556960950.`
-          : "إذا كنت تريد الدفع، اضغط على الزر الأخضر واتصل بالأستاذ مباشرة على الرقم 0556960950.";
+    elements.paymentAccessMessage.textContent = targetSubject
+      ? `للتسجيل في ${targetLabel} مع الاحتفاظ باشتراكك الحالي، اختر الدفع الإلكتروني أو الوعد بالدفع مع الأستاذ.`
+      : lessonUpgrade
+        ? "للوصول إلى هذا الدرس، استخدم زر الترقية أو اتصل بالأستاذ للوعد بالدفع."
+        : "اختر طريقة تفعيل الوصول إلى الحصة.";
+  }
+  if (elements.upgradeSubjectButton) {
+    elements.upgradeSubjectButton.hidden = !paymentAccessUpgradeType;
+    elements.upgradeSubjectButton.textContent = paymentAccessUpgradeType
+      ? `ترقية حسابي والتسجيل في ${targetLabel}`
+      : "ترقية حسابي";
+    elements.upgradeSubjectButton.href = "#";
   }
   if (elements.callTeacherNowButton) {
-    elements.callTeacherNowButton.textContent = lessonUpgrade ? "ترقية حسابي الآن" : "اتصل بالأستاذ الآن";
-    elements.callTeacherNowButton.href = lessonUpgrade ? "#" : "tel:0556960950";
-  }
-  if (elements.declineRegistrationButton) {
-    elements.declineRegistrationButton.textContent = lessonUpgrade
-      ? "إغلاق"
-      : subjectUpgrade
-        ? `لا أريد الاشتراك في ${requiredSubject}`
-        : "لا أريد التسجيل";
+    elements.callTeacherNowButton.textContent = "اتصل بالأستاذ للوعد بالدفع";
+    elements.callTeacherNowButton.href = "tel:0556960950";
   }
 
   elements.paymentAccessModal.hidden = false;
@@ -983,7 +989,8 @@ function openLessonUpgradeModal(video) {
       : video?.accessReason === "PHYSICS_ONLY"
         ? "lesson-physics-only"
         : "lesson-free-only";
-  openPaymentAccessModal(reason);
+  const subject = video?.repositoryType === "PHYSICS" || video?.repositoryType === "MATH" ? video.repositoryType : null;
+  openPaymentAccessModal(reason, subject);
 }
 
 function closePaymentAccessModal() {
@@ -2125,6 +2132,16 @@ async function enterLiveClass() {
     return;
   }
 
+  const isMissingSecondarySubject =
+    !isUniversityStudent &&
+    ((activeLiveClassType === "MATH" && !currentStudent.mathEnrollment) ||
+      (activeLiveClassType === "PHYSICS" && !currentStudent.physicsEnrollment));
+  if (isMissingSecondarySubject) {
+    clearError();
+    openPaymentAccessModal("subject-upgrade", activeLiveClassType);
+    return;
+  }
+
   if (!isGlobalFreeClass && !isFreeSecondaryClass && !currentStudent.liveAccessEnabled && !hasSecondaryPaymentAccess) {
     clearError();
     openPaymentAccessModal();
@@ -2134,16 +2151,6 @@ async function enterLiveClass() {
   if (!isGlobalFreeClass && isUniversityStudent && !isPaidSubscription && activeLiveClassType === "PAID") {
     clearError();
     openPaymentAccessModal("subscription-upgrade");
-    return;
-  }
-
-  const isMissingSecondarySubject =
-    !isUniversityStudent &&
-    ((activeLiveClassType === "MATH" && !currentStudent.mathEnrollment) ||
-      (activeLiveClassType === "PHYSICS" && !currentStudent.physicsEnrollment));
-  if (isMissingSecondarySubject) {
-    clearError();
-    openPaymentAccessModal("subject-upgrade");
     return;
   }
 
@@ -2607,24 +2614,26 @@ if (!getParentToken()) {
       closeCertificateImage();
     }
   });
-  elements.callTeacherNowButton?.addEventListener("click", (event) => {
-    if (lessonUpgradeContext) {
-      event.preventDefault();
-      const upgradeHandler = currentStudent?.level === "طالب جامعي"
-        ? openUniversityPaymentTransfer
-        : openSecondaryPaymentTransfer;
-      lessonUpgradeContext = null;
-      closePaymentAccessModal();
-      upgradeHandler?.();
-      return;
-    }
+  elements.upgradeSubjectButton?.addEventListener("click", (event) => {
+    event.preventDefault();
+    const subscriptionType = paymentAccessUpgradeType;
+    paymentAccessUpgradeType = null;
+    lessonUpgradeContext = null;
+    closePaymentAccessModal();
+    if (subscriptionType) void startSofizPayPayment(subscriptionType);
+    else if (currentStudent?.level === "طالب جامعي") void openUniversityPaymentTransfer();
+    else void openSecondaryPaymentTransfer();
+  });
+  elements.callTeacherNowButton?.addEventListener("click", () => {
+    paymentAccessUpgradeType = null;
+    lessonUpgradeContext = null;
     closePaymentAccessModal();
   });
   elements.declineRegistrationButton?.addEventListener("click", () => {
-    const isLessonUpgrade = Boolean(lessonUpgradeContext);
+    paymentAccessUpgradeType = null;
     lessonUpgradeContext = null;
     closePaymentAccessModal();
-    if (!isLessonUpgrade) window.location.assign("./index.html");
+    window.location.assign("./parent-dashboard.html");
   });
   elements.paymentAccessModal?.addEventListener("click", (event) => {
     if (event.target === elements.paymentAccessModal) {

@@ -279,7 +279,10 @@ async function activatePaidTransaction(transaction, providerPayload) {
     if (!fresh) throw new Error("طلب الدفع غير موجود.");
     if (fresh.status === "PAID") return fresh;
 
-    const student = await tx.student.findUnique({ where: { id: fresh.studentId }, select: { id: true } });
+    const student = await tx.student.findUnique({
+      where: { id: fresh.studentId },
+      select: { id: true, mathEnrollment: true, physicsEnrollment: true },
+    });
     if (!student) throw new Error("التلميذ غير موجود.");
 
     const paidStudent = await tx.student.update({
@@ -288,8 +291,11 @@ async function activatePaidTransaction(transaction, providerPayload) {
         paymentStatus: true,
         paymentStage: "PAID",
         amountDue: fresh.amount,
-        mathEnrollment: subscription.mathEnrollment,
-        physicsEnrollment: subscription.physicsEnrollment,
+        // A complementary subject upgrade must preserve the existing subject.
+        // Buying MATH while already enrolled in PHYSICS (or vice versa)
+        // therefore activates BOTH instead of removing the old enrollment.
+        mathEnrollment: Boolean(student.mathEnrollment || subscription.mathEnrollment),
+        physicsEnrollment: Boolean(student.physicsEnrollment || subscription.physicsEnrollment),
         liveAccessEnabled: true,
         paymentReceiptPending: false,
       },
