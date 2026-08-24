@@ -6,7 +6,9 @@
   const refreshButton = document.getElementById("teacher-referral-withdrawal-refresh");
   const pendingCount = document.getElementById("teacher-referral-pending-count");
   const pendingTotal = document.getElementById("teacher-referral-pending-total");
-  if (!tableBody || !statusSelect) return;
+  const activityList = document.getElementById("teacher-referral-activity-list");
+  const activityCount = document.getElementById("teacher-referral-activity-count");
+  if (!tableBody || !statusSelect || !activityList) return;
 
   const formatter = new Intl.NumberFormat("ar-DZ");
   let loaded = false;
@@ -50,6 +52,37 @@
     if (pendingTotal) pendingTotal.textContent = `${formatter.format(total)} دج`;
   }
 
+  function renderActivity(items) {
+    const activeItems = (items || []).filter((item) => Number(item.registeredCount) > 0);
+    if (activityCount) activityCount.textContent = `${formatter.format(activeItems.length)} صاحب رابط نشط`;
+    if (!activeItems.length) {
+      activityList.innerHTML = `<p class="teacher-referral-activity-empty">لا توجد تسجيلات عبر روابط الإحالة حتى الآن.</p>`;
+      return;
+    }
+    activityList.innerHTML = activeItems.map((item) => {
+      const referrerName = item.referrerNames?.map((entry) => entry.studentName).filter(Boolean).join("، ") || "اسم صاحب الرابط غير متوفر";
+      const referrals = (item.referrals || []).map((referral) => {
+        const names = referral.names?.map((entry) => `${entry.studentName}${entry.level ? ` — ${entry.level}` : ""}`).join("، ") || "اسم غير متوفر";
+        const status = referral.upgraded ? `رقّى ${referral.upgradeType === "BOTH" ? "المادتين" : "مادة واحدة"} · ${formatter.format(Number(referral.commissionAmountDzd || 0))} دج` : "سجّل فقط";
+        const statusClass = referral.upgraded ? "is-upgraded" : "is-registered";
+        return `<li><span><strong>${escapeHtml(names)}</strong><small dir="ltr">${escapeHtml(referral.parentPhone)} · سجّل ${escapeHtml(formatDate(referral.registeredAt))}</small></span><b class="${statusClass}">${escapeHtml(status)}</b></li>`;
+      }).join("");
+      return `<details class="teacher-referral-activity-card"><summary><span><strong>${escapeHtml(referrerName)}</strong><small dir="ltr">${escapeHtml(item.referrerPhone)}</small></span><span class="teacher-referral-activity-stats"><b>${formatter.format(item.registeredCount)} مسجل</b><b>${formatter.format(item.upgradedCount)} رقّى</b><b>${formatter.format(item.totalCommissionDzd)} دج</b></span></summary><ul>${referrals}</ul></details>`;
+    }).join("");
+  }
+
+  async function loadTeacherReferralActivity() {
+    if (typeof teacherFetch !== "function") return;
+    try {
+      const response = await teacherFetch("/api/referrals/teacher/activity", { headers: { Accept: "application/json" } });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.status !== "success") throw new Error(payload.error || "تعذر تحميل نشاط الإحالات.");
+      renderActivity(payload.data || []);
+    } catch (error) {
+      activityList.innerHTML = `<p class="teacher-referral-activity-empty is-error">${escapeHtml(error.message || "تعذر تحميل نشاط الإحالات.")}</p>`;
+    }
+  }
+
   async function loadTeacherReferralWithdrawals() {
     if (typeof teacherFetch !== "function") return;
     setFeedback("جارٍ تحميل طلبات السحب…");
@@ -62,6 +95,7 @@
       if (statusSelect.value === "PENDING") renderSummary(payload.data || []);
       setFeedback("");
       loaded = true;
+      void loadTeacherReferralActivity();
     } catch (error) {
       setFeedback(error.message || "تعذر تحميل طلبات السحب.", true);
     }

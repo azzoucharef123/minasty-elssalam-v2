@@ -189,6 +189,67 @@ async function requestParentReferralWithdrawal(req, res) {
   }
 }
 
+async function getTeacherReferralActivity(req, res) {
+  if (!isTeacher(req)) return res.status(403).json({ error: "هذه البيانات متاحة للأستاذ فقط." });
+
+  try {
+    const profiles = await prisma.referralProfile.findMany({
+      where: { referredByPhone: { not: null } },
+      orderBy: { createdAt: "asc" },
+      select: { parentPhone: true, referredByPhone: true, createdAt: true },
+    });
+    const referredPhones = [...new Set(profiles.map((profile) => profile.parentPhone))];
+    const referrerPhones = [...new Set(profiles.map((profile) => profile.referredByPhone).filter(Boolean))];
+    const allPhones = [...new Set([...referredPhones, ...referrerPhones])];
+    const [students, commissions] = await Promise.all([
+      allPhones.length ? prisma.student.findMany({ where: { parentPhone: { in: allPhones } }, select: { parentPhone: true, studentName: true, level: true } }) : [],
+      referredPhones.length ? prisma.referralCommission.findMany({ where: { referredParentPhone: { in: referredPhones } }, select: { referredParentPhone: true, upgradeType: true, amountDzd: true, status: true, createdAt: true } }) : [],
+    ]);
+    const namesByPhone = new Map();
+    for (const student of students) {
+      const names = namesByPhone.get(student.parentPhone) || [];
+      if (!names.some((item) => item.studentName === student.studentName)) names.push({ studentName: student.studentName, level: student.level });
+      namesByPhone.set(student.parentPhone, names);
+    }
+    const commissionByPhone = new Map(commissions.map((commission) => [commission.referredParentPhone, commission]));
+    const activityByReferrer = new Map();
+    for (const profile of profiles) {
+      const referrerPhone = String(profile.referredByPhone || "");
+      if (!referrerPhone) continue;
+      if (!activityByReferrer.has(referrerPhone)) activityByReferrer.set(referrerPhone, []);
+      const commission = commissionByPhone.get(profile.parentPhone);
+      activityByReferrer.get(referrerPhone).push({
+        parentPhone: profile.parentPhone,
+        names: namesByPhone.get(profile.parentPhone) || [],
+        registeredAt: profile.createdAt,
+        upgraded: Boolean(commission),
+        upgradeType: commission?.upgradeType || null,
+        commissionAmountDzd: commission?.amountDzd || 0,
+        commissionStatus: commission?.status || null,
+        commissionAt: commission?.createdAt || null,
+      });
+    }
+
+    const activity = [...activityByReferrer.entries()].map(([referrerPhone, referrals]) => {
+      const upgraded = referrals.filter((referral) => referral.upgraded);
+      const referrerNames = namesByPhone.get(referrerPhone) || [];
+      return {
+        referrerPhone,
+        referrerNames,
+        registeredCount: referrals.length,
+        upgradedCount: upgraded.length,
+        totalCommissionDzd: upgraded.reduce((total, referral) => total + Number(referral.commissionAmountDzd || 0), 0),
+        referrals,
+      };
+    }).filter((item) => item.registeredCount > 0);
+
+    return res.json({ status: "success", data: activity });
+  } catch (error) {
+    console.error("Teacher referral activity lookup failed:", error);
+    return res.status(500).json({ error: "تعذر تحميل نشاط الإحالات حاليًا." });
+  }
+}
+
 async function getTeacherReferralWithdrawals(req, res) {
   if (!isTeacher(req)) return res.status(403).json({ error: "هذه البيانات متاحة للأستاذ فقط." });
   const status = String(req.query.status || "ALL").trim().toUpperCase();
@@ -264,4 +325,4 @@ async function reviewTeacherReferralWithdrawal(req, res) {
   }
 }
 
-module.exports = { getParentReferralSummary, getParentBaridiMob, updateParentBaridiMob, getParentReferralBalance, requestParentReferralWithdrawal, getTeacherReferralWithdrawals, reviewTeacherReferralWithdrawal };
+module.exports = { getParentReferralSummary, getParentBaridiMob, updateParentBaridiMob, getParentReferralBalance, requestParentReferralWithdrawal, getTeacherReferralActivity, getTeacherReferralWithdrawals, reviewTeacherReferralWithdrawal };
