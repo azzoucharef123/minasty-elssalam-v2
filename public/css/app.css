@@ -4484,3 +4484,28 @@ body.parent-login-page {
 .teacher-notification-stat-unread strong { color: #c2410c; }
 .teacher-notification-history-statistics { grid-column: 1 / -1; margin-top: -.15rem !important; color: #475569 !important; font-size: .68rem !important; font-weight: 700; }
 @media (max-width: 560px) { .teacher-notification-statistics { grid-template-columns: 1fr; } }
+
+
+/* Referral withdrawal review */
+.teacher-dashboard-page .teacher-referral-withdrawals-panel.teacher-tab-panel.is-active { display: block; margin-top: 1.25rem; }
+.teacher-referral-withdrawals-card { padding: 1.35rem; }
+.teacher-referral-withdrawal-summary { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; }
+.teacher-referral-withdrawal-summary span { padding: .42rem .62rem; color: #047857; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 999px; font-size: .72rem; font-weight: 900; white-space: nowrap; }
+.teacher-referral-withdrawal-toolbar { display: flex; align-items: end; justify-content: space-between; gap: .8rem; margin: 1rem 0; padding: .75rem; border: 1px solid #e2e8f0; border-radius: .75rem; background: #f8fafc; }
+.teacher-referral-withdrawal-toolbar label { display: grid; gap: .3rem; color: #475569; font-size: .72rem; font-weight: 800; }
+.teacher-referral-withdrawal-toolbar select { min-width: 11rem; padding: .55rem .65rem; color: #0f172a; background: #fff; border: 1px solid #cbd5e1; border-radius: .55rem; font: inherit; font-size: .75rem; }
+.teacher-referral-withdrawal-toolbar select:focus { outline: 0; border-color: #2563eb; box-shadow: 0 0 0 3px #2563eb1a; }
+.teacher-referral-withdrawals-card .teacher-payments-table-wrap { overflow-x: auto; }
+.teacher-referral-withdrawals-card table { min-width: 62rem; }
+.teacher-baridimob-account { direction: ltr; text-align: left; letter-spacing: .04em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.teacher-referral-withdrawal-actions { display: flex; flex-wrap: wrap; gap: .4rem; min-width: 10rem; }
+.teacher-referral-withdrawal-actions button { min-height: 2.1rem; padding: .35rem .5rem; border-radius: .5rem; font: inherit; font-size: .68rem; font-weight: 900; cursor: pointer; }
+.teacher-withdrawal-approve { color: #fff; background: #059669; border: 1px solid #059669; }
+.teacher-withdrawal-approve:hover { background: #047857; }
+.teacher-withdrawal-reject { color: #b91c1c; background: #fff; border: 1px solid #fecaca; }
+.teacher-withdrawal-reject:hover { background: #fef2f2; }
+.teacher-referral-withdrawal-actions button:disabled { opacity: .55; cursor: wait; }
+.teacher-withdrawal-reviewed { color: #64748b; font-size: .7rem; line-height: 1.55; }
+.teacher-referral-withdrawals-feedback { margin: .8rem 0 0; padding: .65rem .75rem; color: #065f46; background: #ecfdf5; border-radius: .6rem; font-size: .75rem; font-weight: 800; }
+.teacher-referral-withdrawals-feedback.is-error { color: #991b1b; background: #fef2f2; }
+@media (max-width: 720px) { .teacher-referral-withdrawal-toolbar { align-items: stretch; flex-direction: column; } .teacher-referral-withdrawal-toolbar select, .teacher-referral-withdrawal-toolbar button { width: 100%; } .teacher-referral-withdrawal-summary { align-items: flex-start; flex-direction: column; } }

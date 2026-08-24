@@ -3265,6 +3265,7 @@ const DASHBOARD_TAB_HASHES = {
   quiz: "#quiz-panel",
   "electronic-payments": "#electronic-payments-panel",
   "manual-payments": "#manual-payments-panel",
+  "referral-withdrawals": "#referral-withdrawals-panel",
   "forgot-pin-requests": "#forgot-pin-requests-panel",
   notifications: "#teacher-notifications-panel",
 };
@@ -3296,6 +3297,9 @@ function setDashboardTab(tabName, { updateHash = true, focusSearch = false } = {
   }
   if (tab === "manual-payments") {
     renderManualPayments(currentStudents);
+  }
+  if (tab === "referral-withdrawals") {
+    window.loadTeacherReferralWithdrawals?.();
   }
   if (tab === "electronic-payments") {
     if (electronicPaymentsLevel === currentLevel) {

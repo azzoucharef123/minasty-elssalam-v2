@@ -3,6 +3,10 @@ const { ensureReferralProfile, buildReferralLink } = require("../utils/referral"
 
 const MIN_WITHDRAWAL_DZD = 1000;
 
+function isTeacher(req) {
+  return req.user?.role === "teacher";
+}
+
 function normalizeArabicDigits(value) {
   const digits = { "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4", "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9", "۰": "0", "۱": "1", "۲": "2", "۳": "3", "۴": "4", "۵": "5", "۶": "6", "۷": "7", "۸": "8", "۹": "9" };
   return String(value || "").replace(/[٠-٩۰-۹]/g, (digit) => digits[digit] || digit).replace(/\D/g, "");
@@ -185,4 +189,79 @@ async function requestParentReferralWithdrawal(req, res) {
   }
 }
 
-module.exports = { getParentReferralSummary, getParentBaridiMob, updateParentBaridiMob, getParentReferralBalance, requestParentReferralWithdrawal };
+async function getTeacherReferralWithdrawals(req, res) {
+  if (!isTeacher(req)) return res.status(403).json({ error: "هذه البيانات متاحة للأستاذ فقط." });
+  const status = String(req.query.status || "ALL").trim().toUpperCase();
+  const validStatuses = new Set(["ALL", "PENDING", "PAID", "REJECTED"]);
+  if (!validStatuses.has(status)) return res.status(400).json({ error: "حالة طلب السحب غير صالحة." });
+
+  try {
+    const withdrawals = await prisma.referralWithdrawal.findMany({
+      where: status === "ALL" ? undefined : { status },
+      orderBy: { requestedAt: "desc" },
+      take: 200,
+      select: {
+        id: true,
+        referrerPhone: true,
+        amountDzd: true,
+        baridiMobAccount: true,
+        baridiMobName: true,
+        status: true,
+        requestedAt: true,
+        reviewedAt: true,
+        paidAt: true,
+        reviewNote: true,
+        _count: { select: { commissions: true } },
+      },
+    });
+    return res.json({ status: "success", data: withdrawals.map((item) => ({ ...item, commissionCount: item._count.commissions })) });
+  } catch (error) {
+    console.error("Teacher referral withdrawals lookup failed:", error);
+    return res.status(500).json({ error: "تعذر تحميل طلبات السحب حاليًا." });
+  }
+}
+
+async function reviewTeacherReferralWithdrawal(req, res) {
+  if (!isTeacher(req)) return res.status(403).json({ error: "هذه العملية متاحة للأستاذ فقط." });
+  const decision = String(req.body?.decision || "").trim().toUpperCase();
+  const reviewNote = typeof req.body?.note === "string" ? req.body.note.trim().slice(0, 500) : "";
+  if (!["APPROVE", "REJECT"].includes(decision)) return res.status(400).json({ error: "اختر قبول أو رفض الطلب." });
+  if (decision === "REJECT" && reviewNote.length < 3) return res.status(400).json({ error: "اكتب سبب رفض الطلب." });
+
+  try {
+    const withdrawal = await prisma.$transaction(async (tx) => {
+      const current = await tx.referralWithdrawal.findUnique({ where: { id: req.params.id }, select: { id: true, status: true } });
+      if (!current) {
+        const error = new Error("WITHDRAWAL_NOT_FOUND");
+        error.code = "WITHDRAWAL_NOT_FOUND";
+        throw error;
+      }
+      if (current.status !== "PENDING") {
+        const error = new Error("WITHDRAWAL_ALREADY_REVIEWED");
+        error.code = "WITHDRAWAL_ALREADY_REVIEWED";
+        throw error;
+      }
+
+      const now = new Date();
+      const nextStatus = decision === "APPROVE" ? "PAID" : "REJECTED";
+      const updated = await tx.referralWithdrawal.update({
+        where: { id: current.id },
+        data: { status: nextStatus, reviewedAt: now, paidAt: decision === "APPROVE" ? now : null, reviewNote: reviewNote || (decision === "APPROVE" ? "تم قبول الطلب وتأكيد التحويل من طرف الأستاذ." : null) },
+      });
+      await tx.referralCommission.updateMany({
+        where: { withdrawalId: current.id, status: "WITHDRAWAL_PENDING" },
+        data: decision === "APPROVE" ? { status: "PAID" } : { status: "PENDING", withdrawalId: null },
+      });
+      return updated;
+    });
+
+    return res.json({ status: "success", message: decision === "APPROVE" ? "تم قبول الطلب وتسجيله كمدفوع." : "تم رفض الطلب وإعادة الرصيد إلى الرصيد المتاح.", data: withdrawal });
+  } catch (error) {
+    if (error?.code === "WITHDRAWAL_NOT_FOUND") return res.status(404).json({ error: "طلب السحب غير موجود." });
+    if (error?.code === "WITHDRAWAL_ALREADY_REVIEWED") return res.status(409).json({ error: "تمت مراجعة طلب السحب هذا مسبقًا." });
+    console.error("Teacher referral withdrawal review failed:", error);
+    return res.status(500).json({ error: "تعذر تحديث طلب السحب حاليًا." });
+  }
+}
+
+module.exports = { getParentReferralSummary, getParentBaridiMob, updateParentBaridiMob, getParentReferralBalance, requestParentReferralWithdrawal, getTeacherReferralWithdrawals, reviewTeacherReferralWithdrawal };
