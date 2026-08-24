@@ -12,7 +12,7 @@ const {
 const prisma = require("../lib/prisma");
 const { removeImageFile } = require("./liveChatController");
 const { logAudit } = require("../utils/audit");
-const { normalizeReferralCode, ensureReferralProfile } = require("../utils/referral");
+const { normalizeReferralCode, ensureReferralProfile, awardReferralCommission } = require("../utils/referral");
 
 const uploadDirectory =
   process.env.UPLOAD_DIR || path.join(__dirname, "..", "public", "uploads");
@@ -598,6 +598,7 @@ async function submitPaymentReceipt(req, res) {
       paymentReceiptUrl: uploadedReceiptFile.filename,
       paymentReceiptPending: true,
       paymentReceiptSubmittedAt: new Date(),
+      pendingSubscriptionType: isUniversityStudent ? null : subscriptionType,
     };
     if (!isUniversityStudent) {
       updateData.mathEnrollment = ["BOTH", "MATH"].includes(subscriptionType);
@@ -688,9 +689,11 @@ async function confirmStudentPaymentReceipt(req, res) {
       where: { id: req.params.id },
       select: {
         id: true,
+        parentPhone: true,
         level: true,
         paymentReceiptUrl: true,
         paymentReceiptPending: true,
+        pendingSubscriptionType: true,
       },
     });
 
@@ -702,15 +705,23 @@ async function confirmStudentPaymentReceipt(req, res) {
       return res.status(400).json({ error: "لا يوجد وصل دفع جديد بانتظار التأكيد." });
     }
 
-    const updatedStudent = await prisma.student.update({
-      where: { id: student.id },
-      data: {
-        paymentStatus: true,
-        paymentStage: "PAID",
-        amountDue: 0,
-        paymentReceiptPending: false,
-        liveAccessEnabled: true,
-      },
+    const updatedStudent = await prisma.$transaction(async (tx) => {
+      const updated = await tx.student.update({
+        where: { id: student.id },
+        data: {
+          paymentStatus: true,
+          paymentStage: "PAID",
+          amountDue: 0,
+          paymentReceiptPending: false,
+          pendingSubscriptionType: null,
+          liveAccessEnabled: true,
+        },
+      });
+      await awardReferralCommission(tx, {
+        referredParentPhone: student.parentPhone,
+        subscriptionType: student.pendingSubscriptionType,
+      });
+      return updated;
     });
     notifyPaymentReceiptStatus(req, updatedStudent);
     void prisma.paymentEvent.create({
@@ -785,6 +796,7 @@ async function rejectStudentPaymentReceipt(req, res) {
           paymentReceiptUrl: null,
           paymentReceiptPending: false,
           paymentReceiptSubmittedAt: null,
+          pendingSubscriptionType: null,
         },
       });
     });

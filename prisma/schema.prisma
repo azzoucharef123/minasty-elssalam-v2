@@ -245,6 +245,7 @@ model ParentCredential {
   temporaryPinExpiresAt   DateTime?
   baridiMobAccount        String?
   baridiMobName           String?
+  pendingSubscriptionType String?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 

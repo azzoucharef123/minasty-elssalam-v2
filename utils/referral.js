@@ -2,6 +2,7 @@ const crypto = require("crypto");
 
 const REFERRAL_CODE_LENGTH = 8;
 const REFERRAL_CODE_ATTEMPTS = 8;
+const REFERRAL_COMMISSION_AMOUNTS = Object.freeze({ MATH: 100, PHYSICS: 100, BOTH: 250 });
 
 function normalizeReferralCode(value) {
   const code = typeof value === "string" ? value.trim().toUpperCase() : "";
@@ -38,6 +39,35 @@ async function generateUniqueReferralCode(tx) {
   throw new Error("Unable to generate a unique referral code.");
 }
 
+async function awardReferralCommission(tx, { referredParentPhone, subscriptionType }) {
+  const parentPhone = String(referredParentPhone || "").trim();
+  const upgradeType = String(subscriptionType || "").trim().toUpperCase();
+  const amountDzd = REFERRAL_COMMISSION_AMOUNTS[upgradeType];
+  if (!parentPhone || !amountDzd) return null;
+
+  const referredProfile = await tx.referralProfile.findUnique({
+    where: { parentPhone },
+    select: { referredByPhone: true },
+  });
+  const referrerPhone = String(referredProfile?.referredByPhone || "").trim();
+  if (!referrerPhone || referrerPhone === parentPhone) return null;
+
+  await tx.referralCommission.createMany({
+    data: {
+      referrerPhone,
+      referredParentPhone: parentPhone,
+      upgradeType,
+      amountDzd,
+      status: "PENDING",
+    },
+    skipDuplicates: true,
+  });
+
+  // The unique referredParentPhone constraint makes retries and concurrent
+  // webhook/manual approvals idempotent: the first award wins permanently.
+  return tx.referralCommission.findUnique({ where: { referredParentPhone: parentPhone } });
+}
+
 async function ensureReferralProfile(tx, parentPhone, referredByCode) {
   const existing = await tx.referralProfile.findUnique({
     where: { parentPhone },
@@ -70,5 +100,6 @@ module.exports = {
   normalizeReferralCode,
   generateUniqueReferralCode,
   ensureReferralProfile,
+  awardReferralCommission,
   buildReferralLink,
 };

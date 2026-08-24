@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const prisma = require("../lib/prisma");
 const { logAudit } = require("../utils/audit");
+const { awardReferralCommission } = require("../utils/referral");
 
 const SOFIZPAY_BASE_URL = String(process.env.SOFIZPAY_BASE_URL || "https://sofizpay.com").replace(/\/$/, "");
 const SOFIZPAY_ACCOUNT = String(process.env.SOFIZPAY_ACCOUNT || "GBYAJX2VUMCKQQMTQRKIHFL7GWKPXQGAQNNCJOIV232S3Q73NNYK6JF4").trim();
@@ -281,7 +282,7 @@ async function activatePaidTransaction(transaction, providerPayload) {
 
     const student = await tx.student.findUnique({
       where: { id: fresh.studentId },
-      select: { id: true, mathEnrollment: true, physicsEnrollment: true },
+      select: { id: true, parentPhone: true, mathEnrollment: true, physicsEnrollment: true },
     });
     if (!student) throw new Error("التلميذ غير موجود.");
 
@@ -315,6 +316,11 @@ async function activatePaidTransaction(transaction, providerPayload) {
         actorId: fresh.providerOrderNumber || fresh.internalOrderId,
         note: `تم تأكيد الدفع الإلكتروني: ${subscription.label}`,
       },
+    });
+
+    await awardReferralCommission(tx, {
+      referredParentPhone: student.parentPhone,
+      subscriptionType: fresh.subscriptionType,
     });
 
     return { ...fresh, status: "PAID", student: paidStudent };
