@@ -24,14 +24,25 @@ async function getParentReferralSummary(req, res) {
   try {
     const parentPhone = String(req.user.phone);
     const profile = await ensureReferralProfile(prisma, parentPhone, null);
-    const [registeredCount, commissionSummary] = await Promise.all([
-      prisma.referralProfile.count({ where: { referredByPhone: parentPhone } }),
+    const referredProfiles = await prisma.referralProfile.findMany({
+      where: { referredByPhone: parentPhone },
+      select: { parentPhone: true },
+    });
+    const referredPhones = [...new Set(referredProfiles.map((profile) => profile.parentPhone).filter(Boolean))];
+    const [registeredPairs, commissionSummary] = await Promise.all([
+      referredPhones.length
+        ? prisma.student.groupBy({
+            by: ["parentPhone", "level"],
+            where: { parentPhone: { in: referredPhones } },
+          })
+        : [],
       prisma.referralCommission.aggregate({
         where: { referrerPhone: parentPhone },
         _count: { _all: true },
         _sum: { amountDzd: true },
       }),
     ]);
+    const registeredCount = registeredPairs.length;
 
     return res.json({
       status: "success",
