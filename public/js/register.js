@@ -108,7 +108,7 @@ function initializeRegistration() {
     clearRegistrationMessage();
 
     const formData = new FormData(registerForm);
-    const referralCode = String(new URLSearchParams(window.location.search).get("ref") || "").trim();
+    const referralCode = String(window.getReferralCode?.() || new URLSearchParams(window.location.search).get("ref") || "").trim();
     const payload = {
       studentName: String(formData.get("studentName") || "").trim(),
       parentPhone: normalizeDigits(formData.get("parentPhone"), 10),
@@ -185,6 +185,7 @@ function initializeRegistration() {
       }
 
       lastRegisteredPhone = data?.data?.parentPhone || payload.parentPhone;
+      window.clearReferralCode?.();
       confirmationText.textContent = `تم تأكيد تسجيل ${payload.studentName} بنجاح. يمكنك الآن تسجيل تلميذ آخر بنفس الرقم أو الدخول لمتابعة التقدم.`;
       confirmation.hidden = false;
     } catch (error) {

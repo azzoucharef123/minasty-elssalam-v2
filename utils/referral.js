@@ -24,7 +24,7 @@ function getPublicSiteUrl(req) {
 }
 
 function buildReferralLink(req, referralCode) {
-  return `${getPublicSiteUrl(req)}/register.html?ref=${encodeURIComponent(referralCode)}`;
+  return `${getPublicSiteUrl(req)}/index.html?ref=${encodeURIComponent(referralCode)}`;
 }
 
 async function generateUniqueReferralCode(tx) {
