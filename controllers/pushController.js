@@ -1,4 +1,4 @@
-const { saveSubscription, removeSubscription } = require("../utils/push");
+const { configured, saveSubscription, removeSubscription } = require("../utils/push");
 
 function recipientFromUser(user) {
   if (user?.role === "teacher") return { role: "teacher", id: "teacher" };
@@ -7,7 +7,7 @@ function recipientFromUser(user) {
 }
 
 async function getPublicKey(_req, res) {
-  if (!process.env.VAPID_PUBLIC_KEY) return res.status(503).json({ error: "إشعارات الهاتف غير مفعلة بعد." });
+  if (!configured()) return res.status(503).json({ error: "إشعارات الهاتف غير مفعلة بعد. تحقق من إعداد VAPID_PUBLIC_KEY وVAPID_PRIVATE_KEY وVAPID_SUBJECT." });
   return res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
 }
 

@@ -10,6 +10,7 @@ function configure() {
 }
 
 async function saveSubscription(recipientRole, recipientId, subscription) {
+  if (!configured()) throw new Error("إشعارات الهاتف غير مفعلة بعد. تحقق من إعدادات VAPID.");
   configure();
   if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) throw new Error("اشتراك Push غير صالح.");
   return prisma.pushSubscription.upsert({
