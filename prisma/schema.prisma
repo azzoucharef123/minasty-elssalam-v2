@@ -286,7 +286,9 @@ model ReferralWithdrawal {
 model ReferralCommission {
   id                  String               @id @default(uuid())
   referrerPhone       String
-  referredParentPhone String               @unique
+  referredParentPhone String
+  // LEGACY is used only while existing pre-level commissions are backfilled at startup.
+  level               String               @default("LEGACY")
   upgradeType         String
   amountDzd           Int
   status              String               @default("PENDING")
@@ -295,6 +297,7 @@ model ReferralCommission {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
+  @@unique([referredParentPhone, level])
   @@index([referrerPhone, status])
   @@index([withdrawalId])
   @@index([createdAt(sort: Desc)])

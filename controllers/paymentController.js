@@ -282,7 +282,7 @@ async function activatePaidTransaction(transaction, providerPayload) {
 
     const student = await tx.student.findUnique({
       where: { id: fresh.studentId },
-      select: { id: true, parentPhone: true, mathEnrollment: true, physicsEnrollment: true },
+      select: { id: true, parentPhone: true, level: true, mathEnrollment: true, physicsEnrollment: true },
     });
     if (!student) throw new Error("التلميذ غير موجود.");
 
@@ -320,6 +320,7 @@ async function activatePaidTransaction(transaction, providerPayload) {
 
     await awardReferralCommission(tx, {
       referredParentPhone: student.parentPhone,
+      level: student.level,
       subscriptionType: fresh.subscriptionType,
     });
 

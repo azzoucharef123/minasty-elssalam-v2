@@ -39,11 +39,18 @@ async function generateUniqueReferralCode(tx) {
   throw new Error("Unable to generate a unique referral code.");
 }
 
-async function awardReferralCommission(tx, { referredParentPhone, subscriptionType }) {
+function normalizeReferralLevel(value) {
+  return typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
+}
+
+async function awardReferralCommission(tx, { referredParentPhone, subscriptionType, level }) {
   const parentPhone = String(referredParentPhone || "").trim();
+  const referralLevel = normalizeReferralLevel(level);
   const upgradeType = String(subscriptionType || "").trim().toUpperCase();
   const amountDzd = REFERRAL_COMMISSION_AMOUNTS[upgradeType];
-  if (!parentPhone || !amountDzd) return null;
+  // A level is required so a later upgrade at another level can earn its own
+  // commission while retries at the same level remain idempotent.
+  if (!parentPhone || !referralLevel || !amountDzd) return null;
 
   const referredProfile = await tx.referralProfile.findUnique({
     where: { parentPhone },
@@ -56,6 +63,7 @@ async function awardReferralCommission(tx, { referredParentPhone, subscriptionTy
     data: {
       referrerPhone,
       referredParentPhone: parentPhone,
+      level: referralLevel,
       upgradeType,
       amountDzd,
       status: "PENDING",
@@ -63,9 +71,11 @@ async function awardReferralCommission(tx, { referredParentPhone, subscriptionTy
     skipDuplicates: true,
   });
 
-  // The unique referredParentPhone constraint makes retries and concurrent
-  // webhook/manual approvals idempotent: the first award wins permanently.
-  return tx.referralCommission.findUnique({ where: { referredParentPhone: parentPhone } });
+  // The composite unique constraint makes retries and concurrent
+  // webhook/manual approvals idempotent per referred phone and level.
+  return tx.referralCommission.findUnique({
+    where: { referredParentPhone_level: { referredParentPhone: parentPhone, level: referralLevel } },
+  });
 }
 
 async function ensureReferralProfile(tx, parentPhone, referredByCode) {
@@ -101,5 +111,6 @@ module.exports = {
   generateUniqueReferralCode,
   ensureReferralProfile,
   awardReferralCommission,
+  normalizeReferralLevel,
   buildReferralLink,
 };

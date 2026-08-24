@@ -203,7 +203,7 @@ async function getTeacherReferralActivity(req, res) {
     const allPhones = [...new Set([...referredPhones, ...referrerPhones])];
     const [students, commissions] = await Promise.all([
       allPhones.length ? prisma.student.findMany({ where: { parentPhone: { in: allPhones } }, select: { parentPhone: true, studentName: true, level: true } }) : [],
-      referredPhones.length ? prisma.referralCommission.findMany({ where: { referredParentPhone: { in: referredPhones } }, select: { referredParentPhone: true, upgradeType: true, amountDzd: true, status: true, createdAt: true } }) : [],
+      referredPhones.length ? prisma.referralCommission.findMany({ where: { referredParentPhone: { in: referredPhones } }, select: { referredParentPhone: true, level: true, upgradeType: true, amountDzd: true, status: true, createdAt: true } }) : [],
     ]);
     const namesByPhone = new Map();
     for (const student of students) {
@@ -211,22 +211,30 @@ async function getTeacherReferralActivity(req, res) {
       if (!names.some((item) => item.studentName === student.studentName)) names.push({ studentName: student.studentName, level: student.level });
       namesByPhone.set(student.parentPhone, names);
     }
-    const commissionByPhone = new Map(commissions.map((commission) => [commission.referredParentPhone, commission]));
+    const commissionsByPhone = new Map();
+    for (const commission of commissions) {
+      const entries = commissionsByPhone.get(commission.referredParentPhone) || [];
+      entries.push(commission);
+      commissionsByPhone.set(commission.referredParentPhone, entries);
+    }
     const activityByReferrer = new Map();
     for (const profile of profiles) {
       const referrerPhone = String(profile.referredByPhone || "");
       if (!referrerPhone) continue;
       if (!activityByReferrer.has(referrerPhone)) activityByReferrer.set(referrerPhone, []);
-      const commission = commissionByPhone.get(profile.parentPhone);
+      const referralCommissions = commissionsByPhone.get(profile.parentPhone) || [];
+      const firstCommission = referralCommissions[0] || null;
       activityByReferrer.get(referrerPhone).push({
         parentPhone: profile.parentPhone,
         names: namesByPhone.get(profile.parentPhone) || [],
         registeredAt: profile.createdAt,
-        upgraded: Boolean(commission),
-        upgradeType: commission?.upgradeType || null,
-        commissionAmountDzd: commission?.amountDzd || 0,
-        commissionStatus: commission?.status || null,
-        commissionAt: commission?.createdAt || null,
+        upgraded: referralCommissions.length > 0,
+        upgradeType: referralCommissions.length === 1 ? firstCommission.upgradeType : null,
+        commissionLevels: referralCommissions.map((commission) => commission.level),
+        commissionCount: referralCommissions.length,
+        commissionAmountDzd: referralCommissions.reduce((total, commission) => total + Number(commission.amountDzd || 0), 0),
+        commissionStatus: referralCommissions.length === 1 ? firstCommission.status : null,
+        commissionAt: firstCommission?.createdAt || null,
       });
     }
 

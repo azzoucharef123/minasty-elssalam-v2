@@ -719,6 +719,7 @@ async function confirmStudentPaymentReceipt(req, res) {
       });
       await awardReferralCommission(tx, {
         referredParentPhone: student.parentPhone,
+        level: student.level,
         subscriptionType: student.pendingSubscriptionType,
       });
       return updated;

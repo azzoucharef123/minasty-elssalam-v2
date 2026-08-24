@@ -63,7 +63,9 @@
       const referrerName = item.referrerNames?.map((entry) => entry.studentName).filter(Boolean).join("، ") || "اسم صاحب الرابط غير متوفر";
       const referrals = (item.referrals || []).map((referral) => {
         const names = referral.names?.map((entry) => `${entry.studentName}${entry.level ? ` — ${entry.level}` : ""}`).join("، ") || "اسم غير متوفر";
-        const status = referral.upgraded ? `رقّى ${referral.upgradeType === "BOTH" ? "المادتين" : "مادة واحدة"} · ${formatter.format(Number(referral.commissionAmountDzd || 0))} دج` : "سجّل فقط";
+        const levels = (referral.commissionLevels || []).filter(Boolean).join("، ");
+        const commissionCount = Number(referral.commissionCount || 0);
+        const status = referral.upgraded ? `${commissionCount > 1 ? `${commissionCount} عمولات` : `رقّى ${referral.upgradeType === "BOTH" ? "المادتين" : "مادة واحدة"}`}${levels ? ` · ${levels}` : ""} · ${formatter.format(Number(referral.commissionAmountDzd || 0))} دج` : "سجّل فقط";
         const statusClass = referral.upgraded ? "is-upgraded" : "is-registered";
         return `<li><span><strong>${escapeHtml(names)}</strong><small dir="ltr">${escapeHtml(referral.parentPhone)} · سجّل ${escapeHtml(formatDate(referral.registeredAt))}</small></span><b class="${statusClass}">${escapeHtml(status)}</b></li>`;
       }).join("");
