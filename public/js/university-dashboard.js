@@ -44,6 +44,7 @@ function clearSession() {
     "selectedStudentId",
     "parentStudents",
     "userRole",
+    "forceParentPinChange",
   ].forEach((key) => sessionStorage.removeItem(key));
 }
 
@@ -76,6 +77,14 @@ async function parentFetch(url, options = {}) {
   const headers = new Headers(options.headers || {});
   headers.set("Authorization", `Bearer ${token}`);
   const response = await fetch(url, { ...options, headers });
+  if (response.status === 428) {
+    const payload = await response.clone().json().catch(() => ({}));
+    if (payload.code === "PARENT_PIN_CHANGE_REQUIRED") {
+      sessionStorage.setItem("forceParentPinChange", "1");
+      window.location.replace("./force-pin.html");
+      throw new Error("يجب تغيير كلمة المرور المؤقتة قبل استعمال المنصة.");
+    }
+  }
   if (response.status === 401 || response.status === 403) {
     redirectToLogin();
     throw new Error("انتهت جلسة الدخول.");

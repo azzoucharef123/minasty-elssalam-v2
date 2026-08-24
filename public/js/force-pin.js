@@ -52,6 +52,7 @@ async function changeTemporaryPin(event) {
     if (!response.ok) throw new Error(data.error || "تعذر تغيير كلمة المرور.");
 
     sessionStorage.removeItem("forceParentPinChange");
+    try { localStorage.removeItem("forceParentPinChange"); } catch {}
     showMessage(successElement, data.message || "تم تغيير كلمة المرور بنجاح.");
     window.setTimeout(() => window.location.replace("./parent-dashboard.html"), 700);
   } catch (error) {

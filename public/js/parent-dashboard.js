@@ -1608,6 +1608,15 @@ async function parentFetch(url, options = {}) {
 
   const response = await fetch(url, { ...options, headers });
 
+  if (response.status === 428) {
+    const payload = await response.clone().json().catch(() => ({}));
+    if (payload.code === "PARENT_PIN_CHANGE_REQUIRED") {
+      sessionStorage.setItem("forceParentPinChange", "1");
+      window.location.replace("./force-pin.html");
+      throw new Error("يجب تغيير كلمة المرور المؤقتة قبل استعمال المنصة.");
+    }
+  }
+
   if (response.status === 401 || response.status === 403) {
     redirectToParentLogin();
     throw new Error("انتهت الجلسة أو لا تملك صلاحية الوصول إلى هذه البيانات.");

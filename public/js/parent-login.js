@@ -171,6 +171,7 @@ function clearParentSession() {
     "studentLevel",
     "currentStudent",
     "pendingParentPhone",
+    "forceParentPinChange",
   ].forEach((key) => sessionStorage.removeItem(key));
 }
 

@@ -395,7 +395,9 @@ async function issueTemporaryParentPin(req, res) {
 
     const temporaryPin = String(crypto.randomInt(1000, 10000));
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 30 * 60 * 1000);
+    // The temporary PIN is valid for the forced onboarding step until replaced.
+    // It never grants dashboard access while mustChangePin remains true.
+    const expiresAt = null;
     const pinHash = await hashParentPin(temporaryPin);
 
     await prisma.$transaction([
@@ -430,14 +432,14 @@ async function issueTemporaryParentPin(req, res) {
         action: "PARENT_TEMPORARY_PIN_ISSUED",
         entityType: "ParentCredential",
         entityId: request.parentPhone,
-        metadata: JSON.stringify({ requestId: request.id, expiresAt }),
+        metadata: JSON.stringify({ requestId: request.id, expiresAt: null, validUntilChanged: true }),
       },
     }).catch(() => {});
 
     return res.json({
       status: "success",
       data: { temporaryPin, expiresAt, parentPhone: request.parentPhone },
-      message: "تم إنشاء كلمة مرور مؤقتة. اعرضها مرة واحدة ثم أعطها لصاحب الحساب هاتفيًا.",
+      message: "تم إنشاء كلمة مرور مؤقتة صالحة حتى تغييرها. اعرضها مرة واحدة ثم أعطها لصاحب الحساب هاتفيًا.",
     });
   } catch (error) {
     console.error("Temporary parent PIN issuance failed:", error);

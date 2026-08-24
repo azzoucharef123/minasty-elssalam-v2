@@ -7,6 +7,7 @@
     "parentToken",
     "parentPhone",
     "userRole",
+    "forceParentPinChange",
     "selectedStudentId",
     "parentStudents",
     "studentName",

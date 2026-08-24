@@ -20,16 +20,26 @@
   const target = role === "teacher" ? "./teacher-dashboard.html" : role === "parent" ? "./parent-dashboard.html" : "";
   if (!target || currentPath.endsWith(target.slice(1))) return;
 
+  if (role === "parent" && read("forceParentPinChange") === "1") {
+    window.location.replace("./force-pin.html");
+    return;
+  }
+
   fetch("/api/auth/sessions", {
     method: "GET",
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
     credentials: "same-origin",
   })
-    .then((response) => {
+    .then(async (response) => {
+      const payload = await response.json().catch(() => ({}));
+      if (response.status === 428 && payload.code === "PARENT_PIN_CHANGE_REQUIRED" && role === "parent") {
+        try { sessionStorage.setItem("forceParentPinChange", "1"); } catch {}
+        return { forcePinChange: true };
+      }
       if (!response.ok) throw new Error("SESSION_NOT_VALID");
-      return response.json();
+      return { forcePinChange: false };
     })
-    .then(() => window.location.replace(target))
+    .then(({ forcePinChange }) => window.location.replace(forcePinChange ? "./force-pin.html" : target))
     .catch(() => {
       // Invalid or revoked sessions stay on the login/landing page so the user can sign in again.
     });
