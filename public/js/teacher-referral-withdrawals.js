@@ -62,12 +62,24 @@
     activityList.innerHTML = activeItems.map((item) => {
       const referrerName = item.referrerNames?.map((entry) => entry.studentName).filter(Boolean).join("، ") || "اسم صاحب الرابط غير متوفر";
       const referrals = (item.referrals || []).map((referral) => {
-        const names = referral.names?.map((entry) => `${entry.studentName}${entry.level ? ` — ${entry.level}` : ""}`).join("، ") || "اسم غير متوفر";
-        const levels = (referral.commissionLevels || []).filter(Boolean).join("، ");
         const commissionCount = Number(referral.commissionCount || 0);
-        const status = referral.upgraded ? `${commissionCount > 1 ? `${commissionCount} عمولات` : `رقّى ${referral.upgradeType === "BOTH" ? "المادتين" : "مادة واحدة"}`}${levels ? ` · ${levels}` : ""} · ${formatter.format(Number(referral.commissionAmountDzd || 0))} دج` : "سجّل فقط";
+        const status = referral.upgraded
+          ? `${commissionCount > 1 ? `${commissionCount} عمولات` : `رقّى ${referral.upgradeType === "BOTH" ? "المادتين" : "مادة واحدة"}`} · ${formatter.format(Number(referral.commissionAmountDzd || 0))} دج`
+          : "سجّل فقط";
         const statusClass = referral.upgraded ? "is-upgraded" : "is-registered";
-        return `<li><span><strong>${escapeHtml(names)}</strong><small dir="ltr">${escapeHtml(referral.parentPhone)} · سجّل ${escapeHtml(formatDate(referral.registeredAt))}</small></span><b class="${statusClass}">${escapeHtml(status)}</b></li>`;
+        const levelDetails = (referral.levels || []).map((level) => {
+          const students = (level.students || []).map((student) => {
+            const paymentLabel = student.paymentStatus || student.paymentStage === "PAID" ? "مدفوع" : "غير مدفوع";
+            return `<li><span>${escapeHtml(student.studentName || "اسم غير متوفر")}</span><small class="${student.paymentStatus || student.paymentStage === "PAID" ? "is-paid" : "is-unpaid"}">${paymentLabel}</small></li>`;
+          }).join("");
+          const commission = level.commission;
+          const commissionLabel = commission
+            ? `عمولة ${formatter.format(Number(commission.amountDzd || 0))} دج`
+            : "لا توجد عمولة بعد";
+          return `<section class="teacher-referral-level-detail"><header><strong>${escapeHtml(level.level)}</strong><span>${formatter.format(Number(level.studentCount || 0))} تلميذ · ${escapeHtml(commissionLabel)}</span></header><ul>${students || `<li><span>لا يوجد تلميذ</span></li>`}</ul></section>`;
+        }).join("");
+        const fallbackNames = referral.names?.map((entry) => `${entry.studentName}${entry.level ? ` — ${entry.level}` : ""}`).join("، ") || "لا توجد تفاصيل تلاميذ";
+        return `<li><div class="teacher-referral-referral-copy"><strong dir="ltr">${escapeHtml(referral.parentPhone)}</strong><small>سجّل ${escapeHtml(formatDate(referral.registeredAt))}</small><div class="teacher-referral-level-list">${levelDetails || `<p>${escapeHtml(fallbackNames)}</p>`}</div></div><b class="${statusClass}">${escapeHtml(status)}</b></li>`;
       }).join("");
       return `<details class="teacher-referral-activity-card"><summary><span><strong>${escapeHtml(referrerName)}</strong><small dir="ltr">${escapeHtml(item.referrerPhone)}</small></span><span class="teacher-referral-activity-stats"><b>${formatter.format(item.registeredCount)} مسجل</b><b>${formatter.format(item.upgradedCount)} رقّى</b><b>${formatter.format(item.totalCommissionDzd)} دج</b></span></summary><ul>${referrals}</ul></details>`;
     }).join("");

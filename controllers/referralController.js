@@ -213,14 +213,30 @@ async function getTeacherReferralActivity(req, res) {
     const referrerPhones = [...new Set(profiles.map((profile) => profile.referredByPhone).filter(Boolean))];
     const allPhones = [...new Set([...referredPhones, ...referrerPhones])];
     const [students, commissions] = await Promise.all([
-      allPhones.length ? prisma.student.findMany({ where: { parentPhone: { in: allPhones } }, select: { parentPhone: true, studentName: true, level: true } }) : [],
+      allPhones.length ? prisma.student.findMany({ where: { parentPhone: { in: allPhones } }, select: { parentPhone: true, studentName: true, level: true, paymentStatus: true, paymentStage: true } }) : [],
       referredPhones.length ? prisma.referralCommission.findMany({ where: { referredParentPhone: { in: referredPhones } }, select: { referredParentPhone: true, level: true, upgradeType: true, amountDzd: true, status: true, createdAt: true } }) : [],
     ]);
     const namesByPhone = new Map();
+    const levelsByPhone = new Map();
     for (const student of students) {
       const names = namesByPhone.get(student.parentPhone) || [];
       if (!names.some((item) => item.studentName === student.studentName)) names.push({ studentName: student.studentName, level: student.level });
       namesByPhone.set(student.parentPhone, names);
+
+      const level = String(student.level || "").trim() || "غير محدد";
+      const levelRows = levelsByPhone.get(student.parentPhone) || [];
+      let levelRow = levelRows.find((item) => item.level === level);
+      if (!levelRow) {
+        levelRow = { level, students: [], paidStudentCount: 0 };
+        levelRows.push(levelRow);
+      }
+      levelRow.students.push({
+        studentName: student.studentName,
+        paymentStatus: Boolean(student.paymentStatus),
+        paymentStage: student.paymentStage || "UNPAID",
+      });
+      if (student.paymentStatus || student.paymentStage === "PAID") levelRow.paidStudentCount += 1;
+      levelsByPhone.set(student.parentPhone, levelRows);
     }
     const commissionsByPhone = new Map();
     for (const commission of commissions) {
@@ -235,9 +251,25 @@ async function getTeacherReferralActivity(req, res) {
       if (!activityByReferrer.has(referrerPhone)) activityByReferrer.set(referrerPhone, []);
       const referralCommissions = commissionsByPhone.get(profile.parentPhone) || [];
       const firstCommission = referralCommissions[0] || null;
+      const levels = (levelsByPhone.get(profile.parentPhone) || []).map((levelRow) => {
+        const commission = referralCommissions.find((item) => item.level === levelRow.level) || null;
+        return {
+          level: levelRow.level,
+          studentCount: levelRow.students.length,
+          paidStudentCount: levelRow.paidStudentCount,
+          students: levelRow.students,
+          commission: commission ? {
+            amountDzd: commission.amountDzd,
+            upgradeType: commission.upgradeType,
+            status: commission.status,
+            createdAt: commission.createdAt,
+          } : null,
+        };
+      });
       activityByReferrer.get(referrerPhone).push({
         parentPhone: profile.parentPhone,
         names: namesByPhone.get(profile.parentPhone) || [],
+        levels,
         registeredAt: profile.createdAt,
         upgraded: referralCommissions.length > 0,
         upgradeType: referralCommissions.length === 1 ? firstCommission.upgradeType : null,

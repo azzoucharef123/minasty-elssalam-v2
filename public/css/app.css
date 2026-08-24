@@ -4538,6 +4538,20 @@ body.parent-login-page {
 .teacher-referral-activity-card li b { padding: .28rem .4rem; border-radius: .4rem; font-size: .64rem; white-space: nowrap; }
 .teacher-referral-activity-card li b.is-registered { color: #1d4ed8; background: #eff6ff; }
 .teacher-referral-activity-card li b.is-upgraded { color: #047857; background: #ecfdf5; }
+.teacher-referral-referral-copy { display: grid; gap: .35rem; min-width: 0; flex: 1 1 auto; }
+.teacher-referral-referral-copy > strong { direction: ltr; text-align: right; }
+.teacher-referral-referral-copy > small { margin: 0; }
+.teacher-referral-level-list { display: grid; gap: .35rem; margin-top: .15rem; }
+.teacher-referral-level-detail { padding: .45rem .5rem; background: #fff; border: 1px solid #e2e8f0; border-radius: .45rem; }
+.teacher-referral-level-detail header { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.teacher-referral-level-detail header strong { color: #1e3a8a; font-size: .68rem; }
+.teacher-referral-level-detail header span { color: #64748b; font-size: .6rem; }
+.teacher-referral-level-detail ul { display: flex; flex-wrap: wrap; gap: .25rem; margin: .35rem 0 0; padding: 0; border: 0; list-style: none; }
+.teacher-referral-level-detail li { display: inline-flex; align-items: center; gap: .3rem; padding: .22rem .35rem; color: #334155; background: #f8fafc; border-radius: .3rem; font-size: .62rem; }
+.teacher-referral-level-detail li small { margin: 0; font-size: .56rem; font-weight: 800; }
+.teacher-referral-level-detail li small.is-paid { color: #047857; }
+.teacher-referral-level-detail li small.is-unpaid { color: #b45309; }
+.teacher-referral-level-list > p { margin: 0; color: #64748b; font-size: .62rem; }
 .teacher-referral-activity-empty { margin: 0; padding: .8rem; color: #64748b; border: 1px dashed #cbd5e1; border-radius: .55rem; background: #fff; font-size: .72rem; text-align: center; }
 .teacher-referral-activity-empty.is-error { color: #991b1b; background: #fef2f2; }
 @media (max-width: 720px) { .teacher-referral-activity-heading { flex-direction: column; } .teacher-referral-activity-card summary { align-items: flex-start; flex-direction: column; } .teacher-referral-activity-card summary::before { display: none; } .teacher-referral-activity-stats { justify-content: flex-start; } .teacher-referral-activity-card li { align-items: flex-start; flex-direction: column; } }
