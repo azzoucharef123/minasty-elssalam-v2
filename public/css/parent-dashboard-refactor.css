@@ -989,3 +989,51 @@
     width: 100%;
   }
 }
+
+
+.referral-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem;
+  margin-top: .75rem;
+}
+
+.referral-actions a {
+  display: inline-flex;
+  min-height: 2.45rem;
+  align-items: center;
+  justify-content: center;
+  padding: .42rem .7rem;
+  border-radius: .62rem;
+  font-size: .72rem;
+  font-weight: 900;
+  text-decoration: none;
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+}
+
+.referral-withdraw-button {
+  color: #ffffff;
+  background: #059669;
+  border: 1px solid #059669;
+}
+
+.referral-withdraw-button:hover {
+  background: #047857;
+  box-shadow: 0 7px 15px rgba(5, 150, 105, .2);
+  transform: translateY(-.08rem);
+}
+
+.referral-account-button {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+.referral-account-button:hover {
+  background: #dbeafe;
+  transform: translateY(-.08rem);
+}
+
+@media (max-width: 520px) {
+  .referral-actions a { width: 100%; }
+}

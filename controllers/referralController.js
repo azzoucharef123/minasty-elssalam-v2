@@ -1,6 +1,8 @@
 const prisma = require("../lib/prisma");
 const { ensureReferralProfile, buildReferralLink } = require("../utils/referral");
 
+const MIN_WITHDRAWAL_DZD = 1000;
+
 function normalizeArabicDigits(value) {
   const digits = { "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4", "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9", "۰": "0", "۱": "1", "۲": "2", "۳": "3", "۴": "4", "۵": "5", "۶": "6", "۷": "7", "۸": "8", "۹": "9" };
   return String(value || "").replace(/[٠-٩۰-۹]/g, (digit) => digits[digit] || digit).replace(/\D/g, "");
@@ -92,4 +94,95 @@ async function updateParentBaridiMob(req, res) {
   }
 }
 
-module.exports = { getParentReferralSummary, getParentBaridiMob, updateParentBaridiMob };
+async function getParentReferralBalance(req, res) {
+  if (req.user?.role !== "parent" || !req.user.phone) {
+    return res.status(403).json({ error: "هذه البيانات متاحة للولي فقط." });
+  }
+
+  try {
+    const parentPhone = String(req.user.phone);
+    const [pending, latestWithdrawals] = await Promise.all([
+      prisma.referralCommission.findMany({
+        where: { referrerPhone: parentPhone, status: "PENDING" },
+        select: { amountDzd: true },
+      }),
+      prisma.referralWithdrawal.findMany({
+        where: { referrerPhone: parentPhone },
+        orderBy: { requestedAt: "desc" },
+        take: 10,
+        select: { id: true, amountDzd: true, status: true, requestedAt: true, reviewedAt: true, paidAt: true, reviewNote: true, baridiMobAccount: true, baridiMobName: true },
+      }),
+    ]);
+    const availableBalance = pending.reduce((total, commission) => total + Number(commission.amountDzd || 0), 0);
+    return res.json({
+      status: "success",
+      data: { availableBalance, minimumWithdrawal: MIN_WITHDRAWAL_DZD, withdrawals: latestWithdrawals },
+    });
+  } catch (error) {
+    console.error("Parent referral balance failed:", error);
+    return res.status(500).json({ error: "تعذر تحميل رصيد الإحالة حاليًا." });
+  }
+}
+
+async function requestParentReferralWithdrawal(req, res) {
+  if (req.user?.role !== "parent" || !req.user.phone) {
+    return res.status(403).json({ error: "هذه العملية متاحة للولي فقط." });
+  }
+
+  try {
+    const parentPhone = String(req.user.phone);
+    const credential = await prisma.parentCredential.findUnique({
+      where: { parentPhone },
+      select: { baridiMobAccount: true, baridiMobName: true },
+    });
+    if (!credential?.baridiMobAccount || !credential?.baridiMobName) {
+      return res.status(400).json({ code: "BARIDIMOB_REQUIRED", error: "أضف معلومات حساب BaridiMob قبل طلب السحب." });
+    }
+
+    const withdrawal = await prisma.$transaction(async (tx) => {
+      const commissions = await tx.referralCommission.findMany({
+        where: { referrerPhone: parentPhone, status: "PENDING" },
+        select: { id: true, amountDzd: true },
+      });
+      const amountDzd = commissions.reduce((total, commission) => total + Number(commission.amountDzd || 0), 0);
+      if (amountDzd < MIN_WITHDRAWAL_DZD) {
+        const error = new Error("MINIMUM_WITHDRAWAL_NOT_REACHED");
+        error.code = "MINIMUM_WITHDRAWAL_NOT_REACHED";
+        error.availableBalance = amountDzd;
+        throw error;
+      }
+
+      const created = await tx.referralWithdrawal.create({
+        data: {
+          referrerPhone: parentPhone,
+          amountDzd,
+          baridiMobAccount: credential.baridiMobAccount,
+          baridiMobName: credential.baridiMobName,
+          status: "PENDING",
+        },
+      });
+      const locked = await tx.referralCommission.updateMany({
+        where: { id: { in: commissions.map((commission) => commission.id) }, status: "PENDING" },
+        data: { status: "WITHDRAWAL_PENDING", withdrawalId: created.id },
+      });
+      if (locked.count !== commissions.length) {
+        throw new Error("WITHDRAWAL_CONCURRENCY_CONFLICT");
+      }
+      return created;
+    });
+
+    return res.status(201).json({
+      status: "success",
+      message: "تم إرسال طلب السحب. سيُراجع الأستاذ الطلب قبل تنفيذ التحويل.",
+      data: { id: withdrawal.id, amountDzd: withdrawal.amountDzd, status: withdrawal.status, requestedAt: withdrawal.requestedAt },
+    });
+  } catch (error) {
+    if (error?.code === "MINIMUM_WITHDRAWAL_NOT_REACHED") {
+      return res.status(400).json({ error: `الحد الأدنى للسحب هو ${MIN_WITHDRAWAL_DZD} دج. رصيدك المتاح حاليًا ${error.availableBalance || 0} دج.` });
+    }
+    console.error("Parent referral withdrawal request failed:", error);
+    return res.status(500).json({ error: "تعذر إنشاء طلب السحب حاليًا." });
+  }
+}
+
+module.exports = { getParentReferralSummary, getParentBaridiMob, updateParentBaridiMob, getParentReferralBalance, requestParentReferralWithdrawal };

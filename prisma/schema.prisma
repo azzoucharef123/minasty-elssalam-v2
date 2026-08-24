@@ -266,17 +266,37 @@ model ReferralProfile {
   @@index([referredByPhone])
 }
 
-model ReferralCommission {
-  id                  String   @id @default(uuid()) @db.Uuid
+model ReferralWithdrawal {
+  id                  String               @id @default(uuid()) @db.Uuid
   referrerPhone       String
-  referredParentPhone String   @unique
-  upgradeType         String
   amountDzd           Int
-  status              String   @default("PENDING")
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  baridiMobAccount    String
+  baridiMobName       String
+  status              String               @default("PENDING")
+  requestedAt         DateTime             @default(now())
+  reviewedAt          DateTime?
+  paidAt              DateTime?
+  reviewNote          String?
+  commissions         ReferralCommission[]
 
   @@index([referrerPhone, status])
+  @@index([requestedAt(sort: Desc)])
+}
+
+model ReferralCommission {
+  id                  String               @id @default(uuid())
+  referrerPhone       String
+  referredParentPhone String               @unique
+  upgradeType         String
+  amountDzd           Int
+  status              String               @default("PENDING")
+  withdrawalId        String?              @db.Uuid
+  withdrawal          ReferralWithdrawal?  @relation(fields: [withdrawalId], references: [id], onDelete: SetNull)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  @@index([referrerPhone, status])
+  @@index([withdrawalId])
   @@index([createdAt(sort: Desc)])
 }
 
