@@ -2117,3 +2117,51 @@ body.public-class-modal-open { overflow: hidden; }
     grid-template-rows: minmax(3.6rem, 13dvh) minmax(4.7rem, 21dvh) minmax(6rem, 27dvh) minmax(8rem, 39dvh);
   }
 }
+
+
+/* Small public site-visit counter on the landing page. */
+.site-visit-counter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .42rem;
+  width: fit-content;
+  min-height: 1.85rem;
+  margin: .8rem auto 0;
+  padding: .28rem .62rem;
+  color: #475569;
+  background: rgba(255, 255, 255, .72);
+  border: 1px solid rgba(148, 163, 184, .26);
+  border-radius: 999px;
+  box-shadow: 0 5px 14px rgba(15, 23, 42, .07);
+  font-size: .66rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.site-visit-counter strong {
+  min-width: 1.2rem;
+  color: #1d4ed8;
+  font-size: .78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  .landing-hero .site-visit-counter {
+    margin-top: .35rem;
+    min-height: 1.65rem;
+    padding: .24rem .52rem;
+    font-size: .58rem;
+  }
+
+  .landing-hero .site-visit-counter strong {
+    font-size: .7rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-visit-counter {
+    transition: none;
+  }
+}

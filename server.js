@@ -26,6 +26,7 @@ const { startBackgroundJobs } = require("./utils/backgroundJobs");
 const { ensurePublicArchive, recordPublicAttendance, finishPublicArchive, appendPublicChat } = require("./utils/publicArchive");
 const { verifySessionToken } = require("./utils/sessionAuth");
 const { createSocketNotificationSender, notificationRoom } = require("./utils/socketNotifications");
+const siteAnalyticsRoutes = require("./routes/siteAnalyticsRoutes");
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -141,6 +142,7 @@ const materialRoutes = require("./routes/materialRoutes");
 const certificateRoutes = require("./routes/certificateRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 
+app.use("/api/site-analytics", siteAnalyticsRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/students", studentRoutes);
 app.use("/api/attendance", attendanceRoutes);
