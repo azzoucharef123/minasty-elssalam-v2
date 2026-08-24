@@ -171,6 +171,8 @@ function clearParentSession() {
     "studentLevel",
     "currentStudent",
     "pendingParentPhone",
+    "referralCode",
+    "referralLink",
     "forceParentPinChange",
   ].forEach((key) => sessionStorage.removeItem(key));
 }
@@ -219,6 +221,8 @@ async function handleParentLogin(event) {
     clearParentSession();
     sessionStorage.setItem("parentToken", data.token);
     sessionStorage.setItem("parentPhone", data.parentPhone || parentPhone);
+    if (data.referralCode) sessionStorage.setItem("referralCode", data.referralCode);
+    if (data.referralLink) sessionStorage.setItem("referralLink", data.referralLink);
     sessionStorage.setItem("userRole", "parent");
     if (data.mustChangePin) {
       sessionStorage.setItem("forceParentPinChange", "1");

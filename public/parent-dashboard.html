@@ -16,7 +16,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./css/style.css?v=next-class-state-1" />
-    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=parent-push-prompt-1" />
+    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=parent-referral-1" />
     <link rel="stylesheet" href="./css/private-messages.css" />
     <link rel="stylesheet" href="./css/payment-feedback.css" />
 
@@ -1406,7 +1406,7 @@
         order: 2;
       }
     </style>
-    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=parent-push-prompt-1" />
+    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=parent-referral-1" />
     <link rel="stylesheet" href="./css/live-classes-entry.css?v=live-entry-1" />
 </head>
   <body class="parent-dashboard-page">
@@ -1414,7 +1414,7 @@
     <aside id="parent-sidebar" class="parent-sidebar" aria-label="القائمة الجانبية">
       <div class="parent-sidebar-brand"><div class="parent-brand"><span class="parent-brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 8 12 3.75 20.5 8 12 12.25 3.5 8Z" /><path d="M6.5 9.5v5.9c3.1 2.25 7.9 2.25 11 0V9.5" /></svg></span><span class="parent-brand-copy"><strong>أكاديمية التفوق</strong><small>بوابة الولي</small></span></div><button id="parent-sidebar-close" class="parent-sidebar-close" type="button" aria-label="إغلاق القائمة">×</button></div>
       <div class="parent-profile-card"><span class="parent-profile-avatar" aria-hidden="true">و</span><span><strong>حساب الولي</strong><small>متابعة الأبناء</small></span><i aria-hidden="true"></i></div>
-      <nav class="parent-sidebar-nav" aria-label="تنقل بوابة الولي"><a class="parent-nav-link is-active" href="#dashboard-content"><span aria-hidden="true">⌂</span>لوحة المتابعة</a><a class="parent-nav-link" href="#student-switcher"><span aria-hidden="true">♙</span>أبنائي</a><a class="parent-nav-link" href="#parent-schedule-card"><span aria-hidden="true">▣</span>جدول الحصص</a><a class="parent-nav-link" href="#secondary-payment-upgrade"><span aria-hidden="true">▤</span>الفواتير والاشتراكات</a><a class="parent-nav-link" href="./account-center.html"><span aria-hidden="true">⚙</span>الإعدادات</a></nav>
+      <nav class="parent-sidebar-nav" aria-label="تنقل بوابة الولي"><a class="parent-nav-link is-active" href="#dashboard-content"><span aria-hidden="true">⌂</span>لوحة المتابعة</a><a class="parent-nav-link" href="#student-switcher"><span aria-hidden="true">♙</span>أبنائي</a><a class="parent-nav-link" href="#parent-schedule-card"><span aria-hidden="true">▣</span>جدول الحصص</a><a class="parent-nav-link" href="#secondary-payment-upgrade"><span aria-hidden="true">▤</span>الفواتير والاشتراكات</a><a class="parent-nav-link" href="./account-center.html"><span aria-hidden="true">⚙</span>الإعدادات</a><a class="parent-nav-link referral-nav-link" href="#referral-earnings"><span aria-hidden="true">↗</span>أرباحي</a></nav>
       <div class="parent-sidebar-footer"><a href="./academic-center.html">المركز الأكاديمي</a><button id="parent-sidebar-logout" type="button">↪ تسجيل الخروج</button></div>
     </aside>
     <div class="parent-dashboard-shell">
@@ -1731,6 +1731,46 @@
           <input id="replacement-card-input" type="file" accept="image/jpeg,image/png" capture="environment" hidden />
           <button id="replacement-card-button" class="card-reupload-action" type="button">رفع بطاقة جديدة</button>
         </section>
+
+        <section id="referral-earnings" class="referral-earnings-card" aria-labelledby="referral-earnings-title">
+          <header class="referral-earnings-header">
+            <div>
+              <span class="referral-earnings-kicker">برنامج الإحالة</span>
+              <h2 id="referral-earnings-title">أرباحي</h2>
+              <p>شارك رابطك مع من تعرف، واحصل على عمولة عند أول ترقية ناجحة للحساب المُحال.</p>
+            </div>
+            <span class="referral-earnings-icon" aria-hidden="true">↗</span>
+          </header>
+
+          <div class="referral-stats-grid" aria-label="إحصائيات الإحالة">
+            <article class="referral-stat-card"><span>أرباحي</span><strong id="referral-total-earnings">0 دج</strong></article>
+            <article class="referral-stat-card"><span>المسجلون تحتي</span><strong id="referral-registered-count">0</strong></article>
+            <article class="referral-stat-card"><span>الذين رقّوا حساباتهم</span><strong id="referral-upgraded-count">0</strong></article>
+          </div>
+
+          <div class="referral-link-panel">
+            <div class="referral-link-heading">
+              <div><strong>رابط الإحالة الخاص بي</strong><small>انسخه وأرسله إلى الأشخاص الذين تريد دعوتهم.</small></div>
+              <span class="referral-link-status">رابط شخصي</span>
+            </div>
+            <div class="referral-link-row">
+              <input id="referral-link-input" type="text" readonly value="جارٍ تجهيز الرابط…" aria-label="رابط الإحالة الخاص بي" />
+              <button id="copy-referral-link" class="copy-referral-button" type="button">نسخ</button>
+            </div>
+            <p id="referral-copy-feedback" class="referral-copy-feedback" role="status" aria-live="polite"></p>
+          </div>
+
+          <div class="referral-rules-panel">
+            <h3>شروط الربح</h3>
+            <ol>
+              <li>يجب أن يسجل الشخص الجديد من خلال رابط الإحالة الخاص بك.</li>
+              <li>لا تُحتسب عمولة عند التسجيل فقط؛ تُحتسب بعد أول ترقية ناجحة.</li>
+              <li>ترقية مادة واحدة تمنحك <strong>100 دج</strong>.</li>
+              <li>ترقية المادتين معًا تمنحك <strong>250 دج</strong>.</li>
+              <li>تُحتسب العمولة مرة واحدة فقط لكل اسم ورقم هاتف، ولا تتكرر عند إعادة الترقية.</li>
+            </ol>
+          </div>
+        </section>
       </section>
         </main>
     </div>
@@ -1833,6 +1873,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js"></script>
     <script src="./js/message-notifications.js"></script>
+    <script src="./js/parent-referral.js?v=referral-ui-1"></script>
     <script src="./js/parent-dashboard.js?v=payment-return-live-1"></script>
     <script src="./js/parent-push-prompt.js?v=parent-push-prompt-1"></script>
     <script src="./js/browser-notifications.js?v=browser-notifications-1"></script>

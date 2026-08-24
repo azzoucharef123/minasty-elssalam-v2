@@ -3,11 +3,8 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { normalizeParentPhone } = require("../utils/phone");
-const {
-  normalizeParentPin,
-  hashParentPin,
-  verifyParentPin,
-} = require("../utils/parentPin");
+const { normalizeParentPin, hashParentPin, verifyParentPin } = require("../utils/parentPin");
+const { ensureReferralProfile, buildReferralLink } = require("../utils/referral");
 const prisma = require("../lib/prisma");
 const { issueSession, JWT_EXPIRES_IN, revokeSessionByTokenId } = require("../utils/sessionAuth");
 
@@ -168,6 +165,8 @@ async function parentLogin(req, res) {
       }
     }
 
+    const referralProfile = await ensureReferralProfile(prisma, parentPhone, null);
+
     // Token now represents the parent session for all their students.
     const session = await createToken({
       role: "parent",
@@ -181,6 +180,8 @@ async function parentLogin(req, res) {
       role: "parent",
       parentPhone,
       mustChangePin: Boolean(credential?.mustChangePin),
+      referralCode: referralProfile.referralCode,
+      referralLink: buildReferralLink(req, referralProfile.referralCode),
       students: students.map((s) => ({
         id: s.id,
         studentName: s.studentName,

@@ -27,6 +27,7 @@ const { ensurePublicArchive, recordPublicAttendance, finishPublicArchive, append
 const { verifySessionToken } = require("./utils/sessionAuth");
 const { createSocketNotificationSender, notificationRoom } = require("./utils/socketNotifications");
 const siteAnalyticsRoutes = require("./routes/siteAnalyticsRoutes");
+const referralRoutes = require("./routes/referralRoutes");
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -143,6 +144,7 @@ const certificateRoutes = require("./routes/certificateRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 
 app.use("/api/site-analytics", siteAnalyticsRoutes);
+app.use("/api/referrals", referralRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/students", studentRoutes);
 app.use("/api/attendance", attendanceRoutes);

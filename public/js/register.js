@@ -108,6 +108,7 @@ function initializeRegistration() {
     clearRegistrationMessage();
 
     const formData = new FormData(registerForm);
+    const referralCode = String(new URLSearchParams(window.location.search).get("ref") || "").trim();
     const payload = {
       studentName: String(formData.get("studentName") || "").trim(),
       parentPhone: normalizeDigits(formData.get("parentPhone"), 10),
@@ -121,6 +122,7 @@ function initializeRegistration() {
     confirmParentPinInput.value = payload.confirmParentPin;
     formData.set("parentPhone", payload.parentPhone);
     formData.set("parentPin", payload.parentPin);
+    if (referralCode) formData.set("referralCode", referralCode);
     formData.delete("confirmParentPin");
 
     const cardFile = cardPhotoInput?.files?.[0] || null;

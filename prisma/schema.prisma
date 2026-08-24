@@ -243,10 +243,40 @@ model ParentCredential {
   mustChangePin           Boolean  @default(false)
   temporaryPinIssuedAt    DateTime?
   temporaryPinExpiresAt   DateTime?
+  baridiMobAccount        String?
+  baridiMobName           String?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
   passwordResetRequests   PasswordResetRequest[]
+  referralProfile         ReferralProfile?
+}
+
+model ReferralProfile {
+  id               String          @id @default(uuid()) @db.Uuid
+  parentPhone      String          @unique
+  referralCode     String          @unique
+  referredByPhone  String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  parentCredential ParentCredential @relation(fields: [parentPhone], references: [parentPhone], onDelete: Cascade)
+
+  @@index([referredByPhone])
+}
+
+model ReferralCommission {
+  id                  String   @id @default(uuid()) @db.Uuid
+  referrerPhone       String
+  referredParentPhone String   @unique
+  upgradeType         String
+  amountDzd           Int
+  status              String   @default("PENDING")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([referrerPhone, status])
+  @@index([createdAt(sort: Desc)])
 }
 
 model PasswordResetRequest {

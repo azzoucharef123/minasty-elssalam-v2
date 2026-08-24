@@ -6,6 +6,8 @@
     "teacherAuth",
     "parentToken",
     "parentPhone",
+    "referralCode",
+    "referralLink",
     "userRole",
     "forceParentPinChange",
     "selectedStudentId",

@@ -12,6 +12,7 @@ const {
 const prisma = require("../lib/prisma");
 const { removeImageFile } = require("./liveChatController");
 const { logAudit } = require("../utils/audit");
+const { normalizeReferralCode, ensureReferralProfile } = require("../utils/referral");
 
 const uploadDirectory =
   process.env.UPLOAD_DIR || path.join(__dirname, "..", "public", "uploads");
@@ -151,6 +152,7 @@ async function registerStudent(req, res) {
     const parentPhone = normalizeParentPhone(req.body?.parentPhone);
     const parentPin = normalizeParentPin(req.body?.parentPin);
     const level = normalizeText(req.body?.level);
+    const referralCode = normalizeReferralCode(req.body?.referralCode);
 
     if (!studentName || !parentPhone || !parentPin || !level) {
       if (uploadedCardFile?.filename) await removeUploadedCard(uploadedCardFile.filename);
@@ -223,6 +225,8 @@ async function registerStudent(req, res) {
           cardReuploadRequested: false,
         },
       });
+
+      await ensureReferralProfile(tx, parentPhone, referralCode);
 
       if (uploadedCardFile) {
         await upsertStudentDocument(tx, {

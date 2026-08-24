@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="إعدادات حساب BaridiMob لاستقبال أرباح الإحالة في أكاديمية التفوق." />
+  <title>معلومات BaridiMob | أكاديمية التفوق</title>
+  <link rel="stylesheet" href="./css/style.css?v=account-settings-1" />
+  <link rel="stylesheet" href="./css/academic-center.css?v=account-settings-1" />
+  <style>
+    .baridimob-shell { max-width: 54rem; }
+    .baridimob-card { display: grid; gap: 1.1rem; }
+    .baridimob-card header h1,
+    .baridimob-card header p { margin: 0; }
+    .baridimob-card header p { margin-top: .45rem; color: #64748b; line-height: 1.85; }
+    .baridimob-badge { display: inline-flex; margin-bottom: .4rem; padding: .3rem .58rem; color: #047857; background: #dcfce7; border-radius: 999px; font-size: .72rem; font-weight: 900; }
+    .baridimob-form { display: grid; gap: .85rem; }
+    .baridimob-form label { display: grid; gap: .35rem; color: #334155; font-size: .8rem; font-weight: 800; }
+    .baridimob-form input { min-height: 3rem; padding: .65rem .8rem; color: #0f172a; background: #fff; border: 1px solid #cbd5e1; border-radius: .7rem; font: inherit; font-size: .95rem; }
+    .baridimob-form input:focus { outline: 3px solid rgba(16, 185, 129, .18); border-color: #10b981; }
+    .baridimob-form input[name="baridiMobAccount"] { direction: ltr; text-align: left; letter-spacing: .06em; }
+    .baridimob-actions { display: flex; align-items: center; gap: .65rem; flex-wrap: wrap; }
+    .baridimob-actions button, .baridimob-actions a { min-height: 2.8rem; padding: .55rem .9rem; border-radius: .65rem; font: inherit; font-size: .78rem; font-weight: 900; text-decoration: none; cursor: pointer; }
+    .baridimob-primary { color: #fff; background: #059669; border: 1px solid #059669; }
+    .baridimob-primary:hover { background: #047857; }
+    .baridimob-secondary { color: #334155; background: #f8fafc; border: 1px solid #cbd5e1; }
+    .baridimob-note { margin: 0; padding: .8rem; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: .7rem; font-size: .75rem; line-height: 1.8; }
+    .baridimob-error { margin: 0; }
+    @media (max-width: 520px) { .baridimob-actions > * { width: 100%; text-align: center; } }
+  </style>
+</head>
+<body class="academic-page">
+  <header class="academic-topbar">
+    <a href="./index.html" class="academic-brand">أكاديمية التفوق<small>إعدادات الحساب</small></a>
+    <nav class="academic-nav" aria-label="تنقل الحساب">
+      <a href="./account-center.html">مركز الحساب</a>
+      <button id="baridimob-logout" type="button">تسجيل الخروج</button>
+    </nav>
+  </header>
+
+  <main class="academic-shell baridimob-shell">
+    <section class="academic-hero">
+      <div>
+        <span class="academic-eyebrow">استقبال الأرباح</span>
+        <h1>معلومات حساب BaridiMob</h1>
+        <p>أدخل بيانات الحساب الذي تريد استقبال أرباح الإحالة عليه. لن تظهر هذه المعلومات للمستخدمين الآخرين.</p>
+      </div>
+    </section>
+
+    <p id="baridimob-message" class="academic-error baridimob-error" role="status" aria-live="polite" hidden></p>
+
+    <section class="academic-card baridimob-card" aria-labelledby="baridimob-form-title">
+      <header>
+        <span class="baridimob-badge">بيانات التحويل</span>
+        <h2 id="baridimob-form-title">حسابي في BaridiMob</h2>
+        <p>استخدم رقم الحساب والاسم واللقب المطابقين لصاحب حساب BaridiMob حتى يتمكن الأستاذ من مراجعة بيانات الدفع.</p>
+      </header>
+
+      <form id="baridimob-form" class="baridimob-form" novalidate>
+        <label for="baridiMobAccount">رقم حساب BaridiMob
+          <input id="baridiMobAccount" name="baridiMobAccount" type="text" inputmode="numeric" autocomplete="off" minlength="10" maxlength="30" pattern="[0-9٠-٩۰-۹]{10,30}" required />
+        </label>
+        <label for="baridiMobName">الاسم واللقب لصاحب الحساب
+          <input id="baridiMobName" name="baridiMobName" type="text" autocomplete="name" maxlength="120" placeholder="مثال: محمد بن أحمد" required />
+        </label>
+        <p class="baridimob-note">تأكد من صحة البيانات قبل الحفظ. هذه المعلومات مخصصة لمعالجة أرباح الإحالة، وأي خطأ في رقم الحساب قد يمنع وصول التحويل.</p>
+        <div class="baridimob-actions">
+          <button class="baridimob-primary" type="submit">حفظ معلومات BaridiMob</button>
+          <a class="baridimob-secondary" href="./account-center.html">العودة إلى الإعدادات</a>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script src="./js/session-storage.js"></script>
+  <script src="./js/baridimob-settings.js?v=baridimob-settings-1"></script>
+  <script src="./js/in-app-browser-gate.js?v=telegram-gate-2" defer></script>
+</body>
+</html>
