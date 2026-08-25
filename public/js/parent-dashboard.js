@@ -721,7 +721,7 @@ function closeDocumentFeedback() {
 }
 
 function isValidPaymentReceiptImage(file) {
-  return Boolean(file && ["image/jpeg", "image/png", "image/webp"].includes(file.type));
+  return Boolean(file && String(file.type || "").toLowerCase().startsWith("image/"));
 }
 
 function updatePaymentReceiptFileName(input, label) {

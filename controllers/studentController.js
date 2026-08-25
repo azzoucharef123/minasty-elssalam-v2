@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { Prisma } = require("@prisma/client");
+const sharp = require("sharp");
 const { normalizeParentPhone } = require("../utils/phone");
 const {
   normalizeParentPin,
@@ -27,10 +28,30 @@ function documentReference(kind) {
 }
 
 async function readUploadedFileBuffer(uploadedFile) {
+  if (uploadedFile?.buffer) return uploadedFile.buffer;
   if (!uploadedFile?.path) {
     throw new Error("الملف المرفوع غير متاح للحفظ.");
   }
   return fs.promises.readFile(uploadedFile.path);
+}
+
+async function normalizePaymentReceiptImage(uploadedFile) {
+  const sourceBuffer = await readUploadedFileBuffer(uploadedFile);
+  try {
+    const normalizedBuffer = await sharp(sourceBuffer, { failOn: "none" })
+      .rotate()
+      .jpeg({ quality: 84, mozjpeg: true })
+      .toBuffer();
+    return {
+      ...uploadedFile,
+      buffer: normalizedBuffer,
+      originalname: `${path.basename(uploadedFile.originalname || "payment-receipt").replace(/\.[^.]*$/, "")}.jpg`,
+      mimetype: "image/jpeg",
+    };
+  } catch (error) {
+    error.code = "UNSUPPORTED_PAYMENT_IMAGE";
+    throw error;
+  }
 }
 
 async function upsertStudentDocument(tx, { studentId, kind, uploadedFile, buffer }) {
@@ -560,7 +581,7 @@ async function submitPaymentReceipt(req, res) {
   const uploadedReceiptFile = req.file;
 
   try {
-    if (!uploadedReceiptFile?.filename) {
+    if (!uploadedReceiptFile?.buffer && !uploadedReceiptFile?.path) {
       return res.status(400).json({ error: "اختر صورة لوصل الدفع أولاً. لا يُقبل PDF." });
     }
 
@@ -594,8 +615,9 @@ async function submitPaymentReceipt(req, res) {
       return res.status(400).json({ error: "اختر نوع الاشتراك قبل إرسال وصل الدفع." });
     }
 
+    const normalizedReceiptFile = await normalizePaymentReceiptImage(uploadedReceiptFile);
     const updateData = {
-      paymentReceiptUrl: uploadedReceiptFile.filename,
+      paymentReceiptUrl: normalizedReceiptFile.filename || null,
       paymentReceiptPending: true,
       paymentReceiptSubmittedAt: new Date(),
       pendingSubscriptionType: isUniversityStudent ? null : subscriptionType,
@@ -607,7 +629,7 @@ async function submitPaymentReceipt(req, res) {
     }
 
     const updatedStudent = await prisma.$transaction(async (tx) => {
-      const data = await readUploadedFileBuffer(uploadedReceiptFile);
+      const data = normalizedReceiptFile.buffer;
       const updated = await tx.student.update({
         where: { id: student.id },
         data: {
@@ -618,7 +640,7 @@ async function submitPaymentReceipt(req, res) {
       await upsertStudentDocument(tx, {
         studentId: student.id,
         kind: DOCUMENT_KINDS.PAYMENT_RECEIPT,
-        uploadedFile: uploadedReceiptFile,
+        uploadedFile: normalizedReceiptFile,
         buffer: data,
       });
       return updated;
@@ -650,6 +672,9 @@ async function submitPaymentReceipt(req, res) {
       await removeUploadedCard(uploadedReceiptFile.filename);
     }
     console.error("Payment receipt submission failed:", error);
+    if (error?.code === "UNSUPPORTED_PAYMENT_IMAGE") {
+      return res.status(400).json({ error: "تعذر قراءة الصورة. اختر صورة واضحة بصيغة JPG أو PNG أو WebP أو HEIC ثم حاول مرة أخرى." });
+    }
     return res.status(500).json({ error: "تعذر إرسال وصل الدفع حالياً." });
   }
 }

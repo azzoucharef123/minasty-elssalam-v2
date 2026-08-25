@@ -30,7 +30,7 @@ const router = express.Router();
 const uploadDirectory =
   process.env.UPLOAD_DIR || path.join(__dirname, "..", "public", "uploads");
 const MAX_CARD_SIZE_BYTES = 5 * 1024 * 1024;
-const MAX_RECEIPT_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_RECEIPT_SIZE_BYTES = 25 * 1024 * 1024;
 const acceptedCardTypes = new Map([
   [".png", "image/png"],
   [".jpg", "image/jpeg"],
@@ -38,13 +38,6 @@ const acceptedCardTypes = new Map([
 ]);
 
 fs.mkdirSync(uploadDirectory, { recursive: true });
-
-const acceptedReceiptTypes = new Map([
-  [".png", "image/png"],
-  [".jpg", "image/jpeg"],
-  [".jpeg", "image/jpeg"],
-  [".webp", "image/webp"],
-]);
 
 const cardStorage = multer.diskStorage({
   destination: (_req, _file, callback) => callback(null, uploadDirectory),
@@ -71,25 +64,15 @@ const cardUpload = multer({
   limits: { files: 1, fileSize: MAX_CARD_SIZE_BYTES },
 });
 
-const receiptStorage = multer.diskStorage({
-  destination: (_req, _file, callback) => callback(null, uploadDirectory),
-  filename: (_req, file, callback) => {
-    const extension = path.extname(file.originalname).toLowerCase();
-    callback(null, `payment-receipt-${Date.now()}-${crypto.randomUUID()}${extension}`);
-  },
-});
-
 function receiptFileFilter(_req, file, callback) {
-  const extension = path.extname(file.originalname).toLowerCase();
-  const expectedMimeType = acceptedReceiptTypes.get(extension);
-  if (!expectedMimeType || file.mimetype !== expectedMimeType) {
-    return callback(new Error("يسمح برفع صورة وصل الدفع بصيغة PNG أو JPG/JPEG أو WebP فقط، ولا يُقبل PDF."), false);
+  if (!String(file.mimetype || "").toLowerCase().startsWith("image/")) {
+    return callback(new Error("يرجى رفع ملف صورة فقط. ملفات PDF والملفات الأخرى غير مقبولة."), false);
   }
   return callback(null, true);
 }
 
 const receiptUpload = multer({
-  storage: receiptStorage,
+  storage: multer.memoryStorage(),
   fileFilter: receiptFileFilter,
   limits: { files: 1, fileSize: MAX_RECEIPT_SIZE_BYTES },
 });
@@ -135,8 +118,9 @@ router.use((error, _req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === "LIMIT_FILE_SIZE") {
       return res.status(400).json({
-        error: error.field === "paymentReceipt"
-          ? "الحد الأقصى لملف وصل الدفع هو 10 ميغابايت."
+                  error: error.field === "paymentReceipt"
+          ? "الحد الأقصى لصورة وصل الدفع هو 25 ميغابايت."
+
           : "الحد الأقصى لصورة البطاقة هو 5 ميغابايت.",
       });
     }
@@ -144,7 +128,7 @@ router.use((error, _req, res, next) => {
     return res.status(400).json({ error: "تعذر معالجة صورة البطاقة المرفوعة." });
   }
 
-  if (error.message === "يسمح برفع صورة البطاقة بصيغة PNG أو JPG/JPEG فقط." || error.message === "يسمح برفع صورة وصل الدفع بصيغة PNG أو JPG/JPEG أو WebP فقط، ولا يُقبل PDF.") {
+  if (error.message === "يسمح برفع صورة البطاقة بصيغة PNG أو JPG/JPEG فقط." || error.message === "يرجى رفع ملف صورة فقط. ملفات PDF والملفات الأخرى غير مقبولة.") {
     return res.status(400).json({ error: error.message });
   }
 
