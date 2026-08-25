@@ -117,6 +117,9 @@ const elements = {
   teacherNotificationFeedback: document.getElementById("teacher-notification-feedback"),
   teacherNotificationAudienceText: document.getElementById("teacher-notification-audience-text"),
   teacherNotificationRecipientCount: document.getElementById("teacher-notification-recipient-count"),
+  teacherNotificationTargetPicker: document.getElementById("teacher-notification-student-picker"),
+  teacherNotificationStudentList: document.getElementById("teacher-notification-student-list"),
+  teacherNotificationSelectAll: document.getElementById("teacher-notification-select-all"),
   teacherNotificationSentCount: document.getElementById("teacher-notification-sent-count"),
   teacherNotificationReadCount: document.getElementById("teacher-notification-read-count"),
   teacherNotificationUnreadCount: document.getElementById("teacher-notification-unread-count"),
@@ -2152,6 +2155,7 @@ async function fetchStudents(level = currentLevel) {
     // Phase 15 returns { status, data, meta }; retain the legacy array fallback
     // so this dashboard remains compatible during a staged deployment.
     currentStudents = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+    renderTeacherNotificationStudentPicker();
     updateTeacherNotificationAudience();
     electronicPayments = [];
     electronicPaymentsLevel = "";
@@ -3086,21 +3090,62 @@ function announcementFormValue(name, fallback = "") {
   return document.querySelector(`input[name="${name}"]:checked`)?.value || fallback;
 }
 
+function notificationTargetMode() {
+  return announcementFormValue("notification-target-mode", "ALL_LEVEL");
+}
+
+function selectedTeacherNotificationStudentIds() {
+  return [...document.querySelectorAll("#teacher-notification-student-list input[data-notification-student]:checked")]
+    .map((input) => input.value)
+    .filter(Boolean);
+}
+
+function renderTeacherNotificationStudentPicker() {
+  if (!elements.teacherNotificationStudentList) return;
+  if (!currentStudents.length) {
+    elements.teacherNotificationStudentList.innerHTML = "<p>لا يوجد تلاميذ في المستوى المختار.</p>";
+    return;
+  }
+  elements.teacherNotificationStudentList.innerHTML = currentStudents.map((student) => {
+    const name = escapeTeacherText(student.studentName || "تلميذ دون اسم");
+    const phone = escapeTeacherText(student.parentPhone || "");
+    const status = student.paymentStatus ? "مدفوع" : "غير مدفوع";
+    return `<label class="teacher-notification-student-option"><input type="checkbox" data-notification-student value="${escapeTeacherText(student.id)}"><span><strong>${name}</strong><small>${phone} · ${status}</small></span></label>`;
+  }).join("");
+  elements.teacherNotificationStudentList.querySelectorAll("input[data-notification-student]").forEach((input) => {
+    input.addEventListener("change", updateTeacherNotificationAudience);
+  });
+}
+
+function syncTeacherNotificationTargetMode() {
+  const selected = notificationTargetMode() === "SELECTED";
+  if (elements.teacherNotificationTargetPicker) elements.teacherNotificationTargetPicker.hidden = !selected;
+  updateTeacherNotificationAudience();
+}
+
 function updateTeacherNotificationAudience() {
   const paymentFilter = announcementFormValue("notification-payment", "ALL");
   const subjectFilter = elements.teacherNotificationSubject?.value || "ALL";
+  const targetMode = notificationTargetMode();
+  const selectedIds = new Set(selectedTeacherNotificationStudentIds());
   const uniqueParents = new Set();
+  let eligibleStudents = 0;
   for (const student of currentStudents) {
+    if (targetMode === "SELECTED" && !selectedIds.has(String(student.id))) continue;
     if (paymentFilter === "FREE" && student.paymentStatus) continue;
     if (paymentFilter === "PAID" && !student.paymentStatus) continue;
     if (subjectFilter === "MATH" && !student.mathEnrollment) continue;
     if (subjectFilter === "PHYSICS" && !student.physicsEnrollment) continue;
     if (subjectFilter === "BOTH" && !(student.mathEnrollment && student.physicsEnrollment)) continue;
+    eligibleStudents += 1;
     if (student.parentPhone) uniqueParents.add(student.parentPhone);
   }
-  const textValue = `أولياء الأمور · ${displayLevelLabel(currentLevel)} · ${ANNOUNCEMENT_PAYMENT_LABELS[paymentFilter] || ANNOUNCEMENT_PAYMENT_LABELS.ALL} · ${ANNOUNCEMENT_SUBJECT_LABELS[subjectFilter] || ANNOUNCEMENT_SUBJECT_LABELS.ALL}`;
+  const targetLabel = targetMode === "SELECTED"
+    ? `${selectedIds.size} تلميذ محدد`
+    : "جميع تلاميذ المستوى";
+  const textValue = `أولياء الأمور · ${displayLevelLabel(currentLevel)} · ${targetLabel} · ${ANNOUNCEMENT_PAYMENT_LABELS[paymentFilter] || ANNOUNCEMENT_PAYMENT_LABELS.ALL} · ${ANNOUNCEMENT_SUBJECT_LABELS[subjectFilter] || ANNOUNCEMENT_SUBJECT_LABELS.ALL}`;
   if (elements.teacherNotificationAudienceText) elements.teacherNotificationAudienceText.textContent = textValue;
-  if (elements.teacherNotificationRecipientCount) elements.teacherNotificationRecipientCount.textContent = currentStudents.length ? `${uniqueParents.size} حسابًا` : "سيتم حساب العدد";
+  if (elements.teacherNotificationRecipientCount) elements.teacherNotificationRecipientCount.textContent = eligibleStudents ? `${uniqueParents.size} حسابًا · ${eligibleStudents} تلميذ` : targetMode === "SELECTED" ? "اختر تلميذًا واحدًا على الأقل" : "سيتم حساب العدد";
 }
 
 function setTeacherNotificationFeedback(message, isError = false) {
@@ -3193,9 +3238,13 @@ function scheduledAnnouncementDate() {
 async function submitTeacherAnnouncement(event) {
   event.preventDefault();
   const scheduled = Boolean(elements.teacherNotificationScheduled?.checked);
+  const targetMode = notificationTargetMode();
+  const targetStudentIds = selectedTeacherNotificationStudentIds();
   const payload = {
     targetLevel: currentLevel,
     recipientType: "PARENTS",
+    targetMode,
+    targetStudentIds,
     paymentFilter: announcementFormValue("notification-payment", "ALL"),
     subjectFilter: elements.teacherNotificationSubject?.value || "ALL",
     title: elements.teacherNotificationTitle?.value?.trim() || "",
@@ -3205,6 +3254,10 @@ async function submitTeacherAnnouncement(event) {
   if (scheduled) payload.scheduledAt = scheduledAnnouncementDate();
   if (!payload.title || !payload.body) {
     setTeacherNotificationFeedback("اكتب عنوان التنبيه ونص الرسالة أولًا.", true);
+    return;
+  }
+  if (targetMode === "SELECTED" && !targetStudentIds.length) {
+    setTeacherNotificationFeedback("اختر تلميذًا واحدًا أو مجموعة تلاميذ أولًا.", true);
     return;
   }
   if (scheduled && !payload.scheduledAt) {
@@ -3248,6 +3301,13 @@ function initializeTeacherNotifications() {
   elements.teacherNotificationScheduled?.addEventListener("change", syncTeacherNotificationDelivery);
   elements.teacherNotificationSubject?.addEventListener("change", updateTeacherNotificationAudience);
   document.querySelectorAll('input[name="notification-payment"]').forEach((input) => input.addEventListener("change", updateTeacherNotificationAudience));
+  document.querySelectorAll('input[name="notification-target-mode"]').forEach((input) => input.addEventListener("change", syncTeacherNotificationTargetMode));
+  elements.teacherNotificationSelectAll?.addEventListener("click", () => {
+    document.querySelectorAll("#teacher-notification-student-list input[data-notification-student]").forEach((input) => {
+      input.checked = true;
+    });
+    updateTeacherNotificationAudience();
+  });
   elements.teacherNotificationRefresh?.addEventListener("click", () => void loadTeacherAnnouncements());
     syncTeacherNotificationDelivery();
   updateTeacherNotificationAudience();

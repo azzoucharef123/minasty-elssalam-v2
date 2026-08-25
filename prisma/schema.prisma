@@ -152,6 +152,8 @@ model NotificationCampaign {
   recipientType   String   @default("PARENTS")
   paymentFilter   String   @default("ALL")
   subjectFilter   String   @default("ALL")
+  targetMode      String   @default("ALL_LEVEL")
+  targetStudentIds String?  @db.Text
   title           String
   body            String   @db.Text
   link            String?

@@ -338,6 +338,7 @@ async function updateLessonProgress(req, res) {
 const ANNOUNCEMENT_PAYMENT_FILTERS = new Set(["ALL", "FREE", "PAID"]);
 const ANNOUNCEMENT_SUBJECT_FILTERS = new Set(["ALL", "MATH", "PHYSICS", "BOTH"]);
 const ANNOUNCEMENT_DELIVERY_MODES = new Set(["IMMEDIATE", "SCHEDULED"]);
+const ANNOUNCEMENT_TARGET_MODES = new Set(["ALL_LEVEL", "SELECTED"]);
 let scheduledAnnouncementLock = false;
 let socketNotificationSender = null;
 
@@ -345,9 +346,20 @@ function setSocketNotificationSender(sender) {
   socketNotificationSender = typeof sender === "function" ? sender : null;
 }
 
+function parseAnnouncementStudentIds(value) {
+  const source = Array.isArray(value) ? value : (() => {
+    try { return JSON.parse(String(value || "[]")); } catch { return []; }
+  })();
+  return [...new Set(source.map((id) => text(id, 80)).filter(Boolean))].slice(0, 500);
+}
+
 function announcementWhere(payload) {
   const level = normalizeAssignmentLevel(payload.targetLevel);
   const where = { level: { in: assignmentLevelCandidates(level) }, accountActive: true };
+  if (String(payload.targetMode || "ALL_LEVEL").toUpperCase() === "SELECTED") {
+    const targetStudentIds = parseAnnouncementStudentIds(payload.targetStudentIds);
+    where.id = { in: targetStudentIds };
+  }
   if (payload.paymentFilter === "FREE") where.paymentStatus = false;
   if (payload.paymentFilter === "PAID") where.paymentStatus = true;
   if (payload.subjectFilter === "MATH") where.mathEnrollment = true;
@@ -478,18 +490,27 @@ async function createTeacherAnnouncement(req, res) {
   const recipientType = text(req.body?.recipientType, 20).toUpperCase() || "PARENTS";
   const paymentFilter = text(req.body?.paymentFilter, 20).toUpperCase() || "ALL";
   const subjectFilter = text(req.body?.subjectFilter, 20).toUpperCase() || "ALL";
+  const targetMode = text(req.body?.targetMode, 20).toUpperCase() || "ALL_LEVEL";
+  const targetStudentIds = parseAnnouncementStudentIds(req.body?.targetStudentIds);
   const deliveryMode = text(req.body?.deliveryMode, 20).toUpperCase() || "IMMEDIATE";
   const title = text(req.body?.title, 160);
   const body = text(req.body?.body, 10000);
   const scheduledAt = req.body?.scheduledAt ? new Date(req.body.scheduledAt) : null;
-  if (!ASSIGNMENT_CANONICAL_LEVELS.has(targetLevel) || recipientType !== "PARENTS" || !ANNOUNCEMENT_PAYMENT_FILTERS.has(paymentFilter) || !ANNOUNCEMENT_SUBJECT_FILTERS.has(subjectFilter) || !ANNOUNCEMENT_DELIVERY_MODES.has(deliveryMode) || !title || !body) {
+  if (!ASSIGNMENT_CANONICAL_LEVELS.has(targetLevel) || recipientType !== "PARENTS" || !ANNOUNCEMENT_PAYMENT_FILTERS.has(paymentFilter) || !ANNOUNCEMENT_SUBJECT_FILTERS.has(subjectFilter) || !ANNOUNCEMENT_TARGET_MODES.has(targetMode) || !ANNOUNCEMENT_DELIVERY_MODES.has(deliveryMode) || !title || !body) {
     return res.status(400).json({ error: "بيانات التنبيه غير صحيحة." });
+  }
+  if (targetMode === "SELECTED" && !targetStudentIds.length) {
+    return res.status(400).json({ error: "اختر تلميذًا واحدًا على الأقل لإرسال التنبيه." });
   }
   if (deliveryMode === "SCHEDULED" && (!scheduledAt || Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date())) {
     return res.status(400).json({ error: "اختر موعدًا مستقبليًا صالحًا للتنبيه." });
   }
+  if (targetMode === "SELECTED") {
+    const eligibleSelected = await prisma.student.count({ where: announcementWhere({ targetLevel, paymentFilter, subjectFilter, targetMode, targetStudentIds }) });
+    if (!eligibleSelected) return res.status(400).json({ error: "لا يوجد تلميذ مؤهل ضمن الاختيار الحالي." });
+  }
   const campaign = await prisma.notificationCampaign.create({
-    data: { targetLevel, recipientType, paymentFilter, subjectFilter, title, body, link: "./parent-dashboard.html", deliveryMode, scheduledAt: deliveryMode === "SCHEDULED" ? scheduledAt : null },
+    data: { targetLevel, recipientType, paymentFilter, subjectFilter, targetMode, targetStudentIds: targetMode === "SELECTED" ? JSON.stringify(targetStudentIds) : null, title, body, link: "./parent-dashboard.html", deliveryMode, scheduledAt: deliveryMode === "SCHEDULED" ? scheduledAt : null },
   });
   if (deliveryMode === "IMMEDIATE") {
     const delivered = await deliverTeacherAnnouncement(campaign);
