@@ -26,6 +26,7 @@ model Student {
   paymentReceiptUrl String?
   paymentReceiptPending Boolean @default(false)
   paymentReceiptSubmittedAt DateTime?
+  pendingSubscriptionType String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -247,7 +248,6 @@ model ParentCredential {
   temporaryPinExpiresAt   DateTime?
   baridiMobAccount        String?
   baridiMobName           String?
-  pendingSubscriptionType String?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 

@@ -19,6 +19,13 @@ test("academic API exposes the selected core workflows", () => {
   }
 });
 
+test("pending subscription type belongs to each student", () => {
+  const studentBlock = schema.match(/model Student \{([\s\S]*?)\n\}/)?.[1] || "";
+  const parentCredentialBlock = schema.match(/model ParentCredential \{([\s\S]*?)\n\}/)?.[1] || "";
+  assert.match(studentBlock, /pendingSubscriptionType\s+String\?/);
+  assert.doesNotMatch(parentCredentialBlock, /pendingSubscriptionType/);
+});
+
 test("production server does not log registration bodies", () => {
   const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
   assert.equal(server.includes("Register request body:"), false);
