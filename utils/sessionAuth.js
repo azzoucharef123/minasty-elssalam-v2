@@ -10,6 +10,11 @@ const JWT_AUDIENCE = "online-tutoring-platform-web";
 const SESSION_DURATION_DAYS = 36500;
 const JWT_EXPIRES_IN = `${SESSION_DURATION_DAYS}d`;
 const SESSION_DURATION_MS = SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000;
+let sessionTakeoverNotifier = null;
+
+function setSessionTakeoverNotifier(notifier) {
+  sessionTakeoverNotifier = typeof notifier === "function" ? notifier : null;
+}
 
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET;
@@ -45,6 +50,21 @@ async function issueSession(payload, req) {
 
   const metadata = getRequestMetadata(req);
   const now = new Date();
+  const previousSessions = await prisma.session.findMany({
+    where: { role, subjectId, revokedAt: null, expiresAt: { gt: now } },
+    select: { tokenId: true, userAgent: true, ipAddress: true },
+  });
+
+  if (sessionTakeoverNotifier && previousSessions.length) {
+    await Promise.allSettled(previousSessions.map((previousSession) => sessionTakeoverNotifier({
+      previousSession,
+      role,
+      subjectId,
+      newSessionId: tokenId,
+      metadata,
+    })));
+  }
+
   await prisma.$transaction(async (tx) => {
     // One active session per account. For the teacher, subjectId is null and
     // role=teacher identifies the single teacher account.
@@ -114,6 +134,7 @@ module.exports = {
   JWT_AUDIENCE,
   JWT_EXPIRES_IN,
   issueSession,
+  setSessionTakeoverNotifier,
   verifySessionToken,
   revokeSessionByTokenId,
 };

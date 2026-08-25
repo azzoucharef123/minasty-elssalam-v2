@@ -24,8 +24,9 @@ const { createDatabaseSnapshot } = require("./utils/backup");
 const { createRateLimiter } = require("./middleware/rateLimit");
 const { startBackgroundJobs } = require("./utils/backgroundJobs");
 const { ensurePublicArchive, recordPublicAttendance, finishPublicArchive, appendPublicChat } = require("./utils/publicArchive");
-const { verifySessionToken } = require("./utils/sessionAuth");
-const { createSocketNotificationSender, notificationRoom } = require("./utils/socketNotifications");
+const { verifySessionToken, setSessionTakeoverNotifier } = require("./utils/sessionAuth");
+const { sendPushToSession } = require("./utils/push");
+const { createSocketNotificationSender, notificationRoom, notificationSessionRoom } = require("./utils/socketNotifications");
 const siteAnalyticsRoutes = require("./routes/siteAnalyticsRoutes");
 const referralRoutes = require("./routes/referralRoutes");
 
@@ -293,6 +294,21 @@ privateMessagesNamespace.on("connection", (socket) => {
 const sendSocketNotification = createSocketNotificationSender(io);
 const { setSocketNotificationSender } = require("./controllers/academicController");
 setSocketNotificationSender(sendSocketNotification);
+setSessionTakeoverNotifier(async ({ previousSession, role }) => {
+  const payload = {
+    title: "تنبيه أمني للحساب",
+    body: role === "teacher"
+      ? "تم تسجيل دخول الأستاذ من جهاز أو متصفح آخر. سيتم تسجيل خروج هذا الجهاز."
+      : "تم تسجيل الدخول إلى حساب الولي من جهاز أو متصفح آخر. سيتم تسجيل خروج هذا الجهاز.",
+    link: "/index.html?session=takeover",
+    tag: `session-takeover-${previousSession.tokenId}`,
+    data: { type: "session_takeover", sessionId: previousSession.tokenId },
+  };
+  sendSocketNotification({ sessionId: previousSession.tokenId, ...payload });
+  void sendPushToSession(previousSession.tokenId, payload).catch((error) => {
+    console.warn("Previous-session push alert failed:", error.message);
+  });
+});
 app.set("io", io);
 app.set("privateMessagesNamespace", privateMessagesNamespace);
 app.set("sendSocketNotification", sendSocketNotification);
@@ -747,6 +763,7 @@ io.on("connection", (socket) => {
   socket.data.publicMicOpen = false;
   socket.data.notificationRole = null;
   socket.data.notificationRecipientId = null;
+  socket.data.notificationSessionId = null;
 
   socket.on("register_notification_socket", async (data = {}, acknowledgement) => {
     try {
@@ -755,15 +772,22 @@ io.on("connection", (socket) => {
       const user = await verifySessionToken(token);
       const role = user.role === "teacher" ? "teacher" : user.role === "parent" ? "parent" : "";
       const recipientId = role === "parent" ? String(user.phone || "") : role === "teacher" ? "teacher" : "";
+      const sessionId = String(user.sessionId || "").trim();
       const room = notificationRoom(role, recipientId);
-      if (!room) throw new Error("INVALID_RECIPIENT");
+      const sessionRoom = notificationSessionRoom(sessionId);
+      if (!room || !sessionRoom) throw new Error("INVALID_RECIPIENT");
       if (socket.data.notificationRole && socket.data.notificationRecipientId) {
         await socket.leave(notificationRoom(socket.data.notificationRole, socket.data.notificationRecipientId));
       }
+      if (socket.data.notificationSessionId) {
+        await socket.leave(notificationSessionRoom(socket.data.notificationSessionId));
+      }
       socket.data.notificationRole = role;
       socket.data.notificationRecipientId = recipientId;
+      socket.data.notificationSessionId = sessionId;
       await socket.join(room);
-      acknowledge?.({ ok: true, role, recipientId });
+      await socket.join(sessionRoom);
+      acknowledge?.({ ok: true, role, recipientId, sessionId });
     } catch (error) {
       acknowledge?.({ ok: false, error: "تعذر تسجيل قناة تنبيهات المتصفح." });
     }

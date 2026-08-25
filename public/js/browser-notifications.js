@@ -60,7 +60,15 @@
   }
 
   notificationSocket.on("connect", registerSocket);
-  notificationSocket.on("push_notification", showBrowserNotification);
+  notificationSocket.on("push_notification", (payload = {}) => {
+    showBrowserNotification(payload);
+    if (payload.data?.type === "session_takeover") {
+      window.setTimeout(() => {
+        if (typeof window.handleSessionTakeover === "function") window.handleSessionTakeover();
+        else window.location.replace("/index.html?session=takeover");
+      }, 250);
+    }
+  });
   notificationSocket.on("connect_error", () => {});
 
   function createTeacherPermissionPrompt() {

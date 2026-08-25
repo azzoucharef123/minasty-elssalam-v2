@@ -18,6 +18,11 @@ function notificationRoom(role, recipientId) {
     : "";
 }
 
+function notificationSessionRoom(sessionId) {
+  const safeSessionId = cleanText(sessionId, 180);
+  return safeSessionId ? `browser-notifications-session:${encodeURIComponent(safeSessionId)}` : "";
+}
+
 function notificationPayload(input = {}) {
   const title = cleanText(input.title, MAX_TITLE_LENGTH) || "أكاديمية التفوق";
   const body = cleanText(input.body, MAX_BODY_LENGTH);
@@ -50,6 +55,13 @@ function createSocketNotificationSender(io) {
       return { delivered: true, target, payload };
     }
 
+    const sessionRoom = notificationSessionRoom(input.sessionId);
+    if (sessionRoom) {
+      target = sessionRoom;
+      io.to(sessionRoom).emit("push_notification", payload);
+      return { delivered: true, target, payload };
+    }
+
     const room = notificationRoom(input.role, input.recipientId ?? input.userId);
     if (!room) {
       return { delivered: false, target: null, payload };
@@ -61,4 +73,4 @@ function createSocketNotificationSender(io) {
   };
 }
 
-module.exports = { createSocketNotificationSender, notificationRoom, notificationPayload };
+module.exports = { createSocketNotificationSender, notificationRoom, notificationSessionRoom, notificationPayload };

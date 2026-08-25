@@ -14,7 +14,7 @@ async function getPublicKey(_req, res) {
 async function subscribe(req, res) {
   try {
     const recipient = recipientFromUser(req.user);
-    await saveSubscription(recipient.role, recipient.id, req.body);
+    await saveSubscription(recipient.role, recipient.id, req.body, req.user?.sessionId || null);
     return res.status(201).json({ status: "success", message: "تم تفعيل إشعارات الهاتف." });
   } catch (error) {
     return res.status(400).json({ error: error.message || "تعذر تفعيل الإشعارات." });

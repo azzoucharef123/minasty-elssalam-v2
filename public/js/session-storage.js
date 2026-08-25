@@ -102,7 +102,19 @@
     return data;
   };
 
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").then(async (registration) => {
+      const currentToken = sessionStorage.getItem("teacherToken") || sessionStorage.getItem("parentToken");
+      if (!currentToken) return;
+      const existingSubscription = await registration.pushManager.getSubscription();
+      if (!existingSubscription) return;
+      await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${currentToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify(existingSubscription.toJSON()),
+      }).catch(() => {});
+    }).catch(() => {});
+  }
 
   window.revokeServerSession = function revokeServerSession() {
     const token = sessionStorage.getItem("teacherToken") || sessionStorage.getItem("parentToken");
@@ -140,6 +152,11 @@
       sessionStorage.removeItem(key);
     });
   }
+
+  window.handleSessionTakeover = function handleSessionTakeover() {
+    clearLocalAuthState();
+    window.location.replace("/index.html?session=takeover");
+  };
 
   async function checkActiveSession() {
     if (sessionRedirecting) return;
