@@ -27,6 +27,10 @@ function documentReference(kind) {
   return `db:${kind}`;
 }
 
+function text(value, max = 5000) {
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
 async function readUploadedFileBuffer(uploadedFile) {
   if (uploadedFile?.buffer) return uploadedFile.buffer;
   if (!uploadedFile?.path) {
