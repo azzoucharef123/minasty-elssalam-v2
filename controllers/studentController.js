@@ -666,7 +666,7 @@ async function submitPaymentReceipt(req, res) {
 
   try {
     if (!uploadedReceiptFile?.buffer && !uploadedReceiptFile?.path) {
-      return res.status(400).json({ error: "اختر صورة لوصل الدفع أولاً. لا يُقبل PDF." });
+      return res.status(400).json({ error: "اختر صورة أو ملف PDF لوصل الدفع أولاً." });
     }
 
     const student = await prisma.student.findUnique({
@@ -704,6 +704,9 @@ async function submitPaymentReceipt(req, res) {
       paymentReceiptUrl: normalizedReceiptFile.filename || null,
       paymentReceiptPending: true,
       paymentReceiptSubmittedAt: new Date(),
+      paymentReceiptDecision: "PENDING",
+      paymentReceiptDecisionReason: null,
+      paymentReceiptDecidedAt: null,
       pendingSubscriptionType: isUniversityStudent ? null : subscriptionType,
     };
     if (!isUniversityStudent) {
@@ -821,6 +824,9 @@ async function confirmStudentPaymentReceipt(req, res) {
           paymentStage: "PAID",
           amountDue: 0,
           paymentReceiptPending: false,
+          paymentReceiptDecision: "APPROVED",
+          paymentReceiptDecisionReason: null,
+          paymentReceiptDecidedAt: new Date(),
           pendingSubscriptionType: null,
           liveAccessEnabled: true,
         },
@@ -913,6 +919,9 @@ async function rejectStudentPaymentReceipt(req, res) {
           paymentReceiptUrl: null,
           paymentReceiptPending: false,
           paymentReceiptSubmittedAt: null,
+          paymentReceiptDecision: "REJECTED",
+          paymentReceiptDecisionReason: rejectionReason || "الوصل غير واضح أو لا يثبت عملية الدفع.",
+          paymentReceiptDecidedAt: new Date(),
           pendingSubscriptionType: null,
         },
       });

@@ -26,6 +26,9 @@ model Student {
   paymentReceiptUrl String?
   paymentReceiptPending Boolean @default(false)
   paymentReceiptSubmittedAt DateTime?
+  paymentReceiptDecision String?
+  paymentReceiptDecisionReason String?
+  paymentReceiptDecidedAt DateTime?
   pendingSubscriptionType String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -55,6 +55,7 @@ const elements = {
   parentCardPaymentButton: document.getElementById("university-card-payment-button"),
   parentPaymentSubmit: document.getElementById("parent-payment-submit"),
   parentPaymentPending: document.getElementById("parent-payment-pending"),
+  parentPaymentDecision: document.getElementById("parent-payment-decision"),
   parentPaymentConfirmed: document.getElementById("parent-payment-confirmed"),
   secondaryPaymentUpgrade: document.getElementById("secondary-payment-upgrade"),
   secondaryUpgradeButton: document.getElementById("secondary-upgrade-button"),
@@ -1451,7 +1452,38 @@ function secondarySubscriptionLabel(student) {
   return "رياضيات فقط";
 }
 
+function renderPaymentReceiptDecision(student) {
+  const decision = String(student?.paymentReceiptDecision || "").toUpperCase();
+  const pending = Boolean(student?.paymentReceiptPending) || decision === "PENDING";
+  const element = elements.parentPaymentDecision;
+  if (!element) return;
+
+  if (pending) {
+    element.hidden = false;
+    element.className = "parent-payment-decision is-pending";
+    element.textContent = "تم إرسال الوصل، في انتظار مراجعة الأستاذ.";
+    return;
+  }
+  if (decision === "APPROVED") {
+    element.hidden = false;
+    element.className = "parent-payment-decision is-approved";
+    element.textContent = "تم قبول وصل الدفع وتفعيل الاشتراك.";
+    return;
+  }
+  if (decision === "REJECTED") {
+    element.hidden = false;
+    element.className = "parent-payment-decision is-rejected";
+    const reason = String(student?.paymentReceiptDecisionReason || "الوصل غير واضح أو لا يثبت عملية الدفع.").trim();
+    element.textContent = `تم رفض وصل الدفع. السبب: ${reason}`;
+    return;
+  }
+  element.hidden = true;
+  element.className = "parent-payment-decision";
+  element.textContent = "";
+}
+
 function renderUniversityPaymentUpgrade(student, isPaidSubscription) {
+  renderPaymentReceiptDecision(student);
   const isUniversityStudent = student.level === "طالب جامعي";
   const receiptPending = Boolean(student.paymentReceiptPending);
   const showUpgrade = isUniversityStudent && !isPaidSubscription;
@@ -1485,12 +1517,13 @@ function renderUniversityPaymentUpgrade(student, isPaidSubscription) {
   if (elements.parentPaymentPending) {
     elements.parentPaymentPending.hidden = !receiptPending;
     elements.parentPaymentPending.textContent = receiptPending
-      ? "لقد استلم الأستاذ الوصل. في انتظار تأكيد الوصل."
+      ? "تم إرسال الوصل، في انتظار مراجعة الأستاذ."
       : "";
   }
 }
 
 function renderSecondaryPaymentUpgrade(student) {
+  renderPaymentReceiptDecision(student);
   const isSecondaryStudent = Boolean(student) && student.level !== "طالب جامعي";
   const paymentStage = student?.paymentStage || (student?.paymentStatus ? "PAID" : "UNPAID");
   const showUpgrade = isSecondaryStudent && paymentStage === "UNPAID";
@@ -1523,7 +1556,7 @@ function renderSecondaryPaymentUpgrade(student) {
   if (elements.secondaryPaymentPending) {
     elements.secondaryPaymentPending.hidden = !receiptPending;
     elements.secondaryPaymentPending.textContent = receiptPending
-      ? "لقد استلم الأستاذ الوصل. في انتظار تأكيد الوصل."
+      ? "تم إرسال الوصل، في انتظار مراجعة الأستاذ."
       : "";
   }
 }

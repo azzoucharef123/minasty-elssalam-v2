@@ -1037,3 +1037,30 @@
 @media (max-width: 520px) {
   .referral-actions a { width: 100%; }
 }
+
+.parent-payment-decision {
+  margin: .75rem 0 1rem;
+  padding: .85rem 1rem;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-radius: .8rem;
+  background: #f8fafc;
+  font-weight: 800;
+  line-height: 1.8;
+  text-align: center;
+}
+.parent-payment-decision.is-pending {
+  color: #92400e;
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+.parent-payment-decision.is-approved {
+  color: #166534;
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+.parent-payment-decision.is-rejected {
+  color: #991b1b;
+  border-color: #fca5a5;
+  background: #fff1f2;
+}
