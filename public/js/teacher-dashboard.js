@@ -136,6 +136,7 @@ const elements = {
   paymentReceiptPreviewImage: document.getElementById("payment-receipt-preview-image"),
   paymentReceiptPreviewFrame: document.getElementById("payment-receipt-preview-frame"),
   paymentReceiptPreviewPdf: document.getElementById("payment-receipt-preview-pdf"),
+  paymentReceiptOpenButton: document.getElementById("open-payment-receipt-pdf"),
   paymentReceiptSaveDriveButton: document.getElementById("save-payment-receipt-to-drive"),
   closePaymentReceiptPreviewButton: document.getElementById("close-payment-receipt-preview"),
   scheduleManager: document.getElementById("schedule-manager"),
@@ -2975,6 +2976,10 @@ function closePaymentReceiptPreview() {
     elements.paymentReceiptPreviewStatus.textContent = "جارٍ تحميل الوصل…";
     elements.paymentReceiptPreviewStatus.classList.remove("is-error");
   }
+  if (elements.paymentReceiptOpenButton) {
+    elements.paymentReceiptOpenButton.hidden = true;
+    elements.paymentReceiptOpenButton.disabled = true;
+  }
   if (elements.paymentReceiptSaveDriveButton) {
     elements.paymentReceiptSaveDriveButton.disabled = true;
     elements.paymentReceiptSaveDriveButton.textContent = "حفظ الوصل في Google Drive";
@@ -3003,6 +3008,10 @@ async function viewStudentPaymentReceipt(studentId) {
   elements.paymentReceiptPreviewImage.removeAttribute("src");
   elements.paymentReceiptPreviewPdf.hidden = true;
   elements.paymentReceiptPreviewPdf.removeAttribute("src");
+  if (elements.paymentReceiptOpenButton) {
+    elements.paymentReceiptOpenButton.hidden = true;
+    elements.paymentReceiptOpenButton.disabled = true;
+  }
   elements.paymentReceiptSaveDriveButton.disabled = true;
   elements.paymentReceiptPreviewModal.hidden = false;
   elements.paymentReceiptPreviewModal.classList.add("is-open");
@@ -3028,6 +3037,10 @@ async function viewStudentPaymentReceipt(studentId) {
     if (isPdf) {
       elements.paymentReceiptPreviewStatus.textContent = "تم تحميل ملف PDF. يمكنك مراجعته ثم حفظه في Google Drive.";
       elements.paymentReceiptPreviewPdf.hidden = false;
+      if (elements.paymentReceiptOpenButton) {
+        elements.paymentReceiptOpenButton.hidden = false;
+        elements.paymentReceiptOpenButton.disabled = false;
+      }
       elements.paymentReceiptSaveDriveButton.disabled = false;
       elements.paymentReceiptPreviewPdf.src = documentUrl;
     } else {
@@ -3746,6 +3759,12 @@ if (!getTeacherToken()) {
   elements.cardPreviewSaveDriveButton?.addEventListener("click", (event) => {
     if (cardPreviewStudentId) {
       void saveStudentDocumentToDrive(cardPreviewStudentId, "card", event.currentTarget);
+    }
+  });
+  elements.paymentReceiptOpenButton?.addEventListener("click", () => {
+    if (paymentReceiptPreviewObjectUrl) {
+      const openedWindow = window.open(paymentReceiptPreviewObjectUrl, "_blank", "noopener,noreferrer");
+      if (!openedWindow) window.location.href = paymentReceiptPreviewObjectUrl;
     }
   });
   elements.paymentReceiptSaveDriveButton?.addEventListener("click", (event) => {

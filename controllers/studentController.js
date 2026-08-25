@@ -35,6 +35,15 @@ async function readUploadedFileBuffer(uploadedFile) {
   return fs.promises.readFile(uploadedFile.path);
 }
 
+function inferReceiptMimeType(fileName, buffer, providedMimeType) {
+  const supplied = String(providedMimeType || "").toLowerCase().trim();
+  const extensionMimeType = RECEIPT_MIME_BY_EXTENSION[path.extname(String(fileName || "")).toLowerCase()];
+  const bytes = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || []);
+  if (bytes.subarray(0, 5).toString("ascii") === "%PDF-") return "application/pdf";
+  if (supplied && supplied !== "application/octet-stream") return supplied;
+  return extensionMimeType || supplied || "application/octet-stream";
+}
+
 const RECEIPT_MIME_BY_EXTENSION = Object.freeze({
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
@@ -87,13 +96,13 @@ async function upsertStudentDocument(tx, { studentId, kind, uploadedFile, buffer
       studentId,
       kind,
       originalName: uploadedFile.originalname || `${kind.toLowerCase()}.jpg`,
-      mimeType: uploadedFile.mimetype || "application/octet-stream",
+      mimeType: inferReceiptMimeType(uploadedFile.originalname, data, uploadedFile.mimetype),
       fileSize: data.length,
       data,
     },
     update: {
       originalName: uploadedFile.originalname || `${kind.toLowerCase()}.jpg`,
-      mimeType: uploadedFile.mimetype || "application/octet-stream",
+      mimeType: inferReceiptMimeType(uploadedFile.originalname, data, uploadedFile.mimetype),
       fileSize: data.length,
       data,
     },
@@ -112,7 +121,7 @@ async function getStudentDocument(studentId, kind, legacyFilename) {
   const filePath = path.join(uploadDirectory, safeFilename);
   try {
     const data = await fs.promises.readFile(filePath);
-    const legacyMimeType = safeFilename.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
+    const legacyMimeType = RECEIPT_MIME_BY_EXTENSION[path.extname(safeFilename).toLowerCase()] || "application/octet-stream";
     return prisma.studentDocument.upsert({
       where: { studentId_kind: { studentId, kind } },
       create: {
@@ -136,13 +145,20 @@ async function getStudentDocument(studentId, kind, legacyFilename) {
 }
 
 function sendStudentDocument(res, document) {
-  const mimeType = document.mimeType || "application/octet-stream";
+  const data = Buffer.from(document.data);
+  const storedMimeType = String(document.mimeType || "").toLowerCase();
+  const extensionMimeType = RECEIPT_MIME_BY_EXTENSION[path.extname(String(document.originalName || "")).toLowerCase()];
+  const mimeType = data.subarray(0, 5).toString("ascii") === "%PDF-"
+    ? "application/pdf"
+    : storedMimeType && storedMimeType !== "application/octet-stream"
+      ? storedMimeType
+      : extensionMimeType || "application/octet-stream";
   const fileName = String(document.originalName || "payment-receipt").replace(/[\r\n"\\]/g, "_");
   res.setHeader("Content-Type", mimeType);
   res.setHeader("Content-Length", String(document.fileSize || document.data.length));
   res.setHeader("Content-Disposition", `inline; filename="${fileName}"`);
   res.setHeader("Cache-Control", "private, no-store");
-  return res.send(Buffer.from(document.data));
+  return res.send(data);
 }
 
 const DEFAULT_PAGE = 1;
