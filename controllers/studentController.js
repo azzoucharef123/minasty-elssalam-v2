@@ -3,7 +3,6 @@
 const fs = require("fs");
 const path = require("path");
 const { Prisma } = require("@prisma/client");
-const sharp = require("sharp");
 const { normalizeParentPhone } = require("../utils/phone");
 const {
   normalizeParentPin,
@@ -35,46 +34,48 @@ async function readUploadedFileBuffer(uploadedFile) {
   return fs.promises.readFile(uploadedFile.path);
 }
 
+const RECEIPT_MIME_BY_EXTENSION = Object.freeze({
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".jpe": "image/jpeg",
+  ".jfif": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".heic": "image/heic",
+  ".heif": "image/heif",
+  ".avif": "image/avif",
+  ".tif": "image/tiff",
+  ".tiff": "image/tiff",
+  ".gif": "image/gif",
+  ".bmp": "image/bmp",
+  ".ico": "image/x-icon",
+  ".jxl": "image/jxl",
+  ".pdf": "application/pdf",
+});
+
 async function normalizePaymentReceiptImage(uploadedFile) {
   const sourceBuffer = await readUploadedFileBuffer(uploadedFile);
   const originalName = path.basename(uploadedFile.originalname || "payment-receipt");
+  const extension = path.extname(originalName).toLowerCase();
   const originalMimeType = String(uploadedFile.mimetype || "").toLowerCase();
-  const isPdf = originalMimeType === "application/pdf" || /\.pdf$/i.test(originalName);
-
-  // A PDF is a valid payment document and must remain byte-for-byte intact.
-  if (isPdf) {
-    return {
-      ...uploadedFile,
-      buffer: sourceBuffer,
-      originalname: originalName.toLowerCase().endsWith(".pdf") ? originalName : `${originalName}.pdf`,
-      mimetype: "application/pdf",
-    };
+  const mimeType = originalMimeType.startsWith("image/") || originalMimeType === "application/pdf"
+    ? originalMimeType
+    : RECEIPT_MIME_BY_EXTENSION[extension] || "application/octet-stream";
+  const isAllowedDocument = mimeType.startsWith("image/") || mimeType === "application/pdf" || RECEIPT_MIME_BY_EXTENSION[extension];
+  if (!isAllowedDocument) {
+    const error = new Error("ملف وصل الدفع ليس صورة أو PDF صالحًا.");
+    error.code = "UNSUPPORTED_PAYMENT_IMAGE";
+    throw error;
   }
 
-  try {
-    // Normalize ordinary images for reliable orientation and browser preview.
-    const normalizedBuffer = await sharp(sourceBuffer, { failOn: "none" })
-      .rotate()
-      .jpeg({ quality: 84, mozjpeg: true })
-      .toBuffer();
-    return {
-      ...uploadedFile,
-      buffer: normalizedBuffer,
-      originalname: `${originalName.replace(/\.[^.]*$/, "")}.jpg`,
-      mimetype: "image/jpeg",
-    };
-  } catch (error) {
-    // Do not lose a valid mobile image merely because the installed codec cannot
-    // decode a less common format. Store the original bytes and let the teacher
-    // download or send the original file to Google Drive.
-    console.warn("Image normalization skipped; preserving original receipt:", error.message);
-    return {
-      ...uploadedFile,
-      buffer: sourceBuffer,
-      originalname: originalName,
-      mimetype: originalMimeType.startsWith("image/") ? originalMimeType : "application/octet-stream",
-    };
-  }
+  // Keep the uploaded bytes intact. This avoids codec failures on phones that
+  // produce HEIC/HEIF/AVIF while preserving PDFs exactly for teacher review.
+  return {
+    ...uploadedFile,
+    buffer: sourceBuffer,
+    originalname: originalName,
+    mimetype: mimeType,
+  };
 }
 
 async function upsertStudentDocument(tx, { studentId, kind, uploadedFile, buffer }) {
