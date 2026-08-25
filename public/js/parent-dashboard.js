@@ -721,7 +721,9 @@ function closeDocumentFeedback() {
 }
 
 function isValidPaymentReceiptImage(file) {
-  return Boolean(file && String(file.type || "").toLowerCase().startsWith("image/"));
+  // Mobile camera providers may report an empty or generic MIME type. The
+  // server validates the actual bytes with Sharp, so only require a file here.
+  return Boolean(file && file.size > 0);
 }
 
 function updatePaymentReceiptFileName(input, label) {
