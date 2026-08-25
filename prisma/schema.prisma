@@ -15,8 +15,8 @@ model Student {
   paymentStatus Boolean  @default(false)
   paymentStage  String   @default("UNPAID")
   amountDue     Int?
-  mathEnrollment    Boolean @default(true)
-  physicsEnrollment Boolean @default(true)
+  mathEnrollment    Boolean @default(false)
+  physicsEnrollment Boolean @default(false)
   liveAccessEnabled Boolean @default(false)
   mathNote      String   @default("")
   physicsNote   String   @default("")

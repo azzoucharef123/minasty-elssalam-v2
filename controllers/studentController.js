@@ -281,8 +281,10 @@ async function registerStudent(req, res) {
           paymentStatus: false,
           paymentStage: "UNPAID",
           amountDue: null,
-          mathEnrollment: true,
-          physicsEnrollment: true,
+          // New secondary students start with no paid subject selected.
+          // University accounts keep both flags for backward-compatible academic flows.
+          mathEnrollment: isUniversityStudent,
+          physicsEnrollment: isUniversityStudent,
           liveAccessEnabled: false,
           mathNote: "",
           physicsNote: "",
@@ -1082,7 +1084,7 @@ async function updateStudentStatusAndNotes(req, res) {
           normalizedAmount > MAX_AMOUNT_DUE)) ||
       typeof mathEnrollment !== "boolean" ||
       typeof physicsEnrollment !== "boolean" ||
-      (!mathEnrollment && !physicsEnrollment) ||
+      (paymentStage !== "UNPAID" && !mathEnrollment && !physicsEnrollment) ||
       typeof liveAccessEnabled !== "boolean" ||
       (accountActive !== undefined && typeof accountActive !== "boolean") ||
       typeof mathNote !== "string" ||

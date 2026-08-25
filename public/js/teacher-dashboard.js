@@ -311,7 +311,8 @@ function showDashboardError(message = "") {
 function secondarySubscriptionMode(student) {
   if (student.mathEnrollment && student.physicsEnrollment) return "BOTH";
   if (student.physicsEnrollment) return "PHYSICS";
-  return "MATH";
+  if (student.mathEnrollment) return "MATH";
+  return "NONE";
 }
 
 function paymentStageMeta(student) {
@@ -321,7 +322,9 @@ function paymentStageMeta(student) {
       ? { label: "فيزياء ورياضيات", className: "is-paid" }
       : mode === "PHYSICS"
         ? { label: "فيزياء فقط", className: "is-unpaid" }
-        : { label: "رياضيات فقط", className: "is-unpaid" };
+        : mode === "MATH"
+          ? { label: "رياضيات فقط", className: "is-unpaid" }
+          : { label: "لم تختَر المواد بعد", className: "is-unpaid" };
   }
 
   const stage = student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID");

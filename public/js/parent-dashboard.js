@@ -1447,9 +1447,14 @@ function secondaryPaymentStateLabel(student) {
 }
 
 function secondarySubscriptionLabel(student) {
-  if (student.mathEnrollment && student.physicsEnrollment) return "فيزياء ورياضيات";
-  if (student.physicsEnrollment) return "فيزياء فقط";
-  return "رياضيات فقط";
+  const paymentStage = student?.paymentStage || (student?.paymentStatus ? "PAID" : "UNPAID");
+  const hasMath = Boolean(student?.mathEnrollment);
+  const hasPhysics = Boolean(student?.physicsEnrollment);
+  if (paymentStage !== "PAID" && !hasMath && !hasPhysics) return "لم تختَر المواد بعد";
+  if (hasMath && hasPhysics) return "فيزياء ورياضيات";
+  if (hasPhysics) return "فيزياء فقط";
+  if (hasMath) return "رياضيات فقط";
+  return "لم تختَر المواد بعد";
 }
 
 function renderPaymentReceiptDecision(student) {
