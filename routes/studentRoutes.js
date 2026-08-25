@@ -64,9 +64,21 @@ const cardUpload = multer({
   limits: { files: 1, fileSize: MAX_CARD_SIZE_BYTES },
 });
 
-// Do not trust the browser-reported MIME type here. Some mobile camera/file
-// providers send an empty or generic type; Sharp validates the actual bytes.
-function receiptFileFilter(_req, _file, callback) {
+// Some mobile providers send an empty or generic MIME type. Accept images by
+// MIME/extension and accept PDF; the controller preserves PDFs and normalizes images.
+const receiptImageExtensions = new Set([
+  ".jpg", ".jpeg", ".jpe", ".jfif", ".png", ".webp", ".heic", ".heif",
+  ".avif", ".tif", ".tiff", ".gif", ".bmp", ".ico", ".jxl",
+]);
+
+function receiptFileFilter(_req, file, callback) {
+  const mimeType = String(file.mimetype || "").toLowerCase();
+  const extension = path.extname(String(file.originalname || "")).toLowerCase();
+  const isPdf = mimeType === "application/pdf" || extension === ".pdf";
+  const isImage = mimeType.startsWith("image/") || receiptImageExtensions.has(extension);
+  if (!isPdf && !isImage) {
+    return callback(new Error("يرجى رفع صورة أو ملف PDF فقط لوصل الدفع."), false);
+  }
   return callback(null, true);
 }
 
@@ -126,7 +138,7 @@ router.use((error, _req, res, next) => {
     return res.status(400).json({ error: error.field === "paymentReceipt" ? "تعذر معالجة صورة وصل الدفع المرفوعة." : "تعذر معالجة صورة البطاقة المرفوعة." });
   }
 
-  if (error.message === "يسمح برفع صورة البطاقة بصيغة PNG أو JPG/JPEG فقط.") {
+  if (error.message === "يسمح برفع صورة البطاقة بصيغة PNG أو JPG/JPEG فقط." || error.message === "يرجى رفع صورة أو ملف PDF فقط لوصل الدفع.") {
     return res.status(400).json({ error: error.message });
   }
 

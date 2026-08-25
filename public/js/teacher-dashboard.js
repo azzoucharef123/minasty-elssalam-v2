@@ -134,6 +134,8 @@ const elements = {
   paymentReceiptPreviewModal: document.getElementById("payment-receipt-preview-modal"),
   paymentReceiptPreviewStatus: document.getElementById("payment-receipt-preview-status"),
   paymentReceiptPreviewImage: document.getElementById("payment-receipt-preview-image"),
+  paymentReceiptPreviewFrame: document.getElementById("payment-receipt-preview-frame"),
+  paymentReceiptPreviewPdf: document.getElementById("payment-receipt-preview-pdf"),
   paymentReceiptSaveDriveButton: document.getElementById("save-payment-receipt-to-drive"),
   closePaymentReceiptPreviewButton: document.getElementById("close-payment-receipt-preview"),
   scheduleManager: document.getElementById("schedule-manager"),
@@ -595,10 +597,10 @@ async function uploadStudentBlobToDrive({ student, kind, blob, accessToken }) {
     typeFolderId,
     accessToken
   );
-  const extension = blob.type === "image/png" ? "png" : "jpg";
+  const mimeType = blob.type || "application/octet-stream";
+  const extension = mimeType === "application/pdf" ? "pdf" : mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
   const label = isCard ? "بطاقة-الطالب" : "وصل-الدفع";
   const fileName = `${safeDriveFilePart(student.studentName, "طالب")}-${label}-${new Date().toISOString().replace(/[:.]/g, "-")}.${extension}`;
-  const mimeType = blob.type || "application/octet-stream";
   const sessionResponse = await teacherDriveRequest(
     "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,webViewLink",
     {
@@ -661,14 +663,17 @@ async function saveStudentDocumentToDrive(studentId, kind, button) {
   try {
     const response = await teacherFetch(
       `/api/students/${encodeURIComponent(studentId)}/${kind === "card" ? "card-photo" : "payment-receipt"}`,
-      { headers: { Accept: "image/*" } }
+      { headers: { Accept: "image/*, application/pdf" } }
     );
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
       throw new Error(payload.error || "تعذر تحميل الملف قبل حفظه.");
     }
     const blob = await response.blob();
-    if (!blob.type.startsWith("image/")) throw new Error("الملف المرفوع ليس صورة صالحة.");
+    if (!blob.size) throw new Error("الملف المرفوع فارغ.");
+    const isPdf = blob.type === "application/pdf";
+    const isImage = blob.type.startsWith("image/");
+    if (!isPdf && !isImage && blob.type !== "application/octet-stream") throw new Error("الملف المرفوع ليس صورة أو PDF صالحًا.");
 
     showToast("جارٍ فتح صلاحية Google Drive…");
     const accessToken = await requestGoogleDriveUploadToken();
@@ -2906,7 +2911,7 @@ async function viewStudentCard(studentId) {
   try {
     const response = await teacherFetch(
       `/api/students/${encodeURIComponent(studentId)}/card-photo`,
-      { headers: { Accept: "image/*" } }
+      { headers: { Accept: "image/*, application/pdf" } }
     );
 
     if (!response.ok) {
@@ -2962,6 +2967,10 @@ function closePaymentReceiptPreview() {
     elements.paymentReceiptPreviewImage.hidden = true;
     elements.paymentReceiptPreviewImage.removeAttribute("src");
   }
+  if (elements.paymentReceiptPreviewPdf) {
+    elements.paymentReceiptPreviewPdf.hidden = true;
+    elements.paymentReceiptPreviewPdf.removeAttribute("src");
+  }
   if (elements.paymentReceiptPreviewStatus) {
     elements.paymentReceiptPreviewStatus.textContent = "جارٍ تحميل الوصل…";
     elements.paymentReceiptPreviewStatus.classList.remove("is-error");
@@ -2979,7 +2988,7 @@ async function viewStudentPaymentReceipt(studentId) {
     openDocumentFeedback("وصل الدفع غير متاح حالياً لهذا المستخدم.", "وصل الدفع غير متاح");
     return;
   }
-  if (!elements.paymentReceiptPreviewModal || !elements.paymentReceiptPreviewImage) {
+  if (!elements.paymentReceiptPreviewModal || !elements.paymentReceiptPreviewImage || !elements.paymentReceiptPreviewPdf) {
     openDocumentFeedback("عارض وصل الدفع غير متاح حالياً.", "تعذر عرض الوثيقة");
     return;
   }
@@ -2992,6 +3001,8 @@ async function viewStudentPaymentReceipt(studentId) {
   elements.paymentReceiptPreviewStatus.classList.remove("is-error");
   elements.paymentReceiptPreviewImage.hidden = true;
   elements.paymentReceiptPreviewImage.removeAttribute("src");
+  elements.paymentReceiptPreviewPdf.hidden = true;
+  elements.paymentReceiptPreviewPdf.removeAttribute("src");
   elements.paymentReceiptSaveDriveButton.disabled = true;
   elements.paymentReceiptPreviewModal.hidden = false;
   elements.paymentReceiptPreviewModal.classList.add("is-open");
@@ -3000,33 +3011,46 @@ async function viewStudentPaymentReceipt(studentId) {
   try {
     const response = await teacherFetch(
       `/api/students/${encodeURIComponent(studentId)}/payment-receipt`,
-      { headers: { Accept: "image/*" } }
+      { headers: { Accept: "image/*, application/pdf" } }
     );
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
       throw new Error(payload.error || "تعذر عرض وصل الدفع.");
     }
     const blob = await response.blob();
-    if (!blob.type.startsWith("image/")) throw new Error("الملف المحفوظ ليس صورة وصل دفع صالحة.");
+    const isPdf = blob.type === "application/pdf" || String(response.headers.get("Content-Disposition") || "").toLowerCase().includes(".pdf");
+    const isImage = blob.type.startsWith("image/");
+    if (!isPdf && !isImage) throw new Error("الملف المحفوظ ليس صورة أو PDF صالحًا.");
     if (requestId !== paymentReceiptPreviewRequestId || elements.paymentReceiptPreviewModal.hidden) return;
 
-    const imageUrl = URL.createObjectURL(blob);
-    paymentReceiptPreviewObjectUrl = imageUrl;
-    elements.paymentReceiptPreviewImage.onload = () => {
-      if (requestId === paymentReceiptPreviewRequestId) {
-        elements.paymentReceiptPreviewStatus.textContent = "تم تحميل الوصل. يمكنك مراجعته ثم حفظه في Google Drive.";
-        elements.paymentReceiptPreviewImage.hidden = false;
-        elements.paymentReceiptSaveDriveButton.disabled = false;
-      }
-    };
-    elements.paymentReceiptPreviewImage.onerror = () => {
-      if (requestId === paymentReceiptPreviewRequestId) {
-        elements.paymentReceiptPreviewStatus.textContent = "تعذر فك صورة وصل الدفع.";
-        elements.paymentReceiptPreviewStatus.classList.add("is-error");
-        elements.paymentReceiptPreviewImage.hidden = true;
-      }
-    };
-    elements.paymentReceiptPreviewImage.src = imageUrl;
+    const documentUrl = URL.createObjectURL(blob);
+    paymentReceiptPreviewObjectUrl = documentUrl;
+    if (isPdf) {
+      elements.paymentReceiptPreviewPdf.onload = () => {
+        if (requestId === paymentReceiptPreviewRequestId) {
+          elements.paymentReceiptPreviewStatus.textContent = "تم تحميل ملف PDF. يمكنك مراجعته ثم حفظه في Google Drive.";
+          elements.paymentReceiptPreviewPdf.hidden = false;
+          elements.paymentReceiptSaveDriveButton.disabled = false;
+        }
+      };
+      elements.paymentReceiptPreviewPdf.src = documentUrl;
+    } else {
+      elements.paymentReceiptPreviewImage.onload = () => {
+        if (requestId === paymentReceiptPreviewRequestId) {
+          elements.paymentReceiptPreviewStatus.textContent = "تم تحميل الصورة. يمكنك مراجعتها ثم حفظها في Google Drive.";
+          elements.paymentReceiptPreviewImage.hidden = false;
+          elements.paymentReceiptSaveDriveButton.disabled = false;
+        }
+      };
+      elements.paymentReceiptPreviewImage.onerror = () => {
+        if (requestId === paymentReceiptPreviewRequestId) {
+          elements.paymentReceiptPreviewStatus.textContent = "تعذر فك صورة وصل الدفع.";
+          elements.paymentReceiptPreviewStatus.classList.add("is-error");
+          elements.paymentReceiptPreviewImage.hidden = true;
+        }
+      };
+      elements.paymentReceiptPreviewImage.src = documentUrl;
+    }
   } catch (error) {
     if (requestId !== paymentReceiptPreviewRequestId) return;
     elements.paymentReceiptPreviewStatus.textContent = error.message || "تعذر عرض وصل الدفع.";

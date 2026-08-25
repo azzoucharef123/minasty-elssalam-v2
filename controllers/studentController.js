@@ -37,7 +37,22 @@ async function readUploadedFileBuffer(uploadedFile) {
 
 async function normalizePaymentReceiptImage(uploadedFile) {
   const sourceBuffer = await readUploadedFileBuffer(uploadedFile);
+  const originalName = path.basename(uploadedFile.originalname || "payment-receipt");
+  const originalMimeType = String(uploadedFile.mimetype || "").toLowerCase();
+  const isPdf = originalMimeType === "application/pdf" || /\.pdf$/i.test(originalName);
+
+  // A PDF is a valid payment document and must remain byte-for-byte intact.
+  if (isPdf) {
+    return {
+      ...uploadedFile,
+      buffer: sourceBuffer,
+      originalname: originalName.toLowerCase().endsWith(".pdf") ? originalName : `${originalName}.pdf`,
+      mimetype: "application/pdf",
+    };
+  }
+
   try {
+    // Normalize ordinary images for reliable orientation and browser preview.
     const normalizedBuffer = await sharp(sourceBuffer, { failOn: "none" })
       .rotate()
       .jpeg({ quality: 84, mozjpeg: true })
@@ -45,12 +60,20 @@ async function normalizePaymentReceiptImage(uploadedFile) {
     return {
       ...uploadedFile,
       buffer: normalizedBuffer,
-      originalname: `${path.basename(uploadedFile.originalname || "payment-receipt").replace(/\.[^.]*$/, "")}.jpg`,
+      originalname: `${originalName.replace(/\.[^.]*$/, "")}.jpg`,
       mimetype: "image/jpeg",
     };
   } catch (error) {
-    error.code = "UNSUPPORTED_PAYMENT_IMAGE";
-    throw error;
+    // Do not lose a valid mobile image merely because the installed codec cannot
+    // decode a less common format. Store the original bytes and let the teacher
+    // download or send the original file to Google Drive.
+    console.warn("Image normalization skipped; preserving original receipt:", error.message);
+    return {
+      ...uploadedFile,
+      buffer: sourceBuffer,
+      originalname: originalName,
+      mimetype: originalMimeType.startsWith("image/") ? originalMimeType : "application/octet-stream",
+    };
   }
 }
 
@@ -672,9 +695,6 @@ async function submitPaymentReceipt(req, res) {
       await removeUploadedCard(uploadedReceiptFile.filename);
     }
     console.error("Payment receipt submission failed:", error);
-    if (error?.code === "UNSUPPORTED_PAYMENT_IMAGE") {
-      return res.status(400).json({ error: "تعذر قراءة الصورة. اختر صورة واضحة بصيغة JPG أو PNG أو WebP أو HEIC ثم حاول مرة أخرى." });
-    }
     return res.status(500).json({ error: "تعذر إرسال وصل الدفع حالياً." });
   }
 }

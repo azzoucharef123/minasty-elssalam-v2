@@ -721,8 +721,11 @@ function closeDocumentFeedback() {
 }
 
 function isValidPaymentReceiptImage(file) {
-  // Mobile camera providers may report an empty or generic MIME type. The
-  // server validates the actual bytes with Sharp, so only require a file here.
+  // Keep the browser permissive; the server validates image/PDF bytes safely.
+  return Boolean(file && file.size > 0);
+}
+
+function isPaymentReceiptFile(file) {
   return Boolean(file && file.size > 0);
 }
 
@@ -906,10 +909,10 @@ function wirePaymentReceiptActions({ input, captureButton, fileChoiceButton, upl
   });
   input?.addEventListener("change", () => {
     const file = input.files?.[0];
-    if (file && !isValidPaymentReceiptImage(file)) {
+    if (file && !isPaymentReceiptFile(file)) {
       input.value = "";
       updatePaymentReceiptFileName(input, fileName);
-      openDocumentFeedback("يُقبل وصل الدفع بصيغة صورة فقط: JPG أو PNG أو WebP. لا يُقبل PDF.", "صيغة الوصل غير مقبولة");
+      openDocumentFeedback("اختر صورة أو ملف PDF صالحًا لوصل الدفع.", "ملف الوصل غير صالح");
       return;
     }
     updatePaymentReceiptFileName(input, fileName);
@@ -2293,7 +2296,7 @@ async function submitSecondaryPaymentReceipt() {
     );
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(payload.error || "تعذر إرسال وصل الدفع.");
+      throw new Error(payload.error || "تعذر إرسال صورة أو ملف PDF لوصل الدفع.");
     }
 
     elements.secondaryPaymentReceiptInput.value = "";
@@ -2339,7 +2342,7 @@ async function submitUniversityPaymentReceipt() {
     );
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(payload.error || "تعذر إرسال وصل الدفع.");
+      throw new Error(payload.error || "تعذر إرسال صورة أو ملف PDF لوصل الدفع.");
     }
 
     elements.parentPaymentReceiptInput.value = "";
