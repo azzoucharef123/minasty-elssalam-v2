@@ -448,6 +448,10 @@ async function issueTemporaryParentPin(req, res) {
   }
 }
 
+async function sessionStatus(req, res) {
+  return res.json({ status: "success", active: true });
+}
+
 async function logout(req, res) {
   try {
     await revokeSessionByTokenId(req.user?.sessionId);
@@ -462,6 +466,7 @@ module.exports = {
   teacherLogin,
   parentLogin,
   logout,
+  sessionStatus,
   listSessions,
   revokeSession,
   revokeOtherSessions,

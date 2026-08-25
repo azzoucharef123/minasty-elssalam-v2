@@ -3,6 +3,7 @@ const {
   teacherLogin,
   parentLogin,
   logout,
+  sessionStatus,
   listSessions,
   revokeSession,
   revokeOtherSessions,
@@ -22,6 +23,7 @@ router.post("/parent/forgot", authRateLimit, requestParentPinReset);
 router.get("/parent/forgot-requests", verifyToken, isTeacher, listParentPinResetRequests);
 router.put("/parent/forgot-requests/:id/issue", verifyToken, isTeacher, issueTemporaryParentPin);
 router.post("/logout", verifyToken, logout);
+router.get("/session-status", verifyToken, sessionStatus);
 router.get("/sessions", verifyToken, listSessions);
 router.delete("/sessions/others", verifyToken, revokeOtherSessions);
 router.delete("/sessions/:id", verifyToken, revokeSession);

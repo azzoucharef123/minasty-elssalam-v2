@@ -29,6 +29,8 @@ function getRequestMetadata(req) {
 async function issueSession(payload, req) {
   const tokenId = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
+  const role = String(payload.role || "unknown");
+  const subjectId = payload.phone ? String(payload.phone) : null;
   const token = jwt.sign(
     { ...payload, sessionId: tokenId },
     getJwtSecret(),
@@ -42,16 +44,30 @@ async function issueSession(payload, req) {
   );
 
   const metadata = getRequestMetadata(req);
-  await prisma.session.create({
-    data: {
-      tokenId,
-      role: String(payload.role || "unknown"),
-      subjectId: payload.phone ? String(payload.phone) : null,
-      studentId: payload.studentId || null,
-      userAgent: metadata.userAgent,
-      ipAddress: metadata.ipAddress,
-      expiresAt,
-    },
+  const now = new Date();
+  await prisma.$transaction(async (tx) => {
+    // One active session per account. For the teacher, subjectId is null and
+    // role=teacher identifies the single teacher account.
+    await tx.session.updateMany({
+      where: {
+        role,
+        subjectId,
+        revokedAt: null,
+        expiresAt: { gt: now },
+      },
+      data: { revokedAt: now },
+    });
+    await tx.session.create({
+      data: {
+        tokenId,
+        role,
+        subjectId,
+        studentId: payload.studentId || null,
+        userAgent: metadata.userAgent,
+        ipAddress: metadata.ipAddress,
+        expiresAt,
+      },
+    });
   });
 
   return { token, tokenId, expiresAt, expiresIn: JWT_EXPIRES_IN };

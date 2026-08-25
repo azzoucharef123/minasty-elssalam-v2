@@ -113,4 +113,62 @@
       keepalive: true,
     }).catch(() => {});
   };
+
+  const sessionCheckIntervalMs = 3000;
+  let sessionRedirecting = false;
+
+  function clearLocalAuthState() {
+    [
+      "teacherToken",
+      "teacherAuth",
+      "parentToken",
+      "parentPhone",
+      "userRole",
+      "forceParentPinChange",
+      "selectedStudentId",
+      "parentStudents",
+      "studentName",
+      "level",
+      "studentLevel",
+      "studentId",
+      "currentStudent",
+      "currentStudentName",
+      "currentStudentLevel",
+      "loggedInStudent",
+      "student",
+    ].forEach((key) => {
+      sessionStorage.removeItem(key);
+    });
+  }
+
+  async function checkActiveSession() {
+    if (sessionRedirecting) return;
+    const token = sessionStorage.getItem("teacherToken") || sessionStorage.getItem("parentToken");
+    if (!token) return;
+
+    try {
+      const response = await fetch("/api/auth/session-status", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        cache: "no-store",
+      });
+      if (response.ok) return;
+      // 428 means the parent must complete the PIN-change flow; do not replace
+      // that intentional redirect with the single-session redirect.
+      if (response.status === 428) return;
+      if (response.status !== 401 && response.status !== 403) return;
+
+      sessionRedirecting = true;
+      clearLocalAuthState();
+      window.location.replace("/index.html?session=revoked");
+    } catch {
+      // A temporary network error must not log the user out. The next poll
+      // will retry, while the server remains the source of truth.
+    }
+  }
+
+  if (sessionStorage.getItem("teacherToken") || sessionStorage.getItem("parentToken")) {
+    window.setTimeout(checkActiveSession, 1500);
+    window.setInterval(checkActiveSession, sessionCheckIntervalMs);
+  }
 })();
