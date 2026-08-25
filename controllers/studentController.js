@@ -13,6 +13,7 @@ const prisma = require("../lib/prisma");
 const { removeImageFile } = require("./liveChatController");
 const { logAudit } = require("../utils/audit");
 const { normalizeReferralCode, ensureReferralProfile, awardReferralCommission } = require("../utils/referral");
+const { sendPushToRecipient } = require("../utils/push");
 
 const uploadDirectory =
   process.env.UPLOAD_DIR || path.join(__dirname, "..", "public", "uploads");
@@ -429,6 +430,62 @@ function notifyPaymentReceiptStatus(req, student) {
   });
 }
 
+async function notifyParentPaymentReceiptDecision(req, { student, approved, reason = "" }) {
+  const parentPhone = String(student.parentPhone || "").trim();
+  if (!parentPhone) return;
+
+  const title = approved ? "تم قبول وصل الدفع" : "تم رفض وصل الدفع";
+  const body = approved
+    ? `تم قبول وصل الدفع للتلميذ ${student.studentName || "التلميذ"} وتفعيل الاشتراك.`
+    : `تم رفض وصل الدفع للتلميذ ${student.studentName || "التلميذ"}. ${reason || "يمكنك رفع وصل صحيح من جديد."}`;
+  const link = `/parent-dashboard.html?studentId=${encodeURIComponent(student.id)}&paymentReceipt=${approved ? "approved" : "rejected"}`;
+  const dedupeKey = `PAYMENT_RECEIPT_DECISION:${student.id}:${student.paymentReceiptSubmittedAt?.getTime?.() || Date.now()}:${approved ? "APPROVED" : "REJECTED"}`;
+  let notificationId = null;
+
+  try {
+    const notification = await prisma.notification.create({
+      data: {
+        studentId: student.id,
+        recipientRole: "parent",
+        recipientId: parentPhone,
+        type: approved ? "PAYMENT_RECEIPT_APPROVED" : "PAYMENT_RECEIPT_REJECTED",
+        title,
+        body,
+        link,
+        dedupeKey,
+      },
+      select: { id: true },
+    });
+    notificationId = notification.id;
+  } catch (error) {
+    if (error?.code === "P2002") {
+      const existing = await prisma.notification.findUnique({ where: { dedupeKey }, select: { id: true } }).catch(() => null);
+      notificationId = existing?.id || null;
+    } else {
+      console.warn("Payment receipt decision notification persistence failed:", error.message);
+    }
+  }
+
+  const payload = {
+    title,
+    body,
+    link,
+    tag: `payment-receipt-${student.id}-${approved ? "approved" : "rejected"}`,
+    data: { type: approved ? "payment_receipt_approved" : "payment_receipt_rejected", studentId: student.id, notificationId },
+    notificationId,
+  };
+  try {
+    req.app.get("sendSocketNotification")?.({ role: "parent", recipientId: parentPhone, ...payload });
+  } catch (error) {
+    console.warn("Payment receipt decision socket notification failed:", error.message);
+  }
+  try {
+    await sendPushToRecipient("parent", parentPhone, payload);
+  } catch (error) {
+    console.warn("Payment receipt decision push notification failed:", error.message);
+  }
+}
+
 function isUniversityIdentityPending(student) {
   return (
     student.level === "طالب جامعي" &&
@@ -738,10 +795,12 @@ async function confirmStudentPaymentReceipt(req, res) {
       where: { id: req.params.id },
       select: {
         id: true,
+        studentName: true,
         parentPhone: true,
         level: true,
         paymentReceiptUrl: true,
         paymentReceiptPending: true,
+        paymentReceiptSubmittedAt: true,
         pendingSubscriptionType: true,
       },
     });
@@ -774,6 +833,10 @@ async function confirmStudentPaymentReceipt(req, res) {
       return updated;
     });
     notifyPaymentReceiptStatus(req, updatedStudent);
+    void notifyParentPaymentReceiptDecision(req, {
+      student,
+      approved: true,
+    });
     void prisma.paymentEvent.create({
       data: {
         studentId: student.id,
@@ -818,9 +881,12 @@ async function rejectStudentPaymentReceipt(req, res) {
       where: { id: req.params.id },
       select: {
         id: true,
+        studentName: true,
+        parentPhone: true,
         level: true,
         paymentReceiptUrl: true,
         paymentReceiptPending: true,
+        paymentReceiptSubmittedAt: true,
       },
     });
 
@@ -832,6 +898,7 @@ async function rejectStudentPaymentReceipt(req, res) {
       return res.status(400).json({ error: "لا يوجد وصل دفع جديد بانتظار الرفض." });
     }
 
+    const rejectionReason = text(req.body?.reason, 500);
     const oldReceiptUrl = student.paymentReceiptUrl;
     const updatedStudent = await prisma.$transaction(async (tx) => {
       await tx.studentDocument.deleteMany({
@@ -856,6 +923,11 @@ async function rejectStudentPaymentReceipt(req, res) {
     }
 
     notifyPaymentReceiptStatus(req, updatedStudent);
+    void notifyParentPaymentReceiptDecision(req, {
+      student,
+      approved: false,
+      reason: rejectionReason,
+    });
     void prisma.paymentEvent.create({
       data: {
         studentId: student.id,
@@ -863,7 +935,7 @@ async function rejectStudentPaymentReceipt(req, res) {
         amount: 0,
         actorRole: req.user?.role || "teacher",
         actorId: req.user?.sessionId || null,
-        note: "تم رفض وصل الدفع المرفوع لأنه غير صالح أو لا يثبت عملية الدفع.",
+        note: rejectionReason || "تم رفض وصل الدفع المرفوع لأنه غير صالح أو لا يثبت عملية الدفع.",
       },
     }).catch(() => {});
     void logAudit(req, {
@@ -876,7 +948,7 @@ async function rejectStudentPaymentReceipt(req, res) {
 
     return res.status(200).json({
       status: "success",
-      message: "تم رفض الوصل وحذفه. يمكن للولي إرسال وصل صحيح من جديد.",
+      message: "تم رفض الوصل وحذفه، وتم إشعار ولي الأمر. يمكن للولي إرسال وصل صحيح من جديد.",
       data: updatedStudent,
     });
   } catch (error) {

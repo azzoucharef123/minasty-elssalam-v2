@@ -3081,11 +3081,17 @@ async function confirmPaymentReceipt(studentId) {
 async function rejectPaymentReceipt(studentId) {
   const confirmed = window.confirm("هل تريد رفض هذا الوصل وحذفه؟ سيتمكن الولي من إرسال وصل صحيح من جديد.");
   if (!confirmed) return;
+  const reason = window.prompt("اكتب سبب رفض الوصل ليصل إلى ولي الأمر:", "الوصل غير واضح أو لا يثبت عملية الدفع.");
+  if (reason === null) return;
 
   try {
     const response = await teacherFetch(
       `/api/students/${encodeURIComponent(studentId)}/reject-payment-receipt`,
-      { method: "PUT", headers: { Accept: "application/json" } }
+      {
+        method: "PUT",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: reason.trim().slice(0, 500) }),
+      }
     );
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
