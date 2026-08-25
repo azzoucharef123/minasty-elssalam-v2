@@ -134,8 +134,11 @@ async function getStudentDocument(studentId, kind, legacyFilename) {
 }
 
 function sendStudentDocument(res, document) {
-  res.setHeader("Content-Type", document.mimeType || "application/octet-stream");
+  const mimeType = document.mimeType || "application/octet-stream";
+  const fileName = String(document.originalName || "payment-receipt").replace(/[\r\n"\\]/g, "_");
+  res.setHeader("Content-Type", mimeType);
   res.setHeader("Content-Length", String(document.fileSize || document.data.length));
+  res.setHeader("Content-Disposition", `inline; filename="${fileName}"`);
   res.setHeader("Cache-Control", "private, no-store");
   return res.send(Buffer.from(document.data));
 }

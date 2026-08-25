@@ -3026,13 +3026,9 @@ async function viewStudentPaymentReceipt(studentId) {
     const documentUrl = URL.createObjectURL(blob);
     paymentReceiptPreviewObjectUrl = documentUrl;
     if (isPdf) {
-      elements.paymentReceiptPreviewPdf.onload = () => {
-        if (requestId === paymentReceiptPreviewRequestId) {
-          elements.paymentReceiptPreviewStatus.textContent = "تم تحميل ملف PDF. يمكنك مراجعته ثم حفظه في Google Drive.";
-          elements.paymentReceiptPreviewPdf.hidden = false;
-          elements.paymentReceiptSaveDriveButton.disabled = false;
-        }
-      };
+      elements.paymentReceiptPreviewStatus.textContent = "تم تحميل ملف PDF. يمكنك مراجعته ثم حفظه في Google Drive.";
+      elements.paymentReceiptPreviewPdf.hidden = false;
+      elements.paymentReceiptSaveDriveButton.disabled = false;
       elements.paymentReceiptPreviewPdf.src = documentUrl;
     } else {
       elements.paymentReceiptPreviewImage.onload = () => {
