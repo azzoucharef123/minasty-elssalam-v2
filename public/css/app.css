@@ -4528,7 +4528,17 @@ body.parent-login-page {
 
 
 /* Referral withdrawal review */
-.teacher-dashboard-page .teacher-referral-withdrawals-panel.teacher-tab-panel.is-active { display: block; margin-top: 1.25rem; }
+.teacher-dashboard-page .teacher-referral-withdrawals-panel.teacher-tab-panel.is-active {
+  display: block;
+  flex: 1 1 0;
+  min-height: 0;
+  margin-top: 1.25rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 transparent;
+  -webkit-overflow-scrolling: touch;
+}
 .teacher-referral-withdrawals-card { padding: 1.35rem; }
 .teacher-referral-withdrawal-summary { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; }
 .teacher-referral-withdrawal-summary span { padding: .42rem .62rem; color: #047857; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 999px; font-size: .72rem; font-weight: 900; white-space: nowrap; }
