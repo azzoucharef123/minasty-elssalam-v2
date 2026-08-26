@@ -12,6 +12,13 @@ const elements = {
   studentActionsTitle: document.getElementById("student-actions-title"),
   studentActionsLevel: document.getElementById("student-actions-level"),
   studentActionsList: document.getElementById("student-actions-list"),
+  studentContactModal: document.getElementById("student-contact-modal"),
+  studentContactModalClose: document.getElementById("student-contact-modal-close"),
+  studentContactForm: document.getElementById("student-contact-form"),
+  studentContactName: document.getElementById("student-contact-name"),
+  studentContactPhone: document.getElementById("student-contact-phone"),
+  studentContactMessage: document.getElementById("student-contact-message"),
+  studentContactSubmit: document.getElementById("student-contact-submit"),
   dashboardError: document.querySelector("#dashboard-error, #message-box"),
   logoutButton: document.querySelector("#logout-btn, [data-action='logout']"),
   publicInviteButton: document.getElementById("public-invite-btn"),
@@ -1408,6 +1415,63 @@ function closeStudentActionsModal() {
   if (elements.studentActionsModal) elements.studentActionsModal.hidden = true;
 }
 
+function closeStudentContactModal() {
+  if (!elements.studentContactModal) return;
+  elements.studentContactModal.hidden = true;
+  elements.studentContactModal.classList.remove("is-open");
+  elements.studentContactMessage?.setAttribute("hidden", "");
+  if (elements.studentContactMessage) elements.studentContactMessage.textContent = "";
+}
+
+function showStudentContactMessage(message, isError = false) {
+  if (!elements.studentContactMessage) return;
+  elements.studentContactMessage.textContent = message;
+  elements.studentContactMessage.hidden = !message;
+  elements.studentContactMessage.dataset.state = isError ? "error" : "success";
+}
+
+function openStudentContactModal(student) {
+  if (!student || !elements.studentContactModal || !elements.studentContactForm) return;
+  elements.studentContactForm.dataset.studentId = student.id;
+  elements.studentContactName.value = student.studentName || "";
+  elements.studentContactPhone.value = student.parentPhone || "";
+  showStudentContactMessage("");
+  elements.studentContactSubmit.disabled = false;
+  elements.studentContactModal.hidden = false;
+  elements.studentContactModal.classList.add("is-open");
+  elements.studentContactName.focus();
+}
+
+async function saveStudentContact(event) {
+  event.preventDefault();
+  const studentId = elements.studentContactForm?.dataset.studentId;
+  const studentName = String(elements.studentContactName?.value || "").trim();
+  const parentPhone = String(elements.studentContactPhone?.value || "").trim();
+  if (!studentId || !studentName || !parentPhone) {
+    showStudentContactMessage("أدخل اسم التلميذ ورقم هاتف الولي.", true);
+    return;
+  }
+
+  elements.studentContactSubmit.disabled = true;
+  showStudentContactMessage("جارٍ حفظ البيانات…");
+  try {
+    const response = await teacherFetch(`/api/students/${encodeURIComponent(studentId)}/contact`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ studentName, parentPhone }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر تعديل بيانات التلميذ.");
+    showToast(payload.message || "تم تعديل بيانات التلميذ.");
+    closeStudentContactModal();
+    await fetchStudents(currentLevel);
+  } catch (error) {
+    console.error("Unable to update student contact:", error);
+    showStudentContactMessage(error.message || "تعذر تعديل بيانات التلميذ.", true);
+    elements.studentContactSubmit.disabled = false;
+  }
+}
+
 function openStudentActionsModal(student) {
   if (!student || !elements.studentActionsModal || !elements.studentActionsList) return;
   elements.studentActionsTitle.textContent = student.studentName || "التلميذ";
@@ -1415,6 +1479,10 @@ function openStudentActionsModal(student) {
   elements.studentActionsList.replaceChildren();
 
   const actions = [
+    createButton("تعديل الاسم ورقم الهاتف", "student-action-modal-button", () => {
+      closeStudentActionsModal();
+      openStudentContactModal(student);
+    }),
     createButton("تعديل الاشتراك", "student-action-modal-button", () => {
       closeStudentActionsModal();
       openSubscriptionModal(student.id);
@@ -3715,6 +3783,11 @@ if (!getTeacherToken()) {
   elements.documentFeedbackClose?.addEventListener("click", closeDocumentFeedback);
   elements.documentFeedbackModal?.addEventListener("click", (event) => { if (event.target === elements.documentFeedbackModal) closeDocumentFeedback(); });
   elements.studentCertificatesModalClose?.addEventListener("click", closeStudentCertificatesModal);
+  elements.studentContactModalClose?.addEventListener("click", closeStudentContactModal);
+  elements.studentContactForm?.addEventListener("submit", saveStudentContact);
+  elements.studentContactModal?.addEventListener("click", (event) => {
+    if (event.target === elements.studentContactModal) closeStudentContactModal();
+  });
   elements.studentCertificatesModal?.addEventListener("click", (event) => {
     if (event.target === elements.studentCertificatesModal) closeStudentCertificatesModal();
   });

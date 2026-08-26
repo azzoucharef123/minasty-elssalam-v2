@@ -1060,6 +1060,137 @@ async function deleteStudent(req, res) {
   }
 }
 
+/** PUT /api/students/:id/contact — teacher-only authorization is enforced by middleware. */
+async function updateStudentContact(req, res) {
+  try {
+    const { id } = req.params;
+    const studentName = text(req.body?.studentName, 120);
+    const parentPhone = normalizeParentPhone(req.body?.parentPhone);
+
+    if (!studentName || studentName.length < 2 || !parentPhone) {
+      return res.status(400).json({
+        error: "أدخل اسمًا صحيحًا ورقم هاتف جزائريًا صحيحًا يبدأ بـ 05 أو 06 أو 07.",
+      });
+    }
+
+    const currentStudent = await prisma.student.findUnique({
+      where: { id },
+      select: { id: true, studentName: true, parentPhone: true, level: true },
+    });
+    if (!currentStudent) {
+      return res.status(404).json({ error: "التلميذ غير موجود." });
+    }
+
+    const oldParentPhone = currentStudent.parentPhone;
+    const phoneChanged = oldParentPhone !== parentPhone;
+    const duplicate = await prisma.student.findFirst({
+      where: {
+        id: { not: id },
+        studentName,
+        parentPhone,
+        level: currentStudent.level,
+      },
+      select: { id: true },
+    });
+    if (duplicate) {
+      return res.status(409).json({ error: "يوجد تلميذ آخر بالاسم نفسه ورقم الهاتف والمستوى نفسه." });
+    }
+
+    if (phoneChanged) {
+      const targetCredential = await prisma.parentCredential.findUnique({
+        where: { parentPhone },
+        select: { parentPhone: true },
+      });
+      if (targetCredential) {
+        return res.status(409).json({
+          error: "رقم الهاتف الجديد مرتبط بحساب ولي موجود. استخدم رقمًا غير مرتبط بحساب آخر.",
+        });
+      }
+    }
+
+    const updatedStudent = await prisma.$transaction(async (tx) => {
+      if (phoneChanged) {
+        const credential = await tx.parentCredential.findUnique({ where: { parentPhone: oldParentPhone } });
+        if (credential) {
+          await tx.parentCredential.create({
+            data: {
+              parentPhone,
+              pinHash: credential.pinHash,
+              mustChangePin: credential.mustChangePin,
+              temporaryPinIssuedAt: credential.temporaryPinIssuedAt,
+              temporaryPinExpiresAt: credential.temporaryPinExpiresAt,
+              baridiMobAccount: credential.baridiMobAccount,
+              baridiMobName: credential.baridiMobName,
+            },
+          });
+        }
+
+        await tx.student.updateMany({
+          where: { parentPhone: oldParentPhone },
+          data: { parentPhone },
+        });
+        await tx.session.updateMany({
+          where: { role: "parent", subjectId: oldParentPhone, revokedAt: null },
+          data: { subjectId: parentPhone, revokedAt: new Date() },
+        });
+        await tx.notification.updateMany({
+          where: { recipientRole: "parent", recipientId: oldParentPhone },
+          data: { recipientId: parentPhone },
+        });
+
+        const referralProfile = await tx.referralProfile.findUnique({ where: { parentPhone: oldParentPhone } });
+        if (referralProfile) {
+          await tx.referralProfile.update({
+            where: { parentPhone: oldParentPhone },
+            data: { parentPhone },
+          });
+        }
+        await tx.passwordResetRequest.updateMany({
+          where: { parentPhone: oldParentPhone },
+          data: { parentPhone },
+        });
+        if (credential) {
+          await tx.parentCredential.delete({ where: { parentPhone: oldParentPhone } });
+        }
+      }
+
+      return tx.student.update({
+        where: { id },
+        data: { studentName, parentPhone },
+        select: { id: true, studentName: true, parentPhone: true, level: true },
+      });
+    });
+
+    void logAudit(req, {
+      action: "STUDENT_CONTACT_UPDATED",
+      entityType: "Student",
+      entityId: updatedStudent.id,
+      studentId: updatedStudent.id,
+      metadata: JSON.stringify({
+        oldStudentName: currentStudent.studentName,
+        newStudentName: updatedStudent.studentName,
+        oldParentPhone,
+        newParentPhone: updatedStudent.parentPhone,
+        phoneChanged,
+      }),
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: phoneChanged
+        ? "تم تعديل الاسم ورقم الهاتف، وتم تسجيل خروج حساب الولي لإعادة الدخول بالرقم الجديد."
+        : "تم تعديل اسم التلميذ بنجاح.",
+      data: updatedStudent,
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      return res.status(404).json({ error: "التلميذ غير موجود." });
+    }
+    console.error("Student contact update failed:", error);
+    return res.status(500).json({ error: "تعذر تعديل اسم التلميذ ورقم الهاتف حاليًا." });
+  }
+}
+
 /** PUT /api/students/:id — teacher-only authorization is enforced by middleware. */
 async function updateStudentStatusAndNotes(req, res) {
   try {
@@ -1165,6 +1296,7 @@ module.exports = {
   getStudentForParent,
   getStudentCard,
   getStudentsByLevel,
+  updateStudentContact,
   updateStudentStatusAndNotes,
   requestStudentCardReupload,
   confirmStudentCardIdentity,

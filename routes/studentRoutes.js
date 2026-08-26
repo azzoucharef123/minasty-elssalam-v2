@@ -16,6 +16,7 @@ const {
   replaceStudentCard,
   submitPaymentReceipt,
   getStudentPaymentReceipt,
+  updateStudentContact,
   confirmStudentPaymentReceipt,
   rejectStudentPaymentReceipt,
   deleteStudent,
@@ -116,6 +117,9 @@ router.post("/:id/card-photo", verifyToken, cardUpload.single("cardPhoto"), repl
 
 // Parent-only: a university student can submit an image of the postal payment receipt.
 router.post("/:id/payment-receipt", verifyToken, receiptUpload.single("paymentReceipt"), submitPaymentReceipt);
+
+// Teacher-only: contact edits keep the parent account and sibling records consistent.
+router.put("/:id/contact", verifyToken, isTeacher, updateStudentContact);
 
 // Teacher-only: payment and teacher-note updates are administrative actions.
 router.put("/:id", verifyToken, isTeacher, updateStudentStatusAndNotes);

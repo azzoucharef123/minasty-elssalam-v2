@@ -55,3 +55,16 @@ test("teacher classroom control requires an authenticated teacher session", () =
   assert.match(endHandler, /requireTeacherSocketSession\(socket, "teacher_end_class"/);
   assert.match(teacherLive, /auth:\s*\{\s*token:\s*teacherSocketToken\s*\}/);
 });
+
+test("teacher can edit student contact data through a protected UI action", () => {
+  const routes = fs.readFileSync(path.join(root, "routes/studentRoutes.js"), "utf8");
+  const controller = fs.readFileSync(path.join(root, "controllers/studentController.js"), "utf8");
+  const dashboard = fs.readFileSync(path.join(root, "public/js/teacher-dashboard.js"), "utf8");
+  const html = fs.readFileSync(path.join(root, "public/teacher-dashboard.html"), "utf8");
+  assert.match(routes, /router\.put\("\/:id\/contact", verifyToken, isTeacher, updateStudentContact\)/);
+  assert.match(controller, /async function updateStudentContact\s*\(/);
+  assert.match(controller, /tx\.student\.updateMany\(/);
+  assert.match(dashboard, /تعديل الاسم ورقم الهاتف/);
+  assert.match(dashboard, /\/api\/students\/\$\{encodeURIComponent\(studentId\)\}\/contact/);
+  assert.match(html, /id="student-contact-modal"/);
+});
