@@ -44,3 +44,14 @@ test("production server does not log registration bodies", () => {
   const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
   assert.equal(server.includes("Register request body:"), false);
 });
+
+test("teacher classroom control requires an authenticated teacher session", () => {
+  const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
+  const teacherLive = fs.readFileSync(path.join(root, "public/js/teacher-live-v2.js"), "utf8");
+  assert.match(server, /async function requireTeacherSocketSession\s*\(/);
+  const startHandler = server.match(/socket\.on\("teacher_start_room"[\s\S]*?socket\.on\("student_join_room"/)?.[0] || "";
+  const endHandler = server.match(/socket\.on\("teacher_end_class"[\s\S]*?socket\.on\("disconnect"/)?.[0] || "";
+  assert.match(startHandler, /requireTeacherSocketSession\(socket, "teacher_start_room"/);
+  assert.match(endHandler, /requireTeacherSocketSession\(socket, "teacher_end_class"/);
+  assert.match(teacherLive, /auth:\s*\{\s*token:\s*teacherSocketToken\s*\}/);
+});

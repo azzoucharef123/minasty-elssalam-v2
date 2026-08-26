@@ -30,6 +30,34 @@ const { createSocketNotificationSender, notificationRoom, notificationSessionRoo
 const siteAnalyticsRoutes = require("./routes/siteAnalyticsRoutes");
 const referralRoutes = require("./routes/referralRoutes");
 
+/**
+ * Socket.io control events must authenticate the teacher independently from
+ * socket.data.role. The latter starts as null and is only populated after a
+ * successful room join, so it cannot be used as the first authorization check.
+ */
+async function requireTeacherSocketSession(socket, eventName, acknowledgement) {
+  const token = typeof socket.handshake?.auth?.token === "string"
+    ? socket.handshake.auth.token.trim()
+    : "";
+
+  if (!token) {
+    emitClassroomError(socket, eventName, "يجب تسجيل دخول الأستاذ قبل التحكم في الحصة.", acknowledgement);
+    return null;
+  }
+
+  try {
+    const user = await verifySessionToken(token);
+    if (!user || user.role !== "teacher") {
+      emitClassroomError(socket, eventName, "لا تملك صلاحية الأستاذ للتحكم في الحصة.", acknowledgement);
+      return null;
+    }
+    return user;
+  } catch (error) {
+    emitClassroomError(socket, eventName, "انتهت جلسة الأستاذ. أعد تسجيل الدخول.", acknowledgement);
+    return null;
+  }
+}
+
 const app = express();
 const httpServer = http.createServer(app);
 
@@ -1146,6 +1174,9 @@ io.on("connection", (socket) => {
    */
   socket.on("teacher_start_room", async (data = {}, acknowledgement) => {
     try {
+      const authenticatedTeacher = await requireTeacherSocketSession(socket, "teacher_start_room", acknowledgement);
+      if (!authenticatedTeacher) return;
+
       const level = normalizeText(data.level);
       let subject = normalizeText(data.subject).toUpperCase();
       const resumeToken = normalizeText(data.resumeToken);
@@ -2149,6 +2180,9 @@ io.on("connection", (socket) => {
    */
   socket.on("teacher_end_class", async (data = {}, acknowledgement) => {
     try {
+      const authenticatedTeacher = await requireTeacherSocketSession(socket, "teacher_end_class", acknowledgement);
+      if (!authenticatedTeacher) return;
+
       const level = normalizeText(data.level);
 
       if (

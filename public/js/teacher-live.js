@@ -12,7 +12,10 @@
 // Socket.io is served by the Express server at /socket.io/socket.io.js.
 // Start explicitly so the studio can wait for a healthy signaling connection
 // before emitting teacher_start_room, while retaining WebSocket/polling fallback.
+// The server uses this token to authorize teacher-only control events.
+const teacherSocketToken = sessionStorage.getItem("teacherToken") || "";
 const socket = io({
+  auth: { token: teacherSocketToken },
   autoConnect: false,
   transports: ["websocket", "polling"],
   reconnection: true,
