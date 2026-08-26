@@ -55,6 +55,7 @@ const elements = {
   parentCardPaymentButton: document.getElementById("university-card-payment-button"),
   parentPaymentSubmit: document.getElementById("parent-payment-submit"),
   parentPaymentPending: document.getElementById("parent-payment-pending"),
+  universityPaymentWaiting: document.getElementById("university-payment-waiting"),
   parentPaymentDecision: document.getElementById("parent-payment-decision"),
   parentPaymentConfirmed: document.getElementById("parent-payment-confirmed"),
   secondaryPaymentUpgrade: document.getElementById("secondary-payment-upgrade"),
@@ -70,6 +71,7 @@ const elements = {
   secondaryCardPaymentButton: document.getElementById("secondary-card-payment-button"),
   secondaryPaymentSubmit: document.getElementById("secondary-payment-submit"),
   secondaryPaymentPending: document.getElementById("secondary-payment-pending"),
+  secondaryPaymentWaiting: document.getElementById("secondary-payment-waiting"),
   secondarySofizPayReconcile: document.getElementById("secondary-sofizpay-reconcile"),
   secondarySofizPayOrderNumber: document.getElementById("secondary-sofizpay-order-number"),
   secondarySofizPayReconcileButton: document.getElementById("secondary-sofizpay-reconcile-button"),
@@ -1495,6 +1497,10 @@ function renderUniversityPaymentUpgrade(student, isPaidSubscription) {
 
   if (elements.universityPaymentUpgrade) {
     elements.universityPaymentUpgrade.hidden = !showUpgrade;
+    elements.universityPaymentUpgrade.classList.toggle("is-payment-pending", showUpgrade && receiptPending);
+  }
+  if (elements.universityPaymentWaiting) {
+    elements.universityPaymentWaiting.hidden = !(showUpgrade && receiptPending);
   }
   if (elements.parentPaymentConfirmed) {
     elements.parentPaymentConfirmed.hidden = !(isUniversityStudent && isPaidSubscription && Boolean(student.paymentReceiptUrl));
@@ -1537,6 +1543,10 @@ function renderSecondaryPaymentUpgrade(student) {
   document.body.classList.toggle("has-payment-upgrade", showUpgrade);
   if (elements.secondaryPaymentUpgrade) {
     elements.secondaryPaymentUpgrade.hidden = !showUpgrade;
+    elements.secondaryPaymentUpgrade.classList.toggle("is-payment-pending", showUpgrade && receiptPending);
+  }
+  if (elements.secondaryPaymentWaiting) {
+    elements.secondaryPaymentWaiting.hidden = !(showUpgrade && receiptPending);
   }
   if (!showUpgrade) {
     secondaryPaymentTransferRequested = false;
