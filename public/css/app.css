@@ -3936,8 +3936,13 @@ body.parent-login-page {
 }
 .teacher-dashboard-page .teacher-payments-panel.teacher-tab-panel.is-active {
   display: block;
+  flex: 1 1 0;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 transparent;
+  -webkit-overflow-scrolling: touch;
 }
 
 .teacher-dashboard-page .teacher-payments-card {
