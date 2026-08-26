@@ -4431,7 +4431,17 @@ body.parent-login-page {
 }
 
 /* Teacher notification campaigns */
-.teacher-dashboard-page .teacher-notifications-panel.teacher-tab-panel.is-active { display: block; margin-top: 1.25rem; }
+.teacher-dashboard-page .teacher-notifications-panel.teacher-tab-panel.is-active {
+  display: block;
+  flex: 1 1 0;
+  min-height: 0;
+  margin-top: 1.25rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 transparent;
+  -webkit-overflow-scrolling: touch;
+}
 .teacher-notifications-card { padding: 1.35rem; border: 1px solid var(--border-color); border-radius: var(--border-radius-card); background: var(--surface-white); box-shadow: var(--shadow-card); }
 .teacher-notifications-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding-bottom: 1.1rem; border-bottom: 1px solid var(--border-color); }
 .teacher-notifications-heading h2 { margin: .2rem 0 .35rem; font-size: clamp(1.15rem, 2vw, 1.45rem); }
