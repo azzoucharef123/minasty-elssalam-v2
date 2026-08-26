@@ -3096,6 +3096,12 @@ elements.endClassButton.addEventListener("click", () => {
 });
 elements.chatForm.addEventListener("submit", sendTeacherChatMessage);
 elements.chatInput.addEventListener("input", updateControls);
+elements.chatInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+    event.preventDefault();
+    elements.chatForm.requestSubmit();
+  }
+});
 elements.closeQuestionImageModalButton?.addEventListener("click", closeQuestionImageModal);
 elements.questionImageModal?.addEventListener("click", (event) => {
   if (event.target === elements.questionImageModal) {
