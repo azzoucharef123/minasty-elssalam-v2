@@ -1,0 +1,26 @@
+.parent-messenger-required-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 1rem;
+  padding: 1rem 1.1rem;
+  color: #1e293b;
+  background: linear-gradient(135deg, #fffbeb, #fff7ed);
+  border: 1px solid #fbbf24;
+  border-radius: 1rem;
+  box-shadow: 0 8px 22px rgba(245, 158, 11, .12);
+}
+.parent-messenger-required-banner[hidden] { display: none; }
+.parent-messenger-required-copy { display: flex; align-items: flex-start; gap: .75rem; }
+.parent-messenger-required-icon { display: grid; flex: 0 0 auto; width: 2.35rem; height: 2.35rem; place-items: center; color: #fff; background: #2563eb; border-radius: .7rem; font: 900 1.05rem Arial, sans-serif; }
+.parent-messenger-required-kicker { margin: 0 0 .2rem; color: #b45309; font-size: .7rem; font-weight: 900; }
+.parent-messenger-required-banner h2 { margin: 0; color: #0f172a; font-size: .95rem; line-height: 1.55; }
+.parent-messenger-required-banner p { margin: .3rem 0 0; color: #64748b; font-size: .76rem; line-height: 1.65; }
+.parent-messenger-required-note { color: #92400e !important; font-weight: 800; }
+.parent-messenger-required-actions { display: flex; flex: 0 0 auto; flex-direction: column; gap: .45rem; min-width: 10.5rem; }
+.parent-messenger-required-actions button { min-height: 2.45rem; padding: .55rem .75rem; color: #fff; background: #2563eb; border: 0; border-radius: .65rem; font: inherit; font-size: .75rem; font-weight: 900; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease; }
+.parent-messenger-required-actions button:hover:not(:disabled) { box-shadow: 0 7px 16px rgba(37, 99, 235, .2); transform: translateY(-1px); }
+.parent-messenger-required-actions button:disabled { cursor: wait; opacity: .6; }
+.parent-messenger-required-actions .parent-messenger-refresh-button { color: #92400e; background: #fff; border: 1px solid #f59e0b; }
+@media (max-width: 680px) { .parent-messenger-required-banner { align-items: stretch; flex-direction: column; } .parent-messenger-required-actions { width: 100%; } .parent-messenger-required-actions button { width: 100%; } }

@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=receipt-decision-2" />
     <link rel="stylesheet" href="./css/private-messages.css" />
     <link rel="stylesheet" href="./css/payment-feedback.css" />
+    <link rel="stylesheet" href="./css/parent-messenger-required.css?v=messenger-banner-1" />
 
     <style>
       :root {
@@ -1462,6 +1463,21 @@
     </header>
 
     <main class="parent-main">
+      <section id="parent-messenger-required-banner" class="parent-messenger-required-banner" hidden aria-live="polite" aria-labelledby="parent-messenger-required-title">
+        <div class="parent-messenger-required-copy">
+          <span class="parent-messenger-required-icon" aria-hidden="true">M</span>
+          <div>
+            <p class="parent-messenger-required-kicker">تنبيه مهم</p>
+            <h2 id="parent-messenger-required-title">ربط حسابك بمنصتي بحساب Facebook Messenger صفحة الأستاذ رياضيات وفيزياء</h2>
+            <p>اربط الحساب لتصلك التنبيهات المسموح بها من الأستاذ. لا نطلب منك رقم PIN أو كلمة مرور Minasaty، وقد يفتح الرابط تطبيق Messenger إن كان مثبتًا أو المتصفح بحسب جهازك.</p>
+            <p class="parent-messenger-required-note" id="parent-messenger-required-note">بعد بدء الربط، أرسل رسالة إلى الصفحة لإكمال العملية.</p>
+          </div>
+        </div>
+        <div class="parent-messenger-required-actions">
+          <button id="parent-messenger-required-start" type="button">بدء ربط Messenger</button>
+          <button id="parent-messenger-required-refresh" class="parent-messenger-refresh-button" type="button">تحقق من حالة الربط</button>
+        </div>
+      </section>
       <!-- Prompt 10: this remains display:none until the parent level's live event arrives. -->
       <section id="live-class-banner" aria-live="polite" aria-label="تنبيه الحصة المباشرة">
         <div class="live-banner-copy">
@@ -1902,7 +1918,8 @@
     <script src="./js/session-storage.js?v=single-session-1"></script>
     <script src="./js/message-notifications.js"></script>
     <script src="./js/parent-referral.js?v=referral-ui-1"></script>
-    <script src="./js/parent-dashboard.js?v=payment-review-frame-1"></script>
+    <script src="./js/parent-messenger-required.js?v=messenger-banner-1"></script>
+    <script src="./js/parent-dashboard.js"?v=payment-review-frame-1"></script>
     <script src="./js/parent-push-prompt.js?v=parent-push-prompt-1"></script>
     <script src="./js/browser-notifications.js?v=session-takeover-1"></script>
     <script src="./js/class-registry-parent.js?v=panel-scroll-1"></script>

@@ -3528,6 +3528,7 @@ const DASHBOARD_TAB_HASHES = {
   "manual-payments": "#manual-payments-panel",
   "referral-withdrawals": "#referral-withdrawals-panel",
   "forgot-pin-requests": "#forgot-pin-requests-panel",
+  "facebook-messenger": "#facebook-messenger-panel",
   notifications: "#teacher-notifications-panel",
 };
 

@@ -8,6 +8,19 @@ const MESSENGER_LINK_TTL_MS = 10 * 60 * 1000;
 const MESSENGER_MAX_TEXT_LENGTH = 2_000;
 const MESSENGER_STANDARD_WINDOW_MS = 24 * 60 * 60 * 1_000;
 const LINK_REF_PREFIX = "minasaty_link:";
+const DEFAULT_MESSENGER_SETTINGS = Object.freeze({
+  enabled: true,
+  dailyWarningLimit: 800,
+  dailyHardLimit: 1_000,
+  minIntervalMs: 1_000,
+  maxRetries: 3,
+  appendConfirmationRequest: true,
+  requireRecentInteractionHours: 24,
+  pauseOnRateLimit: true,
+});
+let messengerSettingsCache = null;
+let messengerSettingsCacheAt = 0;
+let lastMessengerSendAt = 0;
 
 function getMessengerConfig() {
   const pageId = String(process.env.META_PAGE_ID || "").trim();
@@ -46,6 +59,130 @@ function getMessengerStatus() {
       ? `Messenger مهيأ لصفحة «${config.pageName}».`
       : "Messenger غير مهيأ حاليًا — بانتظار إعداد بيانات Meta على الخادم.",
   };
+}
+
+function normalizeMessengerSettings(record = {}) {
+  const dailyHardLimit = Math.min(100_000, Math.max(1, Number(record.dailyHardLimit) || DEFAULT_MESSENGER_SETTINGS.dailyHardLimit));
+  return {
+    enabled: record.enabled !== false,
+    dailyWarningLimit: Math.min(dailyHardLimit, Math.max(1, Number(record.dailyWarningLimit) || DEFAULT_MESSENGER_SETTINGS.dailyWarningLimit)),
+    dailyHardLimit,
+    minIntervalMs: Math.min(60_000, Math.max(250, Number(record.minIntervalMs) || DEFAULT_MESSENGER_SETTINGS.minIntervalMs)),
+    maxRetries: Math.min(5, Math.max(0, Number.isInteger(record.maxRetries) ? record.maxRetries : DEFAULT_MESSENGER_SETTINGS.maxRetries)),
+    appendConfirmationRequest: record.appendConfirmationRequest !== false,
+    requireRecentInteractionHours: Math.min(24, Math.max(1, Number(record.requireRecentInteractionHours) || DEFAULT_MESSENGER_SETTINGS.requireRecentInteractionHours)),
+    pauseOnRateLimit: record.pauseOnRateLimit !== false,
+  };
+}
+
+async function getMessengerSettings() {
+  const now = Date.now();
+  if (messengerSettingsCache && now - messengerSettingsCacheAt < 5_000) return messengerSettingsCache;
+  try {
+    const record = await prisma.messengerSettings.findUnique({ where: { id: 1 } });
+    messengerSettingsCache = normalizeMessengerSettings(record || DEFAULT_MESSENGER_SETTINGS);
+  } catch (error) {
+    if (error?.code !== "P2021") throw error;
+    messengerSettingsCache = normalizeMessengerSettings(DEFAULT_MESSENGER_SETTINGS);
+  }
+  messengerSettingsCacheAt = now;
+  return messengerSettingsCache;
+}
+
+function invalidateMessengerSettingsCache() {
+  messengerSettingsCache = null;
+  messengerSettingsCacheAt = 0;
+}
+
+async function saveMessengerSettings(input = {}) {
+  const settings = normalizeMessengerSettings(input);
+  try {
+    const saved = await prisma.messengerSettings.upsert({
+      where: { id: 1 },
+      create: { id: 1, ...settings },
+      update: settings,
+    });
+    invalidateMessengerSettingsCache();
+    return normalizeMessengerSettings(saved);
+  } catch (error) {
+    if (error?.code === "P2021") return settings;
+    throw error;
+  }
+}
+
+async function getMessengerQuotaStatus() {
+  const config = getMessengerConfig();
+  const settings = await getMessengerSettings();
+  const quotaDate = utcDayStart();
+  let quota = null;
+  try {
+    quota = await prisma.messengerQuota.findUnique({
+      where: { pageId_quotaDate: { pageId: config.pageId, quotaDate } },
+      select: { attemptedCount: true, sentCount: true, failedCount: true, skippedCount: true, paused: true, pauseReason: true },
+    });
+  } catch (error) {
+    if (error?.code !== "P2021") throw error;
+  }
+  const attemptedCount = Number(quota?.attemptedCount || 0);
+  return {
+    ...settings,
+    quotaDate: quotaDate.toISOString().slice(0, 10),
+    attemptedCount,
+    sentCount: Number(quota?.sentCount || 0),
+    failedCount: Number(quota?.failedCount || 0),
+    skippedCount: Number(quota?.skippedCount || 0),
+    remainingCount: Math.max(0, settings.dailyHardLimit - attemptedCount),
+    warningReached: attemptedCount >= settings.dailyWarningLimit,
+    paused: Boolean(quota?.paused),
+    pauseReason: quota?.pauseReason || null,
+  };
+}
+
+async function waitForMessengerRate(settings) {
+  const waitMs = Math.max(0, lastMessengerSendAt + settings.minIntervalMs - Date.now());
+  if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
+  lastMessengerSendAt = Date.now();
+}
+
+function utcDayStart(date = new Date()) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+async function reserveMessengerQuota(settings) {
+  const config = getMessengerConfig();
+  const quotaDate = utcDayStart();
+  try {
+    await prisma.messengerQuota.upsert({
+      where: { pageId_quotaDate: { pageId: config.pageId, quotaDate } },
+      create: { pageId: config.pageId, quotaDate },
+      update: {},
+    });
+    const result = await prisma.messengerQuota.updateMany({
+      where: { pageId: config.pageId, quotaDate, paused: false, attemptedCount: { lt: settings.dailyHardLimit } },
+      data: { attemptedCount: { increment: 1 } },
+    });
+    return { reserved: result.count > 0, quotaDate };
+  } catch (error) {
+    if (error?.code === "P2021") return { reserved: true, quotaDate };
+    throw error;
+  }
+}
+
+async function recordMessengerQuotaResult(quotaDate, field, settings, reason = null) {
+  const config = getMessengerConfig();
+  const data = { [field]: { increment: 1 } };
+  const rateLimited = typeof reason === "object"
+    ? Boolean(reason.rateLimited)
+    : /RATE_LIMIT|HTTP_429|HTTP_613/.test(String(reason || ""));
+  if (field === "failedCount" && settings.pauseOnRateLimit && rateLimited) {
+    data.paused = true;
+    data.pauseReason = (typeof reason === "object" ? reason.publicReason : String(reason || "RATE_LIMIT")).slice(0, 160);
+  }
+  try {
+    await prisma.messengerQuota.update({ where: { pageId_quotaDate: { pageId: config.pageId, quotaDate } }, data });
+  } catch (error) {
+    if (error?.code !== "P2021" && error?.code !== "P2025") throw error;
+  }
 }
 
 function sha256(value) {
@@ -213,8 +350,18 @@ async function messengerApi(path, body = {}) {
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || payload.error) {
-      const error = new Error(`MESSENGER_HTTP_${response.status}`);
-      error.messengerCode = String(payload.error?.code || "");
+      const httpStatus = Number(response.status) || 0;
+      const graphCode = Number(payload.error?.code) || 0;
+      const graphSubcode = Number(payload.error?.error_subcode) || 0;
+      const rateLimited = httpStatus === 429 || graphCode === 613;
+      const retryable = rateLimited || httpStatus >= 500;
+      const error = new Error(`MESSENGER_HTTP_${httpStatus}`);
+      error.httpStatus = httpStatus;
+      error.messengerCode = graphCode;
+      error.messengerSubcode = graphSubcode;
+      error.rateLimited = rateLimited;
+      error.retryable = retryable;
+      error.publicReason = rateLimited ? "MESSENGER_RATE_LIMIT" : `MESSENGER_HTTP_${httpStatus}`;
       throw error;
     }
     return payload;
@@ -223,7 +370,7 @@ async function messengerApi(path, body = {}) {
   }
 }
 
-async function sendMessengerMessage({ psid, text } = {}) {
+async function sendMessengerMessage({ psid, text, messagingType = "UPDATE" } = {}) {
   const recipient = String(psid || "").trim();
   const message = String(text || "").trim().slice(0, MESSENGER_MAX_TEXT_LENGTH);
   if (!recipient || !message) {
@@ -231,12 +378,15 @@ async function sendMessengerMessage({ psid, text } = {}) {
   }
   const payload = await messengerApi(`${getMessengerConfig().pageId}/messages`, {
     recipient: { id: recipient },
+    messaging_type: messagingType === "RESPONSE" ? "RESPONSE" : "UPDATE",
     message: { text: message },
   });
   return { sent: true, messageId: payload.message_id || null };
 }
 
 async function sendMessengerToParent(parentPhone, payload = {}) {
+  const settings = await getMessengerSettings();
+  if (!settings.enabled) return { sent: false, skipped: true, reason: "MESSENGER_DISABLED" };
   const link = await prisma.messengerLink.findUnique({
     where: { parentPhone: String(parentPhone || "") },
     select: { psid: true, status: true, lastInteractionAt: true },
@@ -245,10 +395,34 @@ async function sendMessengerToParent(parentPhone, payload = {}) {
     return { sent: false, skipped: true, reason: "MESSENGER_PARENT_NOT_LINKED" };
   }
   const lastInteractionAt = link.lastInteractionAt?.getTime?.() || 0;
-  if (!lastInteractionAt || Date.now() - lastInteractionAt > MESSENGER_STANDARD_WINDOW_MS) {
+  const windowMs = Math.min(MESSENGER_STANDARD_WINDOW_MS, settings.requireRecentInteractionHours * 60 * 60 * 1_000);
+  if (!lastInteractionAt || Date.now() - lastInteractionAt > windowMs) {
     return { sent: false, skipped: true, reason: "MESSENGER_WINDOW_EXPIRED" };
   }
-  return sendMessengerMessage({ psid: link.psid, ...payload });
+  const quota = await reserveMessengerQuota(settings);
+  if (!quota.reserved) return { sent: false, skipped: true, reason: "MESSENGER_DAILY_LIMIT_REACHED" };
+  const rawText = String(payload.text || "").trim();
+  const text = settings.appendConfirmationRequest
+    ? `${rawText}\n\nأرسل «تم» إذا تلقيت هذه الرسالة.`.trim()
+    : rawText;
+  let attempt = 0;
+  while (true) {
+    await waitForMessengerRate(settings);
+    try {
+      const result = await sendMessengerMessage({ psid: link.psid, messagingType: "UPDATE", ...payload, text });
+      await recordMessengerQuotaResult(quota.quotaDate, result.sent ? "sentCount" : "skippedCount", settings, result.reason);
+      return result;
+    } catch (error) {
+      if (error?.retryable && attempt < settings.maxRetries) {
+        attempt += 1;
+        const delayMs = Math.min(8_000, 500 * (2 ** (attempt - 1)) + Math.floor(Math.random() * 250));
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        continue;
+      }
+      await recordMessengerQuotaResult(quota.quotaDate, "failedCount", settings, error);
+      throw error;
+    }
+  }
 }
 
 async function handleMessengerWebhook(body = {}) {
@@ -285,6 +459,7 @@ async function handleMessengerWebhook(body = {}) {
       if (linkResult.linked) {
         await sendMessengerMessage({
           psid: senderPsid,
+          messagingType: "RESPONSE",
           text: "تم ربط Messenger بحساب Minasaty بنجاح. ستصلك هنا التنبيهات المسموح بها من المنصة.",
         }).catch((error) => console.warn("Messenger link confirmation failed:", error.message));
       }
@@ -297,6 +472,13 @@ async function handleMessengerWebhook(body = {}) {
 module.exports = {
   getMessengerConfig,
   getMessengerStatus,
+  getMessengerSettings,
+  saveMessengerSettings,
+  getMessengerQuotaStatus,
+  normalizeMessengerSettings,
+  invalidateMessengerSettingsCache,
+  reserveMessengerQuota,
+  utcDayStart,
   verifyWebhookToken,
   verifyWebhookSignature,
   createMessengerLink,

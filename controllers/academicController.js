@@ -2,7 +2,7 @@ const prisma = require("../lib/prisma");
 const { logAudit } = require("../utils/audit");
 const { getSmsStatus, sendSms } = require("../services/smsService");
 const { getTelegramStatus, notifyTelegram, sendTelegramToParent } = require("../services/telegramService");
-const { getMessengerStatus, sendMessengerToParent } = require("../services/messengerService");
+const { getMessengerStatus, getMessengerSettings, sendMessengerToParent } = require("../services/messengerService");
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LEVELS = new Set(["السنة الأولى", "السنة الثانية", "السنة الثالثة", "السنة الرابعة", "طالب جامعي"]);
@@ -343,7 +343,7 @@ async function updateLessonProgress(req, res) {
   return res.json({ status: "success", data: progress });
 }
 
-const ANNOUNCEMENT_PAYMENT_FILTERS = new Set(["ALL", "FREE", "PAID"]);
+const ANNOUNCEMENT_PAYMENT_FILTERS = new Set(["ALL", "FREE", "UNPAID", "PAID", "PROMISED"]);
 const ANNOUNCEMENT_SUBJECT_FILTERS = new Set(["ALL", "MATH", "PHYSICS", "BOTH"]);
 const ANNOUNCEMENT_DELIVERY_MODES = new Set(["IMMEDIATE", "SCHEDULED"]);
 const ANNOUNCEMENT_TARGET_MODES = new Set(["ALL_LEVEL", "SELECTED"]);
@@ -369,7 +369,9 @@ function announcementWhere(payload) {
     where.id = { in: targetStudentIds };
   }
   if (payload.paymentFilter === "FREE") where.paymentStatus = false;
-  if (payload.paymentFilter === "PAID") where.paymentStatus = true;
+  if (payload.paymentFilter === "UNPAID") where.paymentStage = "UNPAID";
+  if (payload.paymentFilter === "PAID") where.paymentStage = "PAID";
+  if (payload.paymentFilter === "PROMISED") where.paymentStage = "PROMISED";
   if (payload.subjectFilter === "MATH") where.mathEnrollment = true;
   if (payload.subjectFilter === "PHYSICS") where.physicsEnrollment = true;
   if (payload.subjectFilter === "BOTH") {
@@ -653,6 +655,22 @@ async function createTeacherAnnouncement(req, res) {
   return res.status(201).json({ status: "success", mode: "SCHEDULED", recipientCount: 0, data: announcementSummary(campaign) });
 }
 
+async function createTeacherMessengerCampaign(req, res) {
+  if (!getMessengerStatus().configured) {
+    return res.status(503).json({ error: "Facebook Messenger غير مهيّأ حاليًا — تحقق من إعدادات Meta وRailway أولًا." });
+  }
+  const settings = await getMessengerSettings();
+  if (!settings.enabled) {
+    return res.status(409).json({ error: "إرسال Messenger متوقف يدويًا من إعدادات الأمان." });
+  }
+  req.body = {
+    ...(req.body || {}),
+    deliveryChannel: "MESSENGER",
+    deliveryMode: "IMMEDIATE",
+  };
+  return createTeacherAnnouncement(req, res);
+}
+
 async function cancelTeacherAnnouncement(req, res) {
   if (!requireTeacher(req, res)) return;
   const id = text(req.params.id, 80);
@@ -804,6 +822,7 @@ module.exports = {
   getTeacherSmsStatus,
   getTeacherMessengerStatus,
   createTeacherAnnouncement,
+  createTeacherMessengerCampaign,
   cancelTeacherAnnouncement,
   getTeacherAnalytics,
   listPaymentHistory,

@@ -2,11 +2,15 @@
 
 const express = require("express");
 const prisma = require("../lib/prisma");
-const { verifyToken } = require("../middleware/authMiddleware");
+const { createTeacherMessengerCampaign } = require("../controllers/academicController");
+const { verifyToken, isTeacher } = require("../middleware/authMiddleware");
 const {
   createMessengerLink,
   getMessengerConfig,
   getMessengerStatus,
+  getMessengerSettings,
+  saveMessengerSettings,
+  getMessengerQuotaStatus,
   handleMessengerWebhook,
   verifyWebhookSignature,
   verifyWebhookToken,
@@ -20,6 +24,37 @@ function requireParent(req, res, next) {
   }
   return next();
 }
+
+function requireTeacher(req, res, next) {
+  if (req.user?.role !== "teacher") {
+    return res.status(403).json({ error: "هذه العملية متاحة لحساب الأستاذ فقط." });
+  }
+  return next();
+}
+
+router.get("/teacher/settings", verifyToken, isTeacher, requireTeacher, async (req, res) => {
+  const service = getMessengerStatus();
+  const settings = await getMessengerSettings();
+  const quota = await getMessengerQuotaStatus();
+  return res.json({ status: "success", data: { ...service, settings, quota } });
+});
+
+router.put("/teacher/settings", verifyToken, isTeacher, requireTeacher, async (req, res) => {
+  const input = req.body && typeof req.body === "object" ? req.body : {};
+  const settings = await saveMessengerSettings({
+    enabled: input.enabled,
+    dailyWarningLimit: input.dailyWarningLimit,
+    dailyHardLimit: input.dailyHardLimit,
+    minIntervalMs: input.minIntervalMs,
+    maxRetries: input.maxRetries,
+    appendConfirmationRequest: input.appendConfirmationRequest,
+    requireRecentInteractionHours: input.requireRecentInteractionHours,
+    pauseOnRateLimit: input.pauseOnRateLimit,
+  });
+  return res.json({ status: "success", data: settings, message: "تم حفظ إعدادات Messenger الآمنة." });
+});
+
+router.post("/teacher/campaigns", verifyToken, isTeacher, requireTeacher, createTeacherMessengerCampaign);
 
 router.get("/status", verifyToken, requireParent, async (req, res) => {
   const link = await prisma.messengerLink.findUnique({

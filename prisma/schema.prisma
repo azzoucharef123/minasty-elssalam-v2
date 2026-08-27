@@ -301,6 +301,37 @@ model MessengerWebhookEvent {
   @@index([receivedAt(sort: Desc)])
 }
 
+model MessengerSettings {
+  id                          Int      @id @default(1)
+  enabled                     Boolean  @default(true)
+  dailyWarningLimit           Int      @default(800)
+  dailyHardLimit              Int      @default(1000)
+  minIntervalMs               Int      @default(1000)
+  maxRetries                  Int      @default(3)
+  appendConfirmationRequest   Boolean  @default(true)
+  requireRecentInteractionHours Int    @default(24)
+  pauseOnRateLimit            Boolean  @default(true)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+}
+
+model MessengerQuota {
+  id             String   @id @default(uuid()) @db.Uuid
+  pageId         String
+  quotaDate      DateTime @db.Date
+  attemptedCount Int      @default(0)
+  sentCount      Int      @default(0)
+  failedCount    Int      @default(0)
+  skippedCount   Int      @default(0)
+  paused         Boolean  @default(false)
+  pauseReason    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([pageId, quotaDate])
+  @@index([pageId, quotaDate])
+}
+
 model ReferralProfile {
   id               String          @id @default(uuid()) @db.Uuid
   parentPhone      String          @unique

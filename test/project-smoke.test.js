@@ -117,7 +117,7 @@ test("teacher dashboard keeps level selection above an internal scrollable secti
   assert.match(teacherHtml, /class="teacher-tab-content"/);
   assert.doesNotMatch(teacherHtml, /class="teacher-sidebar"/);
   assert.doesNotMatch(teacherHtml, /class="teacher-profile-card"/);
-  for (const tab of ["students", "notifications", "schedule", "registry", "assignments", "lessons", "quiz", "electronic-payments", "manual-payments", "referral-withdrawals", "forgot-pin-requests"]) {
+  for (const tab of ["students", "notifications", "schedule", "registry", "assignments", "lessons", "quiz", "electronic-payments", "manual-payments", "referral-withdrawals", "forgot-pin-requests", "facebook-messenger"]) {
     assert.match(teacherHtml, new RegExp(`data-dashboard-tab="${tab}"`));
   }
   assert.match(appCss, /teacher-main-frame[\s\S]*grid-template-columns/);
@@ -151,8 +151,8 @@ test("telegram admin alerts are dormant without credentials and cover key parent
   assert.match(routes, /\/link\/start/);
   assert.match(routes, /x-telegram-bot-api-secret-token/);
   assert.match(server, /app\.use\("\/api\/telegram", telegramRoutes\)/);
-  assert.match(accountHtml, /id="telegram-link-start"/);
-  assert.match(accountHtml, /telegram-link\.js/);
+  assert.doesNotMatch(accountHtml, /id="telegram-card"/);
+  assert.doesNotMatch(accountHtml, /telegram-link\.js/);
   assert.match(accountJs, /\/api\/telegram\/link\/start/);
   assert.match(accountJs, /\/api\/telegram\/link/);
   assert.match(accountCss, /academic-status-badge/);
@@ -188,26 +188,46 @@ test("teacher notifications include a dormant SMS channel safely", () => {
   assert.match(html, /id="teacher-notification-channel-status"/);
 });
 
-test("teacher notifications include Messenger with policy-safe delivery", () => {
+test("teacher Messenger is isolated in a policy-safe control panel", () => {
   const schema = fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8");
   const controller = fs.readFileSync(path.join(root, "controllers/academicController.js"), "utf8");
   const routes = fs.readFileSync(path.join(root, "routes/academicRoutes.js"), "utf8");
+  const messengerRoutes = fs.readFileSync(path.join(root, "routes/messengerRoutes.js"), "utf8");
   const service = fs.readFileSync(path.join(root, "services/messengerService.js"), "utf8");
   const dashboard = fs.readFileSync(path.join(root, "public/js/teacher-dashboard.js"), "utf8");
   const html = fs.readFileSync(path.join(root, "public/teacher-dashboard.html"), "utf8");
   assert.match(schema, /messengerSentCount\s+Int\s+@default\(0\)/);
   assert.match(schema, /messengerFailedCount\s+Int\s+@default\(0\)/);
   assert.match(schema, /messengerSkippedCount\s+Int\s+@default\(0\)/);
+  assert.match(schema, /model MessengerSettings\b/);
+  assert.match(schema, /model MessengerQuota\b/);
   assert.match(controller, /MESSENGER_NOT_CONFIGURED/);
   assert.match(controller, /sendMessengerToParent\(/);
   assert.match(controller, /getTeacherMessengerStatus/);
   assert.match(routes, /teacher-announcements\/messenger-status/);
   assert.match(service, /MESSENGER_STANDARD_WINDOW_MS/);
   assert.match(service, /MESSENGER_WINDOW_EXPIRED/);
+  assert.match(service, /rateLimited/);
+  assert.match(service, /maxRetries/);
+  assert.match(messengerRoutes, /\/teacher\/settings/);
+  assert.match(messengerRoutes, /\/teacher\/campaigns/);
   assert.match(dashboard, /teacher-announcements\/messenger-status/);
-  assert.match(dashboard, /value="MESSENGER"/);
-  assert.match(html, /name="notification-channel"[^>]+value="MESSENGER"/);
-  assert.match(html, /الأولياء المرتبط/);
+  assert.match(html, /data-dashboard-tab="facebook-messenger"/);
+  assert.match(html, /data-dashboard-panel="facebook-messenger"/);
+  assert.match(html, /teacher-messenger-daily-hard/);
+  assert.doesNotMatch(html, /name="notification-channel"[^>]+value="MESSENGER"/);
+});
+
+test("parent Messenger banner is persistent until linking and does not block classes", () => {
+  const html = fs.readFileSync(path.join(root, "public/parent-dashboard.html"), "utf8");
+  const js = fs.readFileSync(path.join(root, "public/js/parent-messenger-required.js"), "utf8");
+  const css = fs.readFileSync(path.join(root, "public/css/parent-messenger-required.css"), "utf8");
+  assert.match(html, /id="parent-messenger-required-banner"/);
+  assert.match(html, /id="parent-messenger-required-start"/);
+  assert.match(js, /\/api\/messenger\/status/);
+  assert.match(js, /\/api\/messenger\/link\/start/);
+  assert.match(js, /banner\.hidden = true/);
+  assert.match(css, /parent-messenger-required-banner/);
 });
 
 test("teacher live chat supports pasted image messages safely", () => {
