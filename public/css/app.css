@@ -4617,3 +4617,141 @@ body.parent-login-page {
 .teacher-referral-activity-empty { margin: 0; padding: .8rem; color: #64748b; border: 1px dashed #cbd5e1; border-radius: .55rem; background: #fff; font-size: .72rem; text-align: center; }
 .teacher-referral-activity-empty.is-error { color: #991b1b; background: #fef2f2; }
 @media (max-width: 720px) { .teacher-referral-activity-heading { flex-direction: column; } .teacher-referral-activity-card summary { align-items: flex-start; flex-direction: column; } .teacher-referral-activity-card summary::before { display: none; } .teacher-referral-activity-stats { justify-content: flex-start; } .teacher-referral-activity-card li { align-items: flex-start; flex-direction: column; } }
+
+
+/* Teacher dashboard: internal scrollable section navigation */
+.teacher-dashboard-page .teacher-main-frame {
+  display: grid;
+  grid-template-columns: minmax(190px, 220px) minmax(0, 1fr);
+  direction: ltr;
+  flex: 1 1 auto;
+  gap: .85rem;
+  min-height: 0;
+  padding: .65rem;
+  overflow: hidden;
+  border: 1px solid #d8e2ee;
+  border-radius: 1rem;
+  background: #f8fafc;
+  box-shadow: 0 5px 18px rgba(15, 23, 42, .045);
+}
+
+.teacher-dashboard-page .teacher-tabs-nav {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: .3rem;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  padding: .45rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  direction: rtl;
+  border: 1px solid #dbe4ef;
+  border-radius: .8rem;
+  background: #ffffff;
+  scrollbar-width: thin;
+  scrollbar-color: #bfdbfe transparent;
+}
+
+.teacher-dashboard-page .teacher-tabs-nav::-webkit-scrollbar {
+  display: block;
+  width: .38rem;
+}
+
+.teacher-dashboard-page .teacher-tabs-nav::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #bfdbfe;
+}
+
+.teacher-dashboard-page .teacher-tab-button {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: .55rem .7rem;
+  text-align: right;
+  white-space: normal;
+}
+
+.teacher-dashboard-page .teacher-tab-content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  direction: rtl;
+}
+
+.teacher-dashboard-page .teacher-tab-content > .teacher-tab-panel.is-active {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.teacher-dashboard-page .teacher-tab-content > .teacher-bento-grid.teacher-tab-panel.is-active {
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
+.teacher-dashboard-page .teacher-tab-content > .teacher-roster.teacher-tab-panel.is-active,
+.teacher-dashboard-page .teacher-tab-content > .schedule-manager.teacher-tab-panel.is-active,
+.teacher-dashboard-page .teacher-tab-content > .class-registry-manager.teacher-tab-panel.is-active,
+.teacher-dashboard-page .teacher-tab-content > .lesson-repository-manager.teacher-tab-panel.is-active,
+.teacher-dashboard-page .teacher-tab-content > .assignment-manager.teacher-tab-panel.is-active {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+@media (max-width: 900px) {
+  .teacher-dashboard-page .teacher-main-frame {
+    grid-template-columns: minmax(165px, 190px) minmax(0, 1fr);
+    gap: .6rem;
+  }
+
+  .teacher-dashboard-page .teacher-tab-button {
+    padding-inline: .55rem;
+    font-size: .69rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .teacher-dashboard-page .teacher-main-frame {
+    grid-template-columns: minmax(138px, 38vw) minmax(0, 1fr);
+    gap: .45rem;
+    padding: .45rem;
+    border-radius: .8rem;
+  }
+
+  .teacher-dashboard-page .teacher-tabs-nav {
+    padding: .32rem;
+    border-radius: .65rem;
+  }
+
+  .teacher-dashboard-page .teacher-tab-button {
+    min-height: 2.55rem;
+    padding: .48rem .45rem;
+    font-size: .65rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .teacher-dashboard-page .teacher-main-frame {
+    grid-template-columns: 128px minmax(0, 1fr);
+  }
+
+  .teacher-dashboard-page .teacher-tab-button {
+    font-size: .61rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .teacher-dashboard-page .teacher-tab-button {
+    transition: none;
+  }
+}

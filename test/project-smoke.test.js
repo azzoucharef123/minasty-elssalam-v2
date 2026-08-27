@@ -99,6 +99,21 @@ test("teacher class registry selects term before month and subject", () => {
   assert.match(registry, /!selectedMonth/);
 });
 
+test("teacher dashboard keeps level selection above an internal scrollable section nav", () => {
+  const teacherHtml = fs.readFileSync(path.join(root, "public/teacher-dashboard.html"), "utf8");
+  const appCss = fs.readFileSync(path.join(root, "public/css/app.css"), "utf8");
+  const levelIndex = teacherHtml.indexOf("id=\"teacher-level-strip\"");
+  const frameIndex = teacherHtml.indexOf("id=\"teacher-main-frame\"");
+  assert.ok(levelIndex >= 0 && levelIndex < frameIndex);
+  assert.match(teacherHtml, /class="teacher-main-frame" id="teacher-main-frame"/);
+  assert.match(teacherHtml, /class="teacher-tab-content"/);
+  for (const tab of ["students", "notifications", "schedule", "registry", "assignments", "lessons", "quiz", "electronic-payments", "manual-payments", "referral-withdrawals", "forgot-pin-requests"]) {
+    assert.match(teacherHtml, new RegExp(`data-dashboard-tab="${tab}"`));
+  }
+  assert.match(appCss, /teacher-main-frame[\s\S]*grid-template-columns/);
+  assert.match(appCss, /teacher-tabs-nav[\s\S]*overflow-y: auto/);
+});
+
 test("telegram admin alerts are dormant without credentials and cover key parent events", () => {
   const service = fs.readFileSync(path.join(root, "services/telegramService.js"), "utf8");
   const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
