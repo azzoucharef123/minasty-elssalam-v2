@@ -1039,6 +1039,7 @@ async function deleteStudent(req, res) {
           data: { revokedAt: now },
         });
         await tx.passwordResetRequest.deleteMany({ where: { parentPhone: student.parentPhone } });
+        await tx.messengerLink.deleteMany({ where: { parentPhone: student.parentPhone } });
         await tx.parentCredential.deleteMany({ where: { parentPhone: student.parentPhone } });
         parentAccountDeleted = true;
       }
@@ -1145,6 +1146,20 @@ async function updateStudentContact(req, res) {
               baridiMobName: credential.baridiMobName,
             },
           });
+
+          const messengerLink = await tx.messengerLink.findUnique({ where: { parentPhone: oldParentPhone } });
+          if (messengerLink) {
+            await tx.messengerLink.create({
+              data: {
+                parentPhone,
+                pageId: messengerLink.pageId,
+                psid: messengerLink.psid,
+                status: messengerLink.status,
+                linkedAt: messengerLink.linkedAt,
+                lastInteractionAt: messengerLink.lastInteractionAt,
+              },
+            });
+          }
         }
 
         await tx.student.updateMany({

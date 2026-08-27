@@ -31,6 +31,7 @@ const { createSocketNotificationSender, notificationRoom, notificationSessionRoo
 const siteAnalyticsRoutes = require("./routes/siteAnalyticsRoutes");
 const referralRoutes = require("./routes/referralRoutes");
 const telegramRoutes = require("./routes/telegramRoutes");
+const messengerRoutes = require("./routes/messengerRoutes");
 
 /**
  * Socket.io control events must authenticate the teacher independently from
@@ -150,7 +151,14 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json({ limit: "100kb" }));
+function captureMessengerRawBody(req, _res, buffer) {
+  const requestPath = String(req.originalUrl || "").split("?", 1)[0];
+  if (requestPath === "/api/messenger/webhook") {
+    req.rawBody = Buffer.from(buffer);
+  }
+}
+
+app.use(express.json({ limit: "100kb", verify: captureMessengerRawBody }));
 app.use(requestMetrics);
 
 // Never log request bodies: registration and payment payloads contain secrets and identity data.
@@ -178,6 +186,7 @@ app.use("/api/site-analytics", siteAnalyticsRoutes);
 app.use("/api/referrals", referralRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/telegram", telegramRoutes);
+app.use("/api/messenger", messengerRoutes);
 app.use("/api/students", studentRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/live-chat", liveChatRoutes);

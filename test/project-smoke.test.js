@@ -237,3 +237,33 @@ test("teacher can edit student contact data through a protected UI action", () =
   assert.match(dashboard, /\/api\/students\/\$\{encodeURIComponent\(studentId\)\}\/contact/);
   assert.match(html, /id="student-contact-modal"/);
 });
+
+test("messenger linking and webhooks are dormant without credentials and follow secure patterns", () => {
+  const service = fs.readFileSync(path.join(root, "services/messengerService.js"), "utf8");
+  const schema = fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8");
+  const routes = fs.readFileSync(path.join(root, "routes/messengerRoutes.js"), "utf8");
+  const accountHtml = fs.readFileSync(path.join(root, "public/account-center.html"), "utf8");
+  const accountJs = fs.readFileSync(path.join(root, "public/js/messenger-link.js"), "utf8");
+  const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
+  const envExample = fs.readFileSync(path.join(root, ".env.example"), "utf8");
+  assert.match(service, /META_PAGE_ID/);
+  assert.match(service, /META_APP_SECRET/);
+  assert.match(service, /MESSENGER_NOT_CONFIGURED/);
+  assert.match(service, /verifyWebhookSignature/);
+  assert.match(service, /verifyWebhookToken/);
+  assert.match(service, /handleMessengerWebhook/);
+  assert.match(schema, /model MessengerLink/);
+  assert.match(schema, /model MessengerWebhookEvent/);
+  assert.match(schema, /psid\s+String\?/);
+  assert.match(routes, /\/link\/start/);
+  assert.match(routes, /\/webhook/);
+  assert.match(server, /app\.use\("\/api\/messenger", messengerRoutes\)/);
+  assert.match(server, /captureMessengerRawBody/);
+  assert.match(server, /verify: captureMessengerRawBody/);
+  assert.match(accountHtml, /id="messenger-link-start"/);
+  assert.match(accountHtml, /messenger-link\.js/);
+  assert.match(accountJs, /\/api\/messenger\/status/);
+  assert.match(accountJs, /\/api\/messenger\/link\/start/);
+  assert.match(envExample, /META_PAGE_ID=/);
+  assert.match(envExample, /META_APP_SECRET=/);
+});
