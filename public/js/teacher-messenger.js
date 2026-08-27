@@ -6,7 +6,7 @@
 
   const token = sessionStorage.getItem("teacherToken") || "";
   const el = (id) => document.getElementById(id);
-  const state = { settings: null, students: [] };
+  const state = { settings: null, students: [], rosterSocket: null };
 
   const api = async (path, options = {}) => {
     const response = await fetch(path, {
@@ -87,21 +87,42 @@
     }).join("");
   }
 
-  async function loadStudents() {
+  function isSelectedTarget() {
+    return document.querySelector('input[name="teacher-messenger-target-mode"]:checked')?.value === "SELECTED";
+  }
+
+  function isMessengerPanelActive() {
+    return el("facebook-messenger-panel")?.classList.contains("is-active") === true;
+  }
+
+  async function loadStudents({ silent = false } = {}) {
     const level = el("teacher-messenger-level")?.value || "";
     const list = el("teacher-messenger-student-list");
-    if (list) {
+    if (list && !silent) {
       list.hidden = false;
       list.innerHTML = "<p>جارٍ تحميل تلاميذ المستوى…</p>";
     }
     try {
-      const payload = await api(`/api/students/level/${encodeURIComponent(level)}`);
+      const payload = await api(`/api/students/level/${encodeURIComponent(level)}?limit=100`);
       state.students = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
       renderStudents();
+      if (!silent) setFeedback(`تم تحديث قائمة المستوى: ${state.students.length} تلميذًا.`);
     } catch (error) {
       state.students = [];
       if (list) list.innerHTML = `<p>${error.message}</p>`;
     }
+  }
+
+  function attachRosterSocket() {
+    const socket = window.minasatyNotificationSocket;
+    if (!socket || state.rosterSocket === socket) return;
+    state.rosterSocket = socket;
+    socket.on("student_roster_changed", (payload = {}) => {
+      if (!isMessengerPanelActive() || !isSelectedTarget()) return;
+      void loadStudents({ silent: true });
+      const reason = payload.reason === "deleted" ? "تم تحديث القائمة بعد حذف تلميذ." : "تم تحديث قائمة التلاميذ تلقائيًا.";
+      setFeedback(reason);
+    });
   }
 
   async function loadStatus() {
@@ -203,13 +224,27 @@
     }
   }
 
-  el("teacher-messenger-level")?.addEventListener("change", loadStudents);
+  el("teacher-messenger-level")?.addEventListener("change", () => {
+    if (isSelectedTarget()) void loadStudents();
+  });
   document.querySelectorAll('input[name="teacher-messenger-target-mode"]').forEach((input) => input.addEventListener("change", () => {
     const list = el("teacher-messenger-student-list");
     if (list) list.hidden = input.value !== "SELECTED";
     if (input.checked && input.value === "SELECTED") void loadStudents();
   }));
   el("teacher-messenger-save-settings")?.addEventListener("click", () => void saveSettings());
+  el("teacher-messenger-refresh-students")?.addEventListener("click", () => void loadStudents());
   form.addEventListener("submit", (event) => void submit(event));
+  attachRosterSocket();
+  window.setInterval(() => {
+    attachRosterSocket();
+    if (isMessengerPanelActive() && isSelectedTarget() && !document.hidden) void loadStudents({ silent: true });
+  }, 15_000);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && isMessengerPanelActive() && isSelectedTarget()) void loadStudents({ silent: true });
+  });
+  window.addEventListener("focus", () => {
+    if (isMessengerPanelActive() && isSelectedTarget()) void loadStudents({ silent: true });
+  });
   void loadStatus();
 })();

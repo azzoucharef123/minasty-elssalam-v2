@@ -284,6 +284,25 @@ test("teacher can edit student contact data through a protected UI action", () =
   assert.match(html, /id="student-contact-modal"/);
 });
 
+test("Messenger roster accepts level aliases and refreshes after roster changes", () => {
+  const controller = fs.readFileSync(path.join(root, "controllers/studentController.js"), "utf8");
+  const messengerJs = fs.readFileSync(path.join(root, "public/js/teacher-messenger.js"), "utf8");
+  const dashboard = fs.readFileSync(path.join(root, "public/teacher-dashboard.html"), "utf8");
+  assert.match(controller, /ACADEMIC_LEVEL_ALIASES/);
+  assert.match(controller, /level: \{ in: academicLevelCandidates\(level\) \}/);
+  assert.match(controller, /student_roster_changed/);
+  assert.match(controller, /notifyTeacherRosterChanged\(req, student\.level, "created"\)/);
+  assert.match(controller, /notifyTeacherRosterChanged\(req, result\.student\.level, "deleted"\)/);
+  assert.match(controller, /notifyTeacherRosterChanged\(req, \[currentStudent\.level, updatedStudent\.level\], "contact-updated"\)/);
+  assert.match(controller, /notifyTeacherRosterChanged\(req, student\.level, "status-updated"\)/);
+  assert.match(messengerJs, /students\/level\/\$\{encodeURIComponent\(level\)\}\?limit=100/);
+  assert.match(messengerJs, /student_roster_changed/);
+  assert.match(messengerJs, /visibilitychange/);
+  assert.match(messengerJs, /setInterval\(\(\) => \{/);
+  assert.match(messengerJs, /teacher-messenger-refresh-students/);
+  assert.match(dashboard, /id="teacher-messenger-refresh-students"/);
+});
+
 test("messenger linking and webhooks are dormant without credentials and follow secure patterns", () => {
   const service = fs.readFileSync(path.join(root, "services/messengerService.js"), "utf8");
   const schema = fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8");

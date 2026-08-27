@@ -14,6 +14,7 @@ const { removeImageFile } = require("./liveChatController");
 const { logAudit } = require("../utils/audit");
 const { normalizeReferralCode, ensureReferralProfile, awardReferralCommission } = require("../utils/referral");
 const { sendPushToRecipient } = require("../utils/push");
+const { notificationRoom } = require("../utils/socketNotifications");
 const { notifyTelegram, sendTelegramToParent } = require("../services/telegramService");
 
 const uploadDirectory =
@@ -178,6 +179,44 @@ function normalizeText(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+const ACADEMIC_LEVEL_ALIASES = Object.freeze({
+  "السنة الأولى": "السنة الأولى متوسط",
+  "السنة الثانية": "السنة الثانية متوسط",
+  "السنة الثالثة": "السنة الثالثة متوسط",
+  "السنة الرابعة": "السنة الرابعة متوسط",
+  "السنة الأولى متوسط": "السنة الأولى متوسط",
+  "السنة الثانية متوسط": "السنة الثانية متوسط",
+  "السنة الثالثة متوسط": "السنة الثالثة متوسط",
+  "السنة الرابعة متوسط": "السنة الرابعة متوسط",
+  "طالب جامعي": "طالب جامعي",
+});
+
+function academicLevelCandidates(value) {
+  const normalized = normalizeText(value);
+  const canonical = ACADEMIC_LEVEL_ALIASES[normalized] || normalized;
+  return [...new Set([
+    canonical,
+    ...Object.entries(ACADEMIC_LEVEL_ALIASES)
+      .filter(([, target]) => target === canonical)
+      .map(([alias]) => alias),
+  ].filter(Boolean))];
+}
+
+function notifyTeacherRosterChanged(req, levels, reason) {
+  const io = req.app.get("io");
+  const room = notificationRoom("teacher", "teacher");
+  if (!io || !room) return;
+  const changedLevels = [...new Set((Array.isArray(levels) ? levels : [levels])
+    .flatMap(academicLevelCandidates)
+    .map((level) => ACADEMIC_LEVEL_ALIASES[level] || level)
+    .filter(Boolean))];
+  io.to(room).emit("student_roster_changed", {
+    levels: changedLevels,
+    reason: normalizeText(reason).slice(0, 40) || "updated",
+    timestamp: Date.now(),
+  });
+}
+
 /**
  * Parse an optional URL query value as a positive safe integer. The page-size
  * ceiling prevents clients from bypassing the pagination contract.
@@ -315,6 +354,7 @@ async function registerStudent(req, res) {
       title: "تسجيل جديد",
       body: `تم تسجيل تلميذ جديد.\nالاسم: ${student.studentName}\nرقم الولي: ${student.parentPhone}\nالمستوى: ${student.level}`,
     });
+    notifyTeacherRosterChanged(req, student.level, "created");
     return res.status(201).json({ status: "success", data: student });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -390,7 +430,7 @@ async function getStudentsByLevel(req, res) {
     }
 
     const { page, limit, skip } = parsePagination(req.query);
-    const where = { level };
+    const where = { level: { in: academicLevelCandidates(level) } };
 
     const [totalRecords, students] = await Promise.all([
       prisma.student.count({ where }),
@@ -1022,6 +1062,7 @@ async function deleteStudent(req, res) {
           cardPhotoUrl: true,
           paymentReceiptUrl: true,
           studentName: true,
+          level: true,
           questionImages: { select: { fileName: true } },
         },
       });
@@ -1065,6 +1106,7 @@ async function deleteStudent(req, res) {
         parentAccountDeleted: result.parentAccountDeleted,
       },
     });
+    notifyTeacherRosterChanged(req, result.student.level, "deleted");
 
     return res.status(200).json({
       status: "success",
@@ -1211,6 +1253,7 @@ async function updateStudentContact(req, res) {
         phoneChanged,
       }),
     });
+    notifyTeacherRosterChanged(req, [currentStudent.level, updatedStudent.level], "contact-updated");
 
     return res.status(200).json({
       status: "success",
@@ -1308,6 +1351,7 @@ async function updateStudentStatusAndNotes(req, res) {
     });
 
     if (accountActive !== undefined) notifyAccountStatus(req, student);
+    notifyTeacherRosterChanged(req, student.level, "status-updated");
     const io = req.app.get("io");
     io?.to(`${student.level}_lobby`).emit("student_live_access_updated", {
       studentId: student.id,
