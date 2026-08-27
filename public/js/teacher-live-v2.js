@@ -1802,6 +1802,19 @@ function filterAttendees() {
   });
 }
 
+function reorderOpenMicrophoneAttendees() {
+  const list = elements.attendeesList;
+  if (!list) return;
+
+  const items = Array.from(list.children);
+  items.sort((first, second) => {
+    const firstOpen = first.classList.contains("is-mic-open") ? 1 : 0;
+    const secondOpen = second.classList.contains("is-mic-open") ? 1 : 0;
+    return secondOpen - firstOpen;
+  });
+  items.forEach((item) => list.append(item));
+}
+
 function formatStudioDuration(totalSeconds) {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -2105,8 +2118,10 @@ function applyStudentMicrophoneState(studentSocketId, enabled) {
   const attendee = attendeeElements.get(studentSocketId);
   if (attendee) {
     attendee.classList.remove("is-hand-raised");
+    attendee.classList.toggle("is-mic-open", Boolean(enabled));
     attendee.querySelector(".attendee-hand")?.remove();
     syncStudentMicButton(attendee, studentSocketId, Boolean(enabled));
+    reorderOpenMicrophoneAttendees();
   }
 
   const source = classroomAudioSources.get(studentSocketId);

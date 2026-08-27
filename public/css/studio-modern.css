@@ -552,3 +552,14 @@
   cursor: wait;
   opacity: .65;
 }
+
+
+.attendee-item.is-mic-open {
+  background: rgba(34, 197, 94, .1);
+  box-shadow: inset -3px 0 0 var(--success-green);
+}
+
+.attendee-item.is-mic-open .attendee-state-dot {
+  background: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, .2);
+}

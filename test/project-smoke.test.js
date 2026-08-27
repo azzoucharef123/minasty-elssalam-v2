@@ -183,6 +183,10 @@ test("teacher live chat supports pasted image messages safely", () => {
   assert.match(teacherLive, /student-chat-mic-menu/);
   assert.match(teacherLive, /فتح الـ microphone/);
   assert.match(teacherLive, /غلق الـ microphone/);
+  assert.match(teacherLive, /reorderOpenMicrophoneAttendees/);
+  assert.match(teacherLive, /classList\.contains\("is-mic-open"\)/);
+  assert.match(teacherLive, /secondOpen - firstOpen/);
+  assert.match(teacherLive, /classList\.toggle\("is-mic-open", Boolean\(enabled\)\)/);
   assert.match(teacherHtml, /id="chat-box"/);
 });
 
