@@ -56,6 +56,17 @@ test("teacher classroom control requires an authenticated teacher session", () =
   assert.match(teacherLive, /auth:\s*\{\s*token:\s*teacherSocketToken\s*\}/);
 });
 
+test("teacher live streaming targets adaptive quality and 1080p60 recording", () => {
+  const teacherLive = fs.readFileSync(path.join(root, "public/js/teacher-live-v2.js"), "utf8");
+  assert.match(teacherLive, /frameRate:\s*\{\s*ideal:\s*60,\s*max:\s*60\s*\}/);
+  assert.match(teacherLive, /QUESTION_IMAGE_MAX_ZOOM\s*=\s*4/);
+  assert.match(teacherLive, /getAdaptiveVideoQualityProfile\s*\(/);
+  assert.match(teacherLive, /scaleResolutionDownBy:\s*2\.5/);
+  assert.match(teacherLive, /maxBitrate:\s*6_000_000/);
+  assert.match(teacherLive, /videoBitsPerSecond:\s*12_000_000/);
+  assert.match(teacherLive, /maxFramerate:\s*60/);
+});
+
 test("teacher question image modal supports bounded wheel zoom", () => {
   const teacherLive = fs.readFileSync(path.join(root, "public/js/teacher-live-v2.js"), "utf8");
   const teacherHtml = fs.readFileSync(path.join(root, "public/teacher-live.html"), "utf8");

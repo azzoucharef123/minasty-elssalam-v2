@@ -1554,8 +1554,8 @@ function startLocalRecording() {
     localRecordingStream = buildLocalRecordingStream();
     const mimeType = getLocalRecordingMimeType();
     const options = mimeType
-          ? { mimeType, videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 192_000 }
-      : { videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 192_000 };
+          ? { mimeType, videoBitsPerSecond: 12_000_000, audioBitsPerSecond: 192_000 }
+      : { videoBitsPerSecond: 12_000_000, audioBitsPerSecond: 192_000 };
     const recorder = new MediaRecorder(localRecordingStream, options);
     localMediaRecorder = recorder;
     localRecordingMimeType = recorder.mimeType || mimeType || "video/webm";
@@ -2265,6 +2265,7 @@ function closePeerConnection(socketId) {
   }
 
   delete pendingIceCandidates[socketId];
+  teacherVideoQualityProfiles.delete(socketId);
   removeStudentAudio(socketId);
   removeClassroomAudioSource(socketId);
   removeStudentAudioDestination(socketId);
@@ -2282,6 +2283,37 @@ function closeAllPeerConnections() {
 /** Apply conservative per-peer quality limits so screen sharing stays smooth
  * under changing bandwidth rather than building a growing latency buffer. */
 const teacherQosLast = new Map();
+const teacherVideoQualityProfiles = new Map();
+
+function getAdaptiveVideoQualityProfile({ rtt = null, loss = 0 } = {}) {
+  if ((rtt != null && rtt > 700) || loss > 12) {
+    return { name: "low", scaleResolutionDownBy: 2.5, maxBitrate: 700_000, maxFramerate: 15 };
+  }
+  if ((rtt != null && rtt > 300) || loss > 5) {
+    return { name: "medium", scaleResolutionDownBy: 1.5, maxBitrate: 2_500_000, maxFramerate: 30 };
+  }
+  return { name: "high", scaleResolutionDownBy: 1, maxBitrate: 6_000_000, maxFramerate: 60 };
+}
+
+async function applyAdaptiveVideoQuality(studentSocketId, peerConnection, profile) {
+  const videoSender = peerConnection?.getSenders?.().find((sender) => sender.__classroomVideoTrack === true);
+  if (!videoSender || typeof videoSender.setParameters !== "function") return;
+  if (teacherVideoQualityProfiles.get(studentSocketId) === profile.name) return;
+
+  teacherVideoQualityProfiles.set(studentSocketId, profile.name);
+  try {
+    const parameters = videoSender.getParameters();
+    parameters.encodings = parameters.encodings?.length ? parameters.encodings : [{}];
+    parameters.encodings[0].scaleResolutionDownBy = profile.scaleResolutionDownBy;
+    parameters.encodings[0].maxBitrate = profile.maxBitrate;
+    parameters.encodings[0].maxFramerate = profile.maxFramerate;
+    parameters.degradationPreference = "balanced";
+    await videoSender.setParameters(parameters);
+  } catch (error) {
+    teacherVideoQualityProfiles.delete(studentSocketId);
+    console.debug("Adaptive video quality was not applied:", error);
+  }
+}
 
 async function refreshTeacherQos() {
   for (const [studentSocketId, peerConnection] of Object.entries(peerConnections)) {
@@ -2309,6 +2341,8 @@ async function refreshTeacherQos() {
       let stateClass = "good";
       if ((rtt && rtt > 300) || loss > 5) { state = "متوسطة"; stateClass = "warn"; }
       if ((rtt && rtt > 700) || loss > 12) { state = "ضعيفة"; stateClass = "bad"; }
+      const qualityProfile = getAdaptiveVideoQualityProfile({ rtt, loss });
+      void applyAdaptiveVideoQuality(studentSocketId, peerConnection, qualityProfile);
       const qos = attendee.querySelector(".attendee-qos");
       if (qos) {
         qos.className = `attendee-qos ${stateClass}`;
@@ -2329,9 +2363,12 @@ async function tuneOutboundSender(sender, kind) {
     parameters.encodings = parameters.encodings?.length ? parameters.encodings : [{}];
 
     if (kind === "video") {
-      parameters.encodings[0].maxBitrate = 2_400_000;
-      parameters.encodings[0].maxFramerate = 20;
-      parameters.degradationPreference = "maintain-resolution";
+      // Let WebRTC's congestion controller adapt bitrate, resolution, and frame
+      // rate per learner. The source targets 1080p/60, while the browser may
+      // scale down toward a low resolution when bandwidth or CPU is limited.
+      parameters.encodings[0].maxBitrate = 6_000_000;
+      parameters.encodings[0].maxFramerate = 60;
+      parameters.degradationPreference = "balanced";
     } else {
       parameters.encodings[0].maxBitrate = 96_000;
       parameters.encodings[0].priority = "high";
@@ -2753,7 +2790,11 @@ async function replaceScreenShareStream() {
   if (!classActive || isEnding || !navigator.mediaDevices?.getDisplayMedia) return;
   try {
     const replacement = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: { ideal: 30, max: 30 }, width: { ideal: 1920, max: 1920 }, height: { ideal: 1080, max: 1080 } },
+      video: {
+        width: { ideal: 1920, max: 1920 },
+        height: { ideal: 1080, max: 1080 },
+        frameRate: { ideal: 60, max: 60 },
+      },
       audio: true,
     });
     const nextVideoTrack = replacement.getVideoTracks()[0];
