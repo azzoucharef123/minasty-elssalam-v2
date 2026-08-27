@@ -5,6 +5,7 @@
   if (!token) return;
 
   const $ = (id) => document.getElementById(id);
+  const term = $("class-registry-term");
   const month = $("class-registry-month");
   const subject = $("class-registry-subject");
   const list = $("class-registry-list");
@@ -27,6 +28,9 @@
   const youtubePickerModal = $("youtube-video-picker-modal");
   const youtubePickerList = $("youtube-video-picker-list");
   let currentLevel = document.querySelector(".level-btn.is-active")?.dataset.level || "السنة الأولى";
+  let selectedTerm = "";
+  let selectedMonth = "";
+  let selectedSubject = "";
   let selectedClass = null;
   let youtubeConnected = false;
   let registryOpen = false;
@@ -36,6 +40,7 @@
     if (registryControls) registryControls.hidden = !registryOpen;
     registryToggle?.setAttribute("aria-expanded", String(registryOpen));
     if (registryToggleIcon) registryToggleIcon.textContent = registryOpen ? "⌃" : "⌄";
+    if (registryOpen) showSelectionPrompt();
   }
 
   const labels = {
@@ -49,6 +54,30 @@
     COMPLETED: "تمت الحصة",
     TEACHER_ABSENT: "غياب الأستاذ",
   };
+  const TERMS = Object.freeze({
+    TERM_1: {
+      label: "الفصل الأول",
+      months: [
+        { value: "2026-09", label: "سبتمبر 2026" },
+        { value: "2026-10", label: "أكتوبر 2026" },
+        { value: "2026-11", label: "نوفمبر 2026" },
+      ],
+    },
+    TERM_2: {
+      label: "الفصل الثاني",
+      months: [
+        { value: "2027-01", label: "جانفي 2027" },
+        { value: "2027-02", label: "فيفري 2027" },
+      ],
+    },
+    TERM_3: {
+      label: "الفصل الثالث",
+      months: [
+        { value: "2027-04", label: "أبريل 2027" },
+        { value: "2027-05", label: "ماي 2027" },
+      ],
+    },
+  });
 
   async function api(path, options = {}) {
     const response = await fetch(path, {
@@ -77,6 +106,69 @@
       error.textContent = message;
       error.hidden = false;
       error.classList.add("is-visible");
+    }
+  }
+
+  function getSelectedTerm() {
+    return TERMS[selectedTerm] || null;
+  }
+
+  function fillSelect(select, placeholder, options, selectedValue, disabled) {
+    if (!select) return;
+    select.replaceChildren();
+    const first = document.createElement("option");
+    first.value = "";
+    first.textContent = placeholder;
+    select.append(first);
+    options.forEach(({ value, label }) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      select.append(option);
+    });
+    select.disabled = disabled;
+    select.value = selectedValue || "";
+  }
+
+  function renderFilters() {
+    fillSelect(
+      term,
+      "اختر الفصل الدراسي",
+      Object.entries(TERMS).map(([value, data]) => ({ value, label: data.label })),
+      selectedTerm,
+      false
+    );
+    fillSelect(
+      month,
+      selectedTerm ? "اختر الشهر" : "اختر الفصل أولًا",
+      getSelectedTerm()?.months || [],
+      selectedMonth,
+      !selectedTerm
+    );
+    fillSelect(
+      subject,
+      selectedMonth ? "اختر المادة" : "اختر الشهر أولًا",
+      [
+        { value: "MATH", label: "الرياضيات" },
+        { value: "PHYSICS", label: "الفيزياء" },
+      ],
+      selectedSubject,
+      !selectedMonth
+    );
+  }
+
+  function showSelectionPrompt() {
+    if (!registryOpen || !list) return;
+    if (!selectedTerm) {
+      list.innerHTML = '<p class="class-registry-empty">اختر الفصل الدراسي أولًا.</p>';
+      return;
+    }
+    if (!selectedMonth) {
+      list.innerHTML = '<p class="class-registry-empty">اختر الشهر من القائمة.</p>';
+      return;
+    }
+    if (!selectedSubject) {
+      list.innerHTML = '<p class="class-registry-empty">اختر المادة من القائمة.</p>';
     }
   }
 
@@ -241,10 +333,13 @@
   }
 
   async function load() {
-    if (!list || !month || !subject) return;
+    if (!list || !term || !month || !subject || !selectedTerm || !selectedMonth || !selectedSubject) {
+      showSelectionPrompt();
+      return;
+    }
     list.innerHTML = '<p class="class-registry-loading">جارٍ تحميل سجل الحصص…</p>';
     try {
-      const payload = await api(`/api/schedules/registry/${encodeURIComponent(currentLevel)}?month=${encodeURIComponent(month.value)}&subject=${encodeURIComponent(subject.value)}`);
+      const payload = await api(`/api/schedules/registry/${encodeURIComponent(currentLevel)}?month=${encodeURIComponent(selectedMonth)}&subject=${encodeURIComponent(selectedSubject)}`);
       render(Array.isArray(payload.data) ? payload.data : []);
     } catch (error) {
       list.innerHTML = `<p class="class-registry-empty">${error.message}</p>`;
@@ -266,6 +361,13 @@
   }
 
   registryToggle?.addEventListener("click", () => setRegistryOpen(!registryOpen));
+  term?.addEventListener("change", () => {
+    selectedTerm = term.value;
+    selectedMonth = "";
+    selectedSubject = "";
+    renderFilters();
+    showSelectionPrompt();
+  });
   form?.addEventListener("submit", (event) => {
     event.preventDefault();
     if (!selectedClass) return;
@@ -285,10 +387,27 @@
     }
     if (event.data?.type === "youtube-connect-failed") setYoutubeStatus("فشل ربط قناة YouTube", false);
   });
-  month?.addEventListener("change", () => void load());
-  subject?.addEventListener("change", () => void load());
-  document.querySelectorAll(".level-btn[data-level]").forEach((button) => button.addEventListener("click", () => { currentLevel = button.dataset.level; window.setTimeout(() => void load(), 0); }));
+  month?.addEventListener("change", () => {
+    selectedMonth = month.value;
+    selectedSubject = "";
+    renderFilters();
+    showSelectionPrompt();
+  });
+  subject?.addEventListener("change", () => {
+    selectedSubject = subject.value;
+    renderFilters();
+    void load();
+  });
+  document.querySelectorAll(".level-btn[data-level]").forEach((button) => button.addEventListener("click", () => {
+    currentLevel = button.dataset.level;
+    selectedTerm = "";
+    selectedMonth = "";
+    selectedSubject = "";
+    renderFilters();
+    window.setTimeout(() => void load(), 0);
+  }));
   window.addEventListener("class-registry-refresh", () => void load());
+  renderFilters();
   void loadYoutubeStatus();
   void load();
 })();

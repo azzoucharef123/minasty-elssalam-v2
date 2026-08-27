@@ -125,11 +125,12 @@
 </button>
 <div class="class-registry-controls" hidden="" id="class-registry-controls">
 <header class="class-registry-head">
-<div><p>حدّد الشهر والمادة، ثم سجّل إنجاز الحصة واختر فيديو YouTube أو استخدم رابط Google Drive.</p></div><div class="youtube-connection-actions"><button class="youtube-connect-button" id="youtube-connect-button" type="button">ربط قناة YouTube</button><span aria-live="polite" class="youtube-connection-status" id="youtube-connection-status">جارٍ التحقق من الاتصال…</span></div>
+<div><p>حدّد الفصل الدراسي أولًا، ثم الشهر والمادة، وبعدها سجّل إنجاز الحصة واختر فيديو YouTube أو استخدم رابط Google Drive.</p></div><div class="youtube-connection-actions"><button class="youtube-connect-button" id="youtube-connect-button" type="button">ربط قناة YouTube</button><span aria-live="polite" class="youtube-connection-status" id="youtube-connection-status">جارٍ التحقق من الاتصال…</span></div>
 </header>
 <div class="class-registry-filters">
-<label>الشهر<select id="class-registry-month"><option value="2026-09">سبتمبر 2026</option><option value="2026-10">أكتوبر 2026</option><option value="2026-11">نوفمبر 2026</option></select></label>
-<label>المادة<select id="class-registry-subject"><option value="MATH">الرياضيات</option><option value="PHYSICS">الفيزياء</option></select></label>
+<label>الفصل الدراسي<select id="class-registry-term"><option value="">اختر الفصل الدراسي</option><option value="TERM_1">الفصل الأول</option><option value="TERM_2">الفصل الثاني</option><option value="TERM_3">الفصل الثالث</option></select></label>
+<label>الشهر<select id="class-registry-month" disabled><option value="">اختر الفصل أولًا</option></select></label>
+<label>المادة<select id="class-registry-subject" disabled><option value="">اختر الشهر أولًا</option></select></label>
 </div>
 <div aria-live="polite" class="class-registry-list" id="class-registry-list"></div>
 </div>

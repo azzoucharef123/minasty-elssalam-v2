@@ -82,6 +82,23 @@ test("teacher question image modal supports bounded wheel zoom", () => {
   assert.match(teacherHtml, /question-image-zoom-label/);
 });
 
+test("teacher class registry selects term before month and subject", () => {
+  const teacherHtml = fs.readFileSync(path.join(root, "public/teacher-dashboard.html"), "utf8");
+  const registry = fs.readFileSync(path.join(root, "public/js/class-registry-teacher.js"), "utf8");
+  const filters = teacherHtml.slice(teacherHtml.indexOf("class-registry-filters"), teacherHtml.indexOf("class-registry-list"));
+  const termIndex = filters.indexOf("id=\"class-registry-term\"");
+  const monthIndex = filters.indexOf("id=\"class-registry-month\"");
+  const subjectIndex = filters.indexOf("id=\"class-registry-subject\"");
+  assert.ok(termIndex >= 0 && termIndex < monthIndex && monthIndex < subjectIndex);
+  assert.match(filters, /id="class-registry-month" disabled/);
+  assert.match(filters, /id="class-registry-subject" disabled/);
+  assert.match(registry, /const TERMS = Object\.freeze\(/);
+  assert.match(registry, /selectedTerm = term\.value/);
+  assert.match(registry, /selectedMonth = month\.value/);
+  assert.match(registry, /!selectedTerm/);
+  assert.match(registry, /!selectedMonth/);
+});
+
 test("telegram admin alerts are dormant without credentials and cover key parent events", () => {
   const service = fs.readFileSync(path.join(root, "services/telegramService.js"), "utf8");
   const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
