@@ -1168,6 +1168,39 @@ function clearStudentChat() {
   elements.chatEmpty = empty;
 }
 
+async function loadStudentQuestionImage(imageId) {
+  const token = sessionStorage.getItem("parentToken");
+  if (!token || !imageId) return null;
+
+  const response = await fetch(`/api/live-chat/question-image/${encodeURIComponent(imageId)}`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "image/*" },
+  });
+  if (!response.ok) return null;
+
+  const imageUrl = URL.createObjectURL(await response.blob());
+  renderedQuestionImageUrls.add(imageUrl);
+  return imageUrl;
+}
+
+async function restoreStudentChatHistory(messages = []) {
+  clearStudentChat();
+  for (const entry of Array.isArray(messages) ? messages : []) {
+    if (!entry?.message && !entry?.imageId && !entry?.imageData) continue;
+
+    let imageUrl = entry.imageData || null;
+    if (!imageUrl && entry.imageId) {
+      imageUrl = await loadStudentQuestionImage(entry.imageId).catch(() => null);
+    }
+
+    appendStudentChatMessage({
+      sender: entry.kind === "teacher" ? "الأستاذ" : "أنا",
+      message: entry.message || "",
+      kind: entry.kind === "teacher" ? "teacher" : "student",
+      imageUrl,
+    });
+  }
+}
+
 function updateChatControls() {
   const canSend = joinedClass && !isJoining && !isRecoveringStream && socket.connected;
   const hasQuestionImage = Boolean(selectedQuestionImageFile);
@@ -2375,6 +2408,11 @@ socket.on("participation_count_updated", (data = {}) => {
   if (joinedClass || globalFreeClass || data.level === level) {
     setParticipationCount(data.count);
   }
+});
+
+socket.on("classroom_chat_history", (data = {}) => {
+  if (!joinedClass || data.level !== level) return;
+  void restoreStudentChatHistory(data.messages);
 });
 
 socket.on("teacher_message_received", (data = {}) => {

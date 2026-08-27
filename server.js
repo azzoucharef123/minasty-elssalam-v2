@@ -369,6 +369,10 @@ const openStudentMicsByLevel = new Map();
 // Whiteboard authority follows the teacher's microphone decision for the same
 // student and classroom. The server remains the source of truth for drawing.
 const whiteboardAccessByLevel = new Map();
+// Keep a bounded in-memory chat history for the lifetime of an active classroom.
+// It is replayed only to the teacher and to the student who authored a message.
+const classroomChatHistoryByLevel = new Map();
+const MAX_CLASSROOM_CHAT_HISTORY = 100;
 // A full browser refresh drops the local screen-share stream. Keep the room
 // reserved long enough for the teacher to reload, select the screen again, and
 // reclaim the same classroom without forcing students out.
@@ -722,6 +726,39 @@ function setStudentWhiteboardAccess(level, socketId, enabled) {
   if (allowed.size === 0) whiteboardAccessByLevel.delete(level);
 }
 
+function clearClassroomChatHistory(level) {
+  classroomChatHistoryByLevel.delete(level);
+}
+
+function appendClassroomChatMessage(level, entry) {
+  if (!isValidLevel(level) || !entry?.kind) return;
+  const history = classroomChatHistoryByLevel.get(level) || [];
+  history.push({ ...entry, sentAt: Date.now() });
+  if (history.length > MAX_CLASSROOM_CHAT_HISTORY) {
+    history.splice(0, history.length - MAX_CLASSROOM_CHAT_HISTORY);
+  }
+  classroomChatHistoryByLevel.set(level, history);
+}
+
+function getClassroomChatHistory(level, { role, studentId } = {}) {
+  const history = classroomChatHistoryByLevel.get(level) || [];
+  return history.filter((entry) => (
+    role === "teacher" ||
+    (entry.kind === "teacher") ||
+    String(entry.studentId || "") === String(studentId || "")
+  ));
+}
+
+function emitClassroomChatHistory(socket, level) {
+  socket.emit("classroom_chat_history", {
+    level,
+    messages: getClassroomChatHistory(level, {
+      role: socket.data.role,
+      studentId: socket.data.studentId,
+    }),
+  });
+}
+
 async function getClassParticipation(studentId, sessionKey) {
   if (!isValidStudentId(studentId) || !isValidRecoveryToken(sessionKey)) return null;
   try {
@@ -769,6 +806,7 @@ async function closeClassroom(level, reason) {
   setScreenShareActive(level, false);
   openStudentMicsByLevel.delete(level);
   whiteboardAccessByLevel.delete(level);
+  clearClassroomChatHistory(level);
   io.to(level).emit("class_ended", { level, reason });
   // Parent dashboards join a separate passive lobby. They receive only the
   // live-state change—not attendee data, WebRTC signals, or media.
@@ -1296,6 +1334,9 @@ io.on("connection", (socket) => {
       socket.data.classResumeToken = resumeToken;
       activeTeachersByLevel.set(level, socket.id);
       activeSubjectByLevel.set(level, subject);
+      if (!isResuming && !currentTeacherSocket) {
+        clearClassroomChatHistory(level);
+      }
       // A new teacher page has no active display stream until it explicitly
       // publishes screen-share state after the room handshake.
       setScreenShareActive(level, false);
@@ -1343,6 +1384,7 @@ io.on("connection", (socket) => {
         io.to(`${level}_lobby`).emit("live_class_started", liveClassPayload);
       }
 
+      emitClassroomChatHistory(socket, level);
       socket.emit("room_ready", { level, subject, role: "teacher", resumed: isResuming, globalFree: isGlobalFreeClass });
       acknowledge(acknowledgement, { ok: true, level, subject, role: "teacher", resumed: isResuming, globalFree: isGlobalFreeClass });
       console.info(`[Socket.io] Teacher ${socket.id} ${isResuming ? "resumed" : "started"} room: ${level} (${subject})`);
@@ -1544,6 +1586,7 @@ io.on("connection", (socket) => {
         participationCount,
         screenShareActive: isScreenShareActive(classroomLevel),
       });
+      emitClassroomChatHistory(socket, classroomLevel);
       if (isStudentMicrophoneOpen(classroomLevel, socket.id)) {
         setStudentWhiteboardAccess(classroomLevel, socket.id, true);
         socket.emit("whiteboard_access_granted", { level: student.level, classroomLevel, globalFree: isGlobalFreeActive });
@@ -2106,15 +2149,18 @@ io.on("connection", (socket) => {
         approvedImageId = image.id;
       }
 
-      // This is intentionally a direct socket emission—not a level-room broadcast.
-      io.to(teacherSocketId).emit("student_message_received", {
+      const chatEntry = {
+        kind: "student",
         level,
         studentId: socket.data.studentId,
         socketId: socket.id,
         studentName: socket.data.studentName,
         message,
         imageId: approvedImageId,
-      });
+      };
+      appendClassroomChatMessage(level, chatEntry);
+      // This is intentionally a direct socket emission—not a level-room broadcast.
+      io.to(teacherSocketId).emit("student_message_received", chatEntry);
       void sendTelegramNotification({
         title: "رسالة جديدة في الحصة",
         body: `أرسل التلميذ رسالة إلى الأستاذ.\nالتلميذ: ${socket.data.studentName || "غير معروف"}\nالمستوى: ${level}\nالنص: ${message.slice(0, 500)}${approvedImageId ? "\nمرفق: صورة" : ""}`,
@@ -2154,11 +2200,14 @@ io.on("connection", (socket) => {
       );
     }
 
-    socket.to(level).emit("teacher_message_received", {
+    const chatEntry = {
+      kind: "teacher",
       level,
       message,
       imageData: imageData || null,
-    });
+    };
+    appendClassroomChatMessage(level, chatEntry);
+    socket.to(level).emit("teacher_message_received", chatEntry);
     acknowledge(acknowledgement, { ok: true, imageSent: Boolean(imageData) });
   });
 

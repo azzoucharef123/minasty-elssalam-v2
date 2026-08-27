@@ -590,12 +590,14 @@ function appendTeacherChatMessage({ sender, message = "", kind, imageUrl = null,
     const senderButton = document.createElement("button");
     senderButton.type = "button";
     senderButton.className = "chat-message-sender-button";
+    senderButton.dataset.studentId = String(studentId || "");
+    senderButton.dataset.socketId = String(studentSocketId || "");
     senderButton.textContent = sender;
     senderButton.setAttribute("aria-haspopup", "menu");
     senderButton.setAttribute("aria-label", `فتح تحكم ميكروفون ${sender}`);
     senderButton.addEventListener("click", (event) => {
       event.stopPropagation();
-      openStudentChatMicMenu({ anchor: senderButton, socketId: studentSocketId, studentId, studentName: sender });
+      openStudentChatMicMenu({ anchor: senderButton, socketId: senderButton.dataset.socketId, studentId: senderButton.dataset.studentId, studentName: sender });
     });
     senderWrap.append(senderButton);
     bubble.append(senderWrap);
@@ -758,6 +760,31 @@ function clearTeacherChat() {
   empty.textContent = "لا توجد رسائل بعد.";
   elements.chatBox.append(empty);
   elements.chatEmpty = empty;
+}
+
+async function restoreTeacherChatHistory(messages = []) {
+  clearTeacherChat();
+  for (const entry of Array.isArray(messages) ? messages : []) {
+    if (!entry?.message && !entry?.imageId && !entry?.imageData) continue;
+
+    let imageUrl = entry.imageData || null;
+    if (!imageUrl && entry.imageId) {
+      try {
+        imageUrl = await loadQuestionImage(entry.imageId);
+      } catch (error) {
+        console.warn("Unable to restore a student chat image:", error);
+      }
+    }
+
+    appendTeacherChatMessage({
+      sender: entry.kind === "teacher" ? "الأستاذ" : entry.studentName || "تلميذ",
+      message: entry.message || "",
+      kind: entry.kind === "teacher" ? "teacher" : "student",
+      imageUrl,
+      studentSocketId: entry.socketId || "",
+      studentId: entry.studentId || "",
+    });
+  }
 }
 
 async function sendTeacherChatMessage(event) {
@@ -1851,6 +1878,16 @@ function displayInitials(name) {
 }
 
 /** Add or refresh a student item without exposing their socket ID visibly. */
+function refreshChatStudentSocketTarget(studentId, socketId) {
+  const normalizedStudentId = String(studentId || "").trim();
+  if (!normalizedStudentId || !socketId) return;
+  document.querySelectorAll(".chat-message-sender-button").forEach((button) => {
+    if (button.dataset.studentId === normalizedStudentId) {
+      button.dataset.socketId = socketId;
+    }
+  });
+}
+
 function upsertAttendee(socketId, studentId, studentName = "تلميذ", participationCount = 0) {
   const stableStudentId = String(studentId || "").trim();
   const previousSocketId = stableStudentId ? attendeeSocketByStudentId.get(stableStudentId) : null;
@@ -1867,6 +1904,7 @@ function upsertAttendee(socketId, studentId, studentName = "تلميذ", partici
     if (stableStudentId) {
       item.dataset.studentId = stableStudentId;
       attendeeSocketByStudentId.set(stableStudentId, socketId);
+      refreshChatStudentSocketTarget(stableStudentId, socketId);
     }
     item.querySelector(".attendee-name").textContent = studentName;
     item.querySelector(".attendee-avatar").textContent = displayInitials(studentName);
@@ -1914,7 +1952,10 @@ function upsertAttendee(socketId, studentId, studentName = "تلميذ", partici
 
   elements.attendeesList.append(item);
   attendeeElements.set(socketId, item);
-  if (stableStudentId) attendeeSocketByStudentId.set(stableStudentId, socketId);
+  if (stableStudentId) {
+    attendeeSocketByStudentId.set(stableStudentId, socketId);
+    refreshChatStudentSocketTarget(stableStudentId, socketId);
+  }
   updateAttendeeCount();
 
   return item;
@@ -3296,6 +3337,11 @@ socket.on("hand_lowered", (data = {}) => {
   if (classActive) {
     setStudioStatus("ألغى التلميذ طلب التحدث.", "live");
   }
+});
+
+socket.on("classroom_chat_history", (data = {}) => {
+  if (!classActive || data.level !== activeLevel) return;
+  void restoreTeacherChatHistory(data.messages);
 });
 
 socket.on("student_message_received", async (data = {}) => {

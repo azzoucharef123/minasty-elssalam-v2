@@ -179,6 +179,16 @@ test("teacher live chat supports pasted image messages safely", () => {
   assert.match(teacherHtml, /id="chat-image-remove-btn"/);
   assert.match(studentLive, /const imageData = data\?\.imageData/);
   assert.match(studentLive, /imageUrl: imageData/);
+  assert.match(studentLive, /loadStudentQuestionImage/);
+  assert.match(server, /classroomChatHistoryByLevel/);
+  assert.match(server, /MAX_CLASSROOM_CHAT_HISTORY/);
+  assert.match(server, /emitClassroomChatHistory\(socket, classroomLevel\)/);
+  assert.match(server, /emitClassroomChatHistory\(socket, level\)/);
+  assert.match(teacherLive, /restoreTeacherChatHistory/);
+  assert.match(studentLive, /restoreStudentChatHistory/);
+  assert.match(studentLive, /if \(!rejoin\) \{\s*clearStudentChat\(\);\s*\}/);
+  assert.match(teacherLive, /classroom_chat_history/);
+  assert.match(studentLive, /classroom_chat_history/);
   assert.match(teacherLive, /openStudentChatMicMenu/);
   assert.match(teacherLive, /student-chat-mic-menu/);
   assert.match(teacherLive, /فتح الـ microphone/);
