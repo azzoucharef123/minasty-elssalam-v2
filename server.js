@@ -2109,6 +2109,8 @@ io.on("connection", (socket) => {
       // This is intentionally a direct socket emission—not a level-room broadcast.
       io.to(teacherSocketId).emit("student_message_received", {
         level,
+        studentId: socket.data.studentId,
+        socketId: socket.id,
         studentName: socket.data.studentName,
         message,
         imageId: approvedImageId,

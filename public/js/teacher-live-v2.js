@@ -86,6 +86,8 @@ let questionImageDragOriginY = 0;
 const QUESTION_IMAGE_MIN_ZOOM = 1;
 const QUESTION_IMAGE_MAX_ZOOM = 4;
 const QUESTION_IMAGE_ZOOM_STEP = 0.25;
+const studentMicStates = new Map();
+let activeStudentChatMicMenu = null;
 let pendingTeacherChatImageData = "";
 const MAX_TEACHER_CHAT_IMAGE_DATA_URL_LENGTH = 1_100_000;
 const SUPPORTED_TEACHER_CHAT_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -514,7 +516,57 @@ function isViewingLatestMessages(container, threshold = 36) {
 }
 
 /** Render all chat text through textContent to prevent injected markup. */
-function appendTeacherChatMessage({ sender, message = "", kind, imageUrl = null }) {
+function closeStudentChatMicMenu() {
+  activeStudentChatMicMenu?.menu.remove();
+  activeStudentChatMicMenu = null;
+}
+
+function openStudentChatMicMenu({ anchor, socketId, studentId = "", studentName = "تلميذ" }) {
+  if (!anchor || !socketId) return;
+  if (activeStudentChatMicMenu?.anchor === anchor) {
+    closeStudentChatMicMenu();
+    return;
+  }
+
+  closeStudentChatMicMenu();
+  const menu = document.createElement("div");
+  menu.className = "student-chat-mic-menu";
+  menu.setAttribute("role", "menu");
+  menu.setAttribute("aria-label", `تحكم في ميكروفون ${studentName}`);
+
+  const action = document.createElement("button");
+  action.type = "button";
+  action.className = "student-chat-mic-action";
+  action.dataset.studentId = String(studentId || "");
+  const enabled = studentMicStates.has(socketId)
+    ? studentMicStates.get(socketId)
+    : approvedStudentMicrophones.has(socketId);
+  action.dataset.enabled = String(Boolean(enabled));
+  action.textContent = enabled ? "غلق الـ microphone" : "فتح الـ microphone";
+  action.addEventListener("click", () => {
+    void setStudentMicrophone(socketId, !enabled, action);
+  });
+
+  menu.append(action);
+  anchor.closest(".chat-message-sender-wrap")?.append(menu);
+  activeStudentChatMicMenu = { anchor, menu };
+}
+
+document.addEventListener("click", (event) => {
+  if (!activeStudentChatMicMenu) return;
+  if (
+    !activeStudentChatMicMenu.anchor.contains(event.target) &&
+    !activeStudentChatMicMenu.menu.contains(event.target)
+  ) {
+    closeStudentChatMicMenu();
+  }
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeStudentChatMicMenu();
+});
+
+/** Render all chat text through textContent to prevent injected markup. */
+function appendTeacherChatMessage({ sender, message = "", kind, imageUrl = null, studentSocketId = "", studentId = "" }) {
   const safeMessage = normalizeChatMessage(message);
   if ((!safeMessage && !imageUrl) || !elements.chatBox) {
     return null;
@@ -532,7 +584,24 @@ function appendTeacherChatMessage({ sender, message = "", kind, imageUrl = null 
   senderLabel.className = "chat-message-sender";
   senderLabel.textContent = sender;
 
-  bubble.append(senderLabel);
+  if (kind === "student" && studentSocketId) {
+    const senderWrap = document.createElement("span");
+    senderWrap.className = "chat-message-sender-wrap";
+    const senderButton = document.createElement("button");
+    senderButton.type = "button";
+    senderButton.className = "chat-message-sender-button";
+    senderButton.textContent = sender;
+    senderButton.setAttribute("aria-haspopup", "menu");
+    senderButton.setAttribute("aria-label", `فتح تحكم ميكروفون ${sender}`);
+    senderButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openStudentChatMicMenu({ anchor: senderButton, socketId: studentSocketId, studentId, studentName: sender });
+    });
+    senderWrap.append(senderButton);
+    bubble.append(senderWrap);
+  } else {
+    bubble.append(senderLabel);
+  }
 
   if (safeMessage) {
     const body = document.createElement("span");
@@ -2025,6 +2094,8 @@ function applyStudentMicrophoneState(studentSocketId, enabled) {
     return;
   }
 
+  studentMicStates.set(studentSocketId, Boolean(enabled));
+
   if (enabled) {
     approvedStudentMicrophones.add(studentSocketId);
   } else {
@@ -2235,6 +2306,7 @@ function clearIceDisconnectTimer(socketId) {
 function removeStudentConnection(socketId, { statusMessage } = {}) {
   clearIceDisconnectTimer(socketId);
   approvedStudentMicrophones.delete(socketId);
+  studentMicStates.delete(socketId);
   closePeerConnection(socketId);
   removeAttendee(socketId);
 
@@ -2273,6 +2345,8 @@ function closePeerConnection(socketId) {
 
 function closeAllPeerConnections() {
   approvedStudentMicrophones.clear();
+  studentMicStates.clear();
+  closeStudentChatMicMenu();
   Object.keys(peerConnections).forEach(closePeerConnection);
   Object.keys(pendingIceCandidates).forEach((socketId) => {
     delete pendingIceCandidates[socketId];
@@ -2993,8 +3067,10 @@ async function setStudentMicrophone(socketId, enabled, button) {
     return;
   }
 
-  button.disabled = true;
-  button.textContent = enabled ? "جارٍ فتح المايك…" : "جارٍ إغلاق المايك…";
+  if (button) {
+    button.disabled = true;
+    button.textContent = enabled ? "جارٍ فتح الـ microphone…" : "جارٍ غلق الـ microphone…";
+  }
 
   try {
     await emitWithAcknowledgement("teacher_set_mic", {
@@ -3010,12 +3086,15 @@ async function setStudentMicrophone(socketId, enabled, button) {
       enabled ? "تم فتح مايك التلميذ وأصبح صوته مسموعًا للصف." : "تم إغلاق مايك التلميذ.",
       "live"
     );
+    closeStudentChatMicMenu();
   } catch (error) {
     console.error("Unable to change the student microphone state:", error);
-    button.textContent = button.dataset.enabled === "true" ? "إغلاق المايك" : "فتح المايك";
+    if (button) {
+      button.textContent = button.dataset.enabled === "true" ? "غلق الـ microphone" : "فتح الـ microphone";
+    }
     setStudioStatus(error.message || "تعذر تغيير حالة المايك.", "error");
   } finally {
-    button.disabled = false;
+    if (button) button.disabled = false;
   }
 }
 
@@ -3227,6 +3306,8 @@ socket.on("student_message_received", async (data = {}) => {
     message: fallbackMessage,
     kind: "student",
     imageUrl,
+    studentSocketId: data.socketId || "",
+    studentId: data.studentId || "",
   });
 });
 

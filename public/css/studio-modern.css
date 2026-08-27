@@ -477,3 +477,78 @@
   content: "";
   animation: studio-pulse 1.5s ease-in-out infinite;
 }
+
+
+/* Per-student microphone control from the teacher chat message sender. */
+.chat-message-sender-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+}
+
+.chat-message-sender-button {
+  max-width: 100%;
+  padding: .12rem .28rem;
+  overflow: hidden;
+  color: #bfdbfe;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  font: inherit;
+  font-size: inherit;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .16s ease, background .16s ease, border-color .16s ease;
+}
+
+.chat-message-sender-button:hover,
+.chat-message-sender-button:focus-visible {
+  color: #fff;
+  border-color: rgba(96, 165, 250, .6);
+  background: rgba(59, 130, 246, .18);
+  outline: none;
+}
+
+.student-chat-mic-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + .35rem);
+  right: 0;
+  min-width: 11rem;
+  padding: .35rem;
+  border: 1px solid rgba(96, 165, 250, .45);
+  border-radius: 8px;
+  background: #111c2f;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .32);
+}
+
+.student-chat-mic-action {
+  display: block;
+  width: 100%;
+  min-height: 2.3rem;
+  padding: .45rem .65rem;
+  color: #dbeafe;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  font-size: .68rem;
+  font-weight: 800;
+  text-align: right;
+  cursor: pointer;
+}
+
+.student-chat-mic-action:hover,
+.student-chat-mic-action:focus-visible {
+  color: #fff;
+  background: rgba(59, 130, 246, .25);
+  outline: none;
+}
+
+.student-chat-mic-action:disabled {
+  cursor: wait;
+  opacity: .65;
+}

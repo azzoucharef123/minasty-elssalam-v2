@@ -171,6 +171,7 @@ test("teacher live chat supports pasted image messages safely", () => {
   assert.match(server, /normalizeTeacherChatImageData\s*\(/);
   assert.ok(server.includes("image\\/(?:jpeg|png|webp)"));
   assert.match(server, /teacher_message_received/);
+  assert.match(server, /student_message_received[\s\S]*studentId: socket\.data\.studentId[\s\S]*socketId: socket\.id/);
   assert.match(teacherLive, /addEventListener\("paste"/);
   assert.match(teacherLive, /chatImagePreview/);
   assert.match(teacherLive, /imageData/);
@@ -178,6 +179,11 @@ test("teacher live chat supports pasted image messages safely", () => {
   assert.match(teacherHtml, /id="chat-image-remove-btn"/);
   assert.match(studentLive, /const imageData = data\?\.imageData/);
   assert.match(studentLive, /imageUrl: imageData/);
+  assert.match(teacherLive, /openStudentChatMicMenu/);
+  assert.match(teacherLive, /student-chat-mic-menu/);
+  assert.match(teacherLive, /فتح الـ microphone/);
+  assert.match(teacherLive, /غلق الـ microphone/);
+  assert.match(teacherHtml, /id="chat-box"/);
 });
 
 test("teacher can edit student contact data through a protected UI action", () => {
