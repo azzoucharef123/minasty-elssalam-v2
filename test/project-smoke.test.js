@@ -61,6 +61,10 @@ test("teacher question image modal supports bounded wheel zoom", () => {
   const teacherHtml = fs.readFileSync(path.join(root, "public/teacher-live.html"), "utf8");
   assert.match(teacherLive, /QUESTION_IMAGE_MAX_ZOOM\s*=\s*4/);
   assert.match(teacherLive, /handleQuestionImageWheel/);
+  assert.match(teacherLive, /startQuestionImageDrag/);
+  assert.match(teacherLive, /moveQuestionImageDrag/);
+  assert.match(teacherLive, /addEventListener\("pointerdown", startQuestionImageDrag\)/);
+  assert.match(teacherLive, /addEventListener\("pointermove", moveQuestionImageDrag\)/);
   assert.match(teacherLive, /addEventListener\("wheel", handleQuestionImageWheel, \{ passive: false \}\)/);
   assert.match(teacherLive, /resetQuestionImageZoom\(\)/);
   assert.match(teacherHtml, /id="question-image-modal-viewport"/);

@@ -75,6 +75,14 @@ let reconnectingLiveClass = false;
 const renderedQuestionImageUrls = new Set();
 let questionImageModalPreviousFocus = null;
 let questionImageZoom = 1;
+let questionImagePanX = 0;
+let questionImagePanY = 0;
+let questionImageDragging = false;
+let questionImageDragPointerId = null;
+let questionImageDragStartX = 0;
+let questionImageDragStartY = 0;
+let questionImageDragOriginX = 0;
+let questionImageDragOriginY = 0;
 const QUESTION_IMAGE_MIN_ZOOM = 1;
 const QUESTION_IMAGE_MAX_ZOOM = 4;
 const QUESTION_IMAGE_ZOOM_STEP = 0.25;
@@ -255,9 +263,28 @@ function setStageMode(mode = "idle") {
   if (elements.teacherCanvas) elements.teacherCanvas.hidden = true;
 }
 
+function getQuestionImagePanBounds() {
+  const viewport = elements.questionImageModalViewport;
+  const image = elements.questionImageModalImage;
+  if (!viewport || !image) return { x: 0, y: 0 };
+
+  return {
+    x: Math.max(0, (image.offsetWidth * questionImageZoom - viewport.clientWidth) / 2),
+    y: Math.max(0, (image.offsetHeight * questionImageZoom - viewport.clientHeight) / 2),
+  };
+}
+
+function clampQuestionImagePan() {
+  const bounds = getQuestionImagePanBounds();
+  questionImagePanX = Math.min(bounds.x, Math.max(-bounds.x, questionImagePanX));
+  questionImagePanY = Math.min(bounds.y, Math.max(-bounds.y, questionImagePanY));
+}
+
 function updateQuestionImageZoom() {
+  clampQuestionImagePan();
   if (elements.questionImageModalImage) {
-    elements.questionImageModalImage.style.transform = `scale(${questionImageZoom})`;
+    elements.questionImageModalImage.style.transform =
+      `translate3d(${questionImagePanX}px, ${questionImagePanY}px, 0) scale(${questionImageZoom})`;
   }
   if (elements.questionImageZoomLabel) {
     elements.questionImageZoomLabel.textContent = `${Math.round(questionImageZoom * 100)}%`;
@@ -267,10 +294,44 @@ function updateQuestionImageZoom() {
 
 function resetQuestionImageZoom() {
   questionImageZoom = QUESTION_IMAGE_MIN_ZOOM;
+  questionImagePanX = 0;
+  questionImagePanY = 0;
+  questionImageDragging = false;
+  questionImageDragPointerId = null;
   if (elements.questionImageModalImage) {
     elements.questionImageModalImage.style.transformOrigin = "center center";
   }
+  elements.questionImageModalViewport?.classList.remove("is-dragging");
   updateQuestionImageZoom();
+}
+
+function startQuestionImageDrag(event) {
+  if (event.button !== 0 || questionImageZoom <= QUESTION_IMAGE_MIN_ZOOM) return;
+  questionImageDragging = true;
+  questionImageDragPointerId = event.pointerId;
+  questionImageDragStartX = event.clientX;
+  questionImageDragStartY = event.clientY;
+  questionImageDragOriginX = questionImagePanX;
+  questionImageDragOriginY = questionImagePanY;
+  elements.questionImageModalViewport?.classList.add("is-dragging");
+  elements.questionImageModalViewport?.setPointerCapture?.(event.pointerId);
+  event.preventDefault();
+}
+
+function moveQuestionImageDrag(event) {
+  if (!questionImageDragging || event.pointerId !== questionImageDragPointerId) return;
+  questionImagePanX = questionImageDragOriginX + event.clientX - questionImageDragStartX;
+  questionImagePanY = questionImageDragOriginY + event.clientY - questionImageDragStartY;
+  updateQuestionImageZoom();
+  event.preventDefault();
+}
+
+function stopQuestionImageDrag(event) {
+  if (!questionImageDragging || (event.pointerId != null && event.pointerId !== questionImageDragPointerId)) return;
+  elements.questionImageModalViewport?.releasePointerCapture?.(questionImageDragPointerId);
+  questionImageDragging = false;
+  questionImageDragPointerId = null;
+  elements.questionImageModalViewport?.classList.remove("is-dragging");
 }
 
 function handleQuestionImageWheel(event) {
@@ -3245,6 +3306,11 @@ elements.chatInput.addEventListener("paste", (event) => {
 elements.chatImageRemoveButton?.addEventListener("click", clearTeacherChatImage);
 elements.closeQuestionImageModalButton?.addEventListener("click", closeQuestionImageModal);
 elements.questionImageModalViewport?.addEventListener("wheel", handleQuestionImageWheel, { passive: false });
+elements.questionImageModalViewport?.addEventListener("pointerdown", startQuestionImageDrag);
+elements.questionImageModalViewport?.addEventListener("pointermove", moveQuestionImageDrag);
+elements.questionImageModalViewport?.addEventListener("pointerup", stopQuestionImageDrag);
+elements.questionImageModalViewport?.addEventListener("pointercancel", stopQuestionImageDrag);
+elements.questionImageModalViewport?.addEventListener("lostpointercapture", stopQuestionImageDrag);
 elements.questionImageModal?.addEventListener("click", (event) => {
   if (event.target === elements.questionImageModal) {
     closeQuestionImageModal();

@@ -940,7 +940,11 @@
       }
 
       .question-image-modal-viewport.is-zoomed {
-        cursor: zoom-out;
+        cursor: grab;
+      }
+
+      .question-image-modal-viewport.is-dragging {
+        cursor: grabbing;
       }
 
       .question-image-modal img {
@@ -952,6 +956,8 @@
         transform: scale(1);
         transform-origin: center center;
         transition: transform 0.12s ease-out;
+        user-select: none;
+        -webkit-user-drag: none;
         will-change: transform;
       }
 
@@ -1407,7 +1413,7 @@
       <div class="question-image-modal-card">
         <header class="question-image-modal-head">
           <strong id="question-image-modal-title">صورة سؤال التلميذ</strong>
-          <span class="question-image-modal-zoom-copy">عجلة الفأرة للتكبير: <span id="question-image-zoom-label">100%</span></span>
+          <span class="question-image-modal-zoom-copy">عجلة الفأرة للتكبير والسحب بعد التكبير: <span id="question-image-zoom-label">100%</span></span>
           <button id="close-question-image-modal" class="question-image-modal-close" type="button" aria-label="إغلاق الصورة">×</button>
         </header>
         <div id="question-image-modal-viewport" class="question-image-modal-viewport" aria-label="منطقة تكبير صورة سؤال التلميذ">
