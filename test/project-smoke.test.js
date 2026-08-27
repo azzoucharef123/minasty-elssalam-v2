@@ -8,6 +8,7 @@ const schema = fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8");
 const routes = fs.readFileSync(path.join(root, "routes/academicRoutes.js"), "utf8");
 const studentController = fs.readFileSync(path.join(root, "controllers/studentController.js"), "utf8");
 const parentDashboard = fs.readFileSync(path.join(root, "public/js/parent-dashboard.js"), "utf8");
+const { buildStudentAudienceWhere } = require(path.join(root, "utils/studentAudienceFilters.js"));
 
 test("selected academic models exist", () => {
   for (const model of ["Session", "AuditLog", "Notification", "NotificationCampaign", "PaymentEvent", "Grade", "Assignment", "Question", "Assessment", "LessonProgress", "ClassParticipation"]) {
@@ -295,7 +296,7 @@ test("Messenger roster accepts level aliases and refreshes after roster changes"
   assert.match(controller, /notifyTeacherRosterChanged\(req, result\.student\.level, "deleted"\)/);
   assert.match(controller, /notifyTeacherRosterChanged\(req, \[currentStudent\.level, updatedStudent\.level\], "contact-updated"\)/);
   assert.match(controller, /notifyTeacherRosterChanged\(req, student\.level, "status-updated"\)/);
-  assert.match(messengerJs, /students\/level\/\$\{encodeURIComponent\(level\)\}\?limit=100/);
+  assert.match(messengerJs, /messenger\/teacher\/students\?\$\{query\.toString\(\)\}/);
   assert.match(messengerJs, /student_roster_changed/);
   assert.match(messengerJs, /visibilitychange/);
   assert.match(messengerJs, /setInterval\(\(\) => \{/);
@@ -303,7 +304,29 @@ test("Messenger roster accepts level aliases and refreshes after roster changes"
   assert.match(dashboard, /id="teacher-messenger-refresh-students"/);
 });
 
-test("messenger linking and webhooks are dormant without credentials and follow secure patterns", () => {
+test("Messenger audience filters distinguish payment stages and enrolled subjects", () => {
+  const free = buildStudentAudienceWhere({ level: "السنة الأولى متوسط", paymentFilter: "FREE", subjectFilter: "ALL" });
+  assert.deepEqual(free.level.in, ["السنة الأولى متوسط", "السنة الأولى"]);
+  assert.equal(free.paymentStage, "UNPAID");
+  assert.equal(free.mathEnrollment, false);
+  assert.equal(free.physicsEnrollment, false);
+
+  const unpaidMath = buildStudentAudienceWhere({ level: "السنة الأولى", paymentFilter: "UNPAID", subjectFilter: "MATH" });
+  assert.equal(unpaidMath.paymentStage, "UNPAID");
+  assert.deepEqual(unpaidMath.OR, [{ mathEnrollment: true }, { physicsEnrollment: true }]);
+  assert.equal(unpaidMath.mathEnrollment, true);
+
+  const paidBoth = buildStudentAudienceWhere({ level: "طالب جامعي", paymentFilter: "PAID", subjectFilter: "BOTH" });
+  assert.equal(paidBoth.paymentStage, "PAID");
+  assert.equal(paidBoth.mathEnrollment, true);
+  assert.equal(paidBoth.physicsEnrollment, true);
+
+  const promisedPhysics = buildStudentAudienceWhere({ level: "السنة الثانية", paymentFilter: "PROMISED", subjectFilter: "PHYSICS" });
+  assert.equal(promisedPhysics.paymentStage, "PROMISED");
+  assert.equal(promisedPhysics.physicsEnrollment, true);
+});
+
+test("Messenger linking and webhooks are dormant without credentials and follow secure patterns", () => {
   const service = fs.readFileSync(path.join(root, "services/messengerService.js"), "utf8");
   const schema = fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8");
   const routes = fs.readFileSync(path.join(root, "routes/messengerRoutes.js"), "utf8");

@@ -4819,3 +4819,27 @@ body.parent-login-page {
 @media (max-width: 620px) { .teacher-messenger-heading, .teacher-messenger-actions { align-items: stretch; flex-direction: column; } .teacher-messenger-safety-grid, .teacher-messenger-quota, .teacher-messenger-settings-grid, .teacher-messenger-fields-grid, .teacher-messenger-student-list { grid-template-columns: 1fr; } .teacher-messenger-status-badge { align-self: flex-start; } }
 .teacher-messenger-tab { color: #7c3aed; }
 .teacher-dashboard-page .teacher-tab-button.teacher-messenger-tab.is-active { color: #fff; background: #7c3aed; border-color: #7c3aed; }
+
+
+/* Messenger audience filter results */
+.teacher-messenger-student-list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.teacher-messenger-student-list-toolbar .teacher-messenger-secondary-button {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+
+@media (max-width: 640px) {
+  .teacher-messenger-student-list-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

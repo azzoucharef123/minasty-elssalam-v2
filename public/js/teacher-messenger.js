@@ -73,17 +73,21 @@
     if (safe) safe.textContent = settings.enabled ? "مفعّل" : "متوقف يدويًا";
   }
 
-  function renderStudents() {
+  function renderStudents(selectedIds = new Set()) {
     const list = el("teacher-messenger-student-list");
+    const count = el("teacher-messenger-student-count");
     if (!list) return;
+    if (count) count.textContent = `${state.students.length} نتيجة مطابقة للفلاتر الحالية`;
     if (!state.students.length) {
-      list.innerHTML = "<p>لا يوجد تلاميذ في المستوى المختار.</p>";
+      list.innerHTML = "<p>لا يوجد تلميذ مطابق للمستوى والفلاتر الحالية.</p>";
       return;
     }
     list.innerHTML = state.students.map((student) => {
       const id = String(student.id || "");
       const name = String(student.studentName || "تلميذ دون اسم").replace(/[&<>\"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[char]));
-      return `<label class="teacher-messenger-student-option"><input type="checkbox" value="${id}" data-messenger-student><span><strong>${name}</strong><small>${student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID")}</small></span></label>`;
+      const subjects = [student.mathEnrollment ? "رياضيات" : "", student.physicsEnrollment ? "فيزياء" : ""].filter(Boolean).join(" + ") || "بدون مادة";
+      const status = String(student.paymentStage || (student.paymentStatus ? "PAID" : "UNPAID"));
+      return `<label class="teacher-messenger-student-option"><input type="checkbox" value="${id}" data-messenger-student${selectedIds.has(id) ? " checked" : ""}><span><strong>${name}</strong><small>${status} · ${subjects}${student.accountActive === false ? " · يحتاج مراجعة" : ""}</small></span></label>`;
     }).join("");
   }
 
@@ -97,16 +101,20 @@
 
   async function loadStudents({ silent = false } = {}) {
     const level = el("teacher-messenger-level")?.value || "";
+    const paymentFilter = el("teacher-messenger-payment")?.value || "ALL";
+    const subjectFilter = el("teacher-messenger-subject")?.value || "ALL";
+    const preservedIds = new Set(selectedTargetIds());
     const list = el("teacher-messenger-student-list");
     if (list && !silent) {
       list.hidden = false;
       list.innerHTML = "<p>جارٍ تحميل تلاميذ المستوى…</p>";
     }
     try {
-      const payload = await api(`/api/students/level/${encodeURIComponent(level)}?limit=100`);
-      state.students = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
-      renderStudents();
-      if (!silent) setFeedback(`تم تحديث قائمة المستوى: ${state.students.length} تلميذًا.`);
+      const query = new URLSearchParams({ level, paymentFilter, subjectFilter });
+      const payload = await api(`/api/messenger/teacher/students?${query.toString()}`);
+      state.students = Array.isArray(payload?.data) ? payload.data : [];
+      renderStudents(new Set([...preservedIds].filter((id) => state.students.some((student) => String(student.id) === id))));
+      if (!silent) setFeedback(`تم تحديث القائمة: ${state.students.length} تلميذًا مطابقًا للفلاتر.`);
     } catch (error) {
       state.students = [];
       if (list) list.innerHTML = `<p>${error.message}</p>`;
@@ -226,6 +234,11 @@
 
   el("teacher-messenger-level")?.addEventListener("change", () => {
     if (isSelectedTarget()) void loadStudents();
+  });
+  ["teacher-messenger-payment", "teacher-messenger-subject"].forEach((id) => {
+    el(id)?.addEventListener("change", () => {
+      if (isSelectedTarget()) void loadStudents();
+    });
   });
   document.querySelectorAll('input[name="teacher-messenger-target-mode"]').forEach((input) => input.addEventListener("change", () => {
     const list = el("teacher-messenger-student-list");

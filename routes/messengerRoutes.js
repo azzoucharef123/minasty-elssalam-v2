@@ -2,7 +2,10 @@
 
 const express = require("express");
 const prisma = require("../lib/prisma");
-const { createTeacherMessengerCampaign } = require("../controllers/academicController");
+const {
+  createTeacherMessengerCampaign,
+  getTeacherMessengerStudents,
+} = require("../controllers/academicController");
 const { verifyToken, isTeacher } = require("../middleware/authMiddleware");
 const {
   createMessengerLink,
@@ -54,6 +57,7 @@ router.put("/teacher/settings", verifyToken, isTeacher, requireTeacher, async (r
   return res.json({ status: "success", data: settings, message: "تم حفظ إعدادات Messenger الآمنة." });
 });
 
+router.get("/teacher/students", verifyToken, isTeacher, requireTeacher, getTeacherMessengerStudents);
 router.post("/teacher/campaigns", verifyToken, isTeacher, requireTeacher, createTeacherMessengerCampaign);
 
 router.get("/status", verifyToken, requireParent, async (req, res) => {

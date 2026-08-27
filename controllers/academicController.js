@@ -3,6 +3,12 @@ const { logAudit } = require("../utils/audit");
 const { getSmsStatus, sendSms } = require("../services/smsService");
 const { getTelegramStatus, notifyTelegram, sendTelegramToParent } = require("../services/telegramService");
 const { getMessengerStatus, getMessengerSettings, sendMessengerToParent } = require("../services/messengerService");
+const {
+  PAYMENT_FILTERS,
+  SUBJECT_FILTERS,
+  buildStudentAudienceWhere,
+  normalizeFilter,
+} = require("../utils/studentAudienceFilters");
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LEVELS = new Set(["السنة الأولى", "السنة الثانية", "السنة الثالثة", "السنة الرابعة", "طالب جامعي"]);
@@ -363,20 +369,15 @@ function parseAnnouncementStudentIds(value) {
 
 function announcementWhere(payload) {
   const level = normalizeAssignmentLevel(payload.targetLevel);
-  const where = { level: { in: assignmentLevelCandidates(level) }, accountActive: true };
+  const where = buildStudentAudienceWhere({
+    level,
+    paymentFilter: payload.paymentFilter,
+    subjectFilter: payload.subjectFilter,
+    includeActiveOnly: true,
+  });
   if (String(payload.targetMode || "ALL_LEVEL").toUpperCase() === "SELECTED") {
     const targetStudentIds = parseAnnouncementStudentIds(payload.targetStudentIds);
     where.id = { in: targetStudentIds };
-  }
-  if (payload.paymentFilter === "FREE") where.paymentStatus = false;
-  if (payload.paymentFilter === "UNPAID") where.paymentStage = "UNPAID";
-  if (payload.paymentFilter === "PAID") where.paymentStage = "PAID";
-  if (payload.paymentFilter === "PROMISED") where.paymentStage = "PROMISED";
-  if (payload.subjectFilter === "MATH") where.mathEnrollment = true;
-  if (payload.subjectFilter === "PHYSICS") where.physicsEnrollment = true;
-  if (payload.subjectFilter === "BOTH") {
-    where.mathEnrollment = true;
-    where.physicsEnrollment = true;
   }
   return where;
 }
@@ -577,6 +578,40 @@ async function getTeacherMessengerStatus(req, res) {
       standardWindowHours: 24,
       policyMessage: "يُرسل Messenger إلى الحسابات المرتبطة التي تفاعلت مع الصفحة خلال نافذة Meta المسموح بها.",
     },
+  });
+}
+
+async function getTeacherMessengerStudents(req, res) {
+  if (!requireTeacher(req, res)) return;
+  const level = normalizeAssignmentLevel(text(req.query?.level, 100));
+  const paymentFilter = normalizeFilter(req.query?.paymentFilter, PAYMENT_FILTERS, "");
+  const subjectFilter = normalizeFilter(req.query?.subjectFilter, SUBJECT_FILTERS, "");
+  if (!ASSIGNMENT_CANONICAL_LEVELS.has(level) || !paymentFilter || !subjectFilter) {
+    return res.status(400).json({ error: "المستوى أو فلاتر الاشتراك والمادة غير صحيحة." });
+  }
+
+  const where = buildStudentAudienceWhere({ level, paymentFilter, subjectFilter });
+  const students = await prisma.student.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: 2000,
+    select: {
+      id: true,
+      studentName: true,
+      level: true,
+      paymentStatus: true,
+      paymentStage: true,
+      mathEnrollment: true,
+      physicsEnrollment: true,
+      accountActive: true,
+      parentPhone: false,
+    },
+  });
+  return res.json({
+    status: "success",
+    data: students,
+    meta: { totalRecords: students.length, capped: students.length === 2000 },
+    filters: { level, paymentFilter, subjectFilter },
   });
 }
 
@@ -821,6 +856,7 @@ module.exports = {
   getTeacherTelegramStatus,
   getTeacherSmsStatus,
   getTeacherMessengerStatus,
+  getTeacherMessengerStudents,
   createTeacherAnnouncement,
   createTeacherMessengerCampaign,
   cancelTeacherAnnouncement,
