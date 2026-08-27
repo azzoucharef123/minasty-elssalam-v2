@@ -2,11 +2,12 @@ const prisma = require("../lib/prisma");
 const { logAudit } = require("../utils/audit");
 const { getSmsStatus, sendSms } = require("../services/smsService");
 const { getTelegramStatus, notifyTelegram, sendTelegramToParent } = require("../services/telegramService");
+const { getMessengerStatus, sendMessengerToParent } = require("../services/messengerService");
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LEVELS = new Set(["السنة الأولى", "السنة الثانية", "السنة الثالثة", "السنة الرابعة", "طالب جامعي"]);
 const SUBJECTS = new Set(["MATH", "PHYSICS", "FREE", "PAID", "GENERAL"]);
-const ANNOUNCEMENT_CHANNELS = new Set(["BROWSER", "SMS", "BOTH"]);
+const ANNOUNCEMENT_CHANNELS = new Set(["BROWSER", "SMS", "BOTH", "MESSENGER", "BROWSER_MESSENGER", "SMS_MESSENGER", "ALL"]);
 
 // The teacher dashboard sends short labels, while Student.level stores the
 // full middle-school labels. Assignments use the full label canonically and
@@ -383,7 +384,14 @@ function announcementSummary(campaign, deliveryStats = {}) {
   const browserSentCount = Number(deliveryStats.sentCount ?? (deliveryChannel === "SMS" ? 0 : campaign.recipientCount) ?? 0) || 0;
   const smsSentCount = Number(campaign.smsSentCount || 0) || 0;
   const smsFailedCount = Number(campaign.smsFailedCount || 0) || 0;
-  const sentCount = deliveryChannel === "SMS" ? smsSentCount : browserSentCount;
+  const messengerSentCount = Number(campaign.messengerSentCount || 0) || 0;
+  const messengerFailedCount = Number(campaign.messengerFailedCount || 0) || 0;
+  const messengerSkippedCount = Number(campaign.messengerSkippedCount || 0) || 0;
+  const sentCount = deliveryChannel === "SMS"
+    ? smsSentCount
+    : deliveryChannel === "MESSENGER"
+      ? messengerSentCount
+      : browserSentCount;
   const readCount = Number(deliveryStats.readCount ?? 0) || 0;
   return {
     ...campaign,
@@ -396,17 +404,26 @@ function announcementSummary(campaign, deliveryStats = {}) {
     unreadCount: Math.max(0, sentCount - readCount),
     smsSentCount,
     smsFailedCount,
+    messengerSentCount,
+    messengerFailedCount,
+    messengerSkippedCount,
   };
 }
 
 async function deliverTeacherAnnouncement(campaign, options = {}) {
   const sendSocketNotification = options.sendSocketNotification || socketNotificationSender;
   const deliveryChannel = campaign.deliveryChannel || "BROWSER";
-  const sendBrowser = deliveryChannel === "BROWSER" || deliveryChannel === "BOTH";
-  const sendSmsChannel = deliveryChannel === "SMS" || deliveryChannel === "BOTH";
+  const sendBrowser = ["BROWSER", "BOTH", "BROWSER_MESSENGER", "ALL"].includes(deliveryChannel);
+  const sendSmsChannel = ["SMS", "BOTH", "SMS_MESSENGER", "ALL"].includes(deliveryChannel);
+  const sendMessengerChannel = ["MESSENGER", "BROWSER_MESSENGER", "SMS_MESSENGER", "ALL"].includes(deliveryChannel);
   if (sendSmsChannel && !getSmsStatus().configured) {
     const error = new Error("SMS_NOT_CONFIGURED");
     error.code = "SMS_NOT_CONFIGURED";
+    throw error;
+  }
+  if (sendMessengerChannel && !getMessengerStatus().configured) {
+    const error = new Error("MESSENGER_NOT_CONFIGURED");
+    error.code = "MESSENGER_NOT_CONFIGURED";
     throw error;
   }
 
@@ -422,7 +439,11 @@ async function deliverTeacherAnnouncement(campaign, options = {}) {
   let sentCount = 0;
   let smsSentCount = 0;
   let smsFailedCount = 0;
+  let messengerSentCount = 0;
+  let messengerFailedCount = 0;
+  let messengerSkippedCount = 0;
   const smsErrors = [];
+  const messengerErrors = [];
 
   for (const [parentPhone, student] of recipients) {
     const dedupeKey = `TEACHER_ANNOUNCEMENT:${campaign.id}:${parentPhone}`;
@@ -496,21 +517,43 @@ async function deliverTeacherAnnouncement(campaign, options = {}) {
         console.warn("SMS announcement delivery failed:", parentPhone, smsError.message);
       }
     }
+    if (sendMessengerChannel) {
+      try {
+        const result = await sendMessengerToParent(parentPhone, {
+          text: `${campaign.title}\n\n${campaign.body}`.trim(),
+        });
+        if (result.sent) messengerSentCount += 1;
+        else {
+          messengerSkippedCount += 1;
+          messengerErrors.push(`${parentPhone}: ${result.reason || "MESSENGER_SEND_SKIPPED"}`);
+        }
+      } catch (messengerError) {
+        messengerFailedCount += 1;
+        messengerErrors.push(`${parentPhone}: ${messengerError.message || "MESSENGER_SEND_FAILED"}`);
+        console.warn("Messenger announcement delivery failed:", parentPhone, messengerError.message);
+      }
+    }
   }
 
   const allSmsFailed = sendSmsChannel && smsFailedCount > 0 && smsSentCount === 0;
+  const allMessengerFailed = sendMessengerChannel && messengerFailedCount > 0 && messengerSentCount === 0 && messengerSkippedCount === 0;
   const updated = await prisma.notificationCampaign.update({
     where: { id: campaign.id },
     data: {
-      status: allSmsFailed ? "FAILED" : "SENT",
+      status: allSmsFailed || allMessengerFailed ? "FAILED" : "SENT",
       recipientCount: recipients.size,
       smsSentCount,
       smsFailedCount,
+      messengerSentCount,
+      messengerFailedCount,
+      messengerSkippedCount,
       sentAt: new Date(),
-      lastError: smsErrors.length ? smsErrors.slice(0, 10).join(" | ").slice(0, 2000) : null,
+      lastError: [...smsErrors, ...messengerErrors].length
+        ? [...smsErrors, ...messengerErrors].slice(0, 10).join(" | ").slice(0, 2000)
+        : null,
     },
   });
-  return { campaign: updated, recipientCount: recipients.size, sentCount, smsSentCount, smsFailedCount };
+  return { campaign: updated, recipientCount: recipients.size, sentCount, smsSentCount, smsFailedCount, messengerSentCount, messengerFailedCount, messengerSkippedCount };
 }
 
 async function getTeacherTelegramStatus(req, res) {
@@ -521,6 +564,18 @@ async function getTeacherTelegramStatus(req, res) {
 async function getTeacherSmsStatus(req, res) {
   if (!requireTeacher(req, res)) return;
   return res.json({ status: "success", data: getSmsStatus() });
+}
+
+async function getTeacherMessengerStatus(req, res) {
+  if (!requireTeacher(req, res)) return;
+  return res.json({
+    status: "success",
+    data: {
+      ...getMessengerStatus(),
+      standardWindowHours: 24,
+      policyMessage: "يُرسل Messenger إلى الحسابات المرتبطة التي تفاعلت مع الصفحة خلال نافذة Meta المسموح بها.",
+    },
+  });
 }
 
 async function listTeacherAnnouncements(req, res) {
@@ -576,8 +631,11 @@ async function createTeacherAnnouncement(req, res) {
   if (deliveryMode === "SCHEDULED" && (!scheduledAt || Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date())) {
     return res.status(400).json({ error: "اختر موعدًا مستقبليًا صالحًا للتنبيه." });
   }
-  if ((deliveryChannel === "SMS" || deliveryChannel === "BOTH") && !getSmsStatus().configured) {
+  if (["SMS", "BOTH", "SMS_MESSENGER", "ALL"].includes(deliveryChannel) && !getSmsStatus().configured) {
     return res.status(503).json({ error: "خدمة SMS غير مفعّلة حاليًا — أضف بيانات مزود الرسائل إلى متغيرات الخادم أولًا." });
+  }
+  if (["MESSENGER", "BROWSER_MESSENGER", "SMS_MESSENGER", "ALL"].includes(deliveryChannel) && !getMessengerStatus().configured) {
+    return res.status(503).json({ error: "Facebook Messenger غير مهيّأ حاليًا — تحقق من إعدادات Meta وRailway أولًا." });
   }
   if (targetMode === "SELECTED") {
     const eligibleSelected = await prisma.student.count({ where: announcementWhere({ targetLevel, paymentFilter, subjectFilter, targetMode, targetStudentIds }) });
@@ -744,6 +802,7 @@ module.exports = {
   listTeacherAnnouncements,
   getTeacherTelegramStatus,
   getTeacherSmsStatus,
+  getTeacherMessengerStatus,
   createTeacherAnnouncement,
   cancelTeacherAnnouncement,
   getTeacherAnalytics,

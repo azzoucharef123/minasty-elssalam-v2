@@ -188,6 +188,28 @@ test("teacher notifications include a dormant SMS channel safely", () => {
   assert.match(html, /id="teacher-notification-channel-status"/);
 });
 
+test("teacher notifications include Messenger with policy-safe delivery", () => {
+  const schema = fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8");
+  const controller = fs.readFileSync(path.join(root, "controllers/academicController.js"), "utf8");
+  const routes = fs.readFileSync(path.join(root, "routes/academicRoutes.js"), "utf8");
+  const service = fs.readFileSync(path.join(root, "services/messengerService.js"), "utf8");
+  const dashboard = fs.readFileSync(path.join(root, "public/js/teacher-dashboard.js"), "utf8");
+  const html = fs.readFileSync(path.join(root, "public/teacher-dashboard.html"), "utf8");
+  assert.match(schema, /messengerSentCount\s+Int\s+@default\(0\)/);
+  assert.match(schema, /messengerFailedCount\s+Int\s+@default\(0\)/);
+  assert.match(schema, /messengerSkippedCount\s+Int\s+@default\(0\)/);
+  assert.match(controller, /MESSENGER_NOT_CONFIGURED/);
+  assert.match(controller, /sendMessengerToParent\(/);
+  assert.match(controller, /getTeacherMessengerStatus/);
+  assert.match(routes, /teacher-announcements\/messenger-status/);
+  assert.match(service, /MESSENGER_STANDARD_WINDOW_MS/);
+  assert.match(service, /MESSENGER_WINDOW_EXPIRED/);
+  assert.match(dashboard, /teacher-announcements\/messenger-status/);
+  assert.match(dashboard, /value="MESSENGER"/);
+  assert.match(html, /name="notification-channel"[^>]+value="MESSENGER"/);
+  assert.match(html, /الأولياء المرتبط/);
+});
+
 test("teacher live chat supports pasted image messages safely", () => {
   const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
   const teacherLive = fs.readFileSync(path.join(root, "public/js/teacher-live-v2.js"), "utf8");

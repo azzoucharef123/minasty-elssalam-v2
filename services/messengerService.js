@@ -6,6 +6,7 @@ const prisma = require("../lib/prisma");
 const MESSENGER_REQUEST_TIMEOUT_MS = 8_000;
 const MESSENGER_LINK_TTL_MS = 10 * 60 * 1000;
 const MESSENGER_MAX_TEXT_LENGTH = 2_000;
+const MESSENGER_STANDARD_WINDOW_MS = 24 * 60 * 60 * 1_000;
 const LINK_REF_PREFIX = "minasaty_link:";
 
 function getMessengerConfig() {
@@ -40,6 +41,7 @@ function getMessengerStatus() {
   return {
     configured: config.configured,
     pageName: config.pageName,
+    standardWindowHours: 24,
     message: config.configured
       ? `Messenger مهيأ لصفحة «${config.pageName}».`
       : "Messenger غير مهيأ حاليًا — بانتظار إعداد بيانات Meta على الخادم.",
@@ -237,10 +239,14 @@ async function sendMessengerMessage({ psid, text } = {}) {
 async function sendMessengerToParent(parentPhone, payload = {}) {
   const link = await prisma.messengerLink.findUnique({
     where: { parentPhone: String(parentPhone || "") },
-    select: { psid: true, status: true },
+    select: { psid: true, status: true, lastInteractionAt: true },
   });
   if (link?.status !== "LINKED" || !link.psid) {
     return { sent: false, skipped: true, reason: "MESSENGER_PARENT_NOT_LINKED" };
+  }
+  const lastInteractionAt = link.lastInteractionAt?.getTime?.() || 0;
+  if (!lastInteractionAt || Date.now() - lastInteractionAt > MESSENGER_STANDARD_WINDOW_MS) {
+    return { sent: false, skipped: true, reason: "MESSENGER_WINDOW_EXPIRED" };
   }
   return sendMessengerMessage({ psid: link.psid, ...payload });
 }

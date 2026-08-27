@@ -118,6 +118,7 @@ const elements = {
   teacherNotificationChannelStatus: document.getElementById("teacher-notification-channel-status"),
   teacherNotificationSmsOption: document.querySelector('input[name="notification-channel"][value="SMS"]'),
   teacherNotificationBothOption: document.querySelector('input[name="notification-channel"][value="BOTH"]'),
+  teacherNotificationMessengerOption: document.querySelector('input[name="notification-channel"][value="MESSENGER"]'),
   teacherNotificationImmediate: document.getElementById("teacher-notification-immediate"),
   teacherNotificationScheduled: document.getElementById("teacher-notification-scheduled"),
   teacherNotificationScheduleFields: document.getElementById("teacher-notification-schedule-fields"),
@@ -3197,8 +3198,9 @@ async function rejectPaymentReceipt(studentId) {
 
 const ANNOUNCEMENT_PAYMENT_LABELS = { ALL: "كل الحسابات", FREE: "الحسابات المجانية", PAID: "الحسابات المدفوعة" };
 const ANNOUNCEMENT_SUBJECT_LABELS = { ALL: "كل المواد", MATH: "الرياضيات", PHYSICS: "الفيزياء", BOTH: "الرياضيات والفيزياء" };
-const ANNOUNCEMENT_CHANNEL_LABELS = { BROWSER: "المتصفح", SMS: "SMS", BOTH: "المتصفح وSMS" };
+const ANNOUNCEMENT_CHANNEL_LABELS = { BROWSER: "المتصفح", SMS: "SMS", BOTH: "المتصفح وSMS", MESSENGER: "Facebook Messenger" };
 let teacherSmsConfigured = false;
+let teacherMessengerConfigured = false;
 const ANNOUNCEMENT_STATUS_LABELS = { PENDING: "مجدول", PROCESSING: "جارٍ الإرسال", SENT: "تم الإرسال", FAILED: "فشل الإرسال", CANCELLED: "ملغى" };
 
 function announcementFormValue(name, fallback = "") {
@@ -3216,11 +3218,14 @@ function notificationDeliveryChannel() {
 function syncTeacherNotificationChannel() {
   const channel = notificationDeliveryChannel();
   if (!elements.teacherNotificationChannelStatus) return;
-  elements.teacherNotificationChannelStatus.classList.toggle("is-sms", channel !== "BROWSER");
-  elements.teacherNotificationChannelStatus.classList.toggle("is-configured", teacherSmsConfigured);
+  elements.teacherNotificationChannelStatus.classList.toggle("is-sms", channel === "SMS" || channel === "BOTH");
+  elements.teacherNotificationChannelStatus.classList.toggle("is-messenger", channel === "MESSENGER");
+  elements.teacherNotificationChannelStatus.classList.toggle("is-configured", channel === "MESSENGER" ? teacherMessengerConfigured : teacherSmsConfigured);
   elements.teacherNotificationChannelStatus.textContent = channel === "BROWSER"
     ? (teacherSmsConfigured ? "المتصفح يعمل وSMS مهيّأ" : "تنبيه المتصفح يعمل حاليًا")
-    : (teacherSmsConfigured ? "SMS مهيّأ ويمكن اختياره" : "يتطلب SMS إعدادات المزود في الخادم");
+    : channel === "MESSENGER"
+      ? (teacherMessengerConfigured ? "Messenger مهيّأ — الإرسال إلى الأولياء المرتبطين فقط" : "يتطلب Messenger إعدادات Meta على الخادم")
+      : (teacherSmsConfigured ? "SMS مهيّأ ويمكن اختياره" : "يتطلب SMS إعدادات المزود في الخادم");
 }
 
 async function loadTeacherSmsStatus() {
@@ -3250,6 +3255,36 @@ async function loadTeacherSmsStatus() {
   } catch (error) {
     if (elements.teacherNotificationChannelStatus) elements.teacherNotificationChannelStatus.textContent = "تعذر التحقق من SMS؛ بقيت القناة معطلة.";
     console.info("SMS status is unavailable:", error.message);
+  }
+  syncTeacherNotificationChannel();
+}
+
+async function loadTeacherMessengerStatus() {
+  const option = elements.teacherNotificationMessengerOption;
+  if (!option) return;
+  option.disabled = true;
+  option.closest("label")?.classList.add("is-disabled");
+  try {
+    const response = await teacherFetch("/api/academic/teacher-announcements/messenger-status", { headers: { Accept: "application/json" } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر التحقق من خدمة Messenger.");
+    const status = payload.data || {};
+    teacherMessengerConfigured = status.configured === true;
+    if (teacherMessengerConfigured) {
+      option.disabled = false;
+      option.closest("label")?.classList.remove("is-disabled");
+      if (elements.teacherNotificationChannelStatus && notificationDeliveryChannel() === "MESSENGER") {
+        elements.teacherNotificationChannelStatus.textContent = status.policyMessage || "Messenger مهيّأ — الإرسال إلى الأولياء المرتبطين فقط";
+        elements.teacherNotificationChannelStatus.classList.add("is-configured");
+      }
+    } else if (elements.teacherNotificationChannelStatus && notificationDeliveryChannel() === "MESSENGER") {
+      elements.teacherNotificationChannelStatus.textContent = status.message || "Messenger غير مفعّل — بانتظار إعدادات Meta";
+    }
+  } catch (error) {
+    if (elements.teacherNotificationChannelStatus && notificationDeliveryChannel() === "MESSENGER") {
+      elements.teacherNotificationChannelStatus.textContent = "تعذر التحقق من Messenger؛ بقيت القناة معطلة.";
+    }
+    console.info("Messenger status is unavailable:", error.message);
   }
   syncTeacherNotificationChannel();
 }
@@ -3475,6 +3510,7 @@ function initializeTeacherNotifications() {
     syncTeacherNotificationDelivery();
   syncTeacherNotificationChannel();
   void loadTeacherSmsStatus();
+  void loadTeacherMessengerStatus();
   updateTeacherNotificationAudience();
   window.setInterval(() => {
     if (!document.hidden) void loadTeacherAnnouncements();
