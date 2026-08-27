@@ -2378,14 +2378,16 @@ socket.on("participation_count_updated", (data = {}) => {
 });
 
 socket.on("teacher_message_received", (data = {}) => {
-  if (!joinedClass || !data?.message) {
+  const imageData = data?.imageData || data?.imageUrl || null;
+  if (!joinedClass || (!data?.message && !imageData)) {
     return;
   }
 
   appendStudentChatMessage({
     sender: "الأستاذ",
-    message: data.message,
+    message: data.message || "",
     kind: "teacher",
+    imageUrl: imageData,
   });
 });
 

@@ -56,6 +56,23 @@ test("teacher classroom control requires an authenticated teacher session", () =
   assert.match(teacherLive, /auth:\s*\{\s*token:\s*teacherSocketToken\s*\}/);
 });
 
+test("teacher live chat supports pasted image messages safely", () => {
+  const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
+  const teacherLive = fs.readFileSync(path.join(root, "public/js/teacher-live-v2.js"), "utf8");
+  const teacherHtml = fs.readFileSync(path.join(root, "public/teacher-live.html"), "utf8");
+  const studentLive = fs.readFileSync(path.join(root, "public/js/student-live.js"), "utf8");
+  assert.match(server, /normalizeTeacherChatImageData\s*\(/);
+  assert.ok(server.includes("image\\/(?:jpeg|png|webp)"));
+  assert.match(server, /teacher_message_received/);
+  assert.match(teacherLive, /addEventListener\("paste"/);
+  assert.match(teacherLive, /chatImagePreview/);
+  assert.match(teacherLive, /imageData/);
+  assert.match(teacherHtml, /id="chat-image-preview"/);
+  assert.match(teacherHtml, /id="chat-image-remove-btn"/);
+  assert.match(studentLive, /const imageData = data\?\.imageData/);
+  assert.match(studentLive, /imageUrl: imageData/);
+});
+
 test("teacher can edit student contact data through a protected UI action", () => {
   const routes = fs.readFileSync(path.join(root, "routes/studentRoutes.js"), "utf8");
   const controller = fs.readFileSync(path.join(root, "controllers/studentController.js"), "utf8");

@@ -74,6 +74,9 @@ let classResumeToken = null;
 let reconnectingLiveClass = false;
 const renderedQuestionImageUrls = new Set();
 let questionImageModalPreviousFocus = null;
+let pendingTeacherChatImageData = "";
+const MAX_TEACHER_CHAT_IMAGE_DATA_URL_LENGTH = 1_100_000;
+const SUPPORTED_TEACHER_CHAT_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const TEACHER_LIVE_RECOVERY_KEY = "teacherLiveClassRecovery";
 let pendingPageRecovery = null;
 let isPageNavigatingAway = false;
@@ -154,6 +157,9 @@ const elements = {
   chatForm: document.getElementById("chat-form"),
   chatInput: document.getElementById("chat-input"),
   chatSendButton: document.getElementById("chat-send-btn"),
+  chatImagePreview: document.getElementById("chat-image-preview"),
+  chatImagePreviewImage: document.getElementById("chat-image-preview-img"),
+  chatImageRemoveButton: document.getElementById("chat-image-remove-btn"),
   questionImageModal: document.getElementById("question-image-modal"),
   questionImageModalImage: document.getElementById("question-image-modal-img"),
   closeQuestionImageModalButton: document.getElementById("close-question-image-modal"),
@@ -462,6 +468,90 @@ function appendTeacherChatMessage({ sender, message = "", kind, imageUrl = null 
   return bubble;
 }
 
+function updateTeacherChatImagePreview() {
+  const hasImage = Boolean(pendingTeacherChatImageData);
+  if (elements.chatImagePreview) elements.chatImagePreview.hidden = !hasImage;
+  if (elements.chatImagePreviewImage) {
+    elements.chatImagePreviewImage.hidden = !hasImage;
+    elements.chatImagePreviewImage.src = hasImage ? pendingTeacherChatImageData : "";
+  }
+  if (elements.chatImageRemoveButton) elements.chatImageRemoveButton.disabled = !hasImage;
+  updateControls();
+}
+
+function clearTeacherChatImage() {
+  pendingTeacherChatImageData = "";
+  updateTeacherChatImagePreview();
+}
+
+function imageFileToTeacherChatDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    if (!SUPPORTED_TEACHER_CHAT_IMAGE_TYPES.has(file?.type?.toLowerCase())) {
+      reject(new Error("الصيغ المدعومة هي PNG وJPEG وWebP فقط."));
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      try {
+        const maxDimension = 1280;
+        const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const context = canvas.getContext("2d", { alpha: false });
+        if (!context) throw new Error("تعذر تجهيز الصورة للإرسال.");
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        let dataUrl = canvas.toDataURL("image/jpeg", 0.78);
+        if (dataUrl.length > MAX_TEACHER_CHAT_IMAGE_DATA_URL_LENGTH) {
+          dataUrl = canvas.toDataURL("image/jpeg", 0.62);
+        }
+        if (dataUrl.length > MAX_TEACHER_CHAT_IMAGE_DATA_URL_LENGTH) {
+          throw new Error("الصورة كبيرة جدًا. الصق صورة أصغر حجمًا.");
+        }
+        resolve(dataUrl);
+      } catch (error) {
+        reject(error);
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("تعذر قراءة الصورة الملصوقة."));
+    };
+    image.src = objectUrl;
+  });
+}
+
+async function handleTeacherChatPaste(event) {
+  const imageItems = Array.from(event.clipboardData?.items || []).filter(
+    (clipboardItem) => clipboardItem.kind === "file" && clipboardItem.type.startsWith("image/")
+  );
+  const item = imageItems.find((clipboardItem) => SUPPORTED_TEACHER_CHAT_IMAGE_TYPES.has(clipboardItem.type.toLowerCase()));
+  const file = item?.getAsFile?.();
+  if (!file) {
+    if (imageItems.length) {
+      event.preventDefault();
+      setStudioStatus("الصيغ المدعومة هي PNG وJPEG وWebP فقط.", "error");
+    }
+    return;
+  }
+
+  event.preventDefault();
+  try {
+    pendingTeacherChatImageData = await imageFileToTeacherChatDataUrl(file);
+    updateTeacherChatImagePreview();
+    setStudioStatus("تمت إضافة الصورة. اضغط إرسال لإرسالها للتلاميذ.", "success");
+  } catch (error) {
+    clearTeacherChatImage();
+    setStudioStatus(error.message || "تعذر تجهيز الصورة الملصوقة.", "error");
+  }
+}
+
 async function loadQuestionImage(imageId) {
   const token = sessionStorage.getItem("teacherToken");
   if (!token || !imageId) {
@@ -502,7 +592,8 @@ async function sendTeacherChatMessage(event) {
   event.preventDefault();
 
   const message = normalizeChatMessage(elements.chatInput.value);
-  if (!classActive || !activeLevel || !message) {
+  const imageData = pendingTeacherChatImageData;
+  if (!classActive || !activeLevel || (!message && !imageData)) {
     return;
   }
 
@@ -512,10 +603,12 @@ async function sendTeacherChatMessage(event) {
     await emitWithAcknowledgement("teacher_send_message", {
       level: activeLevel,
       message,
+      imageData,
     });
 
-    appendTeacherChatMessage({ sender: "أنا", message, kind: "teacher" });
+    appendTeacherChatMessage({ sender: "أنا", message, kind: "teacher", imageUrl: imageData || null });
     elements.chatInput.value = "";
+    clearTeacherChatImage();
   } catch (error) {
     console.error("Unable to send teacher chat message:", error);
     setStudioStatus(error.message || "تعذر إرسال الرسالة.", "error");
@@ -1476,7 +1569,7 @@ function updateControls() {
     setButtonLabel(elements.screenShareButton, classActive && screenStream ? "إيقاف الشاشة" : "مشاركة الشاشة");
   }
   elements.chatInput.disabled = !classActive || isEnding;
-  elements.chatSendButton.disabled = !classActive || isEnding || !normalizeChatMessage(elements.chatInput.value);
+  elements.chatSendButton.disabled = !classActive || isEnding || (!normalizeChatMessage(elements.chatInput.value) && !pendingTeacherChatImageData);
 
   const hasSavedClassToResume = Boolean(pendingPageRecovery && !classActive && !isStarting);
   elements.startButton.classList.toggle("is-live", classActive);
@@ -2455,6 +2548,7 @@ async function leaveLiveStudio() {
     closeAllPeerConnections();
     clearAttendees();
     clearTeacherChat();
+    clearTeacherChatImage();
     stopLocalStreams();
     activeLevel = null;
     activeSubject = null;
@@ -2491,6 +2585,7 @@ async function endLiveClass({ notifyServer = true, statusMessage } = {}) {
     closeAllPeerConnections();
     clearAttendees();
     clearTeacherChat();
+    clearTeacherChatImage();
     stopLocalStreams();
     activeLevel = null;
     activeSubject = null;
@@ -3102,6 +3197,10 @@ elements.chatInput.addEventListener("keydown", (event) => {
     elements.chatForm.requestSubmit();
   }
 });
+elements.chatInput.addEventListener("paste", (event) => {
+  void handleTeacherChatPaste(event);
+});
+elements.chatImageRemoveButton?.addEventListener("click", clearTeacherChatImage);
 elements.closeQuestionImageModalButton?.addEventListener("click", closeQuestionImageModal);
 elements.questionImageModal?.addEventListener("click", (event) => {
   if (event.target === elements.questionImageModal) {

@@ -967,6 +967,20 @@
         line-height: 1.55;
       }
 
+      .chat-image-preview {
+        display: flex;
+        align-items: center;
+        gap: .55rem;
+        margin: 0 .85rem .55rem;
+        padding: .45rem;
+        border: 1px solid rgba(96, 165, 250, .35);
+        border-radius: .65rem;
+        background: rgba(15, 23, 42, .58);
+      }
+      .chat-image-preview[hidden] { display: none; }
+      .chat-image-preview img { width: 3.8rem; height: 3.8rem; object-fit: cover; border-radius: .45rem; border: 1px solid rgba(226, 232, 240, .25); }
+      .chat-image-remove-btn { margin-inline-start: auto; padding: .4rem .55rem; color: #fecaca; background: rgba(127, 29, 29, .38); border: 1px solid rgba(248, 113, 113, .35); border-radius: .45rem; font: inherit; font-size: .65rem; font-weight: 800; cursor: pointer; }
+      .chat-image-remove-btn:hover { background: rgba(185, 28, 28, .58); }
       .chat-send-button {
         min-width: 4.3rem;
         min-height: 2.4rem;
@@ -1341,8 +1355,12 @@
           </header>
           <section id="chat-pane" class="teacher-chat-panel sidebar-pane" data-sidebar-pane="chat">
             <div id="chat-box" class="chat-box" aria-live="polite" aria-label="رسائل وأسئلة التلاميذ"><p id="chat-empty" class="chat-empty">لا توجد رسائل بعد.</p></div>
+            <div id="chat-image-preview" class="chat-image-preview" hidden>
+              <img id="chat-image-preview-img" alt="معاينة الصورة الملصوقة" hidden />
+              <button id="chat-image-remove-btn" class="chat-image-remove-btn" type="button">إزالة الصورة</button>
+            </div>
             <form id="chat-form" class="chat-form" novalidate>
-              <textarea id="chat-input" maxlength="800" rows="1" placeholder="اكتب رسالة للجميع..." autocomplete="off" aria-label="رسالة الأستاذ"></textarea>
+              <textarea id="chat-input" maxlength="800" rows="1" placeholder="اكتب رسالة للجميع... أو الصق صورة" autocomplete="off" aria-label="رسالة الأستاذ"></textarea>
               <button id="chat-send-btn" class="chat-send-button" type="submit" disabled>إرسال</button>
             </form>
           </section>
@@ -1376,7 +1394,7 @@
     <script src="./js/session-storage.js?v=single-session-1"></script>
     <script src="./js/message-notifications.js"></script>
     <script id="google-identity-services" src="https://accounts.google.com/gsi/client" defer></script>
-    <script src="./js/teacher-live-v2.js?v=chat-enter-order-1" defer></script>
+    <script src="./js/teacher-live-v2.js?v=teacher-paste-image-1" defer></script>
   <script src="./js/in-app-browser-gate.js?v=telegram-gate-2" defer></script>
   </body>
 </html>

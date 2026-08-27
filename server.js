@@ -260,6 +260,7 @@ app.get("/api/health/detailed", verifyToken, isTeacher, async (_req, res) => {
 
 const io = new Server(httpServer, {
   cors: corsOptions,
+  maxHttpBufferSize: 1_500_000,
   // These values make transient network interruptions less likely to terminate
   // a classroom socket immediately. They do not affect WebRTC media streams.
   pingInterval: 25_000,
@@ -446,6 +447,7 @@ app.post("/api/public-class/facebook-relay/session", (req, res) => {
 const MAX_LEVEL_LENGTH = 100;
 const MAX_NAME_LENGTH = 120;
 const MAX_CHAT_MESSAGE_LENGTH = 800;
+const MAX_CHAT_IMAGE_DATA_URL_LENGTH = 1_100_000;
 const UNIVERSITY_LEVEL = "طالب جامعي";
 const GLOBAL_FREE_LEVEL = "FREE";
 const SCHOOL_SUBJECTS = new Set(["MATH", "PHYSICS", "FREE"]);
@@ -501,6 +503,17 @@ function isValidPublicRealName(value) {
 function normalizeChatMessage(value) {
   const message = normalizeText(value);
   return message.length > 0 && message.length <= MAX_CHAT_MESSAGE_LENGTH ? message : "";
+}
+
+function normalizeTeacherChatImageData(value) {
+  const imageData = normalizeText(value);
+  if (!imageData || imageData.length > MAX_CHAT_IMAGE_DATA_URL_LENGTH) return "";
+  const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/i.exec(imageData);
+  if (!match) return "";
+  const base64 = match[2];
+  const buffer = Buffer.from(base64, "base64");
+  if (!buffer.length || buffer.length > 800_000) return "";
+  return `data:${match[1].toLowerCase()};base64,${base64}`;
 }
 
 function isValidStudentId(studentId) {
@@ -2106,11 +2119,14 @@ io.on("connection", (socket) => {
   socket.on("teacher_send_message", (data = {}, acknowledgement) => {
     const level = socket.data.roomLevel;
     const message = normalizeChatMessage(data.message);
+    const imageData = normalizeTeacherChatImageData(data.imageData);
+    const hasInvalidImage = Boolean(data.imageData) && !imageData;
 
     if (
       socket.data.role !== "teacher" ||
       !isValidLevel(level || "") ||
-      !message ||
+      (!message && !imageData) ||
+      hasInvalidImage ||
       activeTeachersByLevel.get(level) !== socket.id ||
       !isInLevelRoom(socket, level)
     ) {
@@ -2122,8 +2138,12 @@ io.on("connection", (socket) => {
       );
     }
 
-    socket.to(level).emit("teacher_message_received", { level, message });
-    acknowledge(acknowledgement, { ok: true });
+    socket.to(level).emit("teacher_message_received", {
+      level,
+      message,
+      imageData: imageData || null,
+    });
+    acknowledge(acknowledgement, { ok: true, imageSent: Boolean(imageData) });
   });
 
   /**
