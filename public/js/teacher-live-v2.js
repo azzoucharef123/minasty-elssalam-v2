@@ -74,6 +74,10 @@ let classResumeToken = null;
 let reconnectingLiveClass = false;
 const renderedQuestionImageUrls = new Set();
 let questionImageModalPreviousFocus = null;
+let questionImageZoom = 1;
+const QUESTION_IMAGE_MIN_ZOOM = 1;
+const QUESTION_IMAGE_MAX_ZOOM = 4;
+const QUESTION_IMAGE_ZOOM_STEP = 0.25;
 let pendingTeacherChatImageData = "";
 const MAX_TEACHER_CHAT_IMAGE_DATA_URL_LENGTH = 1_100_000;
 const SUPPORTED_TEACHER_CHAT_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -161,7 +165,9 @@ const elements = {
   chatImagePreviewImage: document.getElementById("chat-image-preview-img"),
   chatImageRemoveButton: document.getElementById("chat-image-remove-btn"),
   questionImageModal: document.getElementById("question-image-modal"),
+  questionImageModalViewport: document.getElementById("question-image-modal-viewport"),
   questionImageModalImage: document.getElementById("question-image-modal-img"),
+  questionImageZoomLabel: document.getElementById("question-image-zoom-label"),
   closeQuestionImageModalButton: document.getElementById("close-question-image-modal"),
 };
 
@@ -249,12 +255,47 @@ function setStageMode(mode = "idle") {
   if (elements.teacherCanvas) elements.teacherCanvas.hidden = true;
 }
 
+function updateQuestionImageZoom() {
+  if (elements.questionImageModalImage) {
+    elements.questionImageModalImage.style.transform = `scale(${questionImageZoom})`;
+  }
+  if (elements.questionImageZoomLabel) {
+    elements.questionImageZoomLabel.textContent = `${Math.round(questionImageZoom * 100)}%`;
+  }
+  elements.questionImageModalViewport?.classList.toggle("is-zoomed", questionImageZoom > 1);
+}
+
+function resetQuestionImageZoom() {
+  questionImageZoom = QUESTION_IMAGE_MIN_ZOOM;
+  if (elements.questionImageModalImage) {
+    elements.questionImageModalImage.style.transformOrigin = "center center";
+  }
+  updateQuestionImageZoom();
+}
+
+function handleQuestionImageWheel(event) {
+  if (elements.questionImageModal?.hidden || !elements.questionImageModalImage) return;
+  event.preventDefault();
+  event.stopPropagation();
+
+  const direction = event.deltaY < 0 ? 1 : -1;
+  questionImageZoom = Math.min(
+    QUESTION_IMAGE_MAX_ZOOM,
+    Math.max(
+      QUESTION_IMAGE_MIN_ZOOM,
+      Number((questionImageZoom + direction * QUESTION_IMAGE_ZOOM_STEP).toFixed(2))
+    )
+  );
+  updateQuestionImageZoom();
+}
+
 function openQuestionImageModal(imageUrl) {
   if (!elements.questionImageModal || !elements.questionImageModalImage || !imageUrl) {
     return;
   }
 
   questionImageModalPreviousFocus = document.activeElement;
+  resetQuestionImageZoom();
   elements.questionImageModalImage.src = imageUrl;
   elements.questionImageModal.hidden = false;
   document.body.style.overflow = "hidden";
@@ -267,6 +308,7 @@ function closeQuestionImageModal() {
   }
 
   elements.questionImageModal.hidden = true;
+  resetQuestionImageZoom();
   elements.questionImageModalImage?.removeAttribute("src");
   document.body.style.overflow = "";
   questionImageModalPreviousFocus?.focus?.();
@@ -3202,6 +3244,7 @@ elements.chatInput.addEventListener("paste", (event) => {
 });
 elements.chatImageRemoveButton?.addEventListener("click", clearTeacherChatImage);
 elements.closeQuestionImageModalButton?.addEventListener("click", closeQuestionImageModal);
+elements.questionImageModalViewport?.addEventListener("wheel", handleQuestionImageWheel, { passive: false });
 elements.questionImageModal?.addEventListener("click", (event) => {
   if (event.target === elements.questionImageModal) {
     closeQuestionImageModal();

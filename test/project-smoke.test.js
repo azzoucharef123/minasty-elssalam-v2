@@ -56,6 +56,17 @@ test("teacher classroom control requires an authenticated teacher session", () =
   assert.match(teacherLive, /auth:\s*\{\s*token:\s*teacherSocketToken\s*\}/);
 });
 
+test("teacher question image modal supports bounded wheel zoom", () => {
+  const teacherLive = fs.readFileSync(path.join(root, "public/js/teacher-live-v2.js"), "utf8");
+  const teacherHtml = fs.readFileSync(path.join(root, "public/teacher-live.html"), "utf8");
+  assert.match(teacherLive, /QUESTION_IMAGE_MAX_ZOOM\s*=\s*4/);
+  assert.match(teacherLive, /handleQuestionImageWheel/);
+  assert.match(teacherLive, /addEventListener\("wheel", handleQuestionImageWheel, \{ passive: false \}\)/);
+  assert.match(teacherLive, /resetQuestionImageZoom\(\)/);
+  assert.match(teacherHtml, /id="question-image-modal-viewport"/);
+  assert.match(teacherHtml, /question-image-zoom-label/);
+});
+
 test("teacher live chat supports pasted image messages safely", () => {
   const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
   const teacherLive = fs.readFileSync(path.join(root, "public/js/teacher-live-v2.js"), "utf8");

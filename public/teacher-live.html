@@ -922,13 +922,37 @@
         cursor: pointer;
       }
 
+      .question-image-modal-zoom-copy {
+        color: #93c5fd;
+        font-size: 0.7rem;
+        font-weight: 700;
+      }
+
+      .question-image-modal-viewport {
+        display: grid;
+        min-height: 0;
+        max-height: calc(90vh - 7rem);
+        overflow: hidden;
+        place-items: center;
+        background: #020617;
+        border-radius: 0.65rem;
+        cursor: zoom-in;
+      }
+
+      .question-image-modal-viewport.is-zoomed {
+        cursor: zoom-out;
+      }
+
       .question-image-modal img {
         display: block;
         width: 100%;
         max-height: calc(90vh - 7rem);
         object-fit: contain;
-        background: #020617;
         border-radius: 0.65rem;
+        transform: scale(1);
+        transform-origin: center center;
+        transition: transform 0.12s ease-out;
+        will-change: transform;
       }
 
       .chat-form {
@@ -1383,9 +1407,12 @@
       <div class="question-image-modal-card">
         <header class="question-image-modal-head">
           <strong id="question-image-modal-title">صورة سؤال التلميذ</strong>
+          <span class="question-image-modal-zoom-copy">عجلة الفأرة للتكبير: <span id="question-image-zoom-label">100%</span></span>
           <button id="close-question-image-modal" class="question-image-modal-close" type="button" aria-label="إغلاق الصورة">×</button>
         </header>
-        <img id="question-image-modal-img" alt="صورة سؤال التلميذ مكبّرة" />
+        <div id="question-image-modal-viewport" class="question-image-modal-viewport" aria-label="منطقة تكبير صورة سؤال التلميذ">
+          <img id="question-image-modal-img" alt="صورة سؤال التلميذ مكبّرة" />
+        </div>
       </div>
     </div>
 
@@ -1394,7 +1421,7 @@
     <script src="./js/session-storage.js?v=single-session-1"></script>
     <script src="./js/message-notifications.js"></script>
     <script id="google-identity-services" src="https://accounts.google.com/gsi/client" defer></script>
-    <script src="./js/teacher-live-v2.js?v=teacher-paste-image-1" defer></script>
+    <script src="./js/teacher-live-v2.js?v=teacher-image-zoom-1" defer></script>
   <script src="./js/in-app-browser-gate.js?v=telegram-gate-2" defer></script>
   </body>
 </html>
