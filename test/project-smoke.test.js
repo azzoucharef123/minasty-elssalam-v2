@@ -82,6 +82,29 @@ test("teacher question image modal supports bounded wheel zoom", () => {
   assert.match(teacherHtml, /question-image-zoom-label/);
 });
 
+test("telegram admin alerts are dormant without credentials and cover key parent events", () => {
+  const service = fs.readFileSync(path.join(root, "services/telegramService.js"), "utf8");
+  const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
+  const academicController = fs.readFileSync(path.join(root, "controllers/academicController.js"), "utf8");
+  const studentController = fs.readFileSync(path.join(root, "controllers/studentController.js"), "utf8");
+  const messageController = fs.readFileSync(path.join(root, "controllers/messageController.js"), "utf8");
+  const paymentController = fs.readFileSync(path.join(root, "controllers/paymentController.js"), "utf8");
+  const referralController = fs.readFileSync(path.join(root, "controllers/referralController.js"), "utf8");
+  const envExample = fs.readFileSync(path.join(root, ".env.example"), "utf8");
+  assert.match(service, /TELEGRAM_BOT_TOKEN/);
+  assert.match(service, /TELEGRAM_ADMIN_CHAT_ID/);
+  assert.match(service, /TELEGRAM_NOT_CONFIGURED/);
+  assert.match(server, /sendTelegramNotification/);
+  assert.match(academicController, /getTeacherTelegramStatus/);
+  assert.match(academicController, /notifyTelegram\(req/);
+  assert.match(studentController, /notifyTelegram\(req/);
+  assert.match(messageController, /notifyTelegram\(req/);
+  assert.match(paymentController, /sendTelegramNotification\(/);
+  assert.match(referralController, /notifyTelegram\(req/);
+  assert.match(envExample, /TELEGRAM_BOT_TOKEN=/);
+  assert.match(envExample, /TELEGRAM_ADMIN_CHAT_ID=/);
+});
+
 test("teacher notifications include a dormant SMS channel safely", () => {
   const schema = fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8");
   const controller = fs.readFileSync(path.join(root, "controllers/academicController.js"), "utf8");

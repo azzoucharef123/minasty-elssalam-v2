@@ -2,6 +2,7 @@
 
 const prisma = require("../lib/prisma");
 const { sendPushToRecipient } = require("../utils/push");
+const { notifyTelegram } = require("../services/telegramService");
 
 const MAX_MESSAGE_LENGTH = 4_000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -164,6 +165,12 @@ async function sendMessage(req, res) {
       },
     });
     emitMessage(req, message, student);
+    if (roles.receiverRole === "teacher") {
+      void notifyTelegram(req, {
+        title: "رسالة جديدة من ولي أو تلميذ",
+        body: `التلميذ: ${student.studentName}\nالمستوى: ${student.level}\nالنص: ${content.slice(0, 500)}`,
+      });
+    }
     void sendPushToRecipient(
       roles.receiverRole === "teacher" ? "teacher" : "parent",
       roles.receiverRole === "teacher" ? "teacher" : student.parentPhone,

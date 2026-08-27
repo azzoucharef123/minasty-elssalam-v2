@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const prisma = require("../lib/prisma");
 const { logAudit } = require("../utils/audit");
 const { awardReferralCommission } = require("../utils/referral");
+const { sendTelegramNotification } = require("../services/telegramService");
 
 const SOFIZPAY_BASE_URL = String(process.env.SOFIZPAY_BASE_URL || "https://sofizpay.com").replace(/\/$/, "");
 const SOFIZPAY_ACCOUNT = String(process.env.SOFIZPAY_ACCOUNT || "GBYAJX2VUMCKQQMTQRKIHFL7GWKPXQGAQNNCJOIV232S3Q73NNYK6JF4").trim();
@@ -334,6 +335,10 @@ async function activatePaidTransaction(transaction, providerPayload) {
     studentId: updated.studentId,
     metadata: { internalOrderId: updated.internalOrderId, providerOrderNumber: updated.providerOrderNumber, amount: updated.amount, subscriptionType: updated.subscriptionType },
   }).catch(() => {});
+  void sendTelegramNotification({
+    title: "دفع إلكتروني ناجح",
+    body: `تم تأكيد دفع إلكتروني.\nالتلميذ: ${updated.student?.studentName || "غير معروف"}\nرقم الولي: ${updated.student?.parentPhone || "غير معروف"}\nالمستوى: ${updated.student?.level || "غير معروف"}\nالاشتراك: ${updated.subscriptionType || "غير محدد"}\nالمبلغ: ${updated.amount ?? "غير محدد"} دج`,
+  }).catch((error) => console.warn("Optional Telegram payment notification failed:", error.message));
 
   return updated;
 }

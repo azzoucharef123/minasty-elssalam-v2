@@ -1,4 +1,5 @@
 const prisma = require("../lib/prisma");
+const { notifyTelegram } = require("../services/telegramService");
 const { ensureReferralProfile, buildReferralLink } = require("../utils/referral");
 
 const MIN_WITHDRAWAL_DZD = 1000;
@@ -186,6 +187,10 @@ async function requestParentReferralWithdrawal(req, res) {
       return created;
     });
 
+    void notifyTelegram(req, {
+      title: "طلب سحب أرباح جديد",
+      body: `أرسل ولي طلب سحب أرباح.\nرقم الولي: ${parentPhone}\nالمبلغ: ${withdrawal.amountDzd} دج\nحساب BaridiMob: ${withdrawal.baridiMobAccount}`,
+    });
     return res.status(201).json({
       status: "success",
       message: "تم إرسال طلب السحب. سيُراجع الأستاذ الطلب قبل تنفيذ التحويل.",

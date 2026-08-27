@@ -26,6 +26,7 @@ const { startBackgroundJobs } = require("./utils/backgroundJobs");
 const { ensurePublicArchive, recordPublicAttendance, finishPublicArchive, appendPublicChat } = require("./utils/publicArchive");
 const { verifySessionToken, setSessionTakeoverNotifier } = require("./utils/sessionAuth");
 const { sendPushToSession } = require("./utils/push");
+const { sendTelegramNotification } = require("./services/telegramService");
 const { createSocketNotificationSender, notificationRoom, notificationSessionRoom } = require("./utils/socketNotifications");
 const siteAnalyticsRoutes = require("./routes/siteAnalyticsRoutes");
 const referralRoutes = require("./routes/referralRoutes");
@@ -341,6 +342,7 @@ setSessionTakeoverNotifier(async ({ previousSession, role }) => {
 app.set("io", io);
 app.set("privateMessagesNamespace", privateMessagesNamespace);
 app.set("sendSocketNotification", sendSocketNotification);
+app.set("sendTelegramNotification", sendTelegramNotification);
 
 /**
  * Maps each study level to its active teacher socket ID.
@@ -1815,6 +1817,10 @@ io.on("connection", (socket) => {
       studentName: socket.data.studentName,
       level,
     });
+    void sendTelegramNotification({
+      title: "طلب رفع اليد",
+      body: `طلب التلميذ التحدث في الحصة.\nالتلميذ: ${socket.data.studentName || "غير معروف"}\nالمستوى: ${level}`,
+    }).catch((error) => console.warn("Optional Telegram hand-raise notification failed:", error.message));
     acknowledge(acknowledgement, { ok: true });
   });
 
@@ -1839,6 +1845,10 @@ io.on("connection", (socket) => {
     }
 
     io.to(teacherSocketId).emit("hand_lowered", { socketId: socket.id });
+    void sendTelegramNotification({
+      title: "إنزال اليد",
+      body: `ألغى التلميذ طلب التحدث.\nالتلميذ: ${socket.data.studentName || "غير معروف"}\nالمستوى: ${level}`,
+    }).catch((error) => console.warn("Optional Telegram hand-lower notification failed:", error.message));
     acknowledge(acknowledgement, { ok: true });
   });
 
@@ -2103,6 +2113,10 @@ io.on("connection", (socket) => {
         message,
         imageId: approvedImageId,
       });
+      void sendTelegramNotification({
+        title: "رسالة جديدة في الحصة",
+        body: `أرسل التلميذ رسالة إلى الأستاذ.\nالتلميذ: ${socket.data.studentName || "غير معروف"}\nالمستوى: ${level}\nالنص: ${message.slice(0, 500)}${approvedImageId ? "\nمرفق: صورة" : ""}`,
+      }).catch((error) => console.warn("Optional Telegram live-message notification failed:", error.message));
       acknowledge(acknowledgement, { ok: true, imageId: approvedImageId });
     } catch (error) {
       console.error("student_send_message failed:", error);

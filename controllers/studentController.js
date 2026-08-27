@@ -14,6 +14,7 @@ const { removeImageFile } = require("./liveChatController");
 const { logAudit } = require("../utils/audit");
 const { normalizeReferralCode, ensureReferralProfile, awardReferralCommission } = require("../utils/referral");
 const { sendPushToRecipient } = require("../utils/push");
+const { notifyTelegram } = require("../services/telegramService");
 
 const uploadDirectory =
   process.env.UPLOAD_DIR || path.join(__dirname, "..", "public", "uploads");
@@ -310,6 +311,10 @@ async function registerStudent(req, res) {
       return createdStudent;
     });
 
+    void notifyTelegram(req, {
+      title: "تسجيل جديد",
+      body: `تم تسجيل تلميذ جديد.\nالاسم: ${student.studentName}\nرقم الولي: ${student.parentPhone}\nالمستوى: ${student.level}`,
+    });
     return res.status(201).json({ status: "success", data: student });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -757,6 +762,10 @@ async function submitPaymentReceipt(req, res) {
     await removeUploadedCard(student.paymentReceiptUrl?.startsWith("db:") ? null : student.paymentReceiptUrl);
     await removeUploadedCard(uploadedReceiptFile.filename);
     notifyPaymentReceiptStatus(req, updatedStudent);
+    void notifyTelegram(req, {
+      title: "وصل دفع يدوي جديد",
+      body: `رفع الولي وصل دفع جديدًا.\nالتلميذ: ${updatedStudent.studentName}\nرقم الولي: ${updatedStudent.parentPhone}\nالمستوى: ${updatedStudent.level}\nالمبلغ المطلوب: ${updatedStudent.amountDue ?? "غير محدد"} دج`,
+    });
     void logAudit(req, {
       action: "PAYMENT_RECEIPT_SUBMITTED",
       entityType: "PaymentEvent",
@@ -865,6 +874,10 @@ async function confirmStudentPaymentReceipt(req, res) {
       student,
       approved: true,
     });
+    void notifyTelegram(req, {
+      title: "تم قبول وصل دفع يدوي",
+      body: `تم قبول الوصل وتفعيل الاشتراك.\nالتلميذ: ${updatedStudent.studentName}\nرقم الولي: ${updatedStudent.parentPhone}\nالمستوى: ${updatedStudent.level}`,
+    });
     void prisma.paymentEvent.create({
       data: {
         studentId: student.id,
@@ -958,6 +971,10 @@ async function rejectStudentPaymentReceipt(req, res) {
       student,
       approved: false,
       reason: rejectionReason,
+    });
+    void notifyTelegram(req, {
+      title: "تم رفض وصل دفع يدوي",
+      body: `تم رفض وصل الدفع.\nالتلميذ: ${student.studentName}\nرقم الولي: ${student.parentPhone}\nالمستوى: ${student.level}\nالسبب: ${rejectionReason || "الوصل غير واضح أو غير صالح"}`,
     });
     void prisma.paymentEvent.create({
       data: {

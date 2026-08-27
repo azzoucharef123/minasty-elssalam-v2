@@ -1,6 +1,7 @@
 const prisma = require("../lib/prisma");
 const { logAudit } = require("../utils/audit");
 const { getSmsStatus, sendSms } = require("../services/smsService");
+const { getTelegramStatus, notifyTelegram } = require("../services/telegramService");
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LEVELS = new Set(["السنة الأولى", "السنة الثانية", "السنة الثالثة", "السنة الرابعة", "طالب جامعي"]);
@@ -216,6 +217,10 @@ async function submitAssignment(req, res) {
       status: "SUBMITTED",
       submittedAt: new Date()
     }
+  });
+  void notifyTelegram(req, {
+    title: "إرسال واجب جديد",
+    body: `أرسل ولي أو تلميذ حلاً جديدًا.\nالتلميذ: ${student.studentName}\nالمستوى: ${student.level}\nالواجب: ${assignment.title}\nالملف: ${file?.originalname || "لا يوجد ملف مرفق"}`,
   });
   return res.status(201).json({ status: "success", data: submission });
 }
@@ -500,6 +505,11 @@ async function deliverTeacherAnnouncement(campaign, options = {}) {
   return { campaign: updated, recipientCount: recipients.size, sentCount, smsSentCount, smsFailedCount };
 }
 
+async function getTeacherTelegramStatus(req, res) {
+  if (!requireTeacher(req, res)) return;
+  return res.json({ status: "success", data: getTelegramStatus() });
+}
+
 async function getTeacherSmsStatus(req, res) {
   if (!requireTeacher(req, res)) return;
   return res.json({ status: "success", data: getSmsStatus() });
@@ -724,6 +734,7 @@ module.exports = {
   listNotifications,
   markNotificationRead,
   listTeacherAnnouncements,
+  getTeacherTelegramStatus,
   getTeacherSmsStatus,
   createTeacherAnnouncement,
   cancelTeacherAnnouncement,
