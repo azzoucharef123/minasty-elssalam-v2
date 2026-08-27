@@ -82,24 +82,6 @@ test("teacher question image modal supports bounded wheel zoom", () => {
   assert.match(teacherHtml, /question-image-zoom-label/);
 });
 
-test("parent dashboard includes a mobile bottom navigation without changing core IDs", () => {
-  const html = fs.readFileSync(path.join(root, "public/parent-dashboard.html"), "utf8");
-  const dashboard = fs.readFileSync(path.join(root, "public/js/parent-dashboard.js"), "utf8");
-  const css = fs.readFileSync(path.join(root, "public/css/parent-dashboard-refactor.css"), "utf8");
-  for (const id of ["bnav-home", "bnav-live", "bnav-homework", "bnav-lessons", "bnav-menu"]) assert.match(html, new RegExp(`id="${id}"`));
-  assert.match(html, /class="parent-bottom-nav"/);
-  assert.match(html, /href="#dashboard-content"/);
-  assert.match(html, /href="#live-classes-entry-card"/);
-  assert.match(html, /href="#student-homework-card"/);
-  assert.match(html, /href="#lesson-repository-card"/);
-  assert.match(dashboard, /parentBottomNavItems/);
-  assert.match(dashboard, /item\.id === "bnav-menu"/);
-  assert.match(css, /\.parent-bottom-nav/);
-  assert.match(css, /env\(safe-area-inset-bottom\)/);
-  assert.match(css, /grid-template-columns: repeat\(5/);
-  assert.match(css, /max-width: 1023px/);
-});
-
 test("telegram admin alerts are dormant without credentials and cover key parent events", () => {
   const service = fs.readFileSync(path.join(root, "services/telegramService.js"), "utf8");
   const server = fs.readFileSync(path.join(root, "server.js"), "utf8");

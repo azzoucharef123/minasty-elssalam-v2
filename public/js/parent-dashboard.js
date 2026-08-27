@@ -137,7 +137,6 @@ const elements = {
   parentSidebarClose: document.getElementById("parent-sidebar-close"),
   parentSidebarLogout: document.getElementById("parent-sidebar-logout"),
   parentNavLinks: Array.from(document.querySelectorAll(".parent-nav-link")),
-  parentBottomNavItems: Array.from(document.querySelectorAll(".parent-bottom-nav .bottom-nav-item")),
   documentFeedbackModal: document.getElementById("document-feedback-modal"),
   documentFeedbackTitle: document.getElementById("document-feedback-title"),
   documentFeedbackMessage: document.getElementById("document-feedback-message"),
@@ -2462,13 +2461,7 @@ function setParentSidebarOpen(isOpen) {
 }
 
 function setParentActiveNav(link) {
-  const target = link?.getAttribute("href") || "#dashboard-content";
-  elements.parentNavLinks.forEach((item) => {
-    item.classList.toggle("is-active", item.getAttribute("href") === target);
-  });
-  elements.parentBottomNavItems.forEach((item) => {
-    item.classList.toggle("is-active", item.getAttribute("href") === target);
-  });
+  elements.parentNavLinks.forEach((item) => item.classList.toggle("is-active", item === link));
 }
 
 function initializeLobbySocket() {
@@ -2633,14 +2626,6 @@ if (!getParentToken()) {
   elements.parentSidebarClose?.addEventListener("click", () => setParentSidebarOpen(false));
   elements.parentSidebarBackdrop?.addEventListener("click", () => setParentSidebarOpen(false));
   elements.parentNavLinks.forEach((link) => link.addEventListener("click", () => { setParentActiveNav(link); setParentSidebarOpen(false); }));
-  elements.parentBottomNavItems.forEach((item) => item.addEventListener("click", () => {
-    if (item.id === "bnav-menu") {
-      setParentSidebarOpen(!elements.parentSidebar?.classList.contains("is-open"));
-      return;
-    }
-    setParentActiveNav(item);
-    setParentSidebarOpen(false);
-  }));
   elements.documentFeedbackClose?.addEventListener("click", closeDocumentFeedback);
   elements.sofizpayInstructionCancel?.addEventListener("click", closeSofizPayInstruction);
   elements.sofizpayInstructionContinue?.addEventListener("click", () => {
