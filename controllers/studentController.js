@@ -14,7 +14,7 @@ const { removeImageFile } = require("./liveChatController");
 const { logAudit } = require("../utils/audit");
 const { normalizeReferralCode, ensureReferralProfile, awardReferralCommission } = require("../utils/referral");
 const { sendPushToRecipient } = require("../utils/push");
-const { notifyTelegram } = require("../services/telegramService");
+const { notifyTelegram, sendTelegramToParent } = require("../services/telegramService");
 
 const uploadDirectory =
   process.env.UPLOAD_DIR || path.join(__dirname, "..", "public", "uploads");
@@ -508,8 +508,13 @@ async function notifyParentPaymentReceiptDecision(req, { student, approved, reas
   }
   try {
     await sendPushToRecipient("parent", parentPhone, payload);
-  } catch (error) {
-    console.warn("Payment receipt decision push notification failed:", error.message);
+  } catch (pushError) {
+    console.warn("Payment receipt decision push notification failed:", pushError.message);
+  }
+  try {
+    await sendTelegramToParent(parentPhone, { title: payload.title, body: payload.body });
+  } catch (telegramError) {
+    console.warn("Payment receipt decision Telegram notification failed:", telegramError.message);
   }
 }
 

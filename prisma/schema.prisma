@@ -254,6 +254,11 @@ model ParentCredential {
   temporaryPinExpiresAt   DateTime?
   baridiMobAccount        String?
   baridiMobName           String?
+  telegramChatId          String?  @unique
+  telegramUsername        String?
+  telegramLinkedAt        DateTime?
+  telegramLinkTokenHash   String?
+  telegramLinkExpiresAt   DateTime?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 

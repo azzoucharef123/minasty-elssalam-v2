@@ -26,10 +26,11 @@ const { startBackgroundJobs } = require("./utils/backgroundJobs");
 const { ensurePublicArchive, recordPublicAttendance, finishPublicArchive, appendPublicChat } = require("./utils/publicArchive");
 const { verifySessionToken, setSessionTakeoverNotifier } = require("./utils/sessionAuth");
 const { sendPushToSession } = require("./utils/push");
-const { sendTelegramNotification } = require("./services/telegramService");
+const { sendTelegramNotification, configureTelegramWebhook } = require("./services/telegramService");
 const { createSocketNotificationSender, notificationRoom, notificationSessionRoom } = require("./utils/socketNotifications");
 const siteAnalyticsRoutes = require("./routes/siteAnalyticsRoutes");
 const referralRoutes = require("./routes/referralRoutes");
+const telegramRoutes = require("./routes/telegramRoutes");
 
 /**
  * Socket.io control events must authenticate the teacher independently from
@@ -176,6 +177,7 @@ const paymentRoutes = require("./routes/paymentRoutes");
 app.use("/api/site-analytics", siteAnalyticsRoutes);
 app.use("/api/referrals", referralRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/telegram", telegramRoutes);
 app.use("/api/students", studentRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/live-chat", liveChatRoutes);
@@ -2496,6 +2498,12 @@ if (require.main === module) {
     stopBackgroundJobs = startBackgroundJobs();
     httpServer.listen(PORT, () => {
       console.info(`Server listening on port ${PORT}`);
+      void configureTelegramWebhook()
+        .then((result) => {
+          if (result?.skipped) console.info(`Telegram webhook skipped: ${result.reason}`);
+          else if (result?.ok) console.info("Telegram webhook configured.");
+        })
+        .catch((error) => console.warn("Telegram webhook setup failed:", error.message));
     });
   })().catch((error) => {
     console.error("Unable to start server:", error);

@@ -1,7 +1,7 @@
 const prisma = require("../lib/prisma");
 const { logAudit } = require("../utils/audit");
 const { getSmsStatus, sendSms } = require("../services/smsService");
-const { getTelegramStatus, notifyTelegram } = require("../services/telegramService");
+const { getTelegramStatus, notifyTelegram, sendTelegramToParent } = require("../services/telegramService");
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LEVELS = new Set(["السنة الأولى", "السنة الثانية", "السنة الثالثة", "السنة الرابعة", "طالب جامعي"]);
@@ -473,6 +473,14 @@ async function deliverTeacherAnnouncement(campaign, options = {}) {
       } catch (pushError) {
         console.warn("Optional announcement push failed:", parentPhone, pushError.message);
       }
+    }
+    try {
+      await sendTelegramToParent(parentPhone, {
+        title: campaign.title,
+        body: campaign.body,
+      });
+    } catch (telegramError) {
+      console.warn("Optional announcement Telegram failed:", parentPhone, telegramError.message);
     }
     if (sendSmsChannel) {
       try {

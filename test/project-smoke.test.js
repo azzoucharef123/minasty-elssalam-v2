@@ -128,6 +128,11 @@ test("teacher dashboard keeps level selection above an internal scrollable secti
 
 test("telegram admin alerts are dormant without credentials and cover key parent events", () => {
   const service = fs.readFileSync(path.join(root, "services/telegramService.js"), "utf8");
+  const schema = fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8");
+  const routes = fs.readFileSync(path.join(root, "routes/telegramRoutes.js"), "utf8");
+  const accountHtml = fs.readFileSync(path.join(root, "public/account-center.html"), "utf8");
+  const accountJs = fs.readFileSync(path.join(root, "public/js/telegram-link.js"), "utf8");
+  const accountCss = fs.readFileSync(path.join(root, "public/css/academic-center.css"), "utf8");
   const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
   const academicController = fs.readFileSync(path.join(root, "controllers/academicController.js"), "utf8");
   const studentController = fs.readFileSync(path.join(root, "controllers/studentController.js"), "utf8");
@@ -138,7 +143,19 @@ test("telegram admin alerts are dormant without credentials and cover key parent
   assert.match(service, /TELEGRAM_BOT_TOKEN/);
   assert.match(service, /TELEGRAM_ADMIN_CHAT_ID/);
   assert.match(service, /TELEGRAM_NOT_CONFIGURED/);
-  assert.match(server, /sendTelegramNotification/);
+  assert.match(service, /sendTelegramToParent/);
+  assert.match(service, /handleTelegramUpdate/);
+  assert.match(service, /configureTelegramWebhook/);
+  assert.match(schema, /telegramChatId\s+String\?\s+@unique/);
+  assert.match(schema, /telegramLinkTokenHash/);
+  assert.match(routes, /\/link\/start/);
+  assert.match(routes, /x-telegram-bot-api-secret-token/);
+  assert.match(server, /app\.use\("\/api\/telegram", telegramRoutes\)/);
+  assert.match(accountHtml, /id="telegram-link-start"/);
+  assert.match(accountHtml, /telegram-link\.js/);
+  assert.match(accountJs, /\/api\/telegram\/link\/start/);
+  assert.match(accountJs, /\/api\/telegram\/link/);
+  assert.match(accountCss, /academic-status-badge/);
   assert.match(academicController, /getTeacherTelegramStatus/);
   assert.match(academicController, /notifyTelegram\(req/);
   assert.match(studentController, /notifyTelegram\(req/);
