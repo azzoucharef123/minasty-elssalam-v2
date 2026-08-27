@@ -101,12 +101,23 @@ let localRecordingAudioDestination = null;
 let localRecordingSourceNodes = new Map();
 let localRecordingSourceSyncTimer = null;
 let localRecordingMixedAudioTrack = null;
+let localRecordingVideoTrack = null;
+let localRecordingIs1080p = false;
+let localRecordingVideoElement = null;
+let localRecordingCanvas = null;
+let localRecordingCanvasContext = null;
+let localRecordingAnimationFrame = null;
 let localRecordingChunks = [];
 let localRecordingMimeType = "video/webm";
 let localRecordingStartedAt = 0;
 let localRecordingStopResolver = null;
 let localRecordingDownloadRequested = true;
 let localRecordingFinalized = false;
+const LOCAL_RECORDING_WIDTH = 1920;
+const LOCAL_RECORDING_HEIGHT = 1080;
+const LOCAL_RECORDING_FRAME_RATE = 60;
+const LOCAL_RECORDING_VIDEO_BITRATE = 16_000_000;
+const LOCAL_RECORDING_AUDIO_BITRATE = 192_000;
 const GOOGLE_DRIVE_CLIENT_ID = "938017291163-a6dar2h6u2d5isf5h4nqtaccp7jpkk28.apps.googleusercontent.com";
 const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const GOOGLE_DRIVE_ROOT_FOLDER = "تسجيلات أكاديمية التفوق";
@@ -1044,6 +1055,21 @@ function getLocalRecordingFileName() {
 }
 
 function disposeLocalRecordingResources() {
+  if (localRecordingAnimationFrame) {
+    window.cancelAnimationFrame(localRecordingAnimationFrame);
+    localRecordingAnimationFrame = null;
+  }
+  localRecordingVideoElement?.pause?.();
+  if (localRecordingVideoElement) localRecordingVideoElement.srcObject = null;
+  localRecordingVideoElement = null;
+  localRecordingCanvas = null;
+  localRecordingCanvasContext = null;
+  if (localRecordingVideoTrack) {
+    localRecordingVideoTrack.stop();
+    localRecordingVideoTrack = null;
+  }
+  localRecordingIs1080p = false;
+
   if (localRecordingSourceSyncTimer) {
     window.clearInterval(localRecordingSourceSyncTimer);
     localRecordingSourceSyncTimer = null;
@@ -1129,12 +1155,65 @@ function syncLocalRecordingAudioSources() {
   });
 }
 
+function build1080pRecordingVideoTrack(sourceTrack) {
+  const CanvasConstructor = window.HTMLCanvasElement;
+  const VideoConstructor = window.HTMLVideoElement;
+  if (!sourceTrack || !CanvasConstructor || !VideoConstructor || typeof CanvasConstructor.prototype.captureStream !== "function") {
+    return sourceTrack;
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = LOCAL_RECORDING_WIDTH;
+  canvas.height = LOCAL_RECORDING_HEIGHT;
+  const context = canvas.getContext("2d", { alpha: false });
+  if (!context) return sourceTrack;
+
+  const video = document.createElement("video");
+  video.muted = true;
+  video.autoplay = true;
+  video.playsInline = true;
+  video.srcObject = new MediaStream([sourceTrack]);
+  void video.play().catch(() => {});
+
+  localRecordingCanvas = canvas;
+  localRecordingCanvasContext = context;
+  localRecordingVideoElement = video;
+  const drawFrame = () => {
+    if (!localRecordingCanvasContext || !localRecordingVideoElement) return;
+    const sourceWidth = video.videoWidth || 16;
+    const sourceHeight = video.videoHeight || 9;
+    const scale = Math.min(canvas.width / sourceWidth, canvas.height / sourceHeight);
+    const drawWidth = sourceWidth * scale;
+    const drawHeight = sourceHeight * scale;
+    const offsetX = (canvas.width - drawWidth) / 2;
+    const offsetY = (canvas.height - drawHeight) / 2;
+    context.fillStyle = "#000";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      context.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
+    }
+    localRecordingAnimationFrame = window.requestAnimationFrame(drawFrame);
+  };
+  drawFrame();
+
+  const capturedStream = canvas.captureStream(LOCAL_RECORDING_FRAME_RATE);
+  const capturedTrack = capturedStream.getVideoTracks()[0];
+  if (!capturedTrack) {
+    disposeLocalRecordingResources();
+    return sourceTrack;
+  }
+  localRecordingVideoTrack = capturedTrack;
+  localRecordingIs1080p = true;
+  return capturedTrack;
+}
+
 function buildLocalRecordingStream() {
-  const videoTrack = screenStream?.getVideoTracks?.().find((track) => track.readyState === "live");
-  if (!videoTrack) {
+  const sourceVideoTrack = screenStream?.getVideoTracks?.().find((track) => track.readyState === "live");
+  if (!sourceVideoTrack) {
     throw new Error("لا توجد شاشة نشطة لتسجيل الحصة.");
   }
 
+  const videoTrack = build1080pRecordingVideoTrack(sourceVideoTrack);
   const recordingStream = new MediaStream([videoTrack]);
 
   // Recording must use the live audio sources, not only the teacher's local
@@ -1237,6 +1316,9 @@ function getLocalRecordingMetadata() {
     registryLevel: activeLevel || "",
     registrySubject: activeSubject || "",
     recordedAt: localRecordingStartedAt ? new Date(localRecordingStartedAt).toISOString() : new Date().toISOString(),
+    recordingWidth: localRecordingIs1080p ? LOCAL_RECORDING_WIDTH : null,
+    recordingHeight: localRecordingIs1080p ? LOCAL_RECORDING_HEIGHT : null,
+    recordingFrameRate: localRecordingIs1080p ? LOCAL_RECORDING_FRAME_RATE : null,
   };
 }
 
@@ -1650,8 +1732,8 @@ function startLocalRecording() {
     localRecordingStream = buildLocalRecordingStream();
     const mimeType = getLocalRecordingMimeType();
     const options = mimeType
-          ? { mimeType, videoBitsPerSecond: 12_000_000, audioBitsPerSecond: 192_000 }
-      : { videoBitsPerSecond: 12_000_000, audioBitsPerSecond: 192_000 };
+      ? { mimeType, videoBitsPerSecond: LOCAL_RECORDING_VIDEO_BITRATE, audioBitsPerSecond: LOCAL_RECORDING_AUDIO_BITRATE }
+      : { videoBitsPerSecond: LOCAL_RECORDING_VIDEO_BITRATE, audioBitsPerSecond: LOCAL_RECORDING_AUDIO_BITRATE };
     const recorder = new MediaRecorder(localRecordingStream, options);
     localMediaRecorder = recorder;
     localRecordingMimeType = recorder.mimeType || mimeType || "video/webm";
@@ -1674,7 +1756,12 @@ function startLocalRecording() {
     elements.recordLocalButton.classList.add("is-recording");
     setButtonLabel(elements.recordLocalButton, "إيقاف التسجيل والرفع تلقائياً");
     updateControls();
-    setStudioStatus("جارٍ تسجيل الحصة محليًا على جهازك.", "live");
+    setStudioStatus(
+      localRecordingIs1080p
+        ? "جارٍ تسجيل الحصة بدقة 1080p/60fps على جهازك."
+        : "جارٍ تسجيل الحصة؛ متصفحك لا يدعم تهيئة 1080p المعزولة.",
+      "live"
+    );
   } catch (error) {
     console.error("Unable to start local class recording:", error);
     disposeLocalRecordingResources();

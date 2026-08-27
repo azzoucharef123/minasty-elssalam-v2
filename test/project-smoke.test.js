@@ -63,7 +63,15 @@ test("teacher live streaming targets adaptive quality and 1080p60 recording", ()
   assert.match(teacherLive, /getAdaptiveVideoQualityProfile\s*\(/);
   assert.match(teacherLive, /scaleResolutionDownBy:\s*2\.5/);
   assert.match(teacherLive, /maxBitrate:\s*6_000_000/);
-  assert.match(teacherLive, /videoBitsPerSecond:\s*12_000_000/);
+  assert.match(teacherLive, /LOCAL_RECORDING_WIDTH\s*=\s*1920/);
+  assert.match(teacherLive, /LOCAL_RECORDING_HEIGHT\s*=\s*1080/);
+  assert.match(teacherLive, /build1080pRecordingVideoTrack\s*\(/);
+  assert.match(teacherLive, /LOCAL_RECORDING_FRAME_RATE\s*=\s*60/);
+  assert.match(teacherLive, /canvas\.captureStream\(LOCAL_RECORDING_FRAME_RATE\)/);
+  assert.match(teacherLive, /videoBitsPerSecond:\s*LOCAL_RECORDING_VIDEO_BITRATE/);
+  assert.match(teacherLive, /recordingWidth: localRecordingIs1080p/);
+  assert.match(teacherLive, /recordingHeight: localRecordingIs1080p/);
+  assert.match(teacherLive, /LOCAL_RECORDING_VIDEO_BITRATE\s*=\s*16_000_000/);
   assert.match(teacherLive, /maxFramerate:\s*60/);
 });
 
