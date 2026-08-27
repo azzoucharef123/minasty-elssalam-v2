@@ -112,7 +112,11 @@ test("teacher dashboard keeps level selection above an internal scrollable secti
   const appCss = fs.readFileSync(path.join(root, "public/css/app.css"), "utf8");
   const levelIndex = teacherHtml.indexOf("id=\"teacher-level-strip\"");
   const frameIndex = teacherHtml.indexOf("id=\"teacher-main-frame\"");
+  const messengerIndex = teacherHtml.indexOf("id=\"facebook-messenger-panel\"");
+  const lessonModalIndex = teacherHtml.indexOf('<div class="lesson-video-modal"');
+  const frameClosingIndex = teacherHtml.indexOf('</div>\n</div>\n<div class="lesson-video-modal"');
   assert.ok(levelIndex >= 0 && levelIndex < frameIndex);
+  assert.ok(messengerIndex > frameIndex && messengerIndex < lessonModalIndex && messengerIndex < frameClosingIndex);
   assert.match(teacherHtml, /class="teacher-main-frame" id="teacher-main-frame"/);
   assert.match(teacherHtml, /class="teacher-tab-content"/);
   assert.doesNotMatch(teacherHtml, /class="teacher-sidebar"/);
