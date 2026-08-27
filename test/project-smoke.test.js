@@ -107,11 +107,15 @@ test("teacher dashboard keeps level selection above an internal scrollable secti
   assert.ok(levelIndex >= 0 && levelIndex < frameIndex);
   assert.match(teacherHtml, /class="teacher-main-frame" id="teacher-main-frame"/);
   assert.match(teacherHtml, /class="teacher-tab-content"/);
+  assert.doesNotMatch(teacherHtml, /class="teacher-sidebar"/);
+  assert.doesNotMatch(teacherHtml, /class="teacher-profile-card"/);
   for (const tab of ["students", "notifications", "schedule", "registry", "assignments", "lessons", "quiz", "electronic-payments", "manual-payments", "referral-withdrawals", "forgot-pin-requests"]) {
     assert.match(teacherHtml, new RegExp(`data-dashboard-tab="${tab}"`));
   }
   assert.match(appCss, /teacher-main-frame[\s\S]*grid-template-columns/);
+  assert.match(appCss, /teacher-main-frame[\s\S]*direction: rtl/);
   assert.match(appCss, /teacher-tabs-nav[\s\S]*overflow-y: auto/);
+  assert.match(appCss, /teacher-dashboard-shell \{\s*margin-right: 0;/);
 });
 
 test("telegram admin alerts are dormant without credentials and cover key parent events", () => {

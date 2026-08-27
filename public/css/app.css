@@ -4623,7 +4623,7 @@ body.parent-login-page {
 .teacher-dashboard-page .teacher-main-frame {
   display: grid;
   grid-template-columns: minmax(190px, 220px) minmax(0, 1fr);
-  direction: ltr;
+  direction: rtl;
   flex: 1 1 auto;
   gap: .85rem;
   min-height: 0;
@@ -4754,4 +4754,10 @@ body.parent-login-page {
   .teacher-dashboard-page .teacher-tab-button {
     transition: none;
   }
+}
+
+
+/* The external teacher sidebar was replaced by the internal right-side section menu. */
+.teacher-dashboard-page .teacher-dashboard-shell {
+  margin-right: 0;
 }
