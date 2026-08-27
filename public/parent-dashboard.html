@@ -16,7 +16,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./css/style.css?v=next-class-state-1" />
-    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=receipt-decision-2" />
+    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=mobile-first-parent-1" />
     <link rel="stylesheet" href="./css/private-messages.css" />
     <link rel="stylesheet" href="./css/payment-feedback.css" />
 
@@ -1427,7 +1427,7 @@
         order: 2;
       }
     </style>
-    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=receipt-decision-2" />
+    <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=mobile-first-parent-1" />
     <link rel="stylesheet" href="./css/live-classes-entry.css?v=live-entry-1" />
 </head>
   <body class="parent-dashboard-page">
@@ -1898,11 +1898,34 @@
       </section>
     </div>
 
+    <nav class="parent-bottom-nav" aria-label="التنقل السريع في الهاتف">
+      <a href="#dashboard-content" class="bottom-nav-item" id="bnav-home" data-bottom-nav-target="#dashboard-content">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span>الرئيسية</span>
+      </a>
+      <a href="#live-classes-entry-card" class="bottom-nav-item" id="bnav-live" data-bottom-nav-target="#live-classes-entry-card">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+        <span>الحصص</span>
+      </a>
+      <a href="#student-homework-card" class="bottom-nav-item" id="bnav-homework" data-bottom-nav-target="#student-homework-card">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>الواجبات</span>
+      </a>
+      <a href="#lesson-repository-card" class="bottom-nav-item" id="bnav-lessons" data-bottom-nav-target="#lesson-repository-card">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        <span>الدروس</span>
+      </a>
+      <button type="button" class="bottom-nav-item" id="bnav-menu" aria-label="فتح قائمة الولي">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <span>القائمة</span>
+      </button>
+    </nav>
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="./js/session-storage.js?v=single-session-1"></script>
     <script src="./js/message-notifications.js"></script>
     <script src="./js/parent-referral.js?v=referral-ui-1"></script>
-    <script src="./js/parent-dashboard.js?v=payment-review-frame-1"></script>
+    <script src="./js/parent-dashboard.js?v=mobile-first-nav-1"></script>
     <script src="./js/parent-push-prompt.js?v=parent-push-prompt-1"></script>
     <script src="./js/browser-notifications.js?v=session-takeover-1"></script>
     <script src="./js/class-registry-parent.js?v=panel-scroll-1"></script>
