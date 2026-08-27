@@ -82,6 +82,28 @@ test("teacher question image modal supports bounded wheel zoom", () => {
   assert.match(teacherHtml, /question-image-zoom-label/);
 });
 
+test("teacher notifications include a dormant SMS channel safely", () => {
+  const schema = fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8");
+  const controller = fs.readFileSync(path.join(root, "controllers/academicController.js"), "utf8");
+  const routes = fs.readFileSync(path.join(root, "routes/academicRoutes.js"), "utf8");
+  const service = fs.readFileSync(path.join(root, "services/smsService.js"), "utf8");
+  const dashboard = fs.readFileSync(path.join(root, "public/js/teacher-dashboard.js"), "utf8");
+  const html = fs.readFileSync(path.join(root, "public/teacher-dashboard.html"), "utf8");
+  assert.match(schema, /deliveryChannel\s+String\s+@default\("BROWSER"\)/);
+  assert.match(schema, /smsSentCount\s+Int\s+@default\(0\)/);
+  assert.match(controller, /ANNOUNCEMENT_CHANNELS/);
+  assert.match(controller, /SMS_NOT_CONFIGURED/);
+  assert.match(controller, /sendSms\(/);
+  assert.match(routes, /teacher-announcements\/sms-status/);
+  assert.match(service, /function getSmsStatus\s*\(/);
+  assert.match(service, /SMS_API_KEY/);
+  assert.match(dashboard, /notificationDeliveryChannel\s*\(/);
+  assert.match(dashboard, /teacher-announcements\/sms-status/);
+  assert.match(dashboard, /deliveryChannel: notificationDeliveryChannel\(\)/);
+  assert.match(html, /name="notification-channel"[^>]+value="SMS"/);
+  assert.match(html, /id="teacher-notification-channel-status"/);
+});
+
 test("teacher live chat supports pasted image messages safely", () => {
   const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
   const teacherLive = fs.readFileSync(path.join(root, "public/js/teacher-live-v2.js"), "utf8");

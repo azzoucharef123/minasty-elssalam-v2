@@ -115,6 +115,9 @@ const elements = {
   teacherNotificationSubject: document.getElementById("teacher-notification-subject"),
   teacherNotificationTitle: document.getElementById("teacher-notification-title-input"),
   teacherNotificationBody: document.getElementById("teacher-notification-body-input"),
+  teacherNotificationChannelStatus: document.getElementById("teacher-notification-channel-status"),
+  teacherNotificationSmsOption: document.querySelector('input[name="notification-channel"][value="SMS"]'),
+  teacherNotificationBothOption: document.querySelector('input[name="notification-channel"][value="BOTH"]'),
   teacherNotificationImmediate: document.getElementById("teacher-notification-immediate"),
   teacherNotificationScheduled: document.getElementById("teacher-notification-scheduled"),
   teacherNotificationScheduleFields: document.getElementById("teacher-notification-schedule-fields"),
@@ -3194,6 +3197,8 @@ async function rejectPaymentReceipt(studentId) {
 
 const ANNOUNCEMENT_PAYMENT_LABELS = { ALL: "كل الحسابات", FREE: "الحسابات المجانية", PAID: "الحسابات المدفوعة" };
 const ANNOUNCEMENT_SUBJECT_LABELS = { ALL: "كل المواد", MATH: "الرياضيات", PHYSICS: "الفيزياء", BOTH: "الرياضيات والفيزياء" };
+const ANNOUNCEMENT_CHANNEL_LABELS = { BROWSER: "المتصفح", SMS: "SMS", BOTH: "المتصفح وSMS" };
+let teacherSmsConfigured = false;
 const ANNOUNCEMENT_STATUS_LABELS = { PENDING: "مجدول", PROCESSING: "جارٍ الإرسال", SENT: "تم الإرسال", FAILED: "فشل الإرسال", CANCELLED: "ملغى" };
 
 function announcementFormValue(name, fallback = "") {
@@ -3202,6 +3207,51 @@ function announcementFormValue(name, fallback = "") {
 
 function notificationTargetMode() {
   return announcementFormValue("notification-target-mode", "ALL_LEVEL");
+}
+
+function notificationDeliveryChannel() {
+  return announcementFormValue("notification-channel", "BROWSER");
+}
+
+function syncTeacherNotificationChannel() {
+  const channel = notificationDeliveryChannel();
+  if (!elements.teacherNotificationChannelStatus) return;
+  elements.teacherNotificationChannelStatus.classList.toggle("is-sms", channel !== "BROWSER");
+  elements.teacherNotificationChannelStatus.classList.toggle("is-configured", teacherSmsConfigured);
+  elements.teacherNotificationChannelStatus.textContent = channel === "BROWSER"
+    ? (teacherSmsConfigured ? "المتصفح يعمل وSMS مهيّأ" : "تنبيه المتصفح يعمل حاليًا")
+    : (teacherSmsConfigured ? "SMS مهيّأ ويمكن اختياره" : "يتطلب SMS إعدادات المزود في الخادم");
+}
+
+async function loadTeacherSmsStatus() {
+  const options = [elements.teacherNotificationSmsOption, elements.teacherNotificationBothOption].filter(Boolean);
+  options.forEach((input) => {
+    input.disabled = true;
+    input.closest("label")?.classList.add("is-disabled");
+  });
+  try {
+    const response = await teacherFetch("/api/academic/teacher-announcements/sms-status", { headers: { Accept: "application/json" } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "تعذر التحقق من خدمة SMS.");
+    const status = payload.data || {};
+    teacherSmsConfigured = status.configured === true;
+    if (status.configured) {
+      options.forEach((input) => {
+        input.disabled = false;
+        input.closest("label")?.classList.remove("is-disabled");
+      });
+      if (elements.teacherNotificationChannelStatus) {
+        elements.teacherNotificationChannelStatus.textContent = `SMS مفعّل عبر ${status.provider || "المزود"}`;
+        elements.teacherNotificationChannelStatus.classList.add("is-configured");
+      }
+    } else if (elements.teacherNotificationChannelStatus) {
+      elements.teacherNotificationChannelStatus.textContent = status.message || "SMS غير مفعّل — بانتظار مفاتيح المزود";
+    }
+  } catch (error) {
+    if (elements.teacherNotificationChannelStatus) elements.teacherNotificationChannelStatus.textContent = "تعذر التحقق من SMS؛ بقيت القناة معطلة.";
+    console.info("SMS status is unavailable:", error.message);
+  }
+  syncTeacherNotificationChannel();
 }
 
 function selectedTeacherNotificationStudentIds() {
@@ -3290,7 +3340,8 @@ function renderTeacherAnnouncementHistory(campaigns = []) {
     const title = document.createElement("strong");
     title.textContent = campaign.title || "تنبيه";
     const details = document.createElement("small");
-    details.textContent = `${campaign.targetLevel || "المستوى"} · ${ANNOUNCEMENT_PAYMENT_LABELS[campaign.paymentFilter] || "كل الحسابات"} · ${ANNOUNCEMENT_SUBJECT_LABELS[campaign.subjectFilter] || "كل المواد"}`;
+    const channelLabel = ANNOUNCEMENT_CHANNEL_LABELS[campaign.deliveryChannel] || "المتصفح";
+    details.textContent = `${campaign.targetLevel || "المستوى"} · ${ANNOUNCEMENT_PAYMENT_LABELS[campaign.paymentFilter] || "كل الحسابات"} · ${ANNOUNCEMENT_SUBJECT_LABELS[campaign.subjectFilter] || "كل المواد"} · ${channelLabel}`;
     heading.append(title, details);
     const meta = document.createElement("span");
     meta.className = `teacher-notification-history-status status-${String(campaign.status || "").toLowerCase()}`;
@@ -3357,6 +3408,7 @@ async function submitTeacherAnnouncement(event) {
     targetStudentIds,
     paymentFilter: announcementFormValue("notification-payment", "ALL"),
     subjectFilter: elements.teacherNotificationSubject?.value || "ALL",
+    deliveryChannel: notificationDeliveryChannel(),
     title: elements.teacherNotificationTitle?.value?.trim() || "",
     body: elements.teacherNotificationBody?.value?.trim() || "",
     deliveryMode: scheduled ? "SCHEDULED" : "IMMEDIATE",
@@ -3410,6 +3462,7 @@ function initializeTeacherNotifications() {
   elements.teacherNotificationImmediate?.addEventListener("change", syncTeacherNotificationDelivery);
   elements.teacherNotificationScheduled?.addEventListener("change", syncTeacherNotificationDelivery);
   elements.teacherNotificationSubject?.addEventListener("change", updateTeacherNotificationAudience);
+  document.querySelectorAll('input[name="notification-channel"]').forEach((input) => input.addEventListener("change", syncTeacherNotificationChannel));
   document.querySelectorAll('input[name="notification-payment"]').forEach((input) => input.addEventListener("change", updateTeacherNotificationAudience));
   document.querySelectorAll('input[name="notification-target-mode"]').forEach((input) => input.addEventListener("change", syncTeacherNotificationTargetMode));
   elements.teacherNotificationSelectAll?.addEventListener("click", () => {
@@ -3420,6 +3473,8 @@ function initializeTeacherNotifications() {
   });
   elements.teacherNotificationRefresh?.addEventListener("click", () => void loadTeacherAnnouncements());
     syncTeacherNotificationDelivery();
+  syncTeacherNotificationChannel();
+  void loadTeacherSmsStatus();
   updateTeacherNotificationAudience();
   window.setInterval(() => {
     if (!document.hidden) void loadTeacherAnnouncements();

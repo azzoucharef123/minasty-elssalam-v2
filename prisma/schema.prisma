@@ -162,6 +162,9 @@ model NotificationCampaign {
   body            String   @db.Text
   link            String?
   deliveryMode    String   @default("IMMEDIATE")
+  deliveryChannel String   @default("BROWSER")
+  smsSentCount    Int      @default(0)
+  smsFailedCount  Int      @default(0)
   scheduledAt     DateTime?
   status          String   @default("PENDING")
   recipientCount  Int      @default(0)

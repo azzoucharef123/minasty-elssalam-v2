@@ -1,9 +1,11 @@
 const prisma = require("../lib/prisma");
 const { logAudit } = require("../utils/audit");
+const { getSmsStatus, sendSms } = require("../services/smsService");
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LEVELS = new Set(["السنة الأولى", "السنة الثانية", "السنة الثالثة", "السنة الرابعة", "طالب جامعي"]);
 const SUBJECTS = new Set(["MATH", "PHYSICS", "FREE", "PAID", "GENERAL"]);
+const ANNOUNCEMENT_CHANNELS = new Set(["BROWSER", "SMS", "BOTH"]);
 
 // The teacher dashboard sends short labels, while Student.level stores the
 // full middle-school labels. Assignments use the full label canonically and
@@ -372,21 +374,37 @@ function announcementWhere(payload) {
 }
 
 function announcementSummary(campaign, deliveryStats = {}) {
-  const sentCount = Number(deliveryStats.sentCount ?? campaign.recipientCount ?? 0) || 0;
+  const deliveryChannel = campaign.deliveryChannel || "BROWSER";
+  const browserSentCount = Number(deliveryStats.sentCount ?? (deliveryChannel === "SMS" ? 0 : campaign.recipientCount) ?? 0) || 0;
+  const smsSentCount = Number(campaign.smsSentCount || 0) || 0;
+  const smsFailedCount = Number(campaign.smsFailedCount || 0) || 0;
+  const sentCount = deliveryChannel === "SMS" ? smsSentCount : browserSentCount;
   const readCount = Number(deliveryStats.readCount ?? 0) || 0;
   return {
     ...campaign,
+    deliveryChannel,
     targetLevel: displayLevelLabel(campaign.targetLevel),
     scheduledAt: campaign.scheduledAt?.toISOString?.() || null,
     sentAt: campaign.sentAt?.toISOString?.() || null,
     sentCount,
     readCount,
     unreadCount: Math.max(0, sentCount - readCount),
+    smsSentCount,
+    smsFailedCount,
   };
 }
 
 async function deliverTeacherAnnouncement(campaign, options = {}) {
   const sendSocketNotification = options.sendSocketNotification || socketNotificationSender;
+  const deliveryChannel = campaign.deliveryChannel || "BROWSER";
+  const sendBrowser = deliveryChannel === "BROWSER" || deliveryChannel === "BOTH";
+  const sendSmsChannel = deliveryChannel === "SMS" || deliveryChannel === "BOTH";
+  if (sendSmsChannel && !getSmsStatus().configured) {
+    const error = new Error("SMS_NOT_CONFIGURED");
+    error.code = "SMS_NOT_CONFIGURED";
+    throw error;
+  }
+
   const students = await prisma.student.findMany({
     where: announcementWhere(campaign),
     select: { id: true, parentPhone: true },
@@ -397,60 +415,94 @@ async function deliverTeacherAnnouncement(campaign, options = {}) {
   }
   const sendPushToRecipient = require("../utils/push").sendPushToRecipient;
   let sentCount = 0;
+  let smsSentCount = 0;
+  let smsFailedCount = 0;
+  const smsErrors = [];
+
   for (const [parentPhone, student] of recipients) {
     const dedupeKey = `TEACHER_ANNOUNCEMENT:${campaign.id}:${parentPhone}`;
     let notificationId = null;
-    try {
-      const notification = await prisma.notification.create({
-        data: {
-          studentId: student.id,
-          recipientRole: "parent",
+    if (sendBrowser) {
+      try {
+        const notification = await prisma.notification.create({
+          data: {
+            studentId: student.id,
+            recipientRole: "parent",
+            recipientId: parentPhone,
+            type: "TEACHER_ANNOUNCEMENT",
+            title: campaign.title,
+            body: campaign.body,
+            link: campaign.link || "./parent-dashboard.html",
+            dedupeKey,
+          },
+          select: { id: true },
+        });
+        notificationId = notification.id;
+        sentCount += 1;
+      } catch (notificationError) {
+        if (notificationError?.code !== "P2002") throw notificationError;
+        const existing = await prisma.notification.findUnique({ where: { dedupeKey }, select: { id: true } });
+        notificationId = existing?.id || null;
+      }
+      try {
+        sendSocketNotification?.({
+          role: "parent",
           recipientId: parentPhone,
-          type: "TEACHER_ANNOUNCEMENT",
           title: campaign.title,
           body: campaign.body,
           link: campaign.link || "./parent-dashboard.html",
-          dedupeKey,
-        },
-        select: { id: true },
-      });
-      notificationId = notification.id;
-      sentCount += 1;
-    } catch (error) {
-      if (error?.code !== "P2002") throw error;
-      const existing = await prisma.notification.findUnique({ where: { dedupeKey }, select: { id: true } });
-      notificationId = existing?.id || null;
+          tag: `teacher-announcement-${campaign.id}`,
+          data: { type: "TEACHER_ANNOUNCEMENT", campaignId: campaign.id, notificationId },
+          notificationId,
+        });
+      } catch (socketError) {
+        console.warn("Optional browser notification failed:", parentPhone, socketError.message);
+      }
+      try {
+        await sendPushToRecipient("parent", parentPhone, {
+          title: campaign.title,
+          body: campaign.body,
+          link: campaign.link || "./parent-dashboard.html",
+          notificationId,
+        });
+      } catch (pushError) {
+        console.warn("Optional announcement push failed:", parentPhone, pushError.message);
+      }
     }
-    try {
-      sendSocketNotification?.({
-        role: "parent",
-        recipientId: parentPhone,
-        title: campaign.title,
-        body: campaign.body,
-        link: campaign.link || "./parent-dashboard.html",
-        tag: `teacher-announcement-${campaign.id}`,
-        data: { type: "TEACHER_ANNOUNCEMENT", campaignId: campaign.id, notificationId },
-        notificationId,
-      });
-    } catch (socketError) {
-      console.warn("Optional browser notification failed:", parentPhone, socketError.message);
-    }
-    try {
-      await sendPushToRecipient("parent", parentPhone, {
-        title: campaign.title,
-        body: campaign.body,
-        link: campaign.link || "./parent-dashboard.html",
-        notificationId,
-      });
-    } catch (pushError) {
-      console.warn("Optional announcement push failed:", parentPhone, pushError.message);
+    if (sendSmsChannel) {
+      try {
+        const result = await sendSms({ to: parentPhone, title: campaign.title, body: campaign.body });
+        if (result.sent) smsSentCount += 1;
+        else {
+          smsFailedCount += 1;
+          smsErrors.push(`${parentPhone}: ${result.reason || "SMS_SEND_SKIPPED"}`);
+        }
+      } catch (smsError) {
+        smsFailedCount += 1;
+        smsErrors.push(`${parentPhone}: ${smsError.message || "SMS_SEND_FAILED"}`);
+        console.warn("SMS announcement delivery failed:", parentPhone, smsError.message);
+      }
     }
   }
+
+  const allSmsFailed = sendSmsChannel && smsFailedCount > 0 && smsSentCount === 0;
   const updated = await prisma.notificationCampaign.update({
     where: { id: campaign.id },
-    data: { status: "SENT", recipientCount: recipients.size, sentAt: new Date(), lastError: null },
+    data: {
+      status: allSmsFailed ? "FAILED" : "SENT",
+      recipientCount: recipients.size,
+      smsSentCount,
+      smsFailedCount,
+      sentAt: new Date(),
+      lastError: smsErrors.length ? smsErrors.slice(0, 10).join(" | ").slice(0, 2000) : null,
+    },
   });
-  return { campaign: updated, recipientCount: recipients.size, sentCount };
+  return { campaign: updated, recipientCount: recipients.size, sentCount, smsSentCount, smsFailedCount };
+}
+
+async function getTeacherSmsStatus(req, res) {
+  if (!requireTeacher(req, res)) return;
+  return res.json({ status: "success", data: getSmsStatus() });
 }
 
 async function listTeacherAnnouncements(req, res) {
@@ -493,10 +545,11 @@ async function createTeacherAnnouncement(req, res) {
   const targetMode = text(req.body?.targetMode, 20).toUpperCase() || "ALL_LEVEL";
   const targetStudentIds = parseAnnouncementStudentIds(req.body?.targetStudentIds);
   const deliveryMode = text(req.body?.deliveryMode, 20).toUpperCase() || "IMMEDIATE";
+  const deliveryChannel = text(req.body?.deliveryChannel, 20).toUpperCase() || "BROWSER";
   const title = text(req.body?.title, 160);
   const body = text(req.body?.body, 10000);
   const scheduledAt = req.body?.scheduledAt ? new Date(req.body.scheduledAt) : null;
-  if (!ASSIGNMENT_CANONICAL_LEVELS.has(targetLevel) || recipientType !== "PARENTS" || !ANNOUNCEMENT_PAYMENT_FILTERS.has(paymentFilter) || !ANNOUNCEMENT_SUBJECT_FILTERS.has(subjectFilter) || !ANNOUNCEMENT_TARGET_MODES.has(targetMode) || !ANNOUNCEMENT_DELIVERY_MODES.has(deliveryMode) || !title || !body) {
+  if (!ASSIGNMENT_CANONICAL_LEVELS.has(targetLevel) || recipientType !== "PARENTS" || !ANNOUNCEMENT_PAYMENT_FILTERS.has(paymentFilter) || !ANNOUNCEMENT_SUBJECT_FILTERS.has(subjectFilter) || !ANNOUNCEMENT_TARGET_MODES.has(targetMode) || !ANNOUNCEMENT_DELIVERY_MODES.has(deliveryMode) || !ANNOUNCEMENT_CHANNELS.has(deliveryChannel) || !title || !body) {
     return res.status(400).json({ error: "بيانات التنبيه غير صحيحة." });
   }
   if (targetMode === "SELECTED" && !targetStudentIds.length) {
@@ -505,19 +558,22 @@ async function createTeacherAnnouncement(req, res) {
   if (deliveryMode === "SCHEDULED" && (!scheduledAt || Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date())) {
     return res.status(400).json({ error: "اختر موعدًا مستقبليًا صالحًا للتنبيه." });
   }
+  if ((deliveryChannel === "SMS" || deliveryChannel === "BOTH") && !getSmsStatus().configured) {
+    return res.status(503).json({ error: "خدمة SMS غير مفعّلة حاليًا — أضف بيانات مزود الرسائل إلى متغيرات الخادم أولًا." });
+  }
   if (targetMode === "SELECTED") {
     const eligibleSelected = await prisma.student.count({ where: announcementWhere({ targetLevel, paymentFilter, subjectFilter, targetMode, targetStudentIds }) });
     if (!eligibleSelected) return res.status(400).json({ error: "لا يوجد تلميذ مؤهل ضمن الاختيار الحالي." });
   }
   const campaign = await prisma.notificationCampaign.create({
-    data: { targetLevel, recipientType, paymentFilter, subjectFilter, targetMode, targetStudentIds: targetMode === "SELECTED" ? JSON.stringify(targetStudentIds) : null, title, body, link: "./parent-dashboard.html", deliveryMode, scheduledAt: deliveryMode === "SCHEDULED" ? scheduledAt : null },
+    data: { targetLevel, recipientType, paymentFilter, subjectFilter, targetMode, targetStudentIds: targetMode === "SELECTED" ? JSON.stringify(targetStudentIds) : null, title, body, link: "./parent-dashboard.html", deliveryMode, deliveryChannel, scheduledAt: deliveryMode === "SCHEDULED" ? scheduledAt : null },
   });
   if (deliveryMode === "IMMEDIATE") {
     const delivered = await deliverTeacherAnnouncement(campaign);
-    void logAudit(req, { action: "TEACHER_ANNOUNCEMENT_SENT", entityType: "NotificationCampaign", entityId: campaign.id, metadata: { targetLevel, paymentFilter, subjectFilter, recipientCount: delivered.recipientCount } });
+    void logAudit(req, { action: "TEACHER_ANNOUNCEMENT_SENT", entityType: "NotificationCampaign", entityId: campaign.id, metadata: { targetLevel, paymentFilter, subjectFilter, deliveryChannel, recipientCount: delivered.recipientCount, smsSentCount: delivered.smsSentCount || 0, smsFailedCount: delivered.smsFailedCount || 0 } });
     return res.status(201).json({ status: "success", mode: "IMMEDIATE", recipientCount: delivered.recipientCount, data: announcementSummary(delivered.campaign) });
   }
-  void logAudit(req, { action: "TEACHER_ANNOUNCEMENT_SCHEDULED", entityType: "NotificationCampaign", entityId: campaign.id, metadata: { targetLevel, paymentFilter, subjectFilter, scheduledAt } });
+  void logAudit(req, { action: "TEACHER_ANNOUNCEMENT_SCHEDULED", entityType: "NotificationCampaign", entityId: campaign.id, metadata: { targetLevel, paymentFilter, subjectFilter, deliveryChannel, scheduledAt } });
   return res.status(201).json({ status: "success", mode: "SCHEDULED", recipientCount: 0, data: announcementSummary(campaign) });
 }
 
@@ -668,6 +724,7 @@ module.exports = {
   listNotifications,
   markNotificationRead,
   listTeacherAnnouncements,
+  getTeacherSmsStatus,
   createTeacherAnnouncement,
   cancelTeacherAnnouncement,
   getTeacherAnalytics,

@@ -4489,7 +4489,13 @@ body.parent-login-page {
 .teacher-notification-audience strong { color: #065f46; font-size: .78rem; }
 .teacher-notification-audience small { margin-top: .16rem; color: #047857; font-size: .68rem; }
 .teacher-notification-audience b { color: #065f46; font-size: 1rem; white-space: nowrap; }
-.teacher-notification-delivery { margin-top: 1rem !important; }
+.teacher-notification-delivery, .teacher-notification-channel-fieldset { margin-top: 1rem !important; }
+.teacher-notification-channel-fieldset { background: #f8fafc; }
+.teacher-notification-channel-status { margin: .65rem 0 0; padding: .6rem .7rem; border-radius: .55rem; color: #92400e; background: #fffbeb; font-size: .7rem; font-weight: 700; }
+.teacher-notification-channel-status.is-configured { color: #047857; background: #ecfdf5; }
+.teacher-notification-channel-status.is-sms { color: #1d4ed8; background: #eff6ff; }
+.teacher-notification-option.is-disabled { cursor: not-allowed; opacity: .55; }
+.teacher-notification-option.is-disabled:hover { border-color: #e2e8f0; background: #fff; }
 .teacher-notification-schedule-fields { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; margin-top: .65rem; padding: .7rem; border: 1px solid #fed7aa; border-radius: .65rem; background: #fff7ed; }
 .teacher-notification-schedule-fields[hidden] { display: none; }
 .teacher-notification-schedule-fields label { display: grid; gap: .3rem; color: #9a3412; font-size: .72rem; font-weight: 800; }
