@@ -68,6 +68,7 @@ const ICE_DISCONNECT_GRACE_MS = 8_000;
 let activeLevel = null;
 let activeSubject = null;
 let classActive = false;
+let screenShareRevision = 0;
 let isStarting = false;
 let isEnding = false;
 let classResumeToken = null;
@@ -2283,23 +2284,29 @@ function setTeacherWelcomeImage(levelName) {
   elements.teacherWelcomeImage.alt = `صورة انتظار ${levelName} متوسط`;
 }
 
-function syncTeacherVideoTrackToAllPeers() {
+async function syncTeacherVideoTrackToAllPeers() {
   const track = getActiveTeacherVideoTrack();
-  if (!track) return;
-  Object.entries(peerConnections).forEach(([studentSocketId, peerConnection]) => {
+  if (!track) return { updated: 0, failed: 0 };
+  const operations = Object.entries(peerConnections).map(async ([studentSocketId, peerConnection]) => {
     const sender = peerConnection.getSenders?.().find((item) => item.__classroomVideoTrack === true);
     if (sender) {
-      if (sender.track !== track) sender.replaceTrack(track).catch(() => {});
-      return;
+      if (sender.track !== track) await sender.replaceTrack(track);
+      return true;
     }
-    if (!screenStream) return;
+    if (!screenStream) return false;
     const nextSender = peerConnection.addTrack(track, screenStream);
     nextSender.__classroomVideoTrack = true;
     void tuneOutboundSender(nextSender, "video");
     if (peerConnection.remoteDescription && peerConnection.signalingState === "stable") {
       void createAndSendOffer(studentSocketId);
     }
+    return true;
   });
+  const results = await Promise.allSettled(operations);
+  return {
+    updated: results.filter((result) => result.status === "fulfilled" && result.value === true).length,
+    failed: results.filter((result) => result.status === "rejected").length,
+  };
 }
 
 function addClassroomAudioSource(sourceKey, stream, { enabled = true } = {}) {
@@ -2978,10 +2985,12 @@ function getMediaErrorMessage(error, source) {
  */
 async function publishScreenShareState(active) {
   if (!activeLevel || !socket.connected) return;
+  const revision = ++screenShareRevision;
   try {
     await emitWithAcknowledgement("teacher_screen_share_state", {
       level: activeLevel,
       active: Boolean(active),
+      revision,
     }, 5_000);
   } catch (error) {
     console.warn("Unable to publish screen-share state:", error);
@@ -2996,7 +3005,7 @@ async function stopScreenShare() {
   setStageMode(classActive ? "welcome" : "idle");
   removeClassroomAudioSource("__screen_audio__");
   if (classActive) {
-    syncTeacherVideoTrackToAllPeers();
+    await syncTeacherVideoTrackToAllPeers();
     void publishScreenShareState(false);
   }
   setStudioStatus(classActive ? "عادت صورة المستوى؛ بقيت الحصة والصوت مفتوحين." : "تم إيقاف مشاركة الشاشة.", classActive ? "live" : "neutral");
@@ -3021,7 +3030,10 @@ async function replaceScreenShareStream() {
     previousStream?.getTracks?.().forEach((track) => track.stop());
     elements.localVideo.srcObject = replacement;
     setStageMode("screen");
-    syncTeacherVideoTrackToAllPeers();
+    const syncResult = await syncTeacherVideoTrackToAllPeers();
+    if (syncResult.failed > 0) {
+      console.warn(`Screen-share track replacement failed for ${syncResult.failed} peer(s).`);
+    }
     void publishScreenShareState(true);
     addClassroomAudioSource("__screen_audio__", replacement, { enabled: true });
     syncMixMinusAudioToAllPeers();

@@ -1819,9 +1819,12 @@ io.on("connection", (socket) => {
       );
     }
 
+    const revision = Number.isSafeInteger(data.revision) && data.revision > 0
+      ? data.revision
+      : Date.now();
     setScreenShareActive(level, active);
-    io.to(level).emit("screen_share_state", { level, active });
-    acknowledge(acknowledgement, { ok: true, level, active });
+    io.to(level).emit("screen_share_state", { level, active, revision });
+    acknowledge(acknowledgement, { ok: true, level, active, revision });
   });
 
   /**

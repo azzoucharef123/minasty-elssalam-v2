@@ -79,6 +79,16 @@ test("teacher live streaming targets adaptive quality and 1080p60 recording", ()
   assert.match(teacherLive, /recordingHeight: localRecordingIs1080p/);
   assert.match(teacherLive, /LOCAL_RECORDING_VIDEO_BITRATE\s*=\s*16_000_000/);
   assert.match(teacherLive, /maxFramerate:\s*60/);
+  assert.match(teacherLive, /async function syncTeacherVideoTrackToAllPeers\(\)/);
+  assert.match(teacherLive, /await sender\.replaceTrack\(track\)/);
+  assert.match(teacherLive, /revision/);
+  assert.match(fs.readFileSync(path.join(root, "public/teacher-live.html"), "utf8"), /teacher-live-v2\.js\?v=screen-share-sync-1/);
+  const studentLive = fs.readFileSync(path.join(root, "public/js/student-live.js"), "utf8");
+  assert.match(studentLive, /lastScreenShareRevision/);
+  assert.match(studentLive, /revision <= lastScreenShareRevision/);
+  const studentLiveHtml = fs.readFileSync(path.join(root, "public/student-live.html"), "utf8");
+  assert.match(studentLiveHtml, /parent-messenger-page-gate\.js\?v=disabled-1/);
+  assert.match(studentLiveHtml, /student-live\.js\?v=screen-share-sync-1/);
 });
 
 test("teacher question image modal supports bounded wheel zoom", () => {

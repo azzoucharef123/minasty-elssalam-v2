@@ -50,6 +50,7 @@ let pc;
 let localAudioStream;
 let remoteMediaStream;
 let screenShareActive = false;
+let lastScreenShareRevision = 0;
 let screenShareRefreshScheduled = false;
 let globalFreeClass = false;
 const pendingRemoteAudioTracks = [];
@@ -1751,6 +1752,7 @@ function updateRemoteVideoPresentation() {
 function resetRemoteMedia() {
   remoteMediaStream = undefined;
   screenShareActive = false;
+  lastScreenShareRevision = 0;
   pendingRemoteAudioTracks.length = 0;
   elements.remoteVideo.srcObject = null;
   elements.remoteVideo.muted = true;
@@ -1803,7 +1805,11 @@ function attachTeacherTrack(event) {
     }
     updateRemoteAudioControl();
   }, { once: true });
-  track.addEventListener("unmute", updateRemoteAudioControl);
+  track.addEventListener("unmute", () => {
+    updateRemoteAudioControl();
+    updateRemoteVideoPresentation();
+    if (track.kind === "video") void elements.remoteVideo.play().catch(() => {});
+  });
 
   updateRemoteAudioControl();
   void startTeacherAudio();
@@ -2380,11 +2386,15 @@ function scheduleScreenSharePageRefresh() {
 
 socket.on("screen_share_state", (data = {}) => {
   if (!globalFreeClass && data.level !== level) return;
+  const revision = Number(data.revision) || 0;
+  if (revision > 0 && revision <= lastScreenShareRevision) return;
+  if (revision > 0) lastScreenShareRevision = revision;
   const wasScreenShareActive = screenShareActive;
   screenShareActive = Boolean(data.active);
   updateRemoteVideoPresentation();
   if (screenShareActive) {
     setViewerStatus("جارٍ عرض شاشة الأستاذ…", "live");
+    void elements.remoteVideo.play().catch(() => {});
     if (!wasScreenShareActive) scheduleScreenSharePageRefresh();
   } else {
     clearScreenShareRefreshGuard();
