@@ -111,11 +111,15 @@
     try {
       const payload = await api("/api/messenger/link/start", { method: "POST" });
       const fallbackCode = String(payload?.fallbackCode || "").trim();
-      if (/^\d{10}$/.test(fallbackCode)) {
-        sessionStorage.setItem("parentMessengerFallbackActive", "true");
-        sessionStorage.setItem("parentMessengerFallbackCode", fallbackCode);
-        if (fallbackAction) fallbackAction.dataset.copied = "false";
-        renderFallbackCode(fallbackCode);
+      if (!openMessenger) {
+        if (/^\d{10}$/.test(fallbackCode)) {
+          sessionStorage.setItem("parentMessengerFallbackActive", "true");
+          sessionStorage.setItem("parentMessengerFallbackCode", fallbackCode);
+          if (fallbackAction) fallbackAction.dataset.copied = "false";
+          renderFallbackCode(fallbackCode);
+        }
+      } else {
+        clearFallbackCode();
       }
       const url = String(payload?.url || payload?.link || "").trim();
       if (!url) throw new Error("لم يتم استلام رابط Messenger.");
