@@ -38,6 +38,27 @@ const messengerRoutes = require("./routes/messengerRoutes");
  * socket.data.role. The latter starts as null and is only populated after a
  * successful room join, so it cannot be used as the first authorization check.
  */
+async function requireParentMessengerSocketSession(socket, eventName, acknowledgement) {
+  const token = typeof socket.handshake?.auth?.token === "string"
+    ? socket.handshake.auth.token.trim()
+    : "";
+  if (!token) return true;
+  try {
+    const user = await verifySessionToken(token);
+    if (user?.role !== "parent") return true;
+    const link = await prisma.messengerLink.findUnique({ where: { parentPhone: user.phone }, select: { status: true } });
+    if (link?.status === "LINKED") {
+      socket.data.authUser = user;
+      return true;
+    }
+    emitClassroomError(socket, eventName, "يجب ربط حساب Minasaty بـ Facebook Messenger قبل دخول المنصة أو الحصة.", acknowledgement);
+    return false;
+  } catch (error) {
+    emitClassroomError(socket, eventName, "تعذر التحقق من ربط Messenger قبل دخول الحصة.", acknowledgement);
+    return false;
+  }
+}
+
 async function requireTeacherSocketSession(socket, eventName, acknowledgement) {
   const token = typeof socket.handshake?.auth?.token === "string"
     ? socket.handshake.auth.token.trim()
@@ -1153,6 +1174,7 @@ io.on("connection", (socket) => {
   socket.on("join_level_lobby", async (data = {}, acknowledgement) => {
     try {
       const level = normalizeText(data.level);
+      if (!(await requireParentMessengerSocketSession(socket, "join_level_lobby", acknowledgement))) return;
 
       if (!isValidLevel(level) || level === GLOBAL_FREE_LEVEL) {
         return emitClassroomError(
@@ -1419,6 +1441,7 @@ io.on("connection", (socket) => {
     try {
       const level = normalizeText(data.level);
       const studentId = normalizeText(data.studentId);
+      if (!(await requireParentMessengerSocketSession(socket, "student_join_room", acknowledgement))) return;
 
       if (!isValidLevel(level) || !isValidStudentId(studentId)) {
         return emitClassroomError(

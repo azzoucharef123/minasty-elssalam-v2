@@ -9,6 +9,10 @@ const routes = fs.readFileSync(path.join(root, "routes/academicRoutes.js"), "utf
 const studentController = fs.readFileSync(path.join(root, "controllers/studentController.js"), "utf8");
 const parentDashboard = fs.readFileSync(path.join(root, "public/js/parent-dashboard.js"), "utf8");
 const { buildStudentAudienceWhere } = require(path.join(root, "utils/studentAudienceFilters.js"));
+const authMiddleware = fs.readFileSync(path.join(root, "middleware/authMiddleware.js"), "utf8");
+const parentGate = fs.readFileSync(path.join(root, "public/js/parent-messenger-required.js"), "utf8");
+const pageGate = fs.readFileSync(path.join(root, "public/js/parent-messenger-page-gate.js"), "utf8");
+const studentLive = fs.readFileSync(path.join(root, "public/js/student-live.js"), "utf8");
 
 test("selected academic models exist", () => {
   for (const model of ["Session", "AuditLog", "Notification", "NotificationCampaign", "PaymentEvent", "Grade", "Assignment", "Question", "Assessment", "LessonProgress", "ClassParticipation"]) {
@@ -324,6 +328,16 @@ test("Messenger audience filters distinguish payment stages and enrolled subject
   const promisedPhysics = buildStudentAudienceWhere({ level: "السنة الثانية", paymentFilter: "PROMISED", subjectFilter: "PHYSICS" });
   assert.equal(promisedPhysics.paymentStage, "PROMISED");
   assert.equal(promisedPhysics.physicsEnrollment, true);
+});
+
+test("parent Messenger linking is required before dashboard and live-class access", () => {
+  assert.match(authMiddleware, /PARENT_MESSENGER_LINK_REQUIRED/);
+  assert.match(authMiddleware, /isParentMessengerGateExempt/);
+  assert.match(parentDashboard, /auth: \{ token: getParentToken\(\) \|\| "" \}/);
+  assert.match(parentGate, /parent-messenger-blocked/);
+  assert.match(pageGate, /parent-dashboard\.html\?messenger=required/);
+  assert.match(studentLive, /parentSessionToken/);
+  assert.match(studentLive, /auth: parentSessionToken \? \{ token: parentSessionToken \} : \{\}/);
 });
 
 test("Messenger linking and webhooks are dormant without credentials and follow secure patterns", () => {

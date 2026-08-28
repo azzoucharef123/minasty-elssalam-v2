@@ -24,3 +24,28 @@
 .parent-messenger-required-actions button:disabled { cursor: wait; opacity: .6; }
 .parent-messenger-required-actions .parent-messenger-refresh-button { color: #92400e; background: #fff; border: 1px solid #f59e0b; }
 @media (max-width: 680px) { .parent-messenger-required-banner { align-items: stretch; flex-direction: column; } .parent-messenger-required-actions { width: 100%; } .parent-messenger-required-actions button { width: 100%; } }
+
+
+/* Hard gate: parent content remains unavailable until Messenger is linked. */
+html.parent-messenger-blocked .parent-dashboard-page .parent-sidebar,
+html.parent-messenger-blocked .parent-dashboard-page #dashboard-content,
+html.parent-messenger-blocked .parent-dashboard-page #live-class-banner,
+html.parent-messenger-blocked .parent-dashboard-page #student-switcher,
+html.parent-messenger-blocked .parent-dashboard-page #parent-schedule-card,
+html.parent-messenger-blocked .parent-dashboard-page .parent-header-actions {
+  display: none !important;
+}
+
+html.parent-messenger-blocked .parent-messenger-required-banner {
+  position: relative;
+  z-index: 10;
+  min-height: min(70vh, 34rem);
+  align-content: center;
+  border: 2px solid #f59e0b;
+  box-shadow: 0 18px 50px rgba(245, 158, 11, 0.16);
+}
+
+html.parent-messenger-blocked .parent-messenger-required-banner.is-blocking .parent-messenger-required-kicker::after {
+  content: " — مطلوب قبل استعمال المنصة";
+  color: #b45309;
+}

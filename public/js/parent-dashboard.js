@@ -2471,7 +2471,10 @@ function initializeLobbySocket() {
     return;
   }
 
-  socket = io();
+  socket = io({
+    auth: { token: getParentToken() || "" },
+    transports: ["websocket", "polling"],
+  });
 
   socket.on("connect", () => {
     if (currentStudent?.level) {

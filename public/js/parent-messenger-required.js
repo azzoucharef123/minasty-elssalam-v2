@@ -24,6 +24,11 @@
     if (refreshButton) refreshButton.disabled = loading;
   }
 
+  function setBlocked(blocked) {
+    document.documentElement.classList.toggle("parent-messenger-blocked", blocked);
+    banner.classList.toggle("is-blocking", blocked);
+  }
+
   async function refresh() {
     if (!token) return;
     setLoading(true);
@@ -31,17 +36,20 @@
       const payload = await api("/api/messenger/status");
       const data = payload || {};
       if (data.linked) {
+        setBlocked(false);
         banner.hidden = true;
         return;
       }
+      setBlocked(true);
       banner.hidden = false;
       if (note) note.textContent = data.configured
-        ? "اضغط بدء الربط، ثم أرسل رسالة إلى الصفحة لإكمال العملية."
-        : "الربط غير متاح مؤقتًا لأن إعدادات Meta لم تكتمل بعد.";
+        ? "لا يمكن فتح لوحة الولي أو الحصص قبل اكتمال الربط. اضغط بدء الربط، ثم أرسل رسالة إلى الصفحة."
+        : "لا يمكن فتح لوحة الولي أو الحصص قبل اكتمال الربط. إعدادات Meta غير مكتملة حاليًا.";
       if (startButton) startButton.disabled = !data.configured;
     } catch (error) {
+      setBlocked(true);
       banner.hidden = false;
-      if (note) note.textContent = "تعذر التحقق الآن. يمكنك المحاولة مرة أخرى بعد قليل.";
+      if (note) note.textContent = "لا يمكن فتح لوحة الولي أو الحصص حتى يتم التحقق من ربط Messenger. حاول مرة أخرى بعد قليل.";
       if (startButton) startButton.disabled = true;
     } finally {
       if (refreshButton) refreshButton.disabled = false;

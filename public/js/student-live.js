@@ -25,7 +25,13 @@ function createUnavailableStudentSocket() {
 
 // Keep the viewer controls initialized even when a static/local preview does
 // not expose Socket.io. Production still uses the real Socket.io connection.
-const socket = typeof window.io === "function" ? window.io() : createUnavailableStudentSocket();
+const parentSessionToken = sessionStorage.getItem("parentToken") || "";
+const socket = typeof window.io === "function"
+  ? window.io({
+      auth: parentSessionToken ? { token: parentSessionToken } : {},
+      transports: ["websocket", "polling"],
+    })
+  : createUnavailableStudentSocket();
 
 const rtcConfig = {
   iceServers: [

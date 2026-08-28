@@ -17,12 +17,43 @@ async function verifyToken(req, res, next) {
 
   try {
     req.user = await verifySessionToken(token);
-    return requireParentPinChangeComplete(req, res, next);
+    return requireParentPinChangeComplete(req, res, () => requireParentMessengerLink(req, res, next));
   } catch (error) {
     console.warn("JWT verification rejected:", error.name || error.message);
     return res.status(403).json({
       error: "رمز الدخول غير صالح أو منتهي الصلاحية.",
     });
+  }
+}
+
+function isParentMessengerGateExempt(req) {
+  const path = req.originalUrl || req.url || "";
+  return (
+    (req.method === "GET" && /\/api\/messenger\/status(?:\?|$)/.test(path)) ||
+    (req.method === "POST" && /\/api\/messenger\/link\/start(?:\?|$)/.test(path)) ||
+    (req.method === "PUT" && /\/api\/auth\/parent\/pin(?:\?|$)/.test(path)) ||
+    (req.method === "POST" && /\/api\/auth\/logout(?:\?|$)/.test(path)) ||
+    (req.method === "GET" && /\/api\/auth\/session-status(?:\?|$)/.test(path)) ||
+    (req.method === "GET" && /\/api\/auth\/sessions(?:\?|$)/.test(path))
+  );
+}
+
+async function requireParentMessengerLink(req, res, next) {
+  if (req.user?.role !== "parent" || isParentMessengerGateExempt(req)) return next();
+  try {
+    const link = await prisma.messengerLink.findUnique({
+      where: { parentPhone: req.user.phone },
+      select: { status: true },
+    });
+    if (link?.status === "LINKED") return next();
+    return res.status(428).json({
+      error: "يجب ربط حساب Minasaty بـ Facebook Messenger قبل استعمال المنصة.",
+      code: "PARENT_MESSENGER_LINK_REQUIRED",
+      redirect: "/parent-dashboard.html?messenger=required",
+    });
+  } catch (error) {
+    console.error("Parent Messenger gate failed:", error.message);
+    return res.status(503).json({ error: "تعذر التحقق من ربط Messenger مؤقتًا." });
   }
 }
 
@@ -86,5 +117,6 @@ module.exports = {
   verifyToken,
   isTeacher,
   requireParentPinChangeComplete,
+  requireParentMessengerLink,
   isParentAccessingOwnRecord,
 };
