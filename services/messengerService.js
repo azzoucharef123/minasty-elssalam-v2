@@ -278,10 +278,13 @@ async function createMessengerLink(parentPhone) {
     },
   });
 
+  const url = buildMessengerLink(rawState);
   return {
-    link: buildMessengerLink(rawState),
+    url,
+    // Keep the legacy key for already-open parent pages during deployment.
+    link: url,
     expiresAt,
-    pageName: config.pageName,
+    pageName,
     instructions: `افتح الرابط ثم اضغط «بدء الاستخدام» أو أرسل رسالة إلى صفحة «${config.pageName}». لا ترسل PIN حساب Minasaty إلى Messenger.`,
   };
 }

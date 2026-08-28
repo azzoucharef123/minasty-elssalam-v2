@@ -346,6 +346,7 @@ test("Messenger linking and webhooks are dormant without credentials and follow 
   const routes = fs.readFileSync(path.join(root, "routes/messengerRoutes.js"), "utf8");
   const accountHtml = fs.readFileSync(path.join(root, "public/account-center.html"), "utf8");
   const accountJs = fs.readFileSync(path.join(root, "public/js/messenger-link.js"), "utf8");
+  const parentMessengerRequired = fs.readFileSync(path.join(root, "public/js/parent-messenger-required.js"), "utf8");
   const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
   const envExample = fs.readFileSync(path.join(root, ".env.example"), "utf8");
   assert.match(service, /META_PAGE_ID/);
@@ -354,6 +355,8 @@ test("Messenger linking and webhooks are dormant without credentials and follow 
   assert.match(service, /verifyWebhookSignature/);
   assert.match(service, /verifyWebhookToken/);
   assert.match(service, /handleMessengerWebhook/);
+  assert.match(service, /const url = buildMessengerLink\(rawState\)/);
+  assert.match(service, /url,\s*\/\/ Keep the legacy key/);
   assert.match(schema, /model MessengerLink/);
   assert.match(schema, /model MessengerWebhookEvent/);
   assert.match(schema, /psid\s+String\?/);
@@ -366,6 +369,8 @@ test("Messenger linking and webhooks are dormant without credentials and follow 
   assert.match(accountHtml, /messenger-link\.js/);
   assert.match(accountJs, /\/api\/messenger\/status/);
   assert.match(accountJs, /\/api\/messenger\/link\/start/);
+  assert.match(parentMessengerRequired, /payload\?\.url \|\| payload\?\.link/);
+  assert.match(parentMessengerRequired, /parsedUrl\.hostname !== "m\.me"/);
   assert.match(envExample, /META_PAGE_ID=/);
   assert.match(envExample, /META_APP_SECRET=/);
 });

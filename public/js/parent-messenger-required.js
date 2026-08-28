@@ -61,8 +61,13 @@
     if (note) note.textContent = "جارٍ إنشاء رابط آمن قصير الصلاحية…";
     try {
       const payload = await api("/api/messenger/link/start", { method: "POST" });
-      const url = String(payload?.url || "").trim();
+      const url = String(payload?.url || payload?.link || "").trim();
       if (!url) throw new Error("لم يتم استلام رابط Messenger.");
+      let parsedUrl;
+      try { parsedUrl = new URL(url, window.location.origin); } catch { throw new Error("رابط Messenger المستلم غير صالح."); }
+      if (parsedUrl.protocol !== "https:" || parsedUrl.hostname !== "m.me" || !parsedUrl.searchParams.get("ref")) {
+        throw new Error("رابط Messenger المستلم غير صالح أو غير آمن.");
+      }
       // m.me chooses the Messenger app when the device/browser supports it;
       // otherwise the platform may open a browser page.
       window.location.href = url;
