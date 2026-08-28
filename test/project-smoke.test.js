@@ -88,7 +88,12 @@ test("teacher live streaming targets adaptive quality and 1080p60 recording", ()
   assert.match(studentLive, /revision <= lastScreenShareRevision/);
   const studentLiveHtml = fs.readFileSync(path.join(root, "public/student-live.html"), "utf8");
   assert.match(studentLiveHtml, /parent-messenger-page-gate\.js\?v=disabled-1/);
-  assert.match(studentLiveHtml, /student-live\.js\?v=screen-share-sync-1/);
+  assert.match(studentLiveHtml, /student-live\.js\?v=screen-share-notice-1/);
+  assert.match(studentLiveHtml, /id="screen-share-notice"/);
+  assert.match(studentLiveHtml, /بدأ الأستاذ مشاركة الشاشة/);
+  assert.match(studentLiveHtml, /مشاهدة الحصة الآن/);
+  assert.match(studentLive, /showScreenShareNotice\(revision\)/);
+  assert.match(studentLive, /screenShareWatchButton\?\.addEventListener/);
 });
 
 test("teacher question image modal supports bounded wheel zoom", () => {

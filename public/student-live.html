@@ -1426,6 +1426,116 @@
         outline: none;
       }
 
+      .screen-share-notice {
+        position: fixed;
+        z-index: 80;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 1rem;
+        background: rgba(2, 6, 23, 0.68);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+
+      .screen-share-notice[hidden] {
+        display: none;
+      }
+
+      .screen-share-notice-card {
+        width: min(100%, 26rem);
+        padding: clamp(1.35rem, 5vw, 2rem);
+        color: #e2e8f0;
+        background: linear-gradient(145deg, #172554, #0f172a);
+        border: 1px solid rgba(147, 197, 253, 0.5);
+        border-radius: 1.15rem;
+        box-shadow: 0 22px 70px rgba(2, 6, 23, 0.56), 0 0 0 4px rgba(59, 130, 246, 0.12);
+        text-align: center;
+        animation: screen-share-notice-enter 180ms cubic-bezier(0.23, 1, 0.32, 1) both;
+      }
+
+      .screen-share-notice-icon {
+        display: grid;
+        width: 3.2rem;
+        height: 3.2rem;
+        margin: 0 auto 0.8rem;
+        place-items: center;
+        color: #dbeafe;
+        background: linear-gradient(135deg, #2563eb, #4f46e5);
+        border-radius: 0.95rem;
+        font-size: 1.45rem;
+        box-shadow: 0 10px 26px rgba(37, 99, 235, 0.34);
+      }
+
+      .screen-share-notice-eyebrow {
+        color: #93c5fd;
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+      }
+
+      .screen-share-notice-card h2 {
+        margin: 0.45rem 0 0;
+        color: #f8fafc;
+        font-size: clamp(1.1rem, 4vw, 1.45rem);
+        font-weight: 900;
+      }
+
+      .screen-share-notice-card p {
+        margin: 0.65rem 0 1.25rem;
+        color: #cbd5e1;
+        font-size: 0.88rem;
+        line-height: 1.7;
+      }
+
+      .screen-share-watch-btn,
+      .screen-share-notice-dismiss {
+        width: 100%;
+        min-height: 2.8rem;
+        border-radius: 0.75rem;
+        font: inherit;
+        font-weight: 900;
+        cursor: pointer;
+        transition: transform 160ms ease-out, filter 160ms ease-out, background 160ms ease-out;
+      }
+
+      .screen-share-watch-btn {
+        color: #ffffff;
+        background: linear-gradient(135deg, #2563eb, #4f46e5);
+        border: 1px solid #93c5fd;
+        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+      }
+
+      .screen-share-notice-dismiss {
+        margin-top: 0.55rem;
+        color: #bfdbfe;
+        background: transparent;
+        border: 1px solid rgba(147, 197, 253, 0.3);
+        font-size: 0.78rem;
+      }
+
+      .screen-share-watch-btn:hover,
+      .screen-share-notice-dismiss:hover,
+      .screen-share-watch-btn:focus-visible,
+      .screen-share-notice-dismiss:focus-visible {
+        filter: brightness(1.1);
+        outline: none;
+      }
+
+      .screen-share-watch-btn:active,
+      .screen-share-notice-dismiss:active {
+        transform: scale(0.97);
+      }
+
+      @keyframes screen-share-notice-enter {
+        from { opacity: 0; transform: translateY(0.45rem) scale(0.97); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .screen-share-notice-card { animation: none; }
+      }
+
       .student-mobile-control-toast {
         position: fixed;
         z-index: 45;
@@ -4770,6 +4880,16 @@
       </style>
   </head>
   <body class="student-live-page">
+    <section id="screen-share-notice" class="screen-share-notice" role="dialog" aria-modal="true" aria-labelledby="screen-share-notice-title" aria-describedby="screen-share-notice-description" hidden>
+      <div class="screen-share-notice-card">
+        <div class="screen-share-notice-icon" aria-hidden="true">▣</div>
+        <span class="screen-share-notice-eyebrow">تحديث مباشر</span>
+        <h2 id="screen-share-notice-title">بدأ الأستاذ مشاركة الشاشة</h2>
+        <p id="screen-share-notice-description">اضغط هنا لمشاهدة الحصة الآن.</p>
+        <button id="screen-share-watch-btn" class="screen-share-watch-btn" type="button">مشاهدة الحصة الآن</button>
+        <button id="screen-share-notice-dismiss" class="screen-share-notice-dismiss" type="button">متابعة العرض</button>
+      </div>
+    </section>
     <div class="viewer-shell">
       <section id="student-prejoin-overlay" class="student-prejoin-overlay" role="dialog" aria-modal="true" aria-labelledby="student-prejoin-title">
         <div class="student-prejoin-card">
@@ -4965,7 +5085,7 @@
     <script src="./js/parent-messenger-page-gate.js?v=disabled-1"></script>
     <script src="./js/message-notifications.js"></script>
     <script src="./js/student-desktop.js?v=desktop-css-only-1"></script>
-    <script src="./js/student-live.js?v=screen-share-sync-1"></script>
+    <script src="./js/student-live.js?v=screen-share-notice-1"></script>
   <script src="./js/in-app-browser-gate.js?v=telegram-gate-2" defer></script>
   </body>
 </html>
