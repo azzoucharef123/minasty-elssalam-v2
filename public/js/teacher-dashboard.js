@@ -2223,19 +2223,33 @@ async function fetchStudents(level = currentLevel) {
   showDashboardError();
 
   try {
-    const response = await teacherFetch(
-      `/api/students/level/${encodeURIComponent(level)}`,
-      { headers: { Accept: "application/json" } }
-    );
-    const data = await response.json().catch(() => ({}));
+    const rosterPath = `/api/students/level/${encodeURIComponent(level)}`;
+    const requestRosterPage = async (page = 1) => {
+      const response = await teacherFetch(
+        `${rosterPath}?page=${page}&limit=100`,
+        { headers: { Accept: "application/json" } }
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || "تعذر تحميل قائمة التلاميذ.");
+      }
+      return data;
+    };
 
-    if (!response.ok) {
-      throw new Error(data.error || "تعذر تحميل قائمة التلاميذ.");
-    }
-
-    // Phase 15 returns { status, data, meta }; retain the legacy array fallback
-    // so this dashboard remains compatible during a staged deployment.
-    currentStudents = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+    const firstPage = await requestRosterPage(1);
+    const firstStudents = Array.isArray(firstPage?.data)
+      ? firstPage.data
+      : Array.isArray(firstPage)
+        ? firstPage
+        : [];
+    const totalPages = Math.max(1, Number(firstPage?.meta?.totalPages) || 1);
+    const remainingPages = totalPages > 1
+      ? await Promise.all(Array.from({ length: totalPages - 1 }, (_, index) => requestRosterPage(index + 2)))
+      : [];
+    currentStudents = [
+      ...firstStudents,
+      ...remainingPages.flatMap((pageData) => Array.isArray(pageData?.data) ? pageData.data : Array.isArray(pageData) ? pageData : []),
+    ];
     renderTeacherNotificationStudentPicker();
     updateTeacherNotificationAudience();
     electronicPayments = [];

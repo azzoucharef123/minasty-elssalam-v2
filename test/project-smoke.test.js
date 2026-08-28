@@ -62,6 +62,14 @@ test("teacher classroom control requires an authenticated teacher session", () =
   assert.match(teacherLive, /auth:\s*\{\s*token:\s*teacherSocketToken\s*\}/);
 });
 
+test("teacher roster loads every paginated student page", () => {
+  const teacherDashboard = fs.readFileSync(path.join(root, "public/js/teacher-dashboard.js"), "utf8");
+  assert.match(teacherDashboard, /\?page=\$\{page\}&limit=100/);
+  assert.match(teacherDashboard, /firstPage\?\.meta\?\.totalPages/);
+  assert.match(teacherDashboard, /Array\.from\(\{ length: totalPages - 1 \}/);
+  assert.match(teacherDashboard, /remainingPages\.flatMap/);
+});
+
 test("teacher live streaming targets adaptive quality and 1080p60 recording", () => {
   const teacherLive = fs.readFileSync(path.join(root, "public/js/teacher-live-v2.js"), "utf8");
   assert.match(teacherLive, /frameRate:\s*\{\s*ideal:\s*60,\s*max:\s*60\s*\}/);
