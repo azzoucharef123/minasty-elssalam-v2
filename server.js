@@ -32,6 +32,7 @@ const siteAnalyticsRoutes = require("./routes/siteAnalyticsRoutes");
 const referralRoutes = require("./routes/referralRoutes");
 const telegramRoutes = require("./routes/telegramRoutes");
 const messengerRoutes = require("./routes/messengerRoutes");
+const ENFORCE_PARENT_MESSENGER_LINK = /^(1|true|yes)$/i.test(String(process.env.ENFORCE_PARENT_MESSENGER_LINK || ""));
 
 /**
  * Socket.io control events must authenticate the teacher independently from
@@ -39,6 +40,7 @@ const messengerRoutes = require("./routes/messengerRoutes");
  * successful room join, so it cannot be used as the first authorization check.
  */
 async function requireParentMessengerSocketSession(socket, eventName, acknowledgement) {
+  if (!ENFORCE_PARENT_MESSENGER_LINK) return true;
   const token = typeof socket.handshake?.auth?.token === "string"
     ? socket.handshake.auth.token.trim()
     : "";

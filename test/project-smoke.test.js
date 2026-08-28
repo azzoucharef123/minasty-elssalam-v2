@@ -10,6 +10,7 @@ const studentController = fs.readFileSync(path.join(root, "controllers/studentCo
 const parentDashboard = fs.readFileSync(path.join(root, "public/js/parent-dashboard.js"), "utf8");
 const { buildStudentAudienceWhere } = require(path.join(root, "utils/studentAudienceFilters.js"));
 const authMiddleware = fs.readFileSync(path.join(root, "middleware/authMiddleware.js"), "utf8");
+const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
 const parentGate = fs.readFileSync(path.join(root, "public/js/parent-messenger-required.js"), "utf8");
 const pageGate = fs.readFileSync(path.join(root, "public/js/parent-messenger-page-gate.js"), "utf8");
 const studentLive = fs.readFileSync(path.join(root, "public/js/student-live.js"), "utf8");
@@ -336,9 +337,13 @@ test("parent Messenger enforcement is retained but disabled by default", () => {
   assert.match(authMiddleware, /!ENFORCE_PARENT_MESSENGER_LINK/);
   assert.match(authMiddleware, /PARENT_MESSENGER_LINK_REQUIRED/);
   assert.match(authMiddleware, /isParentMessengerGateExempt/);
+  assert.match(server, /ENFORCE_PARENT_MESSENGER_LINK/);
+  assert.match(server, /if \(!ENFORCE_PARENT_MESSENGER_LINK\) return true/);
   assert.match(parentDashboard, /auth: \{ token: getParentToken\(\) \|\| "" \}/);
   assert.match(parentGate, /parent-messenger-blocked/);
   assert.match(pageGate, /PARENT_MESSENGER_ENFORCEMENT_ENABLED = false/);
+  assert.match(fs.readFileSync(path.join(root, "public/student-live.html"), "utf8"), /parent-messenger-page-gate\.js\?v=disabled-1/);
+  assert.match(fs.readFileSync(path.join(root, "public/student-live-times-level.html"), "utf8"), /parent-messenger-page-gate\.js\?v=disabled-1/);
   assert.match(studentLive, /parentSessionToken/);
   assert.match(studentLive, /auth: parentSessionToken \? \{ token: parentSessionToken \} : \{\}/);
   assert.match(parentDashboardHtml, /id="parent-messenger-required-banner"/);
