@@ -383,9 +383,12 @@ test("Messenger linking and webhooks are dormant without credentials and follow 
   assert.match(parentMessengerRequired, /parsed\.hostname === "m\.me"/);
   assert.match(parentMessengerRequired, /parentMessengerFallbackCode/);
   assert.match(parentMessengerRequired, /fallbackAction/);
+  assert.match(parentMessengerRequired, /liteChoice/);
+  assert.match(parentMessengerRequired, /start\(\{ openMessenger: false \}\)/);
   assert.match(parentMessengerRequired, /setInterval\(\(\) =>/);
   const parentDashboardHtml = fs.readFileSync(path.join(root, "public/parent-dashboard.html"), "utf8");
-  assert.match(parentDashboardHtml, /messenger-banner-3/);
+  assert.match(parentDashboardHtml, /messenger-banner-4/);
+  assert.match(parentDashboardHtml, /parent-messenger-lite-choice/);
   assert.match(parentDashboardHtml, /parent-messenger-fallback/);
   assert.doesNotMatch(parentDashboardHtml, /parent-messenger-required-refresh/);
   assert.match(envExample, /META_PAGE_ID=/);

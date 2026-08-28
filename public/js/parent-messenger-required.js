@@ -6,10 +6,12 @@
 
   const token = sessionStorage.getItem("parentToken") || "";
   const startButton = document.getElementById("parent-messenger-required-start");
+  const liteChoice = document.getElementById("parent-messenger-lite-choice");
   const note = document.getElementById("parent-messenger-required-note");
   const fallback = document.getElementById("parent-messenger-fallback");
   const fallbackPhrase = document.getElementById("parent-messenger-fallback-phrase");
   const fallbackAction = document.getElementById("parent-messenger-fallback-action");
+  let messengerConfigured = false;
 
   const api = async (path, options = {}) => {
     const response = await fetch(path, {
@@ -22,8 +24,15 @@
   };
 
   function setLoading(loading) {
-    if (startButton) startButton.disabled = loading;
+    if (startButton) startButton.disabled = loading || !messengerConfigured;
+    if (liteChoice) liteChoice.disabled = loading || !messengerConfigured;
+  }
 
+  function resetStaleFallbackState() {
+    if (sessionStorage.getItem("parentMessengerFallbackActive") === "true") return;
+    sessionStorage.removeItem("parentMessengerFallbackCode");
+    sessionStorage.removeItem("parentMessengerLinkUrl");
+    if (fallback) fallback.hidden = true;
   }
 
   function renderFallbackCode(value) {
@@ -42,6 +51,7 @@
   }
 
   function clearFallbackCode() {
+    sessionStorage.removeItem("parentMessengerFallbackActive");
     sessionStorage.removeItem("parentMessengerFallbackCode");
     sessionStorage.removeItem("parentMessengerLinkUrl");
     if (fallback) fallback.hidden = true;
@@ -70,6 +80,7 @@
     try {
       const payload = await api("/api/messenger/status");
       const data = payload || {};
+      messengerConfigured = Boolean(data.configured);
       if (data.linked) {
         clearFallbackCode();
         setBlocked(false);
@@ -78,28 +89,30 @@
       }
       setBlocked(true);
       banner.hidden = false;
+      resetStaleFallbackState();
       renderFallbackCode(sessionStorage.getItem("parentMessengerFallbackCode"));
       if (note) note.textContent = data.configured
         ? "لا يمكن فتح لوحة الولي أو الحصص قبل اكتمال الربط. اضغط بدء الربط، ثم أرسل الرقم الظاهر إلى الصفحة."
         : "لا يمكن فتح لوحة الولي أو الحصص قبل اكتمال الربط. إعدادات Meta غير مكتملة حاليًا.";
-      if (startButton) startButton.disabled = !data.configured;
+      setLoading(false);
     } catch (error) {
       setBlocked(true);
       banner.hidden = false;
       if (note) note.textContent = "لا يمكن فتح لوحة الولي أو الحصص حتى يتم التحقق من ربط Messenger. حاول مرة أخرى بعد قليل.";
-      if (startButton) startButton.disabled = true;
+      messengerConfigured = false;
     } finally {
-      if (refreshButton) refreshButton.disabled = false;
+      setLoading(false);
     }
   }
 
-  async function start() {
+  async function start({ openMessenger = true } = {}) {
     setLoading(true);
     if (note) note.textContent = "جارٍ إنشاء رابط آمن قصير الصلاحية…";
     try {
       const payload = await api("/api/messenger/link/start", { method: "POST" });
       const fallbackCode = String(payload?.fallbackCode || "").trim();
       if (/^\d{10}$/.test(fallbackCode)) {
+        sessionStorage.setItem("parentMessengerFallbackActive", "true");
         sessionStorage.setItem("parentMessengerFallbackCode", fallbackCode);
         if (fallbackAction) fallbackAction.dataset.copied = "false";
         renderFallbackCode(fallbackCode);
@@ -108,6 +121,11 @@
       if (!url) throw new Error("لم يتم استلام رابط Messenger.");
       if (!isSafeMessengerUrl(url)) throw new Error("رابط Messenger المستلم غير صالح أو غير آمن.");
       sessionStorage.setItem("parentMessengerLinkUrl", url);
+      if (!openMessenger) {
+        if (note) note.textContent = "انسخ الرقم الظاهر، ثم اضغط الزر نفسه للانتقال إلى صفحة ربط الحساب.";
+        setLoading(false);
+        return;
+      }
       // m.me chooses the Messenger app when the device/browser supports it;
       // otherwise the platform may open a browser page.
       window.location.href = url;
@@ -117,7 +135,8 @@
     }
   }
 
-  startButton?.addEventListener("click", () => void start());
+  startButton?.addEventListener("click", () => void start({ openMessenger: true }));
+  liteChoice?.addEventListener("click", () => void start({ openMessenger: false }));
   fallbackAction?.addEventListener("click", async () => {
     const code = String(fallbackPhrase?.textContent || "").trim();
     if (!/^\d{10}$/.test(code)) return;
@@ -139,5 +158,6 @@
   window.setInterval(() => {
     if (document.visibilityState === "visible") void refresh();
   }, 5_000);
+  resetStaleFallbackState();
   void refresh();
 })();
