@@ -1488,8 +1488,7 @@
         line-height: 1.7;
       }
 
-      .screen-share-watch-btn,
-      .screen-share-notice-dismiss {
+      .screen-share-watch-btn {
         width: 100%;
         min-height: 2.8rem;
         border-radius: 0.75rem;
@@ -1506,24 +1505,13 @@
         box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
       }
 
-      .screen-share-notice-dismiss {
-        margin-top: 0.55rem;
-        color: #bfdbfe;
-        background: transparent;
-        border: 1px solid rgba(147, 197, 253, 0.3);
-        font-size: 0.78rem;
-      }
-
       .screen-share-watch-btn:hover,
-      .screen-share-notice-dismiss:hover,
-      .screen-share-watch-btn:focus-visible,
-      .screen-share-notice-dismiss:focus-visible {
+      .screen-share-watch-btn:focus-visible {
         filter: brightness(1.1);
         outline: none;
       }
 
-      .screen-share-watch-btn:active,
-      .screen-share-notice-dismiss:active {
+      .screen-share-watch-btn:active {
         transform: scale(0.97);
       }
 
@@ -4887,7 +4875,6 @@
         <h2 id="screen-share-notice-title">بدأ الأستاذ مشاركة الشاشة</h2>
         <p id="screen-share-notice-description">اضغط هنا لمشاهدة الحصة الآن.</p>
         <button id="screen-share-watch-btn" class="screen-share-watch-btn" type="button">مشاهدة الحصة الآن</button>
-        <button id="screen-share-notice-dismiss" class="screen-share-notice-dismiss" type="button">متابعة العرض</button>
       </div>
     </section>
     <div class="viewer-shell">
@@ -5085,7 +5072,7 @@
     <script src="./js/parent-messenger-page-gate.js?v=disabled-1"></script>
     <script src="./js/message-notifications.js"></script>
     <script src="./js/student-desktop.js?v=desktop-css-only-1"></script>
-    <script src="./js/student-live.js?v=screen-share-notice-1"></script>
+    <script src="./js/student-live.js?v=screen-share-notice-2"></script>
   <script src="./js/in-app-browser-gate.js?v=telegram-gate-2" defer></script>
   </body>
 </html>

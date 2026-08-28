@@ -107,7 +107,6 @@ const elements = {
   liveStartNoticeCopy: document.getElementById("live-start-notice-copy"),
   screenShareNotice: document.getElementById("screen-share-notice"),
   screenShareWatchButton: document.getElementById("screen-share-watch-btn"),
-  screenShareNoticeDismiss: document.getElementById("screen-share-notice-dismiss"),
   participationCount: document.getElementById("student-participation-count"),
   joinButton: document.getElementById("join-class-btn"),
   raiseHandButton: document.getElementById("raise-hand-btn"),
@@ -2402,13 +2401,7 @@ function hideScreenShareNotice() {
 
 function watchCurrentScreenShare() {
   hideScreenShareNotice();
-  if (!joinedClass && !isJoining) {
-    waitingForNextClass = false;
-    void joinClass({ prepareMicrophone: true });
-    return;
-  }
-  updateRemoteVideoPresentation();
-  void elements.remoteVideo?.play?.().catch(() => {});
+  refreshAudioVideo();
 }
 
 socket.on("screen_share_state", (data = {}) => {
@@ -2687,7 +2680,6 @@ relocateStudentChatComposer();
 if (!isDesktopStudentView()) openStudentChatComposer({ focus: false });
 elements.enableAudioButton?.addEventListener("click", enableTeacherAudio);
 elements.screenShareWatchButton?.addEventListener("click", watchCurrentScreenShare);
-elements.screenShareNoticeDismiss?.addEventListener("click", hideScreenShareNotice);
 elements.remoteVideo?.addEventListener("volumechange", updateRemoteAudioControl);
 elements.raiseHandButton.addEventListener("click", toggleRaisedHand);
 elements.lowerHandButton?.addEventListener("click", lowerHand);
