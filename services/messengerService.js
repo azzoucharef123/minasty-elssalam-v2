@@ -6,6 +6,7 @@ const prisma = require("../lib/prisma");
 const MESSENGER_REQUEST_TIMEOUT_MS = 8_000;
 const MESSENGER_LINK_TTL_MS = 10 * 60 * 1000;
 const MESSENGER_FALLBACK_CODE_TTL_MS = 10 * 60 * 1000;
+const MESSENGER_FALLBACK_CODE_DIGITS = 10;
 const MESSENGER_MAX_TEXT_LENGTH = 2_000;
 const MESSENGER_STANDARD_WINDOW_MS = 24 * 60 * 60 * 1_000;
 const LINK_REF_PREFIX = "minasaty_link:";
@@ -190,14 +191,20 @@ function sha256(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
-function createFallbackCode() {
-  return String(crypto.randomInt(10_000_000, 100_000_000));
+function createFallbackCode(parentPhone, pageId, secret) {
+  const digest = crypto.createHmac("sha256", String(secret || ""))
+    .update(`minasaty-messenger:${pageId}:${parentPhone}`)
+    .digest();
+  const numeric = BigInt(`0x${digest.subarray(0, 8).toString("hex")}`) % 10_000_000_000n;
+  return numeric.toString().padStart(MESSENGER_FALLBACK_CODE_DIGITS, "0");
 }
 
 function normalizeFallbackCode(value) {
-  const text = String(value || "");
-  const match = text.match(/(?:^|\s)(?:تم|تمام|done)\s*[:\-]?\s*(\d{8})(?:\s|$)/iu);
-  return match?.[1] || "";
+  const text = String(value || "")
+    .trim()
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)));
+  return new RegExp(`^\\d{${MESSENGER_FALLBACK_CODE_DIGITS}}$`).test(text) ? text : "";
 }
 
 function safeEqualText(left, right) {
@@ -268,7 +275,9 @@ async function createMessengerLink(parentPhone) {
 
   const rawState = crypto.randomBytes(24).toString("base64url");
   const stateHash = sha256(rawState);
-  const fallbackCode = createFallbackCode();
+  const fallbackSecret = String(process.env.JWT_SECRET || config.appSecret || "").trim();
+  if (!fallbackSecret) throw new Error("MESSENGER_FALLBACK_SECRET_NOT_CONFIGURED");
+  const fallbackCode = createFallbackCode(parentPhone, config.pageId, fallbackSecret);
   const fallbackCodeHash = sha256(fallbackCode);
   const expiresAt = new Date(Date.now() + MESSENGER_LINK_TTL_MS);
   const fallbackCodeExpiresAt = new Date(Date.now() + MESSENGER_FALLBACK_CODE_TTL_MS);
@@ -305,7 +314,7 @@ async function createMessengerLink(parentPhone) {
     fallbackCode,
     fallbackCodeExpiresAt,
     pageName: config.pageName,
-    instructions: `افتح الرابط ثم اضغط «بدء الاستخدام» أو أرسل رسالة إلى صفحة «${config.pageName}». إذا لم يكتمل الربط تلقائيًا، أرسل «تم ${fallbackCode}» إلى الصفحة. لا ترسل PIN حساب Minasaty إلى Messenger.`,
+    instructions: `افتح الرابط ثم اضغط «بدء الاستخدام» أو أرسل الرقم التالي فقط إلى صفحة «${config.pageName}»: ${fallbackCode}. لا ترسل PIN حساب Minasaty إلى Messenger.`,
   };
 }
 
@@ -524,7 +533,7 @@ async function handleMessengerWebhook(body = {}) {
         await sendMessengerMessage({
           psid: senderPsid,
           messagingType: "RESPONSE",
-          text: "تم ربط Messenger بحساب Minasaty بنجاح. ستصلك هنا التنبيهات المسموح بها من المنصة.",
+          text: "لقد تم تفعيل حسابك الآن.\n\nللعودة إلى منصة Minasaty اضغط هنا:\nhttps://dr.africacold.fr/",
         }).catch((error) => console.warn("Messenger link confirmation failed:", error.message));
       }
       processed += 1;

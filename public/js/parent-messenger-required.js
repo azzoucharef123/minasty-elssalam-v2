@@ -6,11 +6,10 @@
 
   const token = sessionStorage.getItem("parentToken") || "";
   const startButton = document.getElementById("parent-messenger-required-start");
-  const refreshButton = document.getElementById("parent-messenger-required-refresh");
   const note = document.getElementById("parent-messenger-required-note");
   const fallback = document.getElementById("parent-messenger-fallback");
   const fallbackPhrase = document.getElementById("parent-messenger-fallback-phrase");
-  const fallbackCopy = document.getElementById("parent-messenger-fallback-copy");
+  const fallbackAction = document.getElementById("parent-messenger-fallback-action");
 
   const api = async (path, options = {}) => {
     const response = await fetch(path, {
@@ -24,23 +23,40 @@
 
   function setLoading(loading) {
     if (startButton) startButton.disabled = loading;
-    if (refreshButton) refreshButton.disabled = loading;
+
   }
 
-  function renderFallbackPhrase(value) {
-    const phrase = String(value || "").trim();
-    if (!/^تم \d{8}$/.test(phrase)) {
+  function renderFallbackCode(value) {
+    const code = String(value || "").trim();
+    if (!/^\d{10}$/.test(code)) {
       if (fallback) fallback.hidden = true;
       return;
     }
-    if (fallbackPhrase) fallbackPhrase.textContent = phrase;
+    if (fallbackPhrase) fallbackPhrase.textContent = code;
+    if (fallbackAction) {
+      fallbackAction.textContent = fallbackAction.dataset.copied === "true"
+        ? "الانتقال إلى ربط الحساب"
+        : "نسخ الرقم";
+    }
     if (fallback) fallback.hidden = false;
   }
 
-  function clearFallbackPhrase() {
-    sessionStorage.removeItem("parentMessengerFallbackPhrase");
+  function clearFallbackCode() {
+    sessionStorage.removeItem("parentMessengerFallbackCode");
+    sessionStorage.removeItem("parentMessengerLinkUrl");
     if (fallback) fallback.hidden = true;
     if (fallbackPhrase) fallbackPhrase.textContent = "";
+  }
+
+  function isSafeMessengerUrl(value) {
+    try {
+      const parsed = new URL(String(value || ""), window.location.origin);
+      return parsed.protocol === "https:"
+        && parsed.hostname === "m.me"
+        && Boolean(parsed.searchParams.get("ref"));
+    } catch {
+      return false;
+    }
   }
 
   function setBlocked(blocked) {
@@ -55,16 +71,16 @@
       const payload = await api("/api/messenger/status");
       const data = payload || {};
       if (data.linked) {
-        clearFallbackPhrase();
+        clearFallbackCode();
         setBlocked(false);
         banner.hidden = true;
         return;
       }
       setBlocked(true);
       banner.hidden = false;
-      renderFallbackPhrase(sessionStorage.getItem("parentMessengerFallbackPhrase"));
+      renderFallbackCode(sessionStorage.getItem("parentMessengerFallbackCode"));
       if (note) note.textContent = data.configured
-        ? "لا يمكن فتح لوحة الولي أو الحصص قبل اكتمال الربط. اضغط بدء الربط، ثم أرسل رسالة إلى الصفحة."
+        ? "لا يمكن فتح لوحة الولي أو الحصص قبل اكتمال الربط. اضغط بدء الربط، ثم أرسل الرقم الظاهر إلى الصفحة."
         : "لا يمكن فتح لوحة الولي أو الحصص قبل اكتمال الربط. إعدادات Meta غير مكتملة حاليًا.";
       if (startButton) startButton.disabled = !data.configured;
     } catch (error) {
@@ -83,17 +99,15 @@
     try {
       const payload = await api("/api/messenger/link/start", { method: "POST" });
       const fallbackCode = String(payload?.fallbackCode || "").trim();
-      if (/^\d{8}$/.test(fallbackCode)) {
-        sessionStorage.setItem("parentMessengerFallbackPhrase", `تم ${fallbackCode}`);
-        renderFallbackPhrase(`تم ${fallbackCode}`);
+      if (/^\d{10}$/.test(fallbackCode)) {
+        sessionStorage.setItem("parentMessengerFallbackCode", fallbackCode);
+        if (fallbackAction) fallbackAction.dataset.copied = "false";
+        renderFallbackCode(fallbackCode);
       }
       const url = String(payload?.url || payload?.link || "").trim();
       if (!url) throw new Error("لم يتم استلام رابط Messenger.");
-      let parsedUrl;
-      try { parsedUrl = new URL(url, window.location.origin); } catch { throw new Error("رابط Messenger المستلم غير صالح."); }
-      if (parsedUrl.protocol !== "https:" || parsedUrl.hostname !== "m.me" || !parsedUrl.searchParams.get("ref")) {
-        throw new Error("رابط Messenger المستلم غير صالح أو غير آمن.");
-      }
+      if (!isSafeMessengerUrl(url)) throw new Error("رابط Messenger المستلم غير صالح أو غير آمن.");
+      sessionStorage.setItem("parentMessengerLinkUrl", url);
       // m.me chooses the Messenger app when the device/browser supports it;
       // otherwise the platform may open a browser page.
       window.location.href = url;
@@ -104,17 +118,26 @@
   }
 
   startButton?.addEventListener("click", () => void start());
-  refreshButton?.addEventListener("click", () => void refresh());
-  fallbackCopy?.addEventListener("click", async () => {
-    const phrase = String(fallbackPhrase?.textContent || "").trim();
-    if (!phrase) return;
+  fallbackAction?.addEventListener("click", async () => {
+    const code = String(fallbackPhrase?.textContent || "").trim();
+    if (!/^\d{10}$/.test(code)) return;
+    if (fallbackAction.dataset.copied === "true") {
+      const url = sessionStorage.getItem("parentMessengerLinkUrl") || "";
+      if (isSafeMessengerUrl(url)) window.location.href = url;
+      return;
+    }
     try {
-      await navigator.clipboard.writeText(phrase);
-      if (note) note.textContent = "تم نسخ عبارة الربط. أرسلها إلى صفحة Messenger من نفس الحساب.";
+      await navigator.clipboard.writeText(code);
+      fallbackAction.dataset.copied = "true";
+      fallbackAction.textContent = "الانتقال إلى ربط الحساب";
+      if (note) note.textContent = "تم نسخ الرقم. اضغط الزر نفسه للانتقال إلى صفحة ربط الحساب.";
     } catch {
-      if (note) note.textContent = `انسخ يدويًا العبارة: ${phrase}`;
+      if (note) note.textContent = `انسخ الرقم يدويًا: ${code}`;
     }
   });
   window.addEventListener("focus", () => void refresh(), { passive: true });
+  window.setInterval(() => {
+    if (document.visibilityState === "visible") void refresh();
+  }, 5_000);
   void refresh();
 })();

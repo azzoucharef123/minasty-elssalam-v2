@@ -368,6 +368,8 @@ test("Messenger linking and webhooks are dormant without credentials and follow 
   assert.match(schema, /psid\s+String\?/);
   assert.match(schema, /fallbackCodeHash\s+String\?/);
   assert.match(schema, /fallbackCodeExpiresAt\s+DateTime\?/);
+  assert.match(schema, /@@index\(\[pageId, psid\]\)/);
+  assert.doesNotMatch(schema, /@@unique\(\[pageId, psid\]\)/);
   assert.match(routes, /\/link\/start/);
   assert.match(routes, /\/webhook/);
   assert.match(server, /app\.use\("\/api\/messenger", messengerRoutes\)/);
@@ -378,11 +380,14 @@ test("Messenger linking and webhooks are dormant without credentials and follow 
   assert.match(accountJs, /\/api\/messenger\/status/);
   assert.match(accountJs, /\/api\/messenger\/link\/start/);
   assert.match(parentMessengerRequired, /payload\?\.url \|\| payload\?\.link/);
-  assert.match(parentMessengerRequired, /parsedUrl\.hostname !== "m\.me"/);
-  assert.match(parentMessengerRequired, /parentMessengerFallbackPhrase/);
-  assert.match(parentMessengerRequired, /fallbackCopy/);
-  assert.match(fs.readFileSync(path.join(root, "public/parent-dashboard.html"), "utf8"), /parent-messenger-fallback/);
-  assert.match(fs.readFileSync(path.join(root, "public/parent-dashboard.html"), "utf8"), /messenger-banner-2/);
+  assert.match(parentMessengerRequired, /parsed\.hostname === "m\.me"/);
+  assert.match(parentMessengerRequired, /parentMessengerFallbackCode/);
+  assert.match(parentMessengerRequired, /fallbackAction/);
+  assert.match(parentMessengerRequired, /setInterval\(\(\) =>/);
+  const parentDashboardHtml = fs.readFileSync(path.join(root, "public/parent-dashboard.html"), "utf8");
+  assert.match(parentDashboardHtml, /messenger-banner-3/);
+  assert.match(parentDashboardHtml, /parent-messenger-fallback/);
+  assert.doesNotMatch(parentDashboardHtml, /parent-messenger-required-refresh/);
   assert.match(envExample, /META_PAGE_ID=/);
   assert.match(envExample, /META_APP_SECRET=/);
 });
