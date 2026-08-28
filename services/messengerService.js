@@ -284,7 +284,7 @@ async function createMessengerLink(parentPhone) {
     // Keep the legacy key for already-open parent pages during deployment.
     link: url,
     expiresAt,
-    pageName,
+    pageName: config.pageName,
     instructions: `افتح الرابط ثم اضغط «بدء الاستخدام» أو أرسل رسالة إلى صفحة «${config.pageName}». لا ترسل PIN حساب Minasaty إلى Messenger.`,
   };
 }

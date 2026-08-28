@@ -357,6 +357,8 @@ test("Messenger linking and webhooks are dormant without credentials and follow 
   assert.match(service, /handleMessengerWebhook/);
   assert.match(service, /const url = buildMessengerLink\(rawState\)/);
   assert.match(service, /url,\s*\/\/ Keep the legacy key/);
+  assert.match(service, /pageName: config\.pageName/);
+  assert.doesNotMatch(service, /\n\s+pageName,\n\s+instructions:/);
   assert.match(schema, /model MessengerLink/);
   assert.match(schema, /model MessengerWebhookEvent/);
   assert.match(schema, /psid\s+String\?/);
