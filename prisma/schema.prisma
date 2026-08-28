@@ -278,6 +278,8 @@ model MessengerLink {
   status            String   @default("PENDING")
   linkStateHash     String?  @unique
   linkStateExpiresAt DateTime?
+  fallbackCodeHash  String?  @unique
+  fallbackCodeExpiresAt DateTime?
   linkedAt          DateTime?
   lastInteractionAt DateTime?
   createdAt         DateTime @default(now())

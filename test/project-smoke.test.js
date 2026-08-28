@@ -355,6 +355,10 @@ test("Messenger linking and webhooks are dormant without credentials and follow 
   assert.match(service, /verifyWebhookSignature/);
   assert.match(service, /verifyWebhookToken/);
   assert.match(service, /handleMessengerWebhook/);
+  assert.match(service, /normalizeFallbackCode/);
+  assert.match(service, /markLinkFromFallbackCode/);
+  assert.match(service, /fallbackCodeHash/);
+  assert.match(service, /event\.message\?\.text/);
   assert.match(service, /const url = buildMessengerLink\(rawState\)/);
   assert.match(service, /url,\s*\/\/ Keep the legacy key/);
   assert.match(service, /pageName: config\.pageName/);
@@ -362,6 +366,8 @@ test("Messenger linking and webhooks are dormant without credentials and follow 
   assert.match(schema, /model MessengerLink/);
   assert.match(schema, /model MessengerWebhookEvent/);
   assert.match(schema, /psid\s+String\?/);
+  assert.match(schema, /fallbackCodeHash\s+String\?/);
+  assert.match(schema, /fallbackCodeExpiresAt\s+DateTime\?/);
   assert.match(routes, /\/link\/start/);
   assert.match(routes, /\/webhook/);
   assert.match(server, /app\.use\("\/api\/messenger", messengerRoutes\)/);
@@ -373,6 +379,10 @@ test("Messenger linking and webhooks are dormant without credentials and follow 
   assert.match(accountJs, /\/api\/messenger\/link\/start/);
   assert.match(parentMessengerRequired, /payload\?\.url \|\| payload\?\.link/);
   assert.match(parentMessengerRequired, /parsedUrl\.hostname !== "m\.me"/);
+  assert.match(parentMessengerRequired, /parentMessengerFallbackPhrase/);
+  assert.match(parentMessengerRequired, /fallbackCopy/);
+  assert.match(fs.readFileSync(path.join(root, "public/parent-dashboard.html"), "utf8"), /parent-messenger-fallback/);
+  assert.match(fs.readFileSync(path.join(root, "public/parent-dashboard.html"), "utf8"), /messenger-banner-2/);
   assert.match(envExample, /META_PAGE_ID=/);
   assert.match(envExample, /META_APP_SECRET=/);
 });

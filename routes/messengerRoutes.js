@@ -113,6 +113,8 @@ router.delete("/link", verifyToken, requireParent, async (req, res) => {
       lastInteractionAt: null,
       linkStateHash: null,
       linkStateExpiresAt: null,
+      fallbackCodeHash: null,
+      fallbackCodeExpiresAt: null,
     },
   });
   return res.json({ linked: false, message: "تم فصل Messenger عن حساب Minasaty." });

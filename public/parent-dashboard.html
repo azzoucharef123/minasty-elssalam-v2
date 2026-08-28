@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="./css/parent-dashboard-refactor.css?v=receipt-decision-2" />
     <link rel="stylesheet" href="./css/private-messages.css" />
     <link rel="stylesheet" href="./css/payment-feedback.css" />
-    <link rel="stylesheet" href="./css/parent-messenger-required.css?v=messenger-banner-1" />
+    <link rel="stylesheet" href="./css/parent-messenger-required.css?v=messenger-banner-2" />
 
     <style>
       :root {
@@ -1471,6 +1471,11 @@
             <h2 id="parent-messenger-required-title">ربط حسابك بمنصتي بحساب Facebook Messenger صفحة الأستاذ رياضيات وفيزياء</h2>
             <p>اربط الحساب لتصلك التنبيهات المسموح بها من الأستاذ. لا نطلب منك رقم PIN أو كلمة مرور Minasaty، وقد يفتح الرابط تطبيق Messenger إن كان مثبتًا أو المتصفح بحسب جهازك.</p>
             <p class="parent-messenger-required-note" id="parent-messenger-required-note">بعد بدء الربط، أرسل رسالة إلى الصفحة لإكمال العملية.</p>
+            <div id="parent-messenger-fallback" class="parent-messenger-fallback" hidden>
+              <p>إذا لم يتعرف Facebook Lite على الرابط تلقائيًا، أرسل العبارة التالية إلى الصفحة من نفس الحساب:</p>
+              <code id="parent-messenger-fallback-phrase" dir="ltr"></code>
+              <button id="parent-messenger-fallback-copy" type="button">نسخ عبارة الربط</button>
+            </div>
           </div>
         </div>
         <div class="parent-messenger-required-actions">
@@ -1918,7 +1923,7 @@
     <script src="./js/session-storage.js?v=single-session-1"></script>
     <script src="./js/message-notifications.js"></script>
     <script src="./js/parent-referral.js?v=referral-ui-1"></script>
-    <script src="./js/parent-messenger-required.js?v=messenger-banner-1"></script>
+    <script src="./js/parent-messenger-required.js?v=messenger-banner-2"></script>
     <script src="./js/parent-dashboard.js"?v=payment-review-frame-1"></script>
     <script src="./js/parent-push-prompt.js?v=parent-push-prompt-1"></script>
     <script src="./js/browser-notifications.js?v=session-takeover-1"></script>

@@ -5,6 +5,7 @@ const prisma = require("../lib/prisma");
 
 const MESSENGER_REQUEST_TIMEOUT_MS = 8_000;
 const MESSENGER_LINK_TTL_MS = 10 * 60 * 1000;
+const MESSENGER_FALLBACK_CODE_TTL_MS = 10 * 60 * 1000;
 const MESSENGER_MAX_TEXT_LENGTH = 2_000;
 const MESSENGER_STANDARD_WINDOW_MS = 24 * 60 * 60 * 1_000;
 const LINK_REF_PREFIX = "minasaty_link:";
@@ -189,6 +190,16 @@ function sha256(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
+function createFallbackCode() {
+  return String(crypto.randomInt(10_000_000, 100_000_000));
+}
+
+function normalizeFallbackCode(value) {
+  const text = String(value || "");
+  const match = text.match(/(?:^|\s)(?:تم|تمام|done)\s*[:\-]?\s*(\d{8})(?:\s|$)/iu);
+  return match?.[1] || "";
+}
+
 function safeEqualText(left, right) {
   const leftBuffer = Buffer.from(String(left || ""));
   const rightBuffer = Buffer.from(String(right || ""));
@@ -257,7 +268,10 @@ async function createMessengerLink(parentPhone) {
 
   const rawState = crypto.randomBytes(24).toString("base64url");
   const stateHash = sha256(rawState);
+  const fallbackCode = createFallbackCode();
+  const fallbackCodeHash = sha256(fallbackCode);
   const expiresAt = new Date(Date.now() + MESSENGER_LINK_TTL_MS);
+  const fallbackCodeExpiresAt = new Date(Date.now() + MESSENGER_FALLBACK_CODE_TTL_MS);
 
   await prisma.messengerLink.upsert({
     where: { parentPhone: String(parentPhone) },
@@ -268,6 +282,8 @@ async function createMessengerLink(parentPhone) {
       linkedAt: null,
       linkStateHash: stateHash,
       linkStateExpiresAt: expiresAt,
+      fallbackCodeHash,
+      fallbackCodeExpiresAt,
     },
     create: {
       parentPhone: String(parentPhone),
@@ -275,6 +291,8 @@ async function createMessengerLink(parentPhone) {
       status: "PENDING",
       linkStateHash: stateHash,
       linkStateExpiresAt: expiresAt,
+      fallbackCodeHash,
+      fallbackCodeExpiresAt,
     },
   });
 
@@ -284,8 +302,10 @@ async function createMessengerLink(parentPhone) {
     // Keep the legacy key for already-open parent pages during deployment.
     link: url,
     expiresAt,
+    fallbackCode,
+    fallbackCodeExpiresAt,
     pageName: config.pageName,
-    instructions: `افتح الرابط ثم اضغط «بدء الاستخدام» أو أرسل رسالة إلى صفحة «${config.pageName}». لا ترسل PIN حساب Minasaty إلى Messenger.`,
+    instructions: `افتح الرابط ثم اضغط «بدء الاستخدام» أو أرسل رسالة إلى صفحة «${config.pageName}». إذا لم يكتمل الربط تلقائيًا، أرسل «تم ${fallbackCode}» إلى الصفحة. لا ترسل PIN حساب Minasaty إلى Messenger.`,
   };
 }
 
@@ -320,6 +340,44 @@ async function markLinkFromEvent({ pageId, psid, rawState }) {
   } catch (error) {
     if (error?.code === "P2002") {
       return { linked: false, reason: "MESSENGER_PSId_ALREADY_LINKED" };
+    }
+    throw error;
+  }
+}
+
+async function markLinkFromFallbackCode({ pageId, psid, code }) {
+  if (!pageId || !psid || !code) return { linked: false, reason: "FALLBACK_CODE_MISSING" };
+  const codeHash = sha256(code);
+  const now = new Date();
+  const pending = await prisma.messengerLink.findFirst({
+    where: {
+      pageId,
+      fallbackCodeHash: codeHash,
+      fallbackCodeExpiresAt: { gt: now },
+      status: "PENDING",
+    },
+    select: { id: true, parentPhone: true },
+  });
+  if (!pending) return { linked: false, reason: "FALLBACK_CODE_INVALID_OR_EXPIRED" };
+
+  try {
+    await prisma.messengerLink.update({
+      where: { id: pending.id },
+      data: {
+        psid,
+        status: "LINKED",
+        linkedAt: now,
+        lastInteractionAt: now,
+        linkStateHash: null,
+        linkStateExpiresAt: null,
+        fallbackCodeHash: null,
+        fallbackCodeExpiresAt: null,
+      },
+    });
+    return { linked: true, parentPhone: pending.parentPhone };
+  } catch (error) {
+    if (error?.code === "P2002") {
+      return { linked: false, reason: "MESSENGER_PSID_ALREADY_LINKED" };
     }
     throw error;
   }
@@ -453,9 +511,12 @@ async function handleMessengerWebhook(body = {}) {
       }
 
       const rawState = extractReferralState(event);
+      const fallbackCode = !rawState ? normalizeFallbackCode(event.message?.text) : "";
       const linkResult = rawState
         ? await markLinkFromEvent({ pageId: entryPageId, psid: senderPsid, rawState })
-        : { linked: false };
+        : fallbackCode
+          ? await markLinkFromFallbackCode({ pageId: entryPageId, psid: senderPsid, code: fallbackCode })
+          : { linked: false };
       if (!linkResult.linked) {
         await updateLinkedInteraction(entryPageId, senderPsid);
       }
