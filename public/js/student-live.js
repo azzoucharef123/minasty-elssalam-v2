@@ -2404,6 +2404,28 @@ function watchCurrentScreenShare() {
   refreshAudioVideo();
 }
 
+let lastLiveAccessRefreshAt = 0;
+
+function handleLiveAccessActivation(data = {}) {
+  if (String(data.studentId || "") !== String(studentId || "")) return;
+  if (!joinedClass || isJoining || isRecoveringStream) return;
+
+  const accessGranted =
+    data.liveAccessEnabled === true ||
+    data.paymentStatus === true ||
+    data.paymentStage === "PAID";
+  if (!accessGranted) return;
+
+  const now = Date.now();
+  if (now - lastLiveAccessRefreshAt < 1_500) return;
+  lastLiveAccessRefreshAt = now;
+  beginStreamRecovery("تم تفعيل دخولك إلى الحصة. جارٍ تحديث الصوت والصورة تلقائيًا…");
+}
+
+socket.on("student_live_access_updated", handleLiveAccessActivation);
+socket.on("student_account_status_updated", handleLiveAccessActivation);
+socket.on("student_payment_receipt_updated", handleLiveAccessActivation);
+
 socket.on("screen_share_state", (data = {}) => {
   if (!globalFreeClass && data.level !== level) return;
   const revision = Number(data.revision) || 0;
