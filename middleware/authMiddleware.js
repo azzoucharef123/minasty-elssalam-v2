@@ -1,5 +1,6 @@
 const { verifySessionToken } = require("../utils/sessionAuth");
 const prisma = require("../lib/prisma");
+const ENFORCE_PARENT_MESSENGER_LINK = /^(1|true|yes)$/i.test(String(process.env.ENFORCE_PARENT_MESSENGER_LINK || ""));
 
 /**
  * Extracts and verifies a JWT from Authorization: Bearer <token> and, for
@@ -39,7 +40,9 @@ function isParentMessengerGateExempt(req) {
 }
 
 async function requireParentMessengerLink(req, res, next) {
-  if (req.user?.role !== "parent" || isParentMessengerGateExempt(req)) return next();
+  // Keep the Messenger integration and gate implementation available, but leave
+  // enforcement disabled until the Facebook linking flow is fully validated.
+  if (!ENFORCE_PARENT_MESSENGER_LINK || req.user?.role !== "parent" || isParentMessengerGateExempt(req)) return next();
   try {
     const link = await prisma.messengerLink.findUnique({
       where: { parentPhone: req.user.phone },

@@ -1,6 +1,11 @@
 "use strict";
 
 (() => {
+  // Temporarily hidden: parent Messenger enforcement is disabled until the
+  // linking flow is fully validated. Keep this guard for future reactivation.
+  const PARENT_MESSENGER_ENFORCEMENT_ENABLED = false;
+  if (!PARENT_MESSENGER_ENFORCEMENT_ENABLED) return;
+
   const token = sessionStorage.getItem("parentToken") || "";
   if (!token) return;
 

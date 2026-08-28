@@ -330,14 +330,19 @@ test("Messenger audience filters distinguish payment stages and enrolled subject
   assert.equal(promisedPhysics.physicsEnrollment, true);
 });
 
-test("parent Messenger linking is required before dashboard and live-class access", () => {
+test("parent Messenger enforcement is retained but disabled by default", () => {
+  const parentDashboardHtml = fs.readFileSync(path.join(root, "public/parent-dashboard.html"), "utf8");
+  assert.match(authMiddleware, /ENFORCE_PARENT_MESSENGER_LINK/);
+  assert.match(authMiddleware, /!ENFORCE_PARENT_MESSENGER_LINK/);
   assert.match(authMiddleware, /PARENT_MESSENGER_LINK_REQUIRED/);
   assert.match(authMiddleware, /isParentMessengerGateExempt/);
   assert.match(parentDashboard, /auth: \{ token: getParentToken\(\) \|\| "" \}/);
   assert.match(parentGate, /parent-messenger-blocked/);
-  assert.match(pageGate, /parent-dashboard\.html\?messenger=required/);
+  assert.match(pageGate, /PARENT_MESSENGER_ENFORCEMENT_ENABLED = false/);
   assert.match(studentLive, /parentSessionToken/);
   assert.match(studentLive, /auth: parentSessionToken \? \{ token: parentSessionToken \} : \{\}/);
+  assert.match(parentDashboardHtml, /id="parent-messenger-required-banner"/);
+  assert.doesNotMatch(parentDashboardHtml, /parent-messenger-required\.js/);
 });
 
 test("Messenger linking and webhooks are dormant without credentials and follow secure patterns", () => {
