@@ -136,7 +136,7 @@ function serializeRegistryClass(item, { teacher = false, student = null } = {}) 
     accessReason: access.reason,
     driveLink: teacher ? item.driveLink : canRevealVideo ? item.driveLink : null,
     youtubeVideoId: teacher ? youtubeVideoId || null : canRevealVideo ? youtubeVideoId || null : null,
-    youtubeEmbedUrl: canRevealVideo && youtubeVideoId ? `https://www.youtube.com/embed/${youtubeVideoId}?controls=1&fs=1&rel=0&playsinline=1&enablejsapi=1&origin=https://dr.africacold.fr` : null,
+    youtubeEmbedUrl: canRevealVideo && youtubeVideoId ? `https://www.youtube.com/embed/${youtubeVideoId}?controls=1&fs=1&rel=0&playsinline=1&enablejsapi=1&origin=https://minasaty-app-2026.azurewebsites.net` : null,
     previewUrl: canRevealVideo && fileId ? `https://drive.google.com/file/d/${fileId}/preview` : null,
     videoProvider: canRevealVideo ? (youtubeVideoId ? "YOUTUBE" : fileId ? "GOOGLE_DRIVE" : null) : null,
   };
@@ -371,7 +371,7 @@ async function getCalendarIcs(req, res) {
     const formatUtc = (date) => date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
     const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Akademiat Altawafuq//AR", "CALSCALE:GREGORIAN"];
     for (const item of classes) {
-      lines.push("BEGIN:VEVENT", `UID:${item.id}@dr.africacold.fr`, `DTSTAMP:${formatUtc(item.createdAt)}`, `DTSTART:${formatUtc(item.scheduledAt)}`, `DTEND:${formatUtc(new Date(item.scheduledAt.getTime() + 60 * 60 * 1000))}`, `SUMMARY:${escapeIcs(`أكاديمية التفوق - ${item.subject}`)}`, `DESCRIPTION:${escapeIcs(`حصة المستوى ${item.level}`)}`, "END:VEVENT");
+      lines.push("BEGIN:VEVENT", `UID:${item.id}@minasaty-app-2026.azurewebsites.net`, `DTSTAMP:${formatUtc(item.createdAt)}`, `DTSTART:${formatUtc(item.scheduledAt)}`, `DTEND:${formatUtc(new Date(item.scheduledAt.getTime() + 60 * 60 * 1000))}`, `SUMMARY:${escapeIcs(`أكاديمية التفوق - ${item.subject}`)}`, `DESCRIPTION:${escapeIcs(`حصة المستوى ${item.level}`)}`, "END:VEVENT");
     }
     lines.push("END:VCALENDAR");
     res.type("text/calendar; charset=utf-8");

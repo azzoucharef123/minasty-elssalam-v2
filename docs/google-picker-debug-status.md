@@ -17,7 +17,7 @@
 
 ## الاختبار الحي
 
-تم نشر الإصلاح في الالتزام `cb36645` على `main`، وتحقق نشره على `https://dr.africacold.fr/teacher-dashboard.html` بحساب الأستاذ. ظهرت داخل النافذة خمسة ملفات فيديو من Google Drive، مع الاسم والتاريخ والحجم، دون ظهور خطأ Developer Key.
+تم نشر الإصلاح في الالتزام `cb36645` على `main`، وتحقق نشره على `https://minasaty-app-2026.azurewebsites.net/teacher-dashboard.html` بحساب الأستاذ. ظهرت داخل النافذة خمسة ملفات فيديو من Google Drive، مع الاسم والتاريخ والحجم، دون ظهور خطأ Developer Key.
 
 ## ملاحظة Google Cloud
 

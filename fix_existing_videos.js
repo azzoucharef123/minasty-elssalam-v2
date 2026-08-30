@@ -86,7 +86,7 @@ async function fix() {
   });
 
   for (const sc of scheduledClasses) {
-    const newUrl = `https://www.youtube.com/embed/${sc.youtubeVideoId}?rel=0&modestbranding=1&playsinline=1&fs=1&enablejsapi=1&origin=https://dr.africacold.fr`;
+    const newUrl = `https://www.youtube.com/embed/${sc.youtubeVideoId}?rel=0&modestbranding=1&playsinline=1&fs=1&enablejsapi=1&origin=https://minasaty-app-2026.azurewebsites.net`;
     // We don't have a direct field for embedUrl in ScheduledClass, it's generated on the fly or used from youtubeVideoId
     // But let's check LessonVideo which DOES have driveUrl
   }
@@ -99,7 +99,7 @@ async function fix() {
     const videoIdMatch = lv.driveUrl.match(/\/embed\/([A-Za-z0-9_-]{11})/);
     if (videoIdMatch) {
       const videoId = videoIdMatch[1];
-      const newUrl = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&playsinline=1&fs=1&enablejsapi=1&origin=https://dr.africacold.fr`;
+      const newUrl = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&playsinline=1&fs=1&enablejsapi=1&origin=https://minasaty-app-2026.azurewebsites.net`;
       await prisma.lessonVideo.update({
         where: { id: lv.id },
         data: { driveUrl: newUrl }

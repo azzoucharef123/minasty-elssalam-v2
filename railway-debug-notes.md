@@ -5,7 +5,7 @@ The Railway project URL opens the project `mindful-courage`, environment `produc
 The Railway Agent panel text says environment variables were staged for Minasaty and changes take effect on the next deployment. Git remote currently contains commit `b045e53` for the student chat modal change.
 
 
-Architecture view currently shows both `Postgres` and `Minasaty` as Online. The Minasaty card is labeled `dr.africacold.fr` and has a warning badge `1`; an `Update available` banner is visible. The service identifier shown in the page DOM is `230900cd-737d-4f41-ac21-c9893620e751`. The Railway project UI is accessible in the user's logged-in browser.
+Architecture view currently shows both `Postgres` and `Minasaty` as Online. The Minasaty card is labeled `minasaty-app-2026.azurewebsites.net` and has a warning badge `1`; an `Update available` banner is visible. The service identifier shown in the page DOM is `230900cd-737d-4f41-ac21-c9893620e751`. The Railway project UI is accessible in the user's logged-in browser.
 
 
 The Minasaty Deployments page confirms:

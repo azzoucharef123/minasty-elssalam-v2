@@ -1,6 +1,6 @@
 # اختبار الحصة العامة بالاسم الحقيقي
 
-تم نشر الالتزام `a2bd43a` على `https://dr.africacold.fr`.
+تم نشر الالتزام `a2bd43a` على `https://minasaty-app-2026.azurewebsites.net`.
 
 ## معاينة الصفحة الرئيسية
 

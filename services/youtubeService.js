@@ -9,7 +9,7 @@ const YOUTUBE_SCOPES = Object.freeze([
   "https://www.googleapis.com/auth/youtube.upload",
   "https://www.googleapis.com/auth/youtube.readonly",
 ]);
-const DEFAULT_REDIRECT_URI = "https://dr.africacold.fr/api/youtube/callback";
+const DEFAULT_REDIRECT_URI = "https://minasaty-app-2026.azurewebsites.net/api/youtube/callback";
 const TOKEN_ALGORITHM = "aes-256-gcm";
 
 function getClientId() {
@@ -174,7 +174,7 @@ async function listRecentVideos(limit = 10) {
       publishedAt: item.snippet?.publishedAt || null,
       thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || null,
       privacyStatus: item.status?.privacyStatus || "unknown",
-      embedUrl: `https://www.youtube.com/embed/${item.contentDetails.videoId}?controls=1&fs=1&rel=0&playsinline=1&enablejsapi=1&origin=https://dr.africacold.fr`,
+      embedUrl: `https://www.youtube.com/embed/${item.contentDetails.videoId}?controls=1&fs=1&rel=0&playsinline=1&enablejsapi=1&origin=https://minasaty-app-2026.azurewebsites.net`,
     }));
 }
 
@@ -203,7 +203,7 @@ async function uploadVideo({ stream, mimeType = "video/webm", title, description
   if (!id) throw new Error("لم تُرجع YouTube معرّف الفيديو بعد الرفع.");
   return {
     id,
-    embedUrl: `https://www.youtube.com/embed/${id}?controls=1&fs=1&rel=0&playsinline=1&enablejsapi=1&origin=https://dr.africacold.fr`,
+    embedUrl: `https://www.youtube.com/embed/${id}?controls=1&fs=1&rel=0&playsinline=1&enablejsapi=1&origin=https://minasaty-app-2026.azurewebsites.net`,
     privacyStatus: "unlisted",
   };
 }

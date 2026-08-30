@@ -533,7 +533,7 @@ async function handleMessengerWebhook(body = {}) {
         await sendMessengerMessage({
           psid: senderPsid,
           messagingType: "RESPONSE",
-          text: "لقد تم تفعيل حسابك الآن.\n\nللعودة إلى منصة Minasaty اضغط هنا:\nhttps://dr.africacold.fr/",
+          text: "لقد تم تفعيل حسابك الآن.\n\nللعودة إلى منصة Minasaty اضغط هنا:\nhttps://minasaty-app-2026.azurewebsites.net/",
         }).catch((error) => console.warn("Messenger link confirmation failed:", error.message));
       }
       processed += 1;

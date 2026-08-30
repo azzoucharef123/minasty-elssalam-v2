@@ -2,14 +2,14 @@
 
 Date: 2026-08-17
 
-The live page at https://dr.africacold.fr/teacher-dashboard.html was opened twice after pushing commit `2642f07`. The rendered page still shows the old structure: the level selector is not visible above the tabs, and the `Quiz` tab is absent. The visible tab list remains: الرئيسية، قائمة التلاميذ، برمجة الحصص، سجل الحصص، الواجبات، فيديوهات مكملة. The page title and data load successfully, so the issue appears to be deployment lag or a stale live artifact rather than an application crash.
+The live page at https://minasaty-app-2026.azurewebsites.net/teacher-dashboard.html was opened twice after pushing commit `2642f07`. The rendered page still shows the old structure: the level selector is not visible above the tabs, and the `Quiz` tab is absent. The visible tab list remains: الرئيسية، قائمة التلاميذ، برمجة الحصص، سجل الحصص، الواجبات، فيديوهات مكملة. The page title and data load successfully, so the issue appears to be deployment lag or a stale live artifact rather than an application crash.
 
 The new local files contain the expected markers and local checks passed, but live verification must continue after Railway finishes deploying or cache invalidation is confirmed.
 
-Key source: https://dr.africacold.fr/teacher-dashboard.html
+Key source: https://minasaty-app-2026.azurewebsites.net/teacher-dashboard.html
 
 
-Railway dashboard check: the Minasaty service for `dr.africacold.fr` is online but explicitly shows `Deploying (00:00)`. This explains why the public page still serves the old dashboard markup. No destructive action was taken; the deployment is ongoing.
+Railway dashboard check: the Minasaty service for `minasaty-app-2026.azurewebsites.net` is online but explicitly shows `Deploying (00:00)`. This explains why the public page still serves the old dashboard markup. No destructive action was taken; the deployment is ongoing.
 
 
 A second Railway status refresh still reports `Minasaty — Online · Deploying (00:00)`. The service remains available, but the new commit has not visibly replaced the old HTML yet.

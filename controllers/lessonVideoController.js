@@ -85,7 +85,7 @@ function extractYouTubeVideoId(value) {
 }
 
 function youtubeEmbedUrl(videoId) {
-  return `https://www.youtube.com/embed/${videoId}?controls=1&fs=1&rel=0&playsinline=1&enablejsapi=1&origin=https://dr.africacold.fr`;
+  return `https://www.youtube.com/embed/${videoId}?controls=1&fs=1&rel=0&playsinline=1&enablejsapi=1&origin=https://minasaty-app-2026.azurewebsites.net`;
 }
 
 function serializeLessonVideo(video, access = { canWatch: true, accessReason: null }) {
@@ -94,7 +94,7 @@ function serializeLessonVideo(video, access = { canWatch: true, accessReason: nu
   const youtubeVideoId = youtubeMatch?.[1] || "";
   const isYouTube = Boolean(youtubeVideoId);
   const youtubePreviewUrl = isYouTube
-    ? `https://www.youtube.com/embed/${youtubeVideoId}?controls=1&fs=1&rel=0&playsinline=1&enablejsapi=1&origin=https://dr.africacold.fr`
+    ? `https://www.youtube.com/embed/${youtubeVideoId}?controls=1&fs=1&rel=0&playsinline=1&enablejsapi=1&origin=https://minasaty-app-2026.azurewebsites.net`
     : "";
 
   return {

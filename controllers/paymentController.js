@@ -11,7 +11,7 @@ const SOFIZPAY_CHECK_URL = `${SOFIZPAY_BASE_URL}/cib-transaction-check/`;
 const SOFIZPAY_OPERATION_DETAILS_URL = `${SOFIZPAY_BASE_URL}/operation-details/`;
 const SOFIZPAY_ENCRYPTED_SECRET_KEY = String(process.env.SOFIZPAY_ENCRYPTED_SECRET_KEY || "").trim();
 const SOFIZPAY_WEBHOOK_SECRET = String(process.env.SOFIZPAY_WEBHOOK_SECRET || "").trim();
-const PUBLIC_SITE_URL = String(process.env.APP_BASE_URL || process.env.PUBLIC_SITE_URL || "https://dr.africacold.fr").replace(/\/$/, "");
+const PUBLIC_SITE_URL = String(process.env.APP_BASE_URL || process.env.PUBLIC_SITE_URL || "https://minasaty-app-2026.azurewebsites.net").replace(/\/$/, "");
 const SOFIZPAY_WEBHOOK_URL = `${PUBLIC_SITE_URL}/api/payments/sofizpay/webhook?secret=${encodeURIComponent(SOFIZPAY_WEBHOOK_SECRET)}`;
 
 if (!SOFIZPAY_WEBHOOK_SECRET) {
@@ -90,7 +90,7 @@ function findNestedField(payload, fieldNames, depth = 0) {
 
 async function createSofizPayPayment({ student, subscriptionType, amount, internalOrderId }) {
   const phone = text(student.parentPhone, 40);
-  const email = `${phone.replace(/[^0-9]/g, "") || "parent"}@dr.africacold.fr`;
+  const email = `${phone.replace(/[^0-9]/g, "") || "parent"}@minasaty-app-2026.azurewebsites.net`;
   const params = new URLSearchParams({
     account: SOFIZPAY_ACCOUNT,
     amount: String(amount),

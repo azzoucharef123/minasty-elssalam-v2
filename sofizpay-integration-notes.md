@@ -30,20 +30,20 @@ The official transaction-check page is https://docs.sofizpay.com/en/api/v1/endpo
 
 Created in the SofizPay Merchant Portal after explicit user approval:
 - BOTH / 2030 DZD / memo BOTH-2030
-- Return URL: https://dr.africacold.fr/parent-dashboard.html?payment=sofizpay&subscription=BOTH
-- Generated link: https://sofizpay.com/create-payment-link/?account=GBYAJX2VUMCKQQMTQRKIHFL7GWKPXQGAQNNCJOIV232S3Q73NNYK6JF4&amount=2030&memo=BOTH-2030&return_url=https%3A%2F%2Fdr.africacold.fr%2Fparent-dashboard.html%3Fpayment%3Dsofizpay%26subscription%3DBOTH
+- Return URL: https://minasaty-app-2026.azurewebsites.net/parent-dashboard.html?payment=sofizpay&subscription=BOTH
+- Generated link: https://sofizpay.com/create-payment-link/?account=GBYAJX2VUMCKQQMTQRKIHFL7GWKPXQGAQNNCJOIV232S3Q73NNYK6JF4&amount=2030&memo=BOTH-2030&return_url=https%3A%2F%2Fminasaty-app-2026.azurewebsites.net%2Fparent-dashboard.html%3Fpayment%3Dsofizpay%26subscription%3DBOTH
 
 
 Created in the SofizPay Merchant Portal:
 - MATH / 1030 DZD / memo MATH-1030
-- Return URL: https://dr.africacold.fr/parent-dashboard.html?payment=sofizpay&subscription=MATH
-- Generated link: https://sofizpay.com/create-payment-link/?account=GBYAJX2VUMCKQQMTQRKIHFL7GWKPXQGAQNNCJOIV232S3Q73NNYK6JF4&amount=1030&memo=MATH-1030&return_url=https%3A%2F%2Fdr.africacold.fr%2Fparent-dashboard.html%3Fpayment%3Dsofizpay%26subscription%3DMATH
+- Return URL: https://minasaty-app-2026.azurewebsites.net/parent-dashboard.html?payment=sofizpay&subscription=MATH
+- Generated link: https://sofizpay.com/create-payment-link/?account=GBYAJX2VUMCKQQMTQRKIHFL7GWKPXQGAQNNCJOIV232S3Q73NNYK6JF4&amount=1030&memo=MATH-1030&return_url=https%3A%2F%2Fminasaty-app-2026.azurewebsites.net%2Fparent-dashboard.html%3Fpayment%3Dsofizpay%26subscription%3DMATH
 
 
 Created in the SofizPay Merchant Portal:
 - PHYSICS / 1030 DZD / memo PHYSICS-1030
-- Return URL: https://dr.africacold.fr/parent-dashboard.html?payment=sofizpay&subscription=PHYSICS
-- Generated link: https://sofizpay.com/create-payment-link/?account=GBYAJX2VUMCKQQMTQRKIHFL7GWKPXQGAQNNCJOIV232S3Q73NNYK6JF4&amount=1030&memo=PHYSICS-1030&return_url=https%3A%2F%2Fdr.africacold.fr%2Fparent-dashboard.html%3Fpayment%3Dsofizpay%26subscription%3DPHYSICS
+- Return URL: https://minasaty-app-2026.azurewebsites.net/parent-dashboard.html?payment=sofizpay&subscription=PHYSICS
+- Generated link: https://sofizpay.com/create-payment-link/?account=GBYAJX2VUMCKQQMTQRKIHFL7GWKPXQGAQNNCJOIV232S3Q73NNYK6JF4&amount=1030&memo=PHYSICS-1030&return_url=https%3A%2F%2Fminasaty-app-2026.azurewebsites.net%2Fparent-dashboard.html%3Fpayment%3Dsofizpay%26subscription%3DPHYSICS
 
 
 Official payment-link documentation confirms the fixed-link format: `https://sofizpay.com/create-payment-link/?account=...&amount=...&memo=...&return_url=...`. The three links created above use this documented format. The return URL carries the subscription type; the site stores its own internal order ID in sessionStorage and associates the provider order number when SofizPay returns one.

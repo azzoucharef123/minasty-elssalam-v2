@@ -19,7 +19,7 @@ function getPublicSiteUrl(req) {
 
   const forwardedProtocol = String(req?.get?.("x-forwarded-proto") || "").split(",")[0].trim();
   const protocol = forwardedProtocol || req?.protocol || "https";
-  const host = String(req?.get?.("host") || "dr.africacold.fr").trim();
+  const host = String(req?.get?.("host") || "minasaty-app-2026.azurewebsites.net").trim();
   return `${protocol}://${host}`.replace(/\/$/, "");
 }
 
